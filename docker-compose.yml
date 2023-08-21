@@ -1,0 +1,14 @@
+version: "3.9"
+services:
+  gazebosim:
+    build:
+      context: .
+      dockerfile: docker/gazebo/gazebosim.Dockerfile
+    image: gazebosim:$USERNAME
+    user: ${FIXUID:?}:${FIXGID:?}
+    ipc: host
+    tty: true
+    ports:
+      - "9002:9002"
+    volumes:
+      - ./launch:/home/docker/launch
