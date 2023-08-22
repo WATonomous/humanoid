@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<ignition version='1.0'>
+  <executable name='sim-server'>
+    <command>ign gazebo -s -v 4 -r launch/sensors_tutorial.sdf</command>
+  </executable> 
+  <!-- <executable name='ros_gz'>
+    <command>source /opt/ros/humble/setup.bash && ros2 run ros_gz_bridge parameter_bridge /clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock</command>
+  </executable>  -->
+
+  <plugin name="ignition::launch::WebsocketServer" filename="ignition-launch-websocket-server">
+    <publication_hz>30</publication_hz>
+    <port>9002</port>
+    <max_connections>-1</max_connections>
+  </plugin>
+  
+</ignition>

@@ -5,18 +5,18 @@
             <max_step_size>0.001</max_step_size>
             <real_time_factor>1.0</real_time_factor>
         </physics>
-        <plugin
-            filename="gz-sim-physics-system"
-            name="gz::sim::systems::Physics">
+        <!-- <plugin
+            filename="libignition-gazebo-physics-system.so"
+            name="ignition::sim::systems::Physics">
         </plugin>
         <plugin
-            filename="gz-sim-user-commands-system"
-            name="gz::sim::systems::UserCommands">
+            filename="libignition-gazebo-user-commands-system.so"
+            name="ignition::sim::systems::UserCommands">
         </plugin>
         <plugin
-            filename="gz-sim-scene-broadcaster-system"
-            name="gz::sim::systems::SceneBroadcaster">
-        </plugin>
+            filename="libignition-gazebo-scene-broadcaster-system.so"
+            name="ignition::sim::systems::SceneBroadcaster">
+        </plugin> -->
 
         <light type="directional" name="sun">
             <cast_shadows>true</cast_shadows>
@@ -245,8 +245,8 @@
                 <child>caster</child>
             </joint>
             <plugin
-                filename="gz-sim-diff-drive-system"
-                name="gz::sim::systems::DiffDrive">
+                filename="libignition-gazebo-diff-drive-system.so"
+                name="ignition::gazebo::systems::DiffDrive">
                 <left_joint>left_wheel_joint</left_joint>
                 <right_joint>right_wheel_joint</right_joint>
                 <wheel_separation>1.2</wheel_separation>

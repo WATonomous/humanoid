@@ -1,0 +1,24 @@
+version: "3.9"
+services:
+  gazeboserver:
+    build:
+      context: ..
+      dockerfile: docker/gazebo/gazeboserver.Dockerfile
+      cache_from:
+        - "${GAZEBO_SERVER_IMAGE:?}:${TAG}"
+        - "${GAZEBO_SERVER_IMAGE:?}:main"
+    image: "${GAZEBO_SERVER_IMAGE:?}:${TAG}"
+    user: ${FIXUID:?}:${FIXGID:?}
+    ipc: host
+    tty: true
+    ports:
+      - "9002:9002"
+    volumes:
+      - ../launch:/home/docker/launch
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            device_ids: ['0'] # Change to ['0', '1'] to use two GPUs
+            capabilities: [gpu]
