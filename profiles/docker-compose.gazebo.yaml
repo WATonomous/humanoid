@@ -12,7 +12,7 @@ services:
     ipc: host
     tty: true
     ports:
-      - "9002:9002"
+      - "${GAZEBO_PORT:?}:9002"
     volumes:
       - ../launch:/home/docker/launch
     deploy:
