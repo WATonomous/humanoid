@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <sdf version="1.8">
-    <world name="sensor_world">
+    <world name="sim_world">
         <physics name="1ms" type="ignored">
             <max_step_size>0.001</max_step_size>
             <real_time_factor>1.0</real_time_factor>
@@ -297,38 +297,22 @@
             <direction>-0.5 0.1 -0.9</direction>
         </light>
 
-        <model name="ground_plane">
-            <static>true</static>
-            <link name="link">
-                <collision name="collision">
-                <geometry>
-                    <plane>
-                    <normal>0 0 1</normal>
-                    </plane>
-                </geometry>
-                </collision>
-                <visual name="visual">
-                <geometry>
-                    <plane>
-                    <normal>0 0 1</normal>
-                    <size>100 100</size>
-                    </plane>
-                </geometry>
-                <material>
-                    <ambient>0.8 0.8 0.8 1</ambient>
-                    <diffuse>0.8 0.8 0.8 1</diffuse>
-                    <specular>0.8 0.8 0.8 1</specular>
-                </material>
-                </visual>
-            </link>
-        </model>
-
-        <model name='vehicle_blue' canonical_link='chassis'>
-            <pose relative_to='world'>0 0 1 0 0 0</pose>   <!--the pose is relative to the world by default-->
+        <model name='robot' canonical_link='chassis'>
+            <pose relative_to='world'>-6 0 1 0 0 0</pose>   <!--the pose is relative to the world by default-->
 
             <frame name="lidar_frame" attached_to='chassis'>
                 <pose>0.8 0 0.5 0 0 0</pose>
             </frame>
+
+            <frame name="camera_frame" attached_to='chassis'>
+                <pose>0.8 0 0.5 0 0 0</pose>
+            </frame>
+        
+            <frame name="camera_optical_frame" attached_to='camera_frame'>
+                <pose>0 0 0 -1.57 0 -1.57</pose>
+            </frame>
+
+       
 
             <link name='chassis'>
                 <pose relative_to='__model__'>0.5 0 0.4 0 0 0</pose>
@@ -390,7 +374,7 @@
                     </scan>
                     <range>
                         <min>0.08</min>
-                        <max>10.0</max>
+                        <max>20.0</max>
                         <resolution>0.01</resolution>
                     </range>
                     </ray>
@@ -398,8 +382,26 @@
                     <visualize>true</visualize>
                 </sensor>
 
+                <sensor name="camera" type="camera">
+                    <pose relative_to="camera_frame">0 0 0 0 0 0</pose>
+                    <camera>
+                        <horizontal_fov>1.047</horizontal_fov>
+                        <image>
+                            <width>320</width>
+                            <height>240</height>
+                        </image>
+                        <clip>
+                            <near>0.1</near>
+                            <far>100</far>
+                        </clip>
+                    </camera>
+                    <always_on>1</always_on>
+                    <update_rate>30</update_rate>
+                    <visualize>true</visualize>
+                    <topic>camera</topic>
+                </sensor>
             </link>
-
+            
             <!--let's build the left wheel-->
             <link name='left_wheel'>
                 <pose relative_to="chassis">-0.5 0.6 0 -1.5707 0 0</pose> <!--angles are in radian-->
@@ -557,57 +559,17 @@
                 <odom_publish_frequency>1</odom_publish_frequency>
                 <topic>cmd_vel</topic>
             </plugin>
-        </model>
-
-        <!--wall-->
-        <model name='wall'>
-            <static>true</static>
-            <pose>5 0 0 0 0 0</pose><!--pose relative to the world-->
-            <link name='box'>
-                <pose/>
-                <inertial> <!--inertial properties of the link mass, inertia matix-->
-                    <mass>1.14395</mass>
-                    <inertia>
-                        <ixx>9.532917</ixx>
-                        <ixy>0</ixy>
-                        <ixz>0</ixz>
-                        <iyy>0.023832</iyy>
-                        <iyz>0</iyz>
-                        <izz>9.556749</izz>
-                    </inertia>
-                </inertial>
-                <visual name='visual'>
-                    <geometry>
-                        <box>
-                            <size>0.5 10.0 2.0</size>
-                        </box>
-                    </geometry>
-                    <!--let's add color to our link-->
-                    <material>
-                        <ambient>0.0 0.0 1.0 1</ambient>
-                        <diffuse>0.0 0.0 1.0 1</diffuse>
-                        <specular>0.0 0.0 1.0 1</specular>
-                    </material>
-                </visual>
-                <collision name='collision'> <!--todo: describe why we need the collision-->
-                    <geometry>
-                        <box>
-                            <size>0.5 10.0 2.0</size>
-                        </box>
-                    </geometry>
-                </collision>
-                <sensor name='sensor_contact' type='contact'>
-                    <contact>
-                        <collision>collision</collision>
-                    </contact>
-                </sensor>
-            </link>
-            <plugin filename="ignition-gazebo-touchplugin-system"
-                    name="ignition::gazebo::systems::TouchPlugin">
-                <target>vehicle_blue</target>
-                <namespace>wall</namespace>
-                <time>0.001</time>
-                <enabled>true</enabled>
+            <plugin 
+                filename="libignition-gazebo-pose-publisher-system.so" 
+                name="ignition::gazebo::systems::PosePublisher">
+                <publish_link_pose>true</publish_link_pose>
+                <publish_sensor_pose>true</publish_sensor_pose>
+                <publish_collision_pose>false</publish_collision_pose>
+                <publish_visual_pose>false</publish_visual_pose>
+                <publish_nested_model_pose>true</publish_nested_model_pose> <!-- this bit is important -->
+                <use_pose_vector_msg>true</use_pose_vector_msg>
+                <static_publisher>true</static_publisher>
+                <static_update_frequency>10</static_update_frequency>
             </plugin>
         </model>
 
@@ -665,5 +627,6 @@
                 linear: {x: 0.0}, angular: {z: 0.0}
             </output>
         </plugin>
+
     </world>
 </sdf>

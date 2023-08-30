@@ -19,10 +19,14 @@ def generate_launch_description():
     bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
-        arguments=['/cmd_vel@geometry_msgs/msg/Twist]ignition.msgs.Twist',
-                   '/imu@sensor_msgs/msg/IMU@ignition.msgs.IMU',
+        arguments=['/model/robot/pose@tf2_msgs/msg/TFMessage@ignition.msgs.Pose_V',
+                   '/model/robot/pose_static@tf2_msgs/msg/TFMessage@ignition.msgs.Pose_V',
+                   '/cmd_vel@geometry_msgs/msg/Twist]ignition.msgs.Twist',
+                   '/imu@sensor_msgs/msg/Imu@ignition.msgs.IMU',
                    '/lidar/points@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked',
-                   '/model/vehicle_blue/odometry@nav_msgs/msg/Odometry@gz.msgs.Odometry'],
+                   '/model/robot/odometry@nav_msgs/msg/Odometry@gz.msgs.Odometry',
+                   '/camera@sensor_msgs/msg/Image@ignition.msgs.Image',
+                   '/camera_info@sensor_msgs/msg/CameraInfo@ignition.msgs.CameraInfo'],
         parameters=[{'qos_overrides./model/vehicle_blue.subscriber.reliability': 'reliable'}],
         output='screen'
     )
