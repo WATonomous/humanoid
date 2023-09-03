@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <ignition version='1.0'>
   <executable name='sim-server'>
-    <command>ign gazebo -s -v 4 -r launch/robot_env.sdf</command>
+    <command>ign gazebo -s -v 4 -r src/gazebo/launch/robot_env.sdf</command>
   </executable> 
   <!-- <executable name='ros_gz'>
     <command>source /opt/ros/humble/setup.bash && ros2 run ros_gz_bridge parameter_bridge /clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock</command>

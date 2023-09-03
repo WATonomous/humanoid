@@ -1,3 +1,2 @@
 .env
-dev_config.local.sh
-launch/__pycache__
+__pycache__

@@ -14,7 +14,7 @@ services:
     ports:
       - "${GAZEBO_PORT:?}:9002"
     volumes:
-      - ../launch:/home/docker/launch
+      - ../src/gazebo/launch:/home/docker/src/gazebo/launch
     deploy:
       resources:
         reservations:

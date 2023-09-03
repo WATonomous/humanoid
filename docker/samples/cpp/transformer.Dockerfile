@@ -1,21 +1,10 @@
+# ================= Dependencies ===================
 FROM ros:humble AS base
 
 RUN apt-get update && apt-get install -y curl && \
     rm -rf /var/lib/apt/lists/*
 
-# RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys A4B469963BF863CC
-RUN apt-get update && apt-get install ffmpeg libsm6 libxext6 -y
-
-RUN apt install -y lsb-release wget gnupg
-RUN wget https://packages.osrfoundation.org/gazebo.gpg -O /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
-RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null
-RUN apt-get -y update
-RUN apt-get -y install ros-${ROS_DISTRO}-ros-gz ignition-fortress
-RUN apt-get -y install ros-humble-velodyne-gazebo-plugins
-RUN echo $GAZEBO_PLUGIN_PATH=/opt/ros/humble/lib
-
-
-# Add a docker user so that created files in the docker container are owned by a non-root user
+# Add a docker user so we that created files in the docker container are owned by a non-root user
 RUN addgroup --gid 1000 docker && \
     adduser --uid 1000 --ingroup docker --home /home/docker --shell /bin/bash --disabled-password --gecos "" docker && \
     echo "docker ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/nopasswd
@@ -36,20 +25,24 @@ ENV DEBIAN_FRONTEND noninteractive
 RUN sudo chsh -s /bin/bash
 ENV SHELL=/bin/bash
 
+# ================= Repositories ===================
 FROM base as repo
 
-USER docker:docker
-WORKDIR /home/docker
+RUN mkdir -p ~/ament_ws/src
+WORKDIR /home/docker/ament_ws/src
 
-ENV DEBIAN_FRONTEND interactive
+COPY src/samples/cpp/transformer transformer
+COPY src/wato_msgs/sample_msgs sample_msgs
 
+WORKDIR /home/docker/ament_ws
+RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
+    rosdep update && \
+    rosdep install -i --from-path src --rosdistro $ROS_DISTRO -y && \
+    colcon build \
+        --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+# Entrypoint will run before any CMD on launch. Sources ~/ament_ws/install/setup.bash
 COPY docker/wato_ros_entrypoint.sh /home/docker/wato_ros_entrypoint.sh
-COPY docker/ros_entrypoint.sh /home/docker/ros_entrypoint.sh
 COPY docker/.bashrc /home/docker/.bashrc
-
-ENTRYPOINT ["/usr/local/bin/fixuid", "-q", "/home/docker/ros_entrypoint.sh"]
-
-# CMD ["sleep", "infinity"]
-# CMD ["ign", "launch", "launch/sim.ign"]
-
-CMD ["ros2", "launch", "src/gazebo/launch/sim.launch.py"]
+ENTRYPOINT ["/usr/local/bin/fixuid", "-q", "/home/docker/wato_ros_entrypoint.sh"]
+CMD ["ros2", "launch", "transformer", "transformer.launch.py"]

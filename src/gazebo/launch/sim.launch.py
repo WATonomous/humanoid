@@ -13,7 +13,7 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    gz_sim = ExecuteProcess(cmd=['ign', 'launch', '-v 4', 'launch/sim.ign'])
+    gz_sim = ExecuteProcess(cmd=['ign', 'launch', '-v 4', 'src/gazebo/launch/sim.ign'])
 
     # Bridge
     bridge = Node(
