@@ -52,4 +52,4 @@ ENTRYPOINT ["/usr/local/bin/fixuid", "-q", "/home/docker/ros_entrypoint.sh"]
 # CMD ["sleep", "infinity"]
 # CMD ["ign", "launch", "launch/sim.ign"]
 
-CMD ["ros2", "launch", "launch/sim.launch.py"]
+CMD ["ros2", "launch", "src/gazebo/launch/sim.launch.py"]
