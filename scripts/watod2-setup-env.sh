@@ -61,6 +61,9 @@ SAMPLES_PYTHON_TRANSFORMER_IMAGE=${SAMPLES_PYTHON_TRANSFORMER_IMAGE:-"git.uwater
 # ASD Training Images
 GAZEBO_SERVER_IMAGE=${GAZEBO_SERVER_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_asd_training/gazebo_server"}
 INFRASTRUCTURE_FOXGLOVE_IMAGE=${INFRASTRUCTURE_FOXGLOVE_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_asd_training/infrastructure_foxglove"}
+ROBOT_OCCUPANCY_IMAGE=${ROBOT_OCCUPANCY_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_monorepo/robot_occupancy"}
+ROBOT_NAV_IMAGE=${ROBOT_NAV_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_monorepo/robot_nav"}
+ROBOT_CONTROL_IMAGE=${ROBOT_CONTROL_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_monorepo/robot_control"}
 
 ## -------------------------- User ID -----------------------------
 
@@ -112,5 +115,8 @@ echo "SAMPLES_PYTHON_TRANSFORMER_IMAGE=$SAMPLES_PYTHON_TRANSFORMER_IMAGE" >> "$P
 # ASD Training Images
 echo "GAZEBO_SERVER_IMAGE=$GAZEBO_SERVER_IMAGE" >> "$PROFILES_DIR/.env"
 echo "INFRASTRUCTURE_FOXGLOVE_IMAGE=$INFRASTRUCTURE_FOXGLOVE_IMAGE" >> "$PROFILES_DIR/.env"
+echo "ROBOT_OCCUPANCY_IMAGE=$ROBOT_OCCUPANCY_IMAGE" >> "$PROFILES_DIR/.env"
+echo "ROBOT_NAV_IMAGE=$ROBOT_NAV_IMAGE" >> "$PROFILES_DIR/.env"
+echo "ROBOT_CONTROL_IMAGE=$ROBOT_CONTROL_IMAGE" >> "$PROFILES_DIR/.env"
 
 cat $PROFILES_DIR/.env
