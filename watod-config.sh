@@ -1,4 +1,4 @@
-## ----------------------- Watod2 Configuration File Override ----------------------------
+## ----------------------- watod Configuration File Override ----------------------------
 ## ACTIVE PROFILES CONFIGURATION
 ## List of active profiles to run, defined in docker-compose.yaml.
 ##
@@ -7,7 +7,7 @@
 ##   - gazebo           :   starts robot simulator (gazebo)
 ##   - samples          :   starts up sample nodes for reference
 
-ACTIVE_PROFILES="vis_tools gazebo robot"
+# ACTIVE_PROFILES=""
 
 ## Name to append to docker containers. DEFAULT = <your_watcloud_username>
 
