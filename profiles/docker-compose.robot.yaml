@@ -1,0 +1,43 @@
+version: "3.8"
+services:
+  occupancy: 
+    build:
+      context: ..
+      dockerfile: docker/robot/occupancy.Dockerfile
+      cache_from:
+        - "${ROBOT_OCCUPANCY_IMAGE:?}:${TAG}"
+        - "${ROBOT_OCCUPANCY_IMAGE:?}:main"
+    image: "${ROBOT_OCCUPANCY_IMAGE:?}:${TAG}"
+    security_opt:
+      - seccomp:${PROFILES_DIR}/seccomp_profile.json 
+    user: ${FIXUID:?}:${FIXGID:?}
+    volumes:
+      - ${MONO_DIR}/src/robot/occupancy:/home/docker/ament_ws/src/occupancy
+
+  nav:
+    build:
+      context: ..
+      dockerfile: docker/robot/nav.Dockerfile
+      cache_from:
+        - "${ROBOT_NAV_IMAGE:?}:${TAG}"
+        - "${ROBOT_NAV_IMAGE:?}:main"
+    image: "${ROBOT_NAV_IMAGE:?}:${TAG}"
+    security_opt:
+      - seccomp:${PROFILES_DIR}/seccomp_profile.json 
+    user: ${FIXUID:?}:${FIXGID:?}
+    volumes:
+      - ${MONO_DIR}/src/robot/nav:/home/docker/ament_ws/src/nav
+
+  control: 
+    build:
+      context: ..
+      dockerfile: docker/robot/control.Dockerfile
+      cache_from:
+        - "${ROBOT_CONTROL_IMAGE:?}:${TAG}"
+        - "${ROBOT_CONTROL_IMAGE:?}:main"
+    image: "${ROBOT_CONTROL_IMAGE:?}:${TAG}"
+    security_opt:
+      - seccomp:${PROFILES_DIR}/seccomp_profile.json 
+    user: ${FIXUID:?}:${FIXGID:?}
+    volumes:
+      - ${MONO_DIR}/src/robot/control:/home/docker/ament_ws/src/control
