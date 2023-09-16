@@ -29,7 +29,11 @@ def generate_launch_description():
                    '/camera@sensor_msgs/msg/Image@ignition.msgs.Image',
                    '/camera_info@sensor_msgs/msg/CameraInfo@ignition.msgs.CameraInfo'],
         parameters=[{'qos_overrides./model/vehicle_blue.subscriber.reliability': 'reliable'}],
-        output='screen'
+        output='screen',
+        remappings=[
+            ('/model/robot/pose', '/tf'),
+            ('/model/robot/pose_static', '/tf')
+        ]
     )
 
     return LaunchDescription([

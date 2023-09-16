@@ -1,0 +1,255 @@
+{
+  "configById": {
+    "3D!185ho2t": {
+      "cameraState": {
+        "perspective": true,
+        "distance": 47.833119595403204,
+        "phi": 58.475641645335315,
+        "thetaOffset": 154.82162807274014,
+        "targetOffset": [
+          -4.250206458950288,
+          4.088433137523293,
+          -7.908044682914301e-17
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-pose",
+      "followTf": "sim_world",
+      "scene": {},
+      "transforms": {
+        "frame:robot/right_wheel": {
+          "visible": false
+        },
+        "frame:robot/left_wheel": {
+          "visible": false
+        },
+        "frame:robot/chassis/imu_sensor": {
+          "visible": false
+        },
+        "frame:robot/caster": {
+          "visible": false
+        },
+        "frame:robot/chassis/camera": {
+          "visible": true
+        },
+        "frame:cyl2": {
+          "visible": false
+        },
+        "frame:cyl1": {
+          "visible": false
+        },
+        "frame:box5": {
+          "visible": false
+        },
+        "frame:box4": {
+          "visible": false
+        },
+        "frame:box3": {
+          "visible": false
+        },
+        "frame:box2": {
+          "visible": false
+        },
+        "frame:box1": {
+          "visible": false
+        }
+      },
+      "topics": {
+        "/lidar": {
+          "visible": true,
+          "colorField": "range",
+          "colorMode": "gradient",
+          "colorMap": "turbo",
+          "pointSize": 13.66,
+          "gradient": [
+            "#c41212ff",
+            "#36ff00ff"
+          ],
+          "pointShape": "circle"
+        },
+        "/lidar/points": {
+          "visible": true,
+          "colorField": "ring",
+          "colorMode": "gradient",
+          "colorMap": "turbo",
+          "pointSize": 9,
+          "pointShape": "circle",
+          "gradient": [
+            "rgba(100, 47, 105, 1)",
+            "#718ab7ff"
+          ]
+        },
+        "/camera": {
+          "visible": false
+        },
+        "/occupancy": {
+          "visible": false,
+          "colorMode": "costmap"
+        },
+        "/path_marker": {
+          "visible": false,
+          "color": "#ff000073",
+          "showOutlines": true
+        }
+      },
+      "layers": {
+        "9e830917-d6fe-4f25-8e7b-25afa5a47d21": {
+          "visible": true,
+          "frameLocked": true,
+          "label": "URDF",
+          "instanceId": "9e830917-d6fe-4f25-8e7b-25afa5a47d21",
+          "layerId": "foxglove.Urdf",
+          "sourceType": "url",
+          "url": "https://raw.githubusercontent.com/WATonomous/wato_asd_training/development/src/gazebo/launch/robot.urdf",
+          "filePath": "",
+          "parameter": "",
+          "topic": "",
+          "framePrefix": "",
+          "displayMode": "auto",
+          "fallbackColor": "#ffffff",
+          "order": 1
+        },
+        "6387c3f4-066a-4fb9-a043-d9bbb06d4697": {
+          "visible": true,
+          "frameLocked": true,
+          "label": "Grid",
+          "instanceId": "6387c3f4-066a-4fb9-a043-d9bbb06d4697",
+          "layerId": "foxglove.Grid",
+          "divisions": 30,
+          "color": "#248eff",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "order": 2,
+          "size": 30,
+          "lineWidth": 1
+        },
+        "cadf14d8-072e-4af6-8fd0-60bf81d00399": {
+          "visible": true,
+          "frameLocked": true,
+          "label": "URDF",
+          "instanceId": "cadf14d8-072e-4af6-8fd0-60bf81d00399",
+          "layerId": "foxglove.Urdf",
+          "sourceType": "url",
+          "url": "https://raw.githubusercontent.com/WATonomous/wato_asd_training/reference/src/gazebo/launch/env.urdf",
+          "filePath": "",
+          "parameter": "",
+          "topic": "",
+          "framePrefix": "",
+          "displayMode": "auto",
+          "fallbackColor": "#454545",
+          "order": 3
+        }
+      },
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/goal_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.5,
+        "poseEstimateYDeviation": 0.5,
+        "poseEstimateThetaDeviation": 0.26179939
+      },
+      "imageMode": {}
+    },
+    "Teleop!1rfn0xj": {
+      "topic": "/cmd_vel",
+      "publishRate": 1,
+      "upButton": {
+        "field": "linear-x",
+        "value": 1
+      },
+      "downButton": {
+        "field": "linear-x",
+        "value": 0
+      },
+      "leftButton": {
+        "field": "angular-z",
+        "value": 1
+      },
+      "rightButton": {
+        "field": "angular-z",
+        "value": -1
+      }
+    },
+    "Image!4fph4p5": {
+      "cameraState": {
+        "distance": 20,
+        "perspective": true,
+        "phi": 60,
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOffset": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "thetaOffset": 45,
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-pose",
+      "scene": {},
+      "transforms": {},
+      "topics": {},
+      "layers": {},
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.5,
+        "poseEstimateYDeviation": 0.5,
+        "poseEstimateThetaDeviation": 0.26179939
+      },
+      "imageMode": {
+        "imageTopic": "/camera"
+      }
+    }
+  },
+  "globalVariables": {},
+  "userNodes": {},
+  "playbackConfig": {
+    "speed": 1
+  },
+  "layout": {
+    "first": "3D!185ho2t",
+    "second": {
+      "first": "Teleop!1rfn0xj",
+      "second": "Image!4fph4p5",
+      "direction": "column"
+    },
+    "direction": "row",
+    "splitPercentage": 65.85648148148148
+  }
+}

@@ -322,12 +322,12 @@
 
         <model name='wall'>
             <static>true</static>
-            <pose>0 2 0 0 0 0</pose>
+            <pose>0 -15 0 0 0 0</pose>
             <link name='box'>
                 <visual name='visual'>
                     <geometry>
                         <box>
-                            <size>10 0.5 3.0</size>
+                            <size>30 0.5 3.0</size>
                         </box>
                     </geometry>
                     <material>
@@ -339,7 +339,7 @@
                 <collision name='collision'>
                     <geometry>
                         <box>
-                            <size>10 0.5 3.0</size>
+                            <size>30 0.5 3.0</size>
                         </box>
                     </geometry>
                 </collision>
@@ -348,12 +348,12 @@
 
         <model name='wall1'>
             <static>true</static>
-            <pose>2 -2 0 0 0 0</pose>
+            <pose>0 15 0 0 0 0</pose>
             <link name='box'>
                 <visual name='visual'>
                     <geometry>
                         <box>
-                            <size>14 0.5 3.0</size>
+                            <size>30 0.5 3.0</size>
                         </box>
                     </geometry>
                     <material>
@@ -365,7 +365,7 @@
                 <collision name='collision'>
                     <geometry>
                         <box>
-                            <size>14 0.5 3.0</size>
+                            <size>30 0.5 3.0</size>
                         </box>
                     </geometry>
                 </collision>
@@ -374,12 +374,12 @@
 
         <model name='wall2'>
             <static>true</static>
-            <pose>9 3 0 0 0 0</pose>
+            <pose>15 0 0 0 0 0</pose>
             <link name='box'>
                 <visual name='visual'>
                     <geometry>
                         <box>
-                            <size>0.5 10 3.0</size>
+                            <size>0.5 30 3.0</size>
                         </box>
                     </geometry>
                     <material>
@@ -391,13 +391,228 @@
                 <collision name='collision'>
                     <geometry>
                         <box>
-                            <size>0.5 10 3.0</size>
+                            <size>0.5 30 3.0</size>
                         </box>
                     </geometry>
                 </collision>
             </link>
         </model>
 
+        <model name='wall3'>
+            <static>true</static>
+            <pose>-15 0 0 0 0 0</pose>
+            <link name='box'>
+                <visual name='visual'>
+                    <geometry>
+                        <box>
+                            <size>0.5 30 3.0</size>
+                        </box>
+                    </geometry>
+                    <material>
+                        <ambient>0.0 0.0 1.0 1</ambient>
+                        <diffuse>0.0 0.0 1.0 1</diffuse>
+                        <specular>0.0 0.0 1.0 1</specular>
+                    </material>
+                </visual>
+                <collision name='collision'>
+                    <geometry>
+                        <box>
+                            <size>0.5 30 3.0</size>
+                        </box>
+                    </geometry>
+                </collision>
+            </link>
+        </model>
+
+        <model name='box1'>
+            <static>true</static>
+            <pose>7 -6 0 0 0 0</pose>
+            <link name='box'>
+                <visual name='visual'>
+                    <geometry>
+                        <box>
+                            <size>3 3 3.0</size>
+                        </box>
+                    </geometry>
+                    <material>
+                        <ambient>0.0 0.0 1.0 1</ambient>
+                        <diffuse>0.0 0.0 1.0 1</diffuse>
+                        <specular>0.0 0.0 1.0 1</specular>
+                    </material>
+                </visual>
+                <collision name='collision'>
+                    <geometry>
+                        <box>
+                            <size>3 3 3.0</size>
+                        </box>
+                    </geometry>
+                </collision>
+            </link>
+        </model>
+
+        <model name='box2'>
+            <static>true</static>
+            <pose>-8 6 0 0 0 0</pose>
+            <link name='box'>
+                <visual name='visual'>
+                    <geometry>
+                        <box>
+                            <size>3 3 3.0</size>
+                        </box>
+                    </geometry>
+                    <material>
+                        <ambient>0.0 0.0 1.0 1</ambient>
+                        <diffuse>0.0 0.0 1.0 1</diffuse>
+                        <specular>0.0 0.0 1.0 1</specular>
+                    </material>
+                </visual>
+                <collision name='collision'>
+                    <geometry>
+                        <box>
+                            <size>3 3 3.0</size>
+                        </box>
+                    </geometry>
+                </collision>
+            </link>
+        </model>
+
+        <model name='box3'>
+            <static>true</static>
+            <pose>4 9 0 0 0 0</pose>
+            <link name='box'>
+                <visual name='visual'>
+                    <geometry>
+                        <box>
+                            <size>3 3 3.0</size>
+                        </box>
+                    </geometry>
+                    <material>
+                        <ambient>0.0 0.0 1.0 1</ambient>
+                        <diffuse>0.0 0.0 1.0 1</diffuse>
+                        <specular>0.0 0.0 1.0 1</specular>
+                    </material>
+                </visual>
+                <collision name='collision'>
+                    <geometry>
+                        <box>
+                            <size>3 3 3.0</size>
+                        </box>
+                    </geometry>
+                </collision>
+            </link>
+        </model>
+
+
+        <model name='box4'>
+            <static>true</static>
+            <pose>9 3 0 0 0 0</pose>
+            <link name='box'>
+                <visual name='visual'>
+                    <geometry>
+                        <box>
+                            <size>2 2 3.0</size>
+                        </box>
+                    </geometry>
+                    <material>
+                        <ambient>0.0 0.0 1.0 1</ambient>
+                        <diffuse>0.0 0.0 1.0 1</diffuse>
+                        <specular>0.0 0.0 1.0 1</specular>
+                    </material>
+                </visual>
+                <collision name='collision'>
+                    <geometry>
+                        <box>
+                            <size>2 2 3.0</size>
+                        </box>
+                    </geometry>
+                </collision>
+            </link>
+        </model>
+
+        <model name='box5'>
+            <static>true</static>
+            <pose>1 -10 0 0 0 0</pose>
+            <link name='box'>
+                <visual name='visual'>
+                    <geometry>
+                        <box>
+                            <size>2 2 3.0</size>
+                        </box>
+                    </geometry>
+                    <material>
+                        <ambient>0.0 0.0 1.0 1</ambient>
+                        <diffuse>0.0 0.0 1.0 1</diffuse>
+                        <specular>0.0 0.0 1.0 1</specular>
+                    </material>
+                </visual>
+                <collision name='collision'>
+                    <geometry>
+                        <box>
+                            <size>2 2 3.0</size>
+                        </box>
+                    </geometry>
+                </collision>
+            </link>
+        </model>
+
+        <model name='cyl1'>
+            <static>true</static>
+            <pose>0 0 0 0 0 0</pose>
+            <link name='box'>
+                <visual name='visual'>
+                    <geometry>
+                        <cylinder>
+                            <radius>3</radius>
+                            <length>3</length>
+                        </cylinder>
+                    </geometry>
+                    <material>
+                        <ambient>0.0 0.0 1.0 1</ambient>
+                        <diffuse>0.0 0.0 1.0 1</diffuse>
+                        <specular>0.0 0.0 1.0 1</specular>
+                    </material>
+                </visual>
+                <collision name='collision'>
+                    <geometry>
+                        <cylinder>
+                            <radius>3</radius>
+                            <length>3</length>
+                        </cylinder>
+                    </geometry>
+                </collision>
+            </link>
+        </model>
+
+
+        <model name='cyl2'>
+            <static>true</static>
+            <pose>-7 -7 0 0 0 0</pose>
+            <link name='box'>
+                <visual name='visual'>
+                    <geometry>
+                        <cylinder>
+                            <radius>2</radius>
+                            <length>3</length>
+                        </cylinder>
+                    </geometry>
+                    <material>
+                        <ambient>0.0 0.0 1.0 1</ambient>
+                        <diffuse>0.0 0.0 1.0 1</diffuse>
+                        <specular>0.0 0.0 1.0 1</specular>
+                    </material>
+                </visual>
+                <collision name='collision'>
+                    <geometry>
+                        <cylinder>
+                            <radius>2</radius>
+                            <length>3</length>
+                        </cylinder>
+                    </geometry>
+                </collision>
+            </link>
+        </model>
+
+           
         <model name='robot' canonical_link='chassis'>
             <pose relative_to='world'>-6 0 1 0 0 0</pose>   <!--the pose is relative to the world by default-->
 
@@ -461,7 +676,7 @@
                     <ray>
                     <scan>
                         <horizontal>
-                            <samples>100</samples>
+                            <samples>256</samples>
                             <resolution>1</resolution>
                             <min_angle>-3.14159</min_angle>
                             <max_angle>3.14159</max_angle>
@@ -663,6 +878,7 @@
             <plugin 
                 filename="libignition-gazebo-pose-publisher-system.so" 
                 name="ignition::gazebo::systems::PosePublisher">
+                <topicName>tf</topicName>
                 <publish_link_pose>true</publish_link_pose>
                 <publish_sensor_pose>true</publish_sensor_pose>
                 <publish_collision_pose>false</publish_collision_pose>
