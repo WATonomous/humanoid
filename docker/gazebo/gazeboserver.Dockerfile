@@ -15,11 +15,6 @@ RUN apt-get -y install ros-${ROS_DISTRO}-ros-gz ignition-fortress
 RUN apt-get -y install ros-humble-velodyne-gazebo-plugins
 RUN echo $GAZEBO_PLUGIN_PATH=/opt/ros/humble/lib
 
-# fix user permissions for mounted volumes
-COPY docker/fixuid_setup.sh /project/fixuid_setup.sh
-RUN /project/fixuid_setup.sh
-USER docker:docker
-
 ENV DEBIAN_FRONTEND noninteractive
 RUN sudo chsh -s /bin/bash
 ENV SHELL=/bin/bash
@@ -28,15 +23,15 @@ ENV SHELL=/bin/bash
 FROM base as repo
 
 USER docker:docker
-WORKDIR /home/docker
+WORKDIR /root
 
 ENV DEBIAN_FRONTEND interactive
 
-COPY docker/wato_ros_entrypoint.sh /home/docker/wato_ros_entrypoint.sh
-COPY docker/ros_entrypoint.sh /home/docker/ros_entrypoint.sh
-COPY docker/.bashrc /home/docker/.bashrc
+COPY docker/wato_ros_entrypoint.sh /root/wato_ros_entrypoint.sh
+COPY docker/ros_entrypoint.sh /root/ros_entrypoint.sh
+COPY docker/.bashrc /root/.bashrc
 
-ENTRYPOINT ["/usr/local/bin/fixuid", "-q", "/home/docker/ros_entrypoint.sh"]
+ENTRYPOINT ["/root/ros_entrypoint.sh"]
 
 # CMD ["sleep", "infinity"]
 # CMD ["ign", "launch", "launch/sim.ign"]

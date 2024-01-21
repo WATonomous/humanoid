@@ -8,13 +8,12 @@ services:
         - "${GAZEBO_SERVER_IMAGE:?}:${TAG}"
         - "${GAZEBO_SERVER_IMAGE:?}:main"
     image: "${GAZEBO_SERVER_IMAGE:?}:${TAG}"
-    user: ${FIXUID:?}:${FIXGID:?}
     ipc: host
     tty: true
     ports:
       - "${GAZEBO_PORT:?}:9002"
     volumes:
-      - ../src/gazebo/launch:/home/docker/src/gazebo/launch
+      - ../src/gazebo/launch:/root/src/gazebo/launch
     deploy:
       resources:
         reservations:
