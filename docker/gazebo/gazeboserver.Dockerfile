@@ -22,7 +22,6 @@ ENV SHELL=/bin/bash
 # ================= Repositories ===================
 FROM base as repo
 
-USER docker:docker
 WORKDIR /root
 
 ENV DEBIAN_FRONTEND interactive

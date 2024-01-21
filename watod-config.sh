@@ -8,7 +8,7 @@
 ##   - robot            :   starts up robot nodes
 ##   - samples          :   starts up sample nodes for reference
 
-ACTIVE_PROFILES="samples"
+# ACTIVE_PROFILES=""
 
 
 ## Name to append to docker containers. DEFAULT = <your_watcloud_username>
