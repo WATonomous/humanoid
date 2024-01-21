@@ -5,10 +5,11 @@
 ## Possible values:
 ##   - vis_tools        :   starts tools for data visualization (foxglove)
 ##   - gazebo           :   starts robot simulator (gazebo)
+##   - robot            :   starts up robot nodes
 ##   - samples          :   starts up sample nodes for reference
 
+# ACTIVE_PROFILES=""
 
-# ACTIVE_PROFILES="gazebo vis_tools"
 
 ## Name to append to docker containers. DEFAULT = <your_watcloud_username>
 
