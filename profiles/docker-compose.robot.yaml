@@ -10,9 +10,8 @@ services:
     image: "${ROBOT_OCCUPANCY_IMAGE:?}:${TAG}"
     security_opt:
       - seccomp:${PROFILES_DIR}/seccomp_profile.json 
-    user: ${FIXUID:?}:${FIXGID:?}
     volumes:
-      - ${MONO_DIR}/src/robot/occupancy:/home/docker/ament_ws/src/occupancy
+      - ${MONO_DIR}/src/robot/occupancy:/root/ament_ws/src/occupancy
 
   nav:
     build:
@@ -24,9 +23,8 @@ services:
     image: "${ROBOT_NAV_IMAGE:?}:${TAG}"
     security_opt:
       - seccomp:${PROFILES_DIR}/seccomp_profile.json 
-    user: ${FIXUID:?}:${FIXGID:?}
     volumes:
-      - ${MONO_DIR}/src/robot/nav:/home/docker/ament_ws/src/nav
+      - ${MONO_DIR}/src/robot/nav:/root/ament_ws/src/nav
 
   control: 
     build:
@@ -38,6 +36,5 @@ services:
     image: "${ROBOT_CONTROL_IMAGE:?}:${TAG}"
     security_opt:
       - seccomp:${PROFILES_DIR}/seccomp_profile.json 
-    user: ${FIXUID:?}:${FIXGID:?}
     volumes:
-      - ${MONO_DIR}/src/robot/control:/home/docker/ament_ws/src/control
+      - ${MONO_DIR}/src/robot/control:/root/ament_ws/src/control

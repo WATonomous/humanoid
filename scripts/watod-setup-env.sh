@@ -65,11 +65,6 @@ ROBOT_OCCUPANCY_IMAGE=${ROBOT_OCCUPANCY_IMAGE:-"git.uwaterloo.ca:5050/watonomous
 ROBOT_NAV_IMAGE=${ROBOT_NAV_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_monorepo/robot_nav"}
 ROBOT_CONTROL_IMAGE=${ROBOT_CONTROL_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_monorepo/robot_control"}
 
-## -------------------------- User ID -----------------------------
-
-FIXUID=$(id -u) 
-FIXGID=$(id -g) 
-
 ## --------------------------- Ports ------------------------------
 
 BASE_PORT=${BASE_PORT:-$(($(id -u)*20))}
@@ -93,9 +88,6 @@ echo "COMPOSE_PROJECT_NAME=$COMPOSE_PROJECT_NAME" >> "$PROFILES_DIR/.env"
 
 echo "TAG=$TAG" >> "$PROFILES_DIR/.env"
 echo "TARGET_STAGE=$TARGET_STAGE" >> "$PROFILES_DIR/.env"
-
-echo "FIXUID=$FIXUID" >> "$PROFILES_DIR/.env"
-echo "FIXGID=$FIXGID" >> "$PROFILES_DIR/.env"
 
 # Ports
 echo "BASE_PORT=$BASE_PORT" >> "$PROFILES_DIR/.env"

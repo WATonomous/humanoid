@@ -15,11 +15,6 @@ RUN apt-get update && \
     ros-$ROS_DISTRO-rosbridge-server \
     ros-$ROS_DISTRO-topic-tools
 
-# fix user permissions for mounted volumes
-COPY docker/fixuid_setup.sh /project/fixuid_setup.sh
-RUN /project/fixuid_setup.sh
-USER docker:docker
-
 ENV DEBIAN_FRONTEND noninteractive
 RUN sudo chsh -s /bin/bash
 ENV SHELL=/bin/bash
@@ -28,9 +23,9 @@ ENV SHELL=/bin/bash
 FROM base as repo
 
 RUN mkdir -p ~/ament_ws/src
-WORKDIR /home/docker/ament_ws/src
+WORKDIR /root/ament_ws/src
 
-WORKDIR /home/docker/ament_ws
+WORKDIR /root/ament_ws
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
     rosdep update && \
     rosdep install -i --from-path src --rosdistro $ROS_DISTRO -y && \
@@ -38,6 +33,6 @@ RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
         --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 # Entrypoint will run before any CMD on launch. Sources ~/opt/<ROS_DISTRO>/setup.bash and ~/ament_ws/install/setup.bash
-COPY docker/wato_ros_entrypoint.sh /home/docker/wato_ros_entrypoint.sh
-COPY docker/.bashrc /home/docker/.bashrc
-ENTRYPOINT ["/usr/local/bin/fixuid", "-q", "/home/docker/wato_ros_entrypoint.sh"]
+COPY docker/wato_ros_entrypoint.sh /root/wato_ros_entrypoint.sh
+COPY docker/.bashrc /root/.bashrc
+ENTRYPOINT ["/root/wato_ros_entrypoint.sh"]
