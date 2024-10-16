@@ -37,7 +37,7 @@ function run_compose {
         PROFILES="$(source $PROFILES_DIR/.env && printf -- "-f profiles/docker-compose.%s.yaml " ${ACTIVE_PROFILES[@]})"
     fi
 
-    DOCKER_BUILDKIT=${DOCKER_BUILDKIT:-1} docker-compose ${PROFILES[@]} "$@"
+    DOCKER_BUILDKIT=${DOCKER_BUILDKIT:-1} docker compose ${PROFILES[@]} "$@"
 }
 
 # in case you need help

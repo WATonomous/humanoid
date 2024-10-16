@@ -32,7 +32,7 @@ def generate_launch_description():
         output='screen',
         remappings=[
             ('/model/robot/pose', '/tf'),
-            ('/model/robot/pose_static', '/tf')
+            ('/model/robot/pose_static', '/tf_static')
         ]
     )
 
