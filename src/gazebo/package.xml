@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>gazebo</name>
+  <version>0.0.0</version>
+  <description>Gazebo package for launching asd training sim</description>
+  <license>TODO</license>
+
+  <maintainer email="e23zhou@watonomous.ca">Eddy Zhou</maintainer>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

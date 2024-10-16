@@ -13,7 +13,12 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    gz_sim = ExecuteProcess(cmd=['ign', 'launch', '-v 4', 'src/gazebo/launch/sim.ign'])
+    gazebo_pkg_prefix = get_package_share_directory('gazebo')
+    gazebo_sim_ign = os.path.join(gazebo_pkg_prefix, 'launch', 'sim.ign')
+    sdf_file_path = os.path.join(gazebo_pkg_prefix, 'launch', 'robot_env.sdf')
+    
+    gz_sim = ExecuteProcess(cmd=['ign', 'launch', '-v 4', f'{gazebo_sim_ign}'])
+    gz_sim_server = ExecuteProcess(cmd=['ign', 'gazebo', '-s', '-v 4', '-r', f'{sdf_file_path}'])
 
     # Bridge
     bridge = Node(
@@ -38,5 +43,6 @@ def generate_launch_description():
 
     return LaunchDescription([
         gz_sim,
+        gz_sim_server,
         bridge
     ])

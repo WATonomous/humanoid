@@ -2,6 +2,5 @@
 set -e
 
 # setup ROS2 environment
-source /root/ament_ws/install/setup.bash
-
+source /opt/watonomous/setup.bash
 exec "$@"

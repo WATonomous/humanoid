@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ghcr.io/watonomous/base:humble-ubuntu22.04
+ARG BASE_IMAGE=ghcr.io/watonomous/robot_base/base:humble-ubuntu22.04
 
 ################################ Source ################################
 FROM ${BASE_IMAGE} as source
@@ -6,7 +6,8 @@ FROM ${BASE_IMAGE} as source
 WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
-COPY src/gazebo gazebo
+COPY src/samples/cpp/transformer transformer
+COPY src/wato_msgs/sample_msgs sample_msgs
 
 # Scan for rosdeps
 RUN apt-get -qq update && rosdep update && \
@@ -17,17 +18,6 @@ RUN apt-get -qq update && rosdep update && \
 
 ################################# Dependencies ################################
 FROM ${BASE_IMAGE} as dependencies
-
-# RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys A4B469963BF863CC
-RUN apt-get update && apt-get install ffmpeg libsm6 libxext6 -y
-
-RUN apt install -y lsb-release wget gnupg
-RUN wget https://packages.osrfoundation.org/gazebo.gpg -O /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
-RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null
-RUN apt-get -y update
-RUN apt-get -y install ros-${ROS_DISTRO}-ros-gz ignition-fortress
-RUN apt-get -y install ros-humble-velodyne-gazebo-plugins
-RUN echo $GAZEBO_PLUGIN_PATH=/opt/ros/humble/lib
 
 # Install Rosdep requirements
 COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list

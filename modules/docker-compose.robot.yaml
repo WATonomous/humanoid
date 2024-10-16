@@ -1,0 +1,21 @@
+version: "3.8"
+services:
+  robot: 
+    build:
+      context: ..
+      dockerfile: docker/robot/robot.Dockerfile
+      cache_from:
+        - "${ROBOT_COSTMAP_IMAGE:?}:${TAG}"
+        - "${ROBOT_COSTMAP_IMAGE:?}:main"
+    image: "${ROBOT_COSTMAP_IMAGE:?}:${TAG}"
+    command: /bin/bash -c "ros2 launch bringup_robot robot.launch.py"
+  
+  # robot_dev:
+  #   extends:
+  #     service: robot 
+  #   build:
+  #     target: develop
+  #   image: "${ROBOT_COSTMAP_IMAGE:?}:dev_${TAG}"
+  #   command: tail -F anything
+  #   volumes:
+  #     - ${MONO_DIR}/src/robot:/root/ament_ws/src

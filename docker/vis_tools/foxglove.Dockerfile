@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ghcr.io/watonomous/base:humble-ubuntu22.04
+ARG BASE_IMAGE=ghcr.io/watonomous/robot_base/base:humble-ubuntu22.04
 
 ################################ Source ################################
 FROM ${BASE_IMAGE} as source
@@ -6,7 +6,7 @@ FROM ${BASE_IMAGE} as source
 WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
-COPY src/gazebo gazebo
+COPY src/wato_msgs wato_msgs
 
 # Scan for rosdeps
 RUN apt-get -qq update && rosdep update && \
@@ -18,16 +18,21 @@ RUN apt-get -qq update && rosdep update && \
 ################################# Dependencies ################################
 FROM ${BASE_IMAGE} as dependencies
 
-# RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys A4B469963BF863CC
-RUN apt-get update && apt-get install ffmpeg libsm6 libxext6 -y
+# Install Foxglove Deps
+RUN apt-get update && apt-get install -y curl ros-humble-ros2bag ros-humble-rosbag2* ros-humble-foxglove-msgs&& \
+    rm -rf /var/lib/apt/lists/*
 
-RUN apt install -y lsb-release wget gnupg
-RUN wget https://packages.osrfoundation.org/gazebo.gpg -O /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
-RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null
-RUN apt-get -y update
-RUN apt-get -y install ros-${ROS_DISTRO}-ros-gz ignition-fortress
-RUN apt-get -y install ros-humble-velodyne-gazebo-plugins
-RUN echo $GAZEBO_PLUGIN_PATH=/opt/ros/humble/lib
+# Set up apt repo
+RUN apt-get update && apt-get install -y lsb-release software-properties-common apt-transport-https && \
+    apt-add-repository universe
+
+# Install Dependencies
+RUN apt-get update && \
+    apt-get install -y \ 
+    ros-$ROS_DISTRO-foxglove-bridge \
+    ros-$ROS_DISTRO-rosbridge-server \
+    ros-$ROS_DISTRO-topic-tools \
+    ros-$ROS_DISTRO-vision-msgs
 
 # Install Rosdep requirements
 COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
