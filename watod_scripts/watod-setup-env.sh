@@ -36,7 +36,7 @@ TAG=${TAG/\//-}
 ACTIVE_MODULES=${ACTIVE_MODULES:-""}
 
 # Docker Registry to pull/push images
-REGISTRY_URL=${REGISTRY_URL:-"ghcr.io/watonomous/wato_monorepo"}
+REGISTRY_URL=${REGISTRY_URL:-"ghcr.io/watonomous/wato_asd_training"}
 
 REGISTRY=$(echo "$REGISTRY_URL" | sed 's|^\(.*\)/.*$|\1|')
 REPOSITORY=$(echo "$REGISTRY_URL" | sed 's|^.*/\(.*\)$|\1|')
@@ -45,21 +45,14 @@ REPOSITORY=$(echo "$REGISTRY_URL" | sed 's|^.*/\(.*\)$|\1|')
 # NOTE: ALL IMAGE NAMES MUCH BE IN THE FORMAT OF <COMPOSE_FILE>_<SERVICE>
 
 # ROS2 C++ Samples
-SAMPLES_CPP_AGGREGATOR_IMAGE=${SAMPLES_CPP_AGGREGATOR_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_monorepo/samples_cpp_aggregator"}
-SAMPLES_CPP_PRODUCER_IMAGE=${SAMPLES_CPP_PRODUCER_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_monorepo/samples_cpp_producer"}
-SAMPLES_CPP_TRANSFORMER_IMAGE=${SAMPLES_CPP_TRANSFORMER_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_monorepo/samples_cpp_transformer"}
-
-# ROS2 Python Samples
-SAMPLES_PYTHON_AGGREGATOR_IMAGE=${SAMPLES_PYTHON_AGGREGATOR_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_monorepo/samples_python_aggregator"}
-SAMPLES_PYTHON_PRODUCER_IMAGE=${SAMPLES_PYTHON_PRODUCER_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_monorepo/samples_python_producer"}
-SAMPLES_PYTHON_TRANSFORMER_IMAGE=${SAMPLES_PYTHON_TRANSFORMER_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_monorepo/samples_python_transformer"}
+SAMPLES_AGGREGATOR_IMAGE=${SAMPLES_AGGREGATOR_IMAGE:-"$REGISTRY_URL/samples_aggregator"}
+SAMPLES_PRODUCER_IMAGE=${SAMPLES_PRODUCER_IMAGE:-"$REGISTRY_URL/samples_producer"}
+SAMPLES_TRANSFORMER_IMAGE=${SAMPLES_TRANSFORMER_IMAGE:-"$REGISTRY_URL/samples_transformer"}
 
 # ASD Training Images
-GAZEBO_SERVER_IMAGE=${GAZEBO_SERVER_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_asd_training/gazebo_server"}
-INFRASTRUCTURE_FOXGLOVE_IMAGE=${INFRASTRUCTURE_FOXGLOVE_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_asd_training/infrastructure_foxglove"}
-ROBOT_COSTMAP_IMAGE=${ROBOT_COSTMAP_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_monorepo/robot_costmap"}
-ROBOT_NAV_IMAGE=${ROBOT_NAV_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_monorepo/robot_nav"}
-ROBOT_CONTROL_IMAGE=${ROBOT_CONTROL_IMAGE:-"git.uwaterloo.ca:5050/watonomous/wato_monorepo/robot_control"}
+GAZEBO_SERVER_IMAGE=${GAZEBO_SERVER_IMAGE:-"$REGISTRY_URL/gazebo_server"}
+INFRASTRUCTURE_FOXGLOVE_IMAGE=${INFRASTRUCTURE_FOXGLOVE_IMAGE:-"$REGISTRY_URL/infrastructure_foxglove"}
+ROBOT_IMAGE=${ROBOT_IMAGE:-"$REGISTRY_URL/robot"}
 
 ## --------------------------- Ports ------------------------------
 
@@ -88,19 +81,12 @@ echo "BASE_PORT=$BASE_PORT" >> "$MODULES_DIR/.env"
 echo "FOXGLOVE_BRIDGE_PORT=$FOXGLOVE_BRIDGE_PORT" >> "$MODULES_DIR/.env"
 echo "GAZEBO_PORT=$GAZEBO_PORT" >> "$MODULES_DIR/.env"
 
-# ROS2 C++ Samples
-echo "SAMPLES_CPP_AGGREGATOR_IMAGE=$SAMPLES_CPP_AGGREGATOR_IMAGE" >> "$MODULES_DIR/.env"
-echo "SAMPLES_CPP_PRODUCER_IMAGE=$SAMPLES_CPP_PRODUCER_IMAGE" >> "$MODULES_DIR/.env"
-echo "SAMPLES_CPP_TRANSFORMER_IMAGE=$SAMPLES_CPP_TRANSFORMER_IMAGE" >> "$MODULES_DIR/.env"
-
-# ROS2 Python Samples
-echo "SAMPLES_PYTHON_AGGREGATOR_IMAGE=$SAMPLES_PYTHON_AGGREGATOR_IMAGE" >> "$MODULES_DIR/.env"
-echo "SAMPLES_PYTHON_PRODUCER_IMAGE=$SAMPLES_PYTHON_PRODUCER_IMAGE" >> "$MODULES_DIR/.env"
-echo "SAMPLES_PYTHON_TRANSFORMER_IMAGE=$SAMPLES_PYTHON_TRANSFORMER_IMAGE" >> "$MODULES_DIR/.env"
+# ROS2 Samples
+echo "SAMPLES_AGGREGATOR_IMAGE=$SAMPLES_AGGREGATOR_IMAGE" >> "$MODULES_DIR/.env"
+echo "SAMPLES_PRODUCER_IMAGE=$SAMPLES_PRODUCER_IMAGE" >> "$MODULES_DIR/.env"
+echo "SAMPLES_TRANSFORMER_IMAGE=$SAMPLES_TRANSFORMER_IMAGE" >> "$MODULES_DIR/.env"
 
 # ASD Training Images
 echo "GAZEBO_SERVER_IMAGE=$GAZEBO_SERVER_IMAGE" >> "$MODULES_DIR/.env"
 echo "INFRASTRUCTURE_FOXGLOVE_IMAGE=$INFRASTRUCTURE_FOXGLOVE_IMAGE" >> "$MODULES_DIR/.env"
-echo "ROBOT_COSTMAP_IMAGE=$ROBOT_COSTMAP_IMAGE" >> "$MODULES_DIR/.env"
-echo "ROBOT_NAV_IMAGE=$ROBOT_NAV_IMAGE" >> "$MODULES_DIR/.env"
-echo "ROBOT_CONTROL_IMAGE=$ROBOT_CONTROL_IMAGE" >> "$MODULES_DIR/.env"
+echo "ROBOT_IMAGE=$ROBOT_IMAGE" >> "$MODULES_DIR/.env"
