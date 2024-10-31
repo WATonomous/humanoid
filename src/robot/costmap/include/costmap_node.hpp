@@ -7,9 +7,6 @@
 
 class CostmapNode : public rclcpp::Node {
   public:
-    /**
-    * Costmap node constructor.
-    */
     CostmapNode();
 
   private:

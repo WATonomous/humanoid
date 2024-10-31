@@ -7,7 +7,9 @@ WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
 COPY src/robot/costmap costmap
-COPY src/robot/nav nav
+COPY src/robot/map_server map_server
+COPY src/robot/planner planner
+COPY src/robot/state_machine state_machine
 COPY src/robot/control control
 COPY src/robot/bringup_robot bringup_robot
 

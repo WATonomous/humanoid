@@ -6,10 +6,6 @@
 namespace robot
 {
 
-/**
- * Implementation of the internal logic used by the Aggregator Node to
- * calculate the operating frequency of topics.
- */
 class CostmapCore {
   public:
     explicit CostmapCore();

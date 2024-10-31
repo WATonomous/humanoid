@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(nav)
+project(planner)
 
 # Set compiler to use C++ 17 standard
 if(NOT CMAKE_CXX_STANDARD)
@@ -19,22 +19,22 @@ find_package(rclcpp REQUIRED)      # ROS2 C++ package
 # against it to access defined methods and classes.
 # We build a library so that the methods defined can be used by
 # both the unit test and ROS2 node executables.
-add_library(nav_lib
-  src/nav_core.cpp)
+add_library(planner_lib
+  src/planner_core.cpp)
 # Indicate to compiler where to search for header files
-target_include_directories(nav_lib
+target_include_directories(planner_lib
   PUBLIC include)
 # Add ROS2 dependencies required by package
-ament_target_dependencies(nav_lib rclcpp)
+ament_target_dependencies(planner_lib rclcpp)
 
 # Create ROS2 node executable from source files
-add_executable(nav_node src/nav_node.cpp)
-# Link to the previously built library to access nav classes and methods
-target_link_libraries(nav_node nav_lib)
+add_executable(planner_node src/planner_node.cpp)
+# Link to the previously built library to access planner classes and methods
+target_link_libraries(planner_node planner_lib)
 
 # Copy executable to installation location
 install(TARGETS
-  nav_node
+  planner_node
   DESTINATION lib/${PROJECT_NAME})
 
 ament_package()
