@@ -1,0 +1,13 @@
+{
+    "python.analysis.extraPaths": [
+        "/tmp/deps/ros/humble/local/lib/python3.10/dist-packages"
+    ],
+    "python.autoComplete.extraPaths": [
+        "/tmp/deps/ros/humble/local/lib/python3.10/dist-packages"
+    ],
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff"
+    },
+    "python.analysis.autoSearchPaths": true
+}
