@@ -1,2 +1,7 @@
 .env
 __pycache__
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/c_cpp_properties.json
+watod-config.local.sh
