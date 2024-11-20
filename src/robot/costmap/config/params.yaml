@@ -1,0 +1,18 @@
+costmap_node:
+  ros__parameters:
+    laserscan_topic: "/lidar" # laserscan topic with which costmap node subscribes to
+    costmap_topic: "/costmap" # occupancy grid topic with which costmap node publishes the costmap to
+
+    costmap:
+      resolution: 0.40
+      width: 160
+      height: 160
+
+      origin:
+        position:
+          x: -32.0
+          y: -32.0
+        orientation:
+          w: 1.0
+      
+      inflation_radius: 1.0

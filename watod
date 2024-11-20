@@ -46,6 +46,10 @@ COMPOSE_CMD=""
 while [[ $# -gt 0 ]] ; do
     key="$1"
     case $key in
+      -e|--setup-dev-env)
+        SETUP_DEV_ENVIRONMENT=1
+        shift
+        ;;
       -v|--verbose)
         VERBOSE=1
         shift # past argument
@@ -82,11 +86,11 @@ fi
 
 MODE_OF_OPERATION=${MODE_OF_OPERATION:-"deploy"}
 
-# generate .env file from watod_scripts/watod-setup-env.sh
+# generate .env file from watod_scripts/watod-setup-docker-env.sh
 if [ ! -z $VERBOSE ]; then # if we want to see all verbose coming from setting up env
-    cd $MONO_DIR && . ./watod_scripts/watod-setup-env.sh
+    cd $MONO_DIR && . ./watod_scripts/watod-setup-docker-env.sh
 else
-    cd $MONO_DIR && . ./watod_scripts/watod-setup-env.sh &> /dev/null
+    cd $MONO_DIR && . ./watod_scripts/watod-setup-docker-env.sh &> /dev/null
 fi
 
 if [ ! -z "$COMPOSE_CMD" ]; then

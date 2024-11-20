@@ -37,4 +37,9 @@ install(TARGETS
   state_machine_node
   DESTINATION lib/${PROJECT_NAME})
 
+# Copy launch and config files to installation location
+install(DIRECTORY
+  config
+  DESTINATION share/${PROJECT_NAME})
+
 ament_package()

@@ -10,7 +10,9 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>costmap</depend>
-  <depend>nav</depend>
+  <depend>map_memory</depend>
+  <depend>state_machine</depend>
+  <depend>planner</depend>
   <depend>control</depend>
 
   <export>
