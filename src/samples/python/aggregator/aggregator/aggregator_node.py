@@ -21,20 +21,23 @@ from aggregator.aggregator_core import AggregatorCore
 
 
 class Aggregator(Node):
+
     def __init__(self):
-        super().__init__("python_aggregator")
+        super().__init__('python_aggregator')
 
         # Initialize Core Aggregator Logic (freq updates)
         node_start_time = time.time()
         self.__aggregator = AggregatorCore(node_start_time)
 
         # Initialize ROS2 Constructs
-        self.unfiltered_subcriber = self.create_subscription(
-            Unfiltered, "/unfiltered_topic", self.unfiltered_callback, 10
-        )
-        self.filtered_subscriber = self.create_subscription(
-            FilteredArray, "/filtered_topic", self.filtered_callback, 10
-        )
+        self.unfiltered_subcriber = self.create_subscription(Unfiltered,
+                                                             '/unfiltered_topic',
+                                                             self.unfiltered_callback,
+                                                             10)
+        self.filtered_subscriber = self.create_subscription(FilteredArray,
+                                                            '/filtered_topic',
+                                                            self.filtered_callback,
+                                                            10)
 
     def unfiltered_callback(self, msg):
         self.__aggregator.update_raw_freq()
@@ -45,15 +48,13 @@ class Aggregator(Node):
         self.print_freqs()
 
     def print_freqs(self):
-        self.get_logger().info(
-            "Number of unfiltered messages:" + str(self.__aggregator.num_unfiltered_msgs)
-        )
-        self.get_logger().info(
-            "Number of filtered messages:" + str(self.__aggregator.num_filtered_msgs)
-        )
+        self.get_logger().info('Number of unfiltered messages:' +
+                               str(self.__aggregator.num_unfiltered_msgs))
+        self.get_logger().info('Number of filtered messages:' +
+                               str(self.__aggregator.num_filtered_msgs))
 
-        self.get_logger().info("Producer Frequency:" + str(self.__aggregator.raw_freq))
-        self.get_logger().info("Transformer Frequency:" + str(self.__aggregator.filtered_freq))
+        self.get_logger().info('Producer Frequency:' + str(self.__aggregator.raw_freq))
+        self.get_logger().info('Transformer Frequency:' + str(self.__aggregator.filtered_freq))
 
 
 def main(args=None):
@@ -70,5 +71,5 @@ def main(args=None):
     rclpy.shutdown()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
