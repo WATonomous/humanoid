@@ -41,12 +41,12 @@ function run_compose {
 }
 
 # in case you need help
-if [ "$1" == 'help' ]; then
+if [ "$1" = 'help' ]; then
     usage
 fi
 
 # in case you have nothing to say
-if [ $# == 0 ]; then
+if [ $# = 0 ]; then
     usage
 fi
 
