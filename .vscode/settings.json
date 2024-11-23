@@ -9,5 +9,6 @@
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "charliermarsh.ruff"
     },
-    "python.analysis.autoSearchPaths": true
+    "python.analysis.autoSearchPaths": true,
+    // "workbench.action.reloadWindow": custom keybind action
 }
