@@ -41,11 +41,12 @@ function run_compose {
 }
 
 # in case you need help
-if [ "$1" == 'help' ]; then
+if [ "$1" = 'help' ]; then
     usage
 fi
+
 # in case you have nothing to say
-if [ $# == 0 ]; then
+if [ $# = 0 ]; then
     usage
 fi
 
@@ -102,11 +103,36 @@ while [[ $# -gt 0 ]] ; do
       -h|--help) # in case you got this far, but still need help :)
         usage
         ;;
+      setup-env)
+        SETUP_ENV=1
+        shift
+        ;;
       *) # unknown option
         break
         ;;
     esac
 done
+
+if [[ ! -z $SETUP_ENV ]]; then
+    echo "Starting dependency mount. Run source watod setup-env to start"
+
+    TEMP_DEPENDENCES_DIR="/tmp/deps"
+    SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    DEP_MOUNT_IMAGE_NAME=ghcr.io/watonomous/robot_base/base:humble-ubuntu22.04
+    DEP_MOUNT_CONTAINER_NAME=dep-mount
+
+    mkdir -p "${TEMP_DEPENDENCES_DIR}"
+
+    echo "Mounting dependencies"
+    docker run --rm --detach --name "${DEP_MOUNT_CONTAINER_NAME}" "${DEP_MOUNT_IMAGE_NAME}" sleep infinity > /dev/null
+    docker cp "${DEP_MOUNT_CONTAINER_NAME}:/opt/ros" "${TEMP_DEPENDENCES_DIR}"
+    cd "${TEMP_DEPENDENCES_DIR}/ros/humble"
+    . ./setup.bash
+    docker stop "${DEP_MOUNT_CONTAINER_NAME}" > /dev/null
+    cd "${SCRIPT_DIR}"
+    code .
+    echo type CMD/CTRL + SHIFT + P \> Reload Window to activate intellisense
+fi
 
 if [[ $# -gt 0 ]]; then
 	COMPOSE_CMD="${COMPOSE_CMD} $@"
