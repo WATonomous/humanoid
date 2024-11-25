@@ -89,8 +89,14 @@ MODE_OF_OPERATION=${MODE_OF_OPERATION:-"deploy"}
 # generate .env file from watod_scripts/watod-setup-docker-env.sh
 if [ ! -z $VERBOSE ]; then # if we want to see all verbose coming from setting up env
     cd $MONO_DIR && . ./watod_scripts/watod-setup-docker-env.sh
+    if [ ! -z $SETUP_DEV_ENVIRONMENT ]; then
+        source ./watod_scripts/watod-setup-dev-env.sh
+    fi
 else
     cd $MONO_DIR && . ./watod_scripts/watod-setup-docker-env.sh &> /dev/null
+    if [ ! -z $SETUP_DEV_ENVIRONMENT ]; then
+        source ./watod_scripts/watod-setup-dev-env.sh &> /dev/null
+    fi
 fi
 
 if [ ! -z "$COMPOSE_CMD" ]; then
