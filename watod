@@ -78,6 +78,9 @@ while [[ $# -gt 0 ]] ; do
       -h|--help) # in case you got this far, but still need help :)
         usage
         ;;
+      *) # unknown option
+        break
+        ;;
     esac
 done
 
@@ -98,6 +101,7 @@ MODE_OF_OPERATION=${MODE_OF_OPERATION:-"deploy"}
 if [ ! -z $VERBOSE ]; then # if we want to see all verbose coming from setting up env
     cd $MONO_DIR && . ./watod_scripts/watod-setup-docker-env.sh
 else
+    echo "hi"
     cd $MONO_DIR && . ./watod_scripts/watod-setup-docker-env.sh &> /dev/null
 fi
 
