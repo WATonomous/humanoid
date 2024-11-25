@@ -27,8 +27,8 @@ function run_compose {
     if [ ! -z "$(source $MODULES_DIR/.env && echo $ACTIVE_MODULES)" ] && [ -z "$MODULES" ]; then 
         MODULES="$(source $MODULES_DIR/.env && printf -- " -f $MODULES_DIR/docker-compose.%s.yaml" ${ACTIVE_MODULES[@]})"
     fi
-    echo "Running docker compose --profile ${MODE_OF_OPERATION}${MODULES[@]} $@"
 
+    echo "Running docker compose --profile ${MODE_OF_OPERATION}${MODULES[@]} $@"
     DOCKER_BUILDKIT=${DOCKER_BUILDKIT:-1} docker compose --profile ${MODE_OF_OPERATION[@]}${MODULES[@]} "$@"
 }
 
@@ -47,13 +47,23 @@ COMPOSE_CMD=""
 while [[ $# -gt 0 ]] ; do
     key="$1"
     case $key in
-      -e|--setup-dev-env)
-        SETUP_DEV_ENVIRONMENT=1
-        shift
-        ;;
       -v|--verbose)
         VERBOSE=1
         shift # past argument
+        ;;
+      -d|--setup-dev-env)
+        SETUP_DEV_ENVIRONMENT=1
+        shift
+        SERVICE_NAME=$1
+        if [ -z "$SERVICE_NAME" ]; then
+            echo "Expected watod -d SERVICE_NAME"
+            usage
+        fi
+        shift
+        ;;
+      -c|--setup-completion)
+        SETUP_COMPLETION=1
+        shift
         ;;
       -t|--terminal)
         START_TERMINAL=1
@@ -61,43 +71,15 @@ while [[ $# -gt 0 ]] ; do
         SERVICE_NAME=$1
         if [ -z "$SERVICE_NAME" ]; then
             echo "Expected watod -t SERVICE_NAME"
-        usage
+            usage
         fi
         shift
         ;;
       -h|--help) # in case you got this far, but still need help :)
         usage
         ;;
-      setup-env)
-        SETUP_ENV=1
-        shift
-        ;;
-      *) # unknown option
-        break
-        ;;
     esac
 done
-
-if [[ ! -z $SETUP_ENV ]]; then
-    echo "Starting dependency mount. Run source watod setup-env to start"
-
-    TEMP_DEPENDENCES_DIR="/tmp/deps"
-    SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-    DEP_MOUNT_IMAGE_NAME=ghcr.io/watonomous/robot_base/base:humble-ubuntu22.04
-    DEP_MOUNT_CONTAINER_NAME=dep-mount
-
-    mkdir -p "${TEMP_DEPENDENCES_DIR}"
-
-    echo "Mounting dependencies"
-    docker run --rm --detach --name "${DEP_MOUNT_CONTAINER_NAME}" "${DEP_MOUNT_IMAGE_NAME}" sleep infinity > /dev/null
-    docker cp "${DEP_MOUNT_CONTAINER_NAME}:/opt/ros" "${TEMP_DEPENDENCES_DIR}"
-    cd "${TEMP_DEPENDENCES_DIR}/ros/humble"
-    . ./setup.bash
-    docker stop "${DEP_MOUNT_CONTAINER_NAME}" > /dev/null
-    cd "${SCRIPT_DIR}"
-    code .
-    echo type CMD/CTRL + SHIFT + P \> Reload Window to activate intellisense
-fi
 
 if [[ $# -gt 0 ]]; then
 	COMPOSE_CMD="${COMPOSE_CMD} $@"
@@ -115,14 +97,18 @@ MODE_OF_OPERATION=${MODE_OF_OPERATION:-"deploy"}
 # generate .env file from watod_scripts/watod-setup-docker-env.sh
 if [ ! -z $VERBOSE ]; then # if we want to see all verbose coming from setting up env
     cd $MONO_DIR && . ./watod_scripts/watod-setup-docker-env.sh
-    if [ ! -z $SETUP_DEV_ENVIRONMENT ]; then
-        source ./watod_scripts/watod-setup-dev-env.sh
-    fi
 else
     cd $MONO_DIR && . ./watod_scripts/watod-setup-docker-env.sh &> /dev/null
-    if [ ! -z $SETUP_DEV_ENVIRONMENT ]; then
-        source ./watod_scripts/watod-setup-dev-env.sh &> /dev/null
-    fi
+fi
+
+if [ ! -z $SETUP_COMPLETION ]; then
+    source ./watod_scripts/watod-completion.bash
+fi
+
+# custom docker compose command to setup development environments outside containers
+if [ ! -z $SETUP_DEV_ENVIRONMENT ]; then
+    source ./watod_scripts/watod-setup-dev-env.sh $SERVICE_NAME
+    exit
 fi
 
 if [ ! -z "$COMPOSE_CMD" ]; then

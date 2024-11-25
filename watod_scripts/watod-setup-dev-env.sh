@@ -1,64 +1,43 @@
 #!/bin/bash
 
-set -e
-if [[ -z "${DEV_DEPENDENCIES_MOUNTED}" ]]; then
-    export DEV_DEPENDENCIES_MOUNTED=true
-    export TEMP_DEPENDENCES_DIR="/tmp/deps"
-fi
+SERVICE_NAME=$1
 
-# run containers to mount and expose data to vscode
-if [[ $1 == "setup" ]]; then
-    echo starting setup
+echo "Starting dependency mount"
 
-    mkdir -p ${TEMP_DEPENDENCES_DIR}
-    
-    docker compose --profile develop -f /home/eddyzhou/wato_asd_training/modules/docker-compose.robot.yaml up --remove-orphans --detach 
-    docker cp watod_$(whoami)-robot_dev-1:/opt/ros $TEMP_DEPENDENCES_DIR
-    cd $TEMP_DEPENDENCES_DIR/ros/humble
-    . ./setup.bash
-    docker compose -f /home/eddyzhou/wato_asd_training/modules/docker-compose.robot.yaml down
+TEMP_DEPENDENCES_DIR="/tmp/deps"
+DEP_MOUNT_CONTAINER_NAME=dep-mount-temp
 
-else
-    echo Invalid command. Available commands: setup
-fi
+mkdir -p "${TEMP_DEPENDENCES_DIR}"
+
+# Dynamically create a Docker Compose service
+run_compose run --rm --detach --name "${DEP_MOUNT_CONTAINER_NAME}" "${SERVICE_NAME}" tail -F anything
+
+# Copy dependencies from the service's container to a temporary directory
+docker cp "${DEP_MOUNT_CONTAINER_NAME}:/opt/ros" "${TEMP_DEPENDENCES_DIR}"
+
+# Source ROS environment
+cd "${TEMP_DEPENDENCES_DIR}/ros/humble"
+. ./setup.bash
+
+# Stop the service
+docker stop "${DEP_MOUNT_CONTAINER_NAME}"
 
 # Create the .vscode directory if it doesn't exist
 # Define the .vscode directory path
-VSCODE_DIR="/home/eddyzhou/wato_asd_training/.vscode"
+VSCODE_DIR="$MONO_DIR/.vscode"
 
 # Create the .vscode directory if it doesn't exist
 mkdir -p "$VSCODE_DIR"
 
-# Check if the directory exists
-if [ -d "$VSCODE_DIR" ]; then
-    # Delete c_cpp_properties.json if it exists
-    if [ -f "$VSCODE_DIR/c_cpp_properties.json" ]; then
-        rm "$VSCODE_DIR/c_cpp_properties.json"
-        echo "Deleted $VSCODE_DIR/c_cpp_properties.json"
-    else
-        echo "$VSCODE_DIR/c_cpp_properties.json does not exist"
-    fi
-
-    # Delete settings.json if it exists
-    if [ -f "$VSCODE_DIR/settings.json" ]; then
-        rm "$VSCODE_DIR/settings.json"
-        echo "Deleted $VSCODE_DIR/settings.json"
-    else
-        echo "$VSCODE_DIR/settings.json does not exist"
-    fi
-else
-    echo "Directory $VSCODE_DIR does not exist"
-fi
-
 # Write to c_cpp_properties.json
-cat << EOF > /home/eddyzhou/wato_asd_training/.vscode/c_cpp_properties.json
+cat << EOF > $VSCODE_DIR/c_cpp_properties.json
 {
     "configurations": [
         {
             "name": "Linux",
             "includePath": [
-                "/tmp/deps/**",
-                "\${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "/tmp/deps/**"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",
@@ -71,20 +50,39 @@ cat << EOF > /home/eddyzhou/wato_asd_training/.vscode/c_cpp_properties.json
 EOF
 
 # Write to settings.json
-cat << EOF > /home/eddyzhou/wato_asd_training/.vscode/settings.json
+cat << EOF > $VSCODE_DIR/settings.json
 {
-    "cmake.ignoreCMakeListsMissing": true,
-    
-    "python.autoComplete.extraPaths": [
-        "/tmp/deps/ros/humble/local/lib/python3.10/dist-packages"
-    ],
     "python.analysis.extraPaths": [
         "/tmp/deps/ros/humble/local/lib/python3.10/dist-packages"
     ],
-    "python.analysis.autoSearchPaths": true
+    "python.autoComplete.extraPaths": [
+        "/tmp/deps/ros/humble/local/lib/python3.10/dist-packages"
+    ],
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff"
+    },
+    "python.analysis.autoSearchPaths": true,
+}
+EOF
+
+# Write to settings.json
+cat << EOF > $VSCODE_DIR/extensions.json
+{
+    "recommendations": [
+        "ms-iot.vscode-ros",
+        "charliermarsh.ruff"
+    ],
 }
 EOF
 
 echo "Configuration files created successfully in .vscode/"
-touch /home/eddyzhou/wato_asd_training/.vscode/c_cpp_properties.json
-touch /home/eddyzhou/wato_asd_training/.vscode/settings.json
+
+# Display the message with yellow text and borders
+echo -e "\033[1;33m##############################################\033[0m"
+echo -e "\033[1;33m#                                            #\033[0m"
+echo -e "\033[1;33m#   VScode Dev Environment Set Up!           #\033[0m"
+echo -e "\033[1;33m#   Type CMD/CTRL + SHIFT + P > Reload       #\033[0m"
+echo -e "\033[1;33m#   Window to activate IntelliSense          #\033[0m"
+echo -e "\033[1;33m#                                            #\033[0m"
+echo -e "\033[1;33m##############################################\033[0m"

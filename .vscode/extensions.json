@@ -1,6 +1,0 @@
-{
-    "recommendations": [
-        "ms-iot.vscode-ros",
-        "charliermarsh.ruff"
-    ],
-}
