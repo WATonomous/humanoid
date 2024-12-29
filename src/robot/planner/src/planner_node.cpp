@@ -1,6 +1,3 @@
-#include <chrono>
-#include <memory>
-
 #include "planner_node.hpp"
 
 PlannerNode::PlannerNode() : Node("planner"), planner_(robot::PlannerCore()) {

@@ -1,6 +1,3 @@
-#include <chrono>
-#include <memory>
-
 #include "map_memory_node.hpp"
 
 MapMemoryNode::MapMemoryNode() : Node("map_memory"), map_memory_(robot::MapMemoryCore()) {
