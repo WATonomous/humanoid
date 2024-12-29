@@ -1,9 +1,6 @@
-#include <memory>
-
 #include "control_node.hpp"
 
-ControlNode::ControlNode(): Node("control"), control_(robot::ControlCore())
-{
+ControlNode::ControlNode(): Node("control"), control_(robot::ControlCore()) {
   
 }
 

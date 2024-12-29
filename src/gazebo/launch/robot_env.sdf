@@ -886,7 +886,7 @@
                 <publish_nested_model_pose>true</publish_nested_model_pose> <!-- this bit is important -->
                 <use_pose_vector_msg>true</use_pose_vector_msg>
                 <static_publisher>true</static_publisher>
-                <static_update_frequency>10</static_update_frequency>
+                <static_update_frequency>1000</static_update_frequency>
             </plugin>
         </model>
 

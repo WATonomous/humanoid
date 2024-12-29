@@ -1,0 +1,24 @@
+services:
+  gazeboserver:
+    build:
+      context: ..
+      dockerfile: docker/gazebo/gazeboserver.Dockerfile
+      cache_from:
+        - "${GAZEBO_SERVER_IMAGE:?}:${TAG}"
+        - "${GAZEBO_SERVER_IMAGE:?}:main"
+    image: "${GAZEBO_SERVER_IMAGE:?}:${TAG}"
+    ipc: host
+    tty: true
+    ports:
+      - "${GAZEBO_PORT:?}:9002"
+    profiles: [deploy, develop]
+    command: /bin/bash -c "ros2 launch gazebo sim.launch.py"
+    volumes:
+      - ../src/gazebo/launch:/root/src/gazebo/launch
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            device_ids: ['0'] # Change to ['0', '1'] to use two GPUs
+            capabilities: [gpu]

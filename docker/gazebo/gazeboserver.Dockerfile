@@ -1,8 +1,22 @@
-# ================= Dependencies ===================
-FROM ros:humble AS base
+ARG BASE_IMAGE=ghcr.io/watonomous/robot_base/base:humble-ubuntu22.04
 
-RUN apt-get update && apt-get install -y curl && \
-    rm -rf /var/lib/apt/lists/*
+################################ Source ################################
+FROM ${BASE_IMAGE} AS source
+
+WORKDIR ${AMENT_WS}/src
+
+# Copy in source code 
+COPY src/gazebo gazebo
+
+# Scan for rosdeps
+RUN apt-get -qq update && rosdep update && \
+    rosdep install --from-paths . --ignore-src -r -s \
+        | grep 'apt-get install' \
+        | awk '{print $3}' \
+        | sort  > /tmp/colcon_install_list
+
+################################# Dependencies ################################
+FROM ${BASE_IMAGE} AS dependencies
 
 # RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys A4B469963BF863CC
 RUN apt-get update && apt-get install ffmpeg libsm6 libxext6 -y
@@ -15,24 +29,31 @@ RUN apt-get -y install ros-${ROS_DISTRO}-ros-gz ignition-fortress
 RUN apt-get -y install ros-humble-velodyne-gazebo-plugins
 RUN echo $GAZEBO_PLUGIN_PATH=/opt/ros/humble/lib
 
-ENV DEBIAN_FRONTEND noninteractive
-RUN sudo chsh -s /bin/bash
-ENV SHELL=/bin/bash
+# Install Rosdep requirements
+COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
+RUN apt-fast install -qq -y --no-install-recommends $(cat /tmp/colcon_install_list)
 
-# ================= Repositories ===================
-FROM base as repo
+# Copy in source code from source stage
+WORKDIR ${AMENT_WS}
+COPY --from=source ${AMENT_WS}/src src
 
-WORKDIR /root
+# Dependency Cleanup
+WORKDIR /
+RUN apt-get -qq autoremove -y && apt-get -qq autoclean && apt-get -qq clean && \
+    rm -rf /root/* /root/.ros /tmp/* /var/lib/apt/lists/* /usr/share/doc/*
 
-ENV DEBIAN_FRONTEND interactive
+################################ Build ################################
+FROM dependencies AS build
 
-COPY docker/wato_ros_entrypoint.sh /root/wato_ros_entrypoint.sh
-COPY docker/ros_entrypoint.sh /root/ros_entrypoint.sh
-COPY docker/.bashrc /root/.bashrc
+# Build ROS2 packages
+WORKDIR ${AMENT_WS}
+RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
+    colcon build \
+        --cmake-args -DCMAKE_BUILD_TYPE=Release --install-base ${WATONOMOUS_INSTALL}
 
-ENTRYPOINT ["/root/ros_entrypoint.sh"]
+# Source and Build Artifact Cleanup 
+RUN rm -rf src/* build/* devel/* install/* log/*
 
-# CMD ["sleep", "infinity"]
-# CMD ["ign", "launch", "launch/sim.ign"]
-
-CMD ["ros2", "launch", "src/gazebo/launch/sim.launch.py"]
+# Entrypoint will run before any CMD on launch. Sources ~/opt/<ROS_DISTRO>/setup.bash and ~/ament_ws/install/setup.bash
+COPY docker/wato_ros_entrypoint.sh ${AMENT_WS}/wato_ros_entrypoint.sh
+ENTRYPOINT ["./wato_ros_entrypoint.sh"]

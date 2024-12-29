@@ -1,0 +1,105 @@
+services:
+  # aggregator: # C++
+  #   build: &aggregator_build
+  #     context: ..
+  #     dockerfile: docker/samples/cpp_aggregator.Dockerfile
+  #     cache_from:
+  #       - "${SAMPLES_AGGREGATOR_IMAGE:?}:${TAG}"
+  #       - "${SAMPLES_AGGREGATOR_IMAGE:?}:main"
+  #   image: "${SAMPLES_AGGREGATOR_IMAGE:?}:${TAG}"
+  #   profiles: [deploy]
+  #   command: /bin/bash -c "ros2 launch aggregator aggregator.launch.py"
+  #   volumes:
+  #     - ${MONO_DIR}/src/samples/cpp/aggregator:/root/ament_ws/src/aggregator
+
+  aggregator: # PYTHON
+    build: &aggregator_build
+      context: ..
+      dockerfile: docker/samples/py_aggregator.Dockerfile
+      cache_from:
+        - "${SAMPLES_AGGREGATOR_IMAGE:?}:${TAG}"
+        - "${SAMPLES_AGGREGATOR_IMAGE:?}:main"
+    image: "${SAMPLES_AGGREGATOR_IMAGE:?}:${TAG}"
+    profiles: [deploy]
+    command: /bin/bash -c "ros2 launch aggregator aggregator.launch.py"
+    volumes:
+      - ${MONO_DIR}/src/samples/python/aggregator:/root/ament_ws/src/aggregator
+
+  producer: # C++
+    build: &producer_build
+      context: ..
+      dockerfile: docker/samples/cpp_producer.Dockerfile
+      cache_from:
+        - "${SAMPLES_PRODUCER_IMAGE:?}:${TAG}"
+        - "${SAMPLES_PRODUCER_IMAGE:?}:main"
+    image: "${SAMPLES_PRODUCER_IMAGE:?}:${TAG}"
+    profiles: [deploy]
+    command: /bin/bash -c "ros2 launch producer producer.launch.py"
+    volumes:
+      - ${MONO_DIR}/src/samples/cpp/producer:/root/ament_ws/src/producer
+
+  # producer: # PYTHON
+  #   build: &producer_build
+  #     context: ..
+  #     dockerfile: docker/samples/py_producer.Dockerfile
+  #     cache_from:
+  #       - "${SAMPLES_PRODUCER_IMAGE:?}:${TAG}"
+  #       - "${SAMPLES_PRODUCER_IMAGE:?}:main"
+  #   image: "${SAMPLES_PRODUCER_IMAGE:?}:${TAG}"
+  #   profiles: [deploy]
+  #   command: /bin/bash -c "ros2 launch producer producer.launch.py"
+  #   volumes:
+  #     - ${MONO_DIR}/src/samples/python/producer:/root/ament_ws/src/producer
+
+  transformer: # C++
+    build: &transformer_build
+      context: ..
+      dockerfile: docker/samples/cpp_transformer.Dockerfile
+      cache_from:
+        - "${SAMPLES_TRANSFORMER_IMAGE:?}:${TAG}"
+        - "${SAMPLES_TRANSFORMER_IMAGE:?}:main"
+    image: "${SAMPLES_TRANSFORMER_IMAGE:?}:${TAG}"
+    profiles: [deploy]
+    command: /bin/bash -c "ros2 launch transformer transformer.launch.py"
+    volumes:
+      - ${MONO_DIR}/src/samples/cpp/transformer:/root/ament_ws/src/transformer
+
+  # transformer: # PYTHON
+  #   build: &transformer_build
+  #     context: ..
+  #     dockerfile: docker/samples/py_transformer.Dockerfile
+  #     cache_from:
+  #       - "${SAMPLES_TRANSFORMER_IMAGE:?}:${TAG}"
+  #       - "${SAMPLES_TRANSFORMER_IMAGE:?}:main"
+  #   image: "${SAMPLES_TRANSFORMER_IMAGE:?}:${TAG}"
+  #   profiles: [deploy]
+  #   command: /bin/bash -c "ros2 launch transformer transformer.launch.py"
+  #   volumes:
+  #     - ${MONO_DIR}/src/samples/python/transformer:/root/ament_ws/src/transformer
+
+  aggregator_dev:
+    build: *aggregator_build
+    image: "${SAMPLES_AGGREGATOR_IMAGE}:dev_${TAG}"
+    command: tail -F anything
+    profiles: [develop]
+    volumes:
+      - ${MONO_DIR}/src/samples/python/aggregator:/root/ament_ws/src/python/aggregator
+      - ${MONO_DIR}/src/samples/cpp/aggregator:/root/ament_ws/src/cpp/aggregator
+
+  producer_dev:
+    build: *producer_build
+    image: "${SAMPLES_PRODUCER_IMAGE}:dev_${TAG}"
+    command: tail -F anything
+    profiles: [develop]
+    volumes:
+      - ${MONO_DIR}/src/samples/python/producer:/root/ament_ws/src/python/producer
+      - ${MONO_DIR}/src/samples/cpp/producer:/root/ament_ws/src/cpp/producer
+
+  transformer_dev:
+    build: *transformer_build
+    image: "${SAMPLES_TRANSFORMER_IMAGE}:dev_${TAG}"
+    command: tail -F anything
+    profiles: [develop]
+    volumes:
+      - ${MONO_DIR}/src/samples/python/transformer:/root/ament_ws/src/python/transformer
+      - ${MONO_DIR}/src/samples/cpp/transformer:/root/ament_ws/src/cpp/transformer

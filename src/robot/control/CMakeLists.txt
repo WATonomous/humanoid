@@ -13,7 +13,6 @@ endif()
 # Search for dependencies required for building this package
 find_package(ament_cmake REQUIRED) # ROS2 build tool
 find_package(rclcpp REQUIRED)      # ROS2 C++ package
-find_package(sample_msgs REQUIRED) # Custom package containing ROS2 messages
 find_package(geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -35,7 +34,6 @@ target_include_directories(control_lib
 # Add ROS2 dependencies required by package
 ament_target_dependencies(control_lib
   rclcpp
-  sample_msgs
   geometry_msgs
   tf2
   tf2_ros
@@ -52,9 +50,9 @@ install(TARGETS
   control_node
   DESTINATION lib/${PROJECT_NAME})
 
-# Copy launch files to installation location
+# Copy launch and config files to installation location
 install(DIRECTORY
-  launch
+  config
   DESTINATION share/${PROJECT_NAME})
 
 ament_package()

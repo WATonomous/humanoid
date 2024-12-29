@@ -95,7 +95,7 @@
         "/camera": {
           "visible": false
         },
-        "/occupancy": {
+        "/costmap": {
           "visible": false,
           "colorMode": "costmap"
         },

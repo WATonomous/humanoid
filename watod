@@ -3,28 +3,19 @@ set -e
 
 programname="$(basename "$(test -L "$0" && readlink "$0" || echo "$0")")"
 MONO_DIR="$(dirname "$(realpath "$0")")"
-PROFILES_DIR="$MONO_DIR/profiles"
+MODULES_DIR="$MONO_DIR/modules"
 ANSIBLE_TMP_DIR=/tmp/ansible-tmp-$USER
 
 function usage {
     echo "Usage: $programname [OPTIONS]... [COMMAND]..."
-    echo "Executes docker-compose COMMAND in the the monorepo with appropriate environment variables."
-    echo "  launch_autonomous               launch the can_interface for autonomous mode"
+    echo "Executes \"docker compose COMMAND\" in the the monorepo with appropriate environment variables."
     echo "  -v --verbose                    verbose mode. Currently, prints .env variables"                     
-    echo "  -lp --local-ports               displays ports exposed by applications and shows the"
-    echo "                                  ssh local port forwarding commands for each VNC Server found"
-    echo "                                  if a docker-compose command is specified, it will be run in the background."
     echo "  -t --terminal [service_name]    open a bash terminal into the desired service (eg: perception)."
-    echo "  -a --all                        run COMMAND with all profiles enabled. Profiles are defined in ./profiles/."
-    echo "  -np                             don't run fix-permissions.sh, makes permissions consistent across all systems"
-    echo "                                  so that docker caching doesn't break."
     echo ""
     echo "Examples:" 
-    echo "  watod up                       start containers (docker-compose up)"
-    echo "  watod down                     stop and remove containers (docker-compose down)"
-    echo "  watod ps [--services]          list containers in the current project and show their current status (docker-compose ps)"
-    echo "  watod --all pull               pull all new containers from the GitLab container registry (docker-compose pull)"
-    echo "  watod --all build              build all new containers using Dockerfiles in docker/ (docker-compose build)"
+    echo "  watod up                       start containers (docker compose up)"
+    echo "  watod down                     stop and remove containers (docker compose down)"
+    echo "  watod ps [--services]          list containers in the current project and show their current status (docker compose ps)"
     echo "  watod -t perception            open a bash terminal into the perception container."
     echo ""
     echo " More Info on Docker Compose: https://docs.docker.com/compose/reference/overview/"
@@ -33,11 +24,12 @@ function usage {
 
 function run_compose {
     cd $MONO_DIR
-    if [ ! -z "$(source $PROFILES_DIR/.env && echo $ACTIVE_PROFILES)" ] && [ -z "$PROFILES" ]; then 
-        PROFILES="$(source $PROFILES_DIR/.env && printf -- "-f profiles/docker-compose.%s.yaml " ${ACTIVE_PROFILES[@]})"
+    if [ ! -z "$(source $MODULES_DIR/.env && echo $ACTIVE_MODULES)" ] && [ -z "$MODULES" ]; then 
+        MODULES="$(source $MODULES_DIR/.env && printf -- " -f $MODULES_DIR/docker-compose.%s.yaml" ${ACTIVE_MODULES[@]})"
     fi
 
-    DOCKER_BUILDKIT=${DOCKER_BUILDKIT:-1} docker compose ${PROFILES[@]} "$@"
+    echo "Running docker compose --profile ${MODE_OF_OPERATION}${MODULES[@]} $@"
+    DOCKER_BUILDKIT=${DOCKER_BUILDKIT:-1} docker compose --profile ${MODE_OF_OPERATION[@]}${MODULES[@]} "$@"
 }
 
 # in case you need help
@@ -50,13 +42,6 @@ if [ $# = 0 ]; then
     usage
 fi
 
-# generate .env file from scripts/watod-setup-env.sh
-if [ ! -z $VERBOSE ]; then # if we want to see all verbose coming from setting up env
-    cd $MONO_DIR && bash scripts/watod-setup-env.sh
-else
-    cd $MONO_DIR && bash scripts/watod-setup-env.sh &> /dev/null
-fi
-
 # run options
 COMPOSE_CMD=""
 while [[ $# -gt 0 ]] ; do
@@ -66,8 +51,18 @@ while [[ $# -gt 0 ]] ; do
         VERBOSE=1
         shift # past argument
         ;;
-      -lp|--local-ports)
-        PRINT_LOCAL_PORTS=1
+      -d|--setup-dev-env)
+        SETUP_DEV_ENVIRONMENT=1
+        shift
+        SERVICE_NAME=$1
+        if [ -z "$SERVICE_NAME" ]; then
+            echo "Expected watod -d SERVICE_NAME"
+            usage
+        fi
+        shift
+        ;;
+      -c|--setup-completion)
+        SETUP_COMPLETION=1
         shift
         ;;
       -t|--terminal)
@@ -76,36 +71,12 @@ while [[ $# -gt 0 ]] ; do
         SERVICE_NAME=$1
         if [ -z "$SERVICE_NAME" ]; then
             echo "Expected watod -t SERVICE_NAME"
-        usage
+            usage
         fi
-        shift
-        ;;
-      -a|--all)
-        PROFILE_BLACKLIST="$(source $PROFILES_DIR/.env && echo $PROFILE_BLACKLIST)"
-        # Find all the profiles
-        PROFILES=$(ls $PROFILES_DIR)
-        # Remove profiles in the blacklist
-        for TO_REMOVE in ${PROFILE_BLACKLIST[@]}; do
-            PROFILES="${PROFILES//"docker-compose.$TO_REMOVE.yaml"/}"
-        done
-        # format properly for docker-compose
-        PROFILES=$(printf -- "-f profiles/%s " $PROFILES)
-        shift
-        ;;
-      -np)
-        NO_FIX_PERMISSIONS=1
-        shift
-        ;;
-      launch_autonomous)
-        LAUNCH_AUTONOMOUS=1
         shift
         ;;
       -h|--help) # in case you got this far, but still need help :)
         usage
-        ;;
-      setup-env)
-        SETUP_ENV=1
-        shift
         ;;
       *) # unknown option
         break
@@ -113,97 +84,42 @@ while [[ $# -gt 0 ]] ; do
     esac
 done
 
-if [[ ! -z $SETUP_ENV ]]; then
-    echo "Starting dependency mount. Run source watod setup-env to start"
-
-    TEMP_DEPENDENCES_DIR="/tmp/deps"
-    SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-    DEP_MOUNT_IMAGE_NAME=ghcr.io/watonomous/robot_base/base:humble-ubuntu22.04
-    DEP_MOUNT_CONTAINER_NAME=dep-mount
-
-    mkdir -p "${TEMP_DEPENDENCES_DIR}"
-
-    echo "Mounting dependencies"
-    docker run --rm --detach --name "${DEP_MOUNT_CONTAINER_NAME}" "${DEP_MOUNT_IMAGE_NAME}" sleep infinity > /dev/null
-    docker cp "${DEP_MOUNT_CONTAINER_NAME}:/opt/ros" "${TEMP_DEPENDENCES_DIR}"
-    cd "${TEMP_DEPENDENCES_DIR}/ros/humble"
-    . ./setup.bash
-    docker stop "${DEP_MOUNT_CONTAINER_NAME}" > /dev/null
-    cd "${SCRIPT_DIR}"
-    code .
-    echo type CMD/CTRL + SHIFT + P \> Reload Window to activate intellisense
-fi
-
 if [[ $# -gt 0 ]]; then
 	COMPOSE_CMD="${COMPOSE_CMD} $@"
 fi
 
-# launch autonomy on the car
-if [ ! -z $LAUNCH_AUTONOMOUS ]; then
-    echo "============================================================                  "
-    echo "WARNING:  You are about to enter autonomous mode.                             "
-    echo ""
-    echo "Make sure that you are running the autonomous pipeline and have               "
-    echo "verified the output of the /feedback_desired_output rostopic.                 "
-    echo "Turn on the car and put car in drive with the brake off.                      "
-    echo "Press <CTRL-C> twice to exit autonomous mode                                  "
-    echo ""
-    read -p "Press <ENTER> to continue"
-
-    # Run actual CAN devices, not VCAN
-    echo "CAN_DEBUG=False" >> "$PROFILES_DIR/.env"
-    PROFILES="-f profiles/docker-compose.can_interface.yaml"
-
-    run_compose up can_interface
-    exit 0
+# Allow for local overrides of any of the below parameters (prioritized your local config)
+if [ -f "$MONO_DIR/watod-config.local.sh" ]; then
+	source "$MONO_DIR/watod-config.local.sh"
+elif [ -f "$MONO_DIR/watod-config.sh" ]; then
+	source "$MONO_DIR/watod-config.sh"
 fi
 
-if [ ! -z $PRINT_LOCAL_PORTS ]; then
-    # get list of services to traverse
-    SERVICE_LIST="$(run_compose ps --services | sort)"
+MODE_OF_OPERATION=${MODE_OF_OPERATION:-"deploy"}
 
-    # fixes hostnames for VMs so that by default $HOSTNAME is the first element
-    # in the array, which often is the domain name that can be accessed
-    # externally
-    read -ra HOSTNAME <<< $(hostname -A)
-    echo "========================================================================="
-    echo "Ports exposed by running containers:"
-    echo "========================================================================="
-    LOCAL_FORWARD_ALL=""
+# generate .env file from watod_scripts/watod-setup-docker-env.sh
+if [ ! -z $VERBOSE ]; then # if we want to see all verbose coming from setting up env
+    cd $MONO_DIR && . ./watod_scripts/watod-setup-docker-env.sh
+else
+    cd $MONO_DIR && . ./watod_scripts/watod-setup-docker-env.sh &> /dev/null
+fi
 
-    PORTS_STRING=""
-    for SERVICE in $SERVICE_LIST; do
-        ENV_VARS="$(run_compose exec "$SERVICE" env || true)"
-        VNC_PORT=$(echo "$ENV_VARS" | grep ^VNC_PORT= | cut -d '=' -f2)
-        VNC_PORT=${VNC_PORT:0:5} # Strip unncessary characters
+if [ ! -z $SETUP_COMPLETION ]; then
+    source ./watod_scripts/watod-completion.bash
+fi
 
-        if [ ! -z $VNC_PORT ]; then
-            echo "$SERVICE service exposes a VNC Server at $HOSTNAME:$VNC_PORT"
-            
-            LOCAL_FORWARD="-L ${VNC_PORT}:localhost:${VNC_PORT}"
-            LOCAL_FORWARD_ALL="${LOCAL_FORWARD_ALL} $LOCAL_FORWARD"
-            PORTS_STRING="${PORTS_STRING},${VNC_PORT}:${SERVICE}_VNC"
-            echo "	To forward it locally, run"
-            echo "		ssh$LOCAL_FORWARD $USER@$HOSTNAME"
-            echo "	on your local machine attach to VNC at localhost:${VNC_PORT}"
-            echo
-        fi
-    done
-    
-    echo "========================================================================="
-    echo "To forward all ports locally:"
-    echo "ssh $LOCAL_FORWARD_ALL $USER@$HOSTNAME"
-    echo "========================================================================="
+# custom docker compose command to setup development environments outside containers
+if [ ! -z $SETUP_DEV_ENVIRONMENT ]; then
+    source ./watod_scripts/watod-setup-dev-env.sh $SERVICE_NAME
+    exit
 fi
 
 if [ ! -z "$COMPOSE_CMD" ]; then
     ADDITIONAL_ARGS=""
-    # If we are starting a terminal, run docker-compose up with the -d argument
+    # If we are starting a terminal, run docker compose up with the -d argument
     if [ ! -z "$START_TERMINAL" ] && [[ ! " ${COMPOSE_CMD[@]} " =~ " -d " ]] && [[ " ${COMPOSE_CMD[@]} " =~ " up " ]]; then
         ADDITIONAL_ARGS="-d"
     fi
-    echo "Running docker-compose$COMPOSE_CMD $ADDITIONAL_ARGS:"
-    
     run_compose ${COMPOSE_CMD[@]} ${ADDITIONAL_ARGS}
 fi
 
