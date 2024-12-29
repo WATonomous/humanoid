@@ -104,4 +104,12 @@ def generate_launch_description():
     # ld.add_action(control_param)
     # ld.add_action(control_node)
 
+    #################### Odometry Spoof Node #####################
+    odometry_spoof_node = Node(
+        package='odometry_spoof',
+        name='odometry_spoof',
+        executable='odometry_spoof',
+    )
+    ld.add_action(odometry_spoof_node)
+
     return ld

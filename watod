@@ -101,7 +101,6 @@ MODE_OF_OPERATION=${MODE_OF_OPERATION:-"deploy"}
 if [ ! -z $VERBOSE ]; then # if we want to see all verbose coming from setting up env
     cd $MONO_DIR && . ./watod_scripts/watod-setup-docker-env.sh
 else
-    echo "hi"
     cd $MONO_DIR && . ./watod_scripts/watod-setup-docker-env.sh &> /dev/null
 fi
 

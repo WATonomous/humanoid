@@ -1,11 +1,12 @@
 ARG BASE_IMAGE=ghcr.io/watonomous/robot_base/base:humble-ubuntu22.04
 
 ################################ Source ################################
-FROM ${BASE_IMAGE} as source
+FROM ${BASE_IMAGE} AS source
 
 WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
+COPY src/robot/odometry_spoof odometry_spoof
 COPY src/robot/costmap costmap
 COPY src/robot/map_memory map_memory
 COPY src/robot/planner planner
@@ -21,7 +22,7 @@ RUN apt-get -qq update && rosdep update && \
         | sort  > /tmp/colcon_install_list
 
 ################################# Dependencies ################################
-FROM ${BASE_IMAGE} as dependencies
+FROM ${BASE_IMAGE} AS dependencies
 
 # ADD MORE DEPENDENCIES HERE
 
@@ -39,7 +40,7 @@ RUN apt-get -qq autoremove -y && apt-get -qq autoclean && apt-get -qq clean && \
     rm -rf /root/* /root/.ros /tmp/* /var/lib/apt/lists/* /usr/share/doc/*
 
 ################################ Build ################################
-FROM dependencies as build
+FROM dependencies AS build
 
 # Build ROS2 packages
 WORKDIR ${AMENT_WS}
