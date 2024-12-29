@@ -1,6 +1,6 @@
 #include "costmap_node.hpp"
 
-CostmapNode::CostmapNode() : Node("costmap"), costmap_(robot::CostmapCore(this->get_logger())) {
+CostmapNode::CostmapNode() : Node("costmap"), costmap_(robot::CostmapCore()) {
 
 }
 

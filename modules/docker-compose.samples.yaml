@@ -2,7 +2,7 @@ services:
   # aggregator: # C++
   #   build: &aggregator_build
   #     context: ..
-  #     dockerfile: docker/samples/cpp/aggregator.Dockerfile
+  #     dockerfile: docker/samples/cpp_aggregator.Dockerfile
   #     cache_from:
   #       - "${SAMPLES_AGGREGATOR_IMAGE:?}:${TAG}"
   #       - "${SAMPLES_AGGREGATOR_IMAGE:?}:main"
@@ -15,7 +15,7 @@ services:
   aggregator: # PYTHON
     build: &aggregator_build
       context: ..
-      dockerfile: docker/samples/python/aggregator.Dockerfile
+      dockerfile: docker/samples/py_aggregator.Dockerfile
       cache_from:
         - "${SAMPLES_AGGREGATOR_IMAGE:?}:${TAG}"
         - "${SAMPLES_AGGREGATOR_IMAGE:?}:main"
@@ -28,7 +28,7 @@ services:
   producer: # C++
     build: &producer_build
       context: ..
-      dockerfile: docker/samples/cpp/producer.Dockerfile
+      dockerfile: docker/samples/cpp_producer.Dockerfile
       cache_from:
         - "${SAMPLES_PRODUCER_IMAGE:?}:${TAG}"
         - "${SAMPLES_PRODUCER_IMAGE:?}:main"
@@ -41,7 +41,7 @@ services:
   # producer: # PYTHON
   #   build: &producer_build
   #     context: ..
-  #     dockerfile: docker/samples/python/producer.Dockerfile
+  #     dockerfile: docker/samples/py_producer.Dockerfile
   #     cache_from:
   #       - "${SAMPLES_PRODUCER_IMAGE:?}:${TAG}"
   #       - "${SAMPLES_PRODUCER_IMAGE:?}:main"
@@ -54,7 +54,7 @@ services:
   transformer: # C++
     build: &transformer_build
       context: ..
-      dockerfile: docker/samples/cpp/transformer.Dockerfile
+      dockerfile: docker/samples/cpp_transformer.Dockerfile
       cache_from:
         - "${SAMPLES_TRANSFORMER_IMAGE:?}:${TAG}"
         - "${SAMPLES_TRANSFORMER_IMAGE:?}:main"
@@ -67,7 +67,7 @@ services:
   # transformer: # PYTHON
   #   build: &transformer_build
   #     context: ..
-  #     dockerfile: docker/samples/python/transformer.Dockerfile
+  #     dockerfile: docker/samples/py_transformer.Dockerfile
   #     cache_from:
   #       - "${SAMPLES_TRANSFORMER_IMAGE:?}:${TAG}"
   #       - "${SAMPLES_TRANSFORMER_IMAGE:?}:main"

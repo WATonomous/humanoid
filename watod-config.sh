@@ -15,7 +15,7 @@
 ##   - robot            :   starts up robot nodes
 ##   - samples          :   starts up sample nodes for reference
 
-ACTIVE_MODULES="robot gazebo vis_tools"
+# ACTIVE_MODULES=""
 
 ################################# MODE OF OPERATION #################################
 ## Possible modes of operation when running watod.
@@ -23,7 +23,7 @@ ACTIVE_MODULES="robot gazebo vis_tools"
 ##	 - deploy (default)		:	runs production-grade containers (non-editable)
 ##	 - develop   		    :	runs developer containers (editable)
 
-MODE_OF_OPERATION="deploy"
+# MODE_OF_OPERATION=""
 
 ############################## ADVANCED CONFIGURATIONS ##############################
 ## Name to append to docker containers. DEFAULT = "<your_watcloud_username>"
