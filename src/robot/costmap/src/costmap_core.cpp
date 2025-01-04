@@ -83,8 +83,8 @@ void CostmapCore::inflateObstacle(int origin_x, int origin_y) const {
           // If within inflation radius, mark as inflated and add to queue
           if (distance <= inflation_radius_) {
               int index = ny * costmap_data_->info.width + nx;
-              if (costmap_data_->data[index] != 100) {
-                costmap_data_->data[index] = 10;  // 50 indicates an inflated cell
+              if (costmap_data_->data[index] < (1 - (distance / inflation_radius_)) * 100) {
+                costmap_data_->data[index] = (1 - (distance / inflation_radius_)) * 100;
               }
               queue.emplace(nx, ny);
           }

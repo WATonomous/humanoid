@@ -17,7 +17,7 @@ void MapMemoryCore::initMapMemory(
   global_map_->info.origin = origin;
   global_map_->data.assign(width * height, 0);
 
-  RCLCPP_INFO(logger_, "Costmap initialized with resolution: %.2f, width: %d, height: %d", resolution, width, height);
+  RCLCPP_INFO(logger_, "Global Map initialized with resolution: %.2f, width: %d, height: %d", resolution, width, height);
 }
 
 void MapMemoryCore::updateMap(

@@ -10,7 +10,6 @@ COPY src/robot/odometry_spoof odometry_spoof
 COPY src/robot/costmap costmap
 COPY src/robot/map_memory map_memory
 COPY src/robot/planner planner
-COPY src/robot/state_machine state_machine
 COPY src/robot/control control
 COPY src/robot/bringup_robot bringup_robot
 

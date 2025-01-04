@@ -12,7 +12,6 @@
   <depend>odometry_spoof</depend>
   <depend>costmap</depend>
   <depend>map_memory</depend>
-  <depend>state_machine</depend>
   <depend>planner</depend>
   <depend>control</depend>
 

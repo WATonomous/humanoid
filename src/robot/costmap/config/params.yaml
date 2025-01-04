@@ -4,9 +4,9 @@ costmap_node:
     costmap_topic: "/costmap" # occupancy grid topic with which costmap node publishes the costmap to
 
     costmap:
-      resolution: 0.40
-      width: 120
-      height: 120
+      resolution: 0.20
+      width: 240
+      height: 240
 
       origin:
         position:
@@ -15,4 +15,4 @@ costmap_node:
         orientation:
           w: 1.0
       
-      inflation_radius: 1.0
+      inflation_radius: 1.5
