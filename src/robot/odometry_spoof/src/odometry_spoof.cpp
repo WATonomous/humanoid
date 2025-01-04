@@ -20,9 +20,10 @@ OdometrySpoofNode::OdometrySpoofNode() : Node("odometry_spoof") {
 }
 
 void OdometrySpoofNode::timerCallback() {
-  // We'll look up the transform from sim_world -> robot
-  // If it's reversed in your setup, swap the frame IDs.
-  const std::string target_frame = "robot";
+  // We'll look up the transform from sim_world -> robot/chassis/gpu_lidar, 
+  // note robot frame is usually not the lidar sensor, but we do so to make this
+  // assignment easier
+  const std::string target_frame = "robot/chassis/gpu_lidar";
   const std::string source_frame = "sim_world";
 
   geometry_msgs::msg::TransformStamped transform_stamped;

@@ -10,19 +10,27 @@ namespace robot
 
 class CostmapCore {
   public:
+    // Constructor, we pass in the node's RCLCPP logger to enable logging to terminal
     explicit CostmapCore(const rclcpp::Logger& logger);
 
-    void init_costmap(
+    // Initializes the Costmap with the parameters that we get from the params.yaml
+    void initCostmap(
       double resolution, 
       int width, 
       int height, 
       geometry_msgs::msg::Pose origin, 
       double inflation_radius
       );
-    void update_costmap(const sensor_msgs::msg::LaserScan::SharedPtr laserscan) const;
-    void inflate_obstacle(int origin_x, int origin_y) const;
 
-    nav_msgs::msg::OccupancyGrid::SharedPtr get_costmap_data() const;
+    // Update the costmap based on the current laserscan reading
+    void updateCostmap(const sensor_msgs::msg::LaserScan::SharedPtr laserscan) const;
+
+    // Inflate the obstacle in the laserscan on the costmap because we want of range of values
+    // where we can and cannot go
+    void inflateObstacle(int origin_x, int origin_y) const;
+
+    // Retrieves costmap data
+    nav_msgs::msg::OccupancyGrid::SharedPtr getCostmapData() const;
 
   private:
     nav_msgs::msg::OccupancyGrid::SharedPtr costmap_data_;

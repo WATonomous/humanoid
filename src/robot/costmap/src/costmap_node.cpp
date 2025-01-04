@@ -5,12 +5,12 @@
 
 CostmapNode::CostmapNode() : Node("costmap"), costmap_(robot::CostmapCore(this->get_logger())) {
   // load ROS2 yaml parameters
-  process_parameters();
+  processParameters();
 
   laser_scan_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
     laserscan_topic_, 10, 
     std::bind(
-      &CostmapNode::laser_scan_callback, this, 
+      &CostmapNode::laserScanCallback, this, 
       std::placeholders::_1));
 
   costmap_pub_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>(
@@ -18,7 +18,7 @@ CostmapNode::CostmapNode() : Node("costmap"), costmap_(robot::CostmapCore(this->
 
   RCLCPP_INFO(this->get_logger(), "Initialized ROS Constructs");
 
-  costmap_.init_costmap(
+  costmap_.initCostmap(
     resolution_, 
     width_, 
     height_, 
@@ -29,7 +29,7 @@ CostmapNode::CostmapNode() : Node("costmap"), costmap_(robot::CostmapCore(this->
   RCLCPP_INFO(this->get_logger(), "Initialized Costmap Core");
 }
 
-void CostmapNode::process_parameters() {
+void CostmapNode::processParameters() {
   // Declare all ROS2 Parameters
   this->declare_parameter<std::string>("laserscan_topic", "/lidar");
   this->declare_parameter<std::string>("costmap_topic", "/costmap");
@@ -53,11 +53,11 @@ void CostmapNode::process_parameters() {
   inflation_radius_ = this->get_parameter("costmap.inflation_radius").as_double();
 }
 
-void CostmapNode::laser_scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) const {
+void CostmapNode::laserScanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) const {
   // Update the costmap according to the laser scan
-  costmap_.update_costmap(msg);
+  costmap_.updateCostmap(msg);
   // publish the costmap
-  nav_msgs::msg::OccupancyGrid costmap_msg = *costmap_.get_costmap_data();
+  nav_msgs::msg::OccupancyGrid costmap_msg = *costmap_.getCostmapData();
   costmap_msg.header = msg->header;
   costmap_pub_->publish(costmap_msg);
 }

@@ -28,24 +28,24 @@ def generate_launch_description():
     ld.add_action(costmap_param)
     ld.add_action(costmap_node)
 
-    # #################### Map Memory Node #####################
-    # map_memory_pkg_prefix = get_package_share_directory('map_memory')
-    # map_memory_param_file = os.path.join(
-    #     map_memory_pkg_prefix, 'config', 'params.yaml')
+    #################### Map Memory Node #####################
+    map_memory_pkg_prefix = get_package_share_directory('map_memory')
+    map_memory_param_file = os.path.join(
+        map_memory_pkg_prefix, 'config', 'params.yaml')
     
-    # map_memory_param = DeclareLaunchArgument(
-    #     'map_memory_param_file',
-    #     default_value=map_memory_param_file,
-    #     description='Path to config file for producer node'
-    # )
-    # map_memory_node = Node(
-    #     package='map_memory',
-    #     name='map_memory_node',
-    #     executable='map_memory_node',
-    #     parameters=[LaunchConfiguration('map_memory_param_file')],
-    # )
-    # ld.add_action(map_memory_param)
-    # ld.add_action(map_memory_node)
+    map_memory_param = DeclareLaunchArgument(
+        'map_memory_param_file',
+        default_value=map_memory_param_file,
+        description='Path to config file for producer node'
+    )
+    map_memory_node = Node(
+        package='map_memory',
+        name='map_memory_node',
+        executable='map_memory_node',
+        parameters=[LaunchConfiguration('map_memory_param_file')],
+    )
+    ld.add_action(map_memory_param)
+    ld.add_action(map_memory_node)
 
     # #################### State Machine Node #####################
     # state_machine_pkg_prefix = get_package_share_directory('state_machine')
