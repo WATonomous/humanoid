@@ -14,7 +14,7 @@ PlannerNode::PlannerNode() : Node("planner"), planner_(robot::PlannerCore(this->
     std::bind(&PlannerNode::mapCallback, this, std::placeholders::_1)
   );
 
-  goal_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
+  goal_sub_ = this->create_subscription<geometry_msgs::msg::PointStamped>(
     goal_topic_,
     10,
     std::bind(&PlannerNode::goalCallback, this, std::placeholders::_1)
@@ -79,7 +79,7 @@ void PlannerNode::mapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg)
   }
 }
 
-void PlannerNode::goalCallback(const geometry_msgs::msg::PoseStamped::SharedPtr goal_msg)
+void PlannerNode::goalCallback(const geometry_msgs::msg::PointStamped::SharedPtr goal_msg)
 {
   if (active_goal_) {
     RCLCPP_WARN(this->get_logger(), "Ignoring new goal; a goal is already active.");
@@ -96,7 +96,7 @@ void PlannerNode::goalCallback(const geometry_msgs::msg::PoseStamped::SharedPtr 
   plan_start_time_ = now();
 
   RCLCPP_INFO(this->get_logger(), "Received new goal: (%.2f, %.2f)",
-              goal_msg->pose.position.x, goal_msg->pose.position.y);
+              goal_msg->point.x, goal_msg->point.y);
 
   publishPath();
 }
@@ -125,7 +125,7 @@ void PlannerNode::timerCallback()
   }
 
   // Check if we reached the goal
-  double distance = sqrt(pow(odom_x_ - current_goal_.pose.position.x, 2) +  pow(odom_y_ - current_goal_.pose.position.y, 2));
+  double distance = sqrt(pow(odom_x_ - current_goal_.point.x, 2) +  pow(odom_y_ - current_goal_.point.y, 2));
   if (distance < goal_tolerance_) {
     RCLCPP_WARN(this->get_logger(), "Plan succeeded! Elapsed Time: %.2f", elapsed);
     resetGoal();
@@ -146,7 +146,7 @@ void PlannerNode::publishPath() {
 
   {
     std::lock_guard<std::mutex> lock(map_mutex_);
-    if(!planner_.planPath(start_world_x, start_world_y, current_goal_.pose.position.x, current_goal_.pose.position.y, map_)) {
+    if(!planner_.planPath(start_world_x, start_world_y, current_goal_.point.x, current_goal_.point.y, map_)) {
       RCLCPP_ERROR(this->get_logger(), "Plan Failed.");
       resetGoal();
       return;

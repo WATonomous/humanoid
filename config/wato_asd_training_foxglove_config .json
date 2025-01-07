@@ -3,13 +3,13 @@
     "3D!185ho2t": {
       "cameraState": {
         "perspective": true,
-        "distance": 47.833119595403204,
-        "phi": 58.475641645335315,
-        "thetaOffset": 154.82162807274014,
+        "distance": 75.89554049133802,
+        "phi": 5.282201562691874,
+        "thetaOffset": 129.23020245291488,
         "targetOffset": [
-          -4.250206458950288,
-          4.088433137523293,
-          -7.908044682914301e-17
+          -0.017940020871191245,
+          -1.5311478110702377,
+          -2.746879958845761e-16
         ],
         "target": [
           0,
@@ -95,7 +95,7 @@
         "/camera": {
           "visible": false
         },
-        "/costmap": {
+        "/occupancy": {
           "visible": false,
           "colorMode": "costmap"
         },
@@ -103,6 +103,22 @@
           "visible": false,
           "color": "#ff000073",
           "showOutlines": true
+        },
+        "/map": {
+          "visible": true,
+          "colorMode": "costmap",
+          "alpha": 0.5497
+        },
+        "/costmap": {
+          "visible": true,
+          "colorMode": "costmap"
+        },
+        "/path": {
+          "visible": true,
+          "gradient": [
+            "#90ff6bff",
+            "#eeff6b80"
+          ]
         }
       },
       "layers": {
@@ -163,7 +179,7 @@
       },
       "publish": {
         "type": "point",
-        "poseTopic": "/move_base_simple/goal",
+        "poseTopic": "/goal_pose",
         "pointTopic": "/goal_point",
         "poseEstimateTopic": "/initialpose",
         "poseEstimateXDeviation": 0.5,
