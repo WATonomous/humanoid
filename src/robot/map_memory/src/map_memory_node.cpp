@@ -27,6 +27,11 @@ MapMemoryNode::MapMemoryNode() : Node("map_memory"), map_memory_(robot::MapMemor
     10
   );
 
+  timer_ = this->create_wall_timer(
+    std::chrono::milliseconds(map_pub_rate_),
+    std::bind(&MapMemoryNode::timerCallback, this)
+  );
+
   map_memory_.initMapMemory(
     resolution_, 
     width_, 
@@ -42,34 +47,44 @@ void MapMemoryNode::processParameters() {
   this->declare_parameter<std::string>("local_costmap_topic", "/costmap");
   this->declare_parameter<std::string>("odom_topic", "/odom/filtered");
   this->declare_parameter<std::string>("map_topic", "/map");
+  this->declare_parameter<int>("map_pub_rate", 500);
+  this->declare_parameter<double>("update_distance", 1.0);
   this->declare_parameter<double>("global_map.resolution", 0.1);
   this->declare_parameter<int>("global_map.width", 100);
   this->declare_parameter<int>("global_map.height", 100);
   this->declare_parameter<double>("global_map.origin.position.x", -5.0);
   this->declare_parameter<double>("global_map.origin.position.y", -5.0);
   this->declare_parameter<double>("global_map.origin.orientation.w", 1.0);
-  this->declare_parameter<double>("distance", 1.0);
 
   // Retrieve parameters and store them in member variables
   local_costmap_topic_ = this->get_parameter("local_costmap_topic").as_string();
   odom_topic_ = this->get_parameter("odom_topic").as_string();
   map_topic_ = this->get_parameter("map_topic").as_string();
+  map_pub_rate_ = this->get_parameter("map_pub_rate").as_int();
+  update_distance_ = this->get_parameter("update_distance").as_double();
   resolution_ = this->get_parameter("global_map.resolution").as_double();
   width_ = this->get_parameter("global_map.width").as_int();
   height_ = this->get_parameter("global_map.height").as_int();
   origin_.position.x = this->get_parameter("global_map.origin.position.x").as_double();
   origin_.position.y = this->get_parameter("global_map.origin.position.y").as_double();
   origin_.orientation.w = this->get_parameter("global_map.origin.orientation.w").as_double();
-  distance_ = this->get_parameter("distance").as_double();
 }
 
 void MapMemoryNode::localCostmapCallback(
   const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
+
+  bool all_zero = std::all_of(msg->data.begin(), msg->data.end(),
+                            [](int8_t val) { return val == 0; });
+  if (all_zero) {
+    RCLCPP_INFO(this->get_logger(), "All elements in the array are zero.");
+    return;
+  }
+
   // Check how far the robot has moved since last update
   if (!std::isnan(last_robot_x_))
   {
     double dist = std::hypot(robot_x_ - last_robot_x_, robot_y_ - last_robot_y_);
-    if (dist < distance_)
+    if (dist < update_distance_)
     {
       // Robot hasn’t moved enough, skip updating the global map
       return;
@@ -82,12 +97,6 @@ void MapMemoryNode::localCostmapCallback(
 
   // Update the global map
   map_memory_.updateMap(msg, robot_x_, robot_y_, robot_theta_);
-
-  //6. Publish the updated global map
-  nav_msgs::msg::OccupancyGrid map_msg = *map_memory_.getMapData();
-  map_msg.header.stamp = this->now();
-  map_msg.header.frame_id = "sim_world";
-  global_costmap_pub_->publish(map_msg);
 }
 
 void MapMemoryNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
@@ -102,6 +111,14 @@ void MapMemoryNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
   double qz = msg->pose.pose.orientation.z;
   double qw = msg->pose.pose.orientation.w;
   robot_theta_ = quaternionToYaw(qx, qy, qz, qw);
+}
+
+void MapMemoryNode::timerCallback() {
+  // Publish the map every map_pub_rate [ms]
+  nav_msgs::msg::OccupancyGrid map_msg = *map_memory_.getMapData();
+  map_msg.header.stamp = this->now();
+  map_msg.header.frame_id = "sim_world";
+  global_costmap_pub_->publish(map_msg);
 }
 
 // Utility: Convert quaternion to yaw

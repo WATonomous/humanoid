@@ -20,10 +20,10 @@ OdometrySpoofNode::OdometrySpoofNode() : Node("odometry_spoof") {
 }
 
 void OdometrySpoofNode::timerCallback() {
-  // We'll look up the transform from sim_world -> robot/chassis/gpu_lidar, 
+  // We'll look up the transform from sim_world -> robot/chassis/lidar, 
   // note robot frame is usually not the lidar sensor, but we do so to make this
   // assignment easier
-  const std::string target_frame = "robot/chassis/gpu_lidar";
+  const std::string target_frame = "robot/chassis/lidar";
   const std::string source_frame = "sim_world";
 
   geometry_msgs::msg::TransformStamped transform_stamped;
@@ -34,7 +34,7 @@ void OdometrySpoofNode::timerCallback() {
       tf2::TimePointZero  // latest available transform
     );
   } catch (const tf2::TransformException &ex) {
-    RCLCPP_WARN(this->get_logger(), "Could not transform %s to %s: %s",
+    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Could not transform %s to %s: %s",
                 source_frame.c_str(), target_frame.c_str(), ex.what());
     return;
   }

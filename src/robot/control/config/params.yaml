@@ -1,0 +1,11 @@
+control_node:
+  ros__parameters:
+    path_topic: "/path"
+    odom_topic: "/odom/filtered"
+    cmd_vel_topic: "/cmd_vel"
+
+    lookahead_distance: 1.5 # m
+    steering_gain: 1.5 # gain coefficient that defines how much we should consider the difference in angle
+
+    max_steering_angle: 0.5 # rad
+    linear_velocity: 1.0 # m/s

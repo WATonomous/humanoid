@@ -66,24 +66,24 @@ def generate_launch_description():
     ld.add_action(planner_param)
     ld.add_action(planner_node)
     
-    # ##################### Control Node #####################
-    # control_pkg_prefix = get_package_share_directory('control')
-    # control_param_file = os.path.join(
-    #     control_pkg_prefix, 'config', 'params.yaml')
+    ##################### Control Node #####################
+    control_pkg_prefix = get_package_share_directory('control')
+    control_param_file = os.path.join(
+        control_pkg_prefix, 'config', 'params.yaml')
     
-    # control_param = DeclareLaunchArgument(
-    #     'control_param_file',
-    #     default_value=control_param_file,
-    #     description='Path to config file for producer node'
-    # )
-    # control_node = Node(
-    #     package='control',
-    #     name='control_node',
-    #     executable='control_node',
-    #     parameters=[LaunchConfiguration('control_param_file')],
-    # )
-    # ld.add_action(control_param)
-    # ld.add_action(control_node)
+    control_param = DeclareLaunchArgument(
+        'control_param_file',
+        default_value=control_param_file,
+        description='Path to config file for producer node'
+    )
+    control_node = Node(
+        package='control',
+        name='control_node',
+        executable='control_node',
+        parameters=[LaunchConfiguration('control_param_file')],
+    )
+    ld.add_action(control_param)
+    ld.add_action(control_node)
 
     #################### Odometry Spoof Node #####################
     odometry_spoof_node = Node(

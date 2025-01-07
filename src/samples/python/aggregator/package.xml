@@ -5,7 +5,7 @@
   <version>0.0.0</version>
   <description>TODO: Package description</description>
   <maintainer email="e23zhou@watonomous.ca">eddyzhou</maintainer>
-  <license>TODO: License declaration</license>
+  <license>Apache2.0: License declaration</license>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

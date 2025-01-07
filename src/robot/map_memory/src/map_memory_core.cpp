@@ -3,7 +3,8 @@
 namespace robot
 {
 
-MapMemoryCore::MapMemoryCore(const rclcpp::Logger& logger) : global_map_(std::make_shared<nav_msgs::msg::OccupancyGrid>()), logger_(logger) {}
+MapMemoryCore::MapMemoryCore(const rclcpp::Logger& logger) 
+  : global_map_(std::make_shared<nav_msgs::msg::OccupancyGrid>()), logger_(logger) {}
 
 void MapMemoryCore::initMapMemory(
   double resolution, 

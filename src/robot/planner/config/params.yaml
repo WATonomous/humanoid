@@ -5,12 +5,8 @@ planner_node:
     odom_topic: "/odom/filtered"
     path_topic: "/path"
 
-    # Path Smoothing Params
-    smoothing_factor: 0.2
-    iterations: 20
-
     # Path start-end params
-    goal_tolerance: 0.3
+    goal_tolerance: 1.5
     plan_timeout_seconds: 30.0
 
 

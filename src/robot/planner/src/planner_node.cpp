@@ -123,6 +123,14 @@ void PlannerNode::timerCallback()
     resetGoal();
     return;
   }
+
+  // Check if we reached the goal
+  double distance = sqrt(pow(odom_x_ - current_goal_.pose.position.x, 2) +  pow(odom_y_ - current_goal_.pose.position.y, 2));
+  if (distance < goal_tolerance_) {
+    RCLCPP_WARN(this->get_logger(), "Plan succeeded! Elapsed Time: %.2f", elapsed);
+    resetGoal();
+    return;
+  }
 }
 
 void PlannerNode::publishPath() {

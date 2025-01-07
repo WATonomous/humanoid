@@ -3,7 +3,7 @@
   <name>gazebo</name>
   <version>0.0.0</version>
   <description>Gazebo package for launching asd training sim</description>
-  <license>TODO</license>
+  <license>Apache2.0</license>
 
   <maintainer email="e23zhou@watonomous.ca">Eddy Zhou</maintainer>
 

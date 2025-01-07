@@ -15,10 +15,3 @@ services:
     command: /bin/bash -c "ros2 launch gazebo sim.launch.py"
     volumes:
       - ../src/gazebo/launch:/root/src/gazebo/launch
-    deploy:
-      resources:
-        reservations:
-          devices:
-          - driver: nvidia
-            device_ids: ['0'] # Change to ['0', '1'] to use two GPUs
-            capabilities: [gpu]
