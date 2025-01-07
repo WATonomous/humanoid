@@ -96,12 +96,20 @@ elif [ -f "$MONO_DIR/watod-config.sh" ]; then
 fi
 
 MODE_OF_OPERATION=${MODE_OF_OPERATION:-"deploy"}
+PLATFORM=${PLATFORM:-"amd64"}
 
 # generate .env file from watod_scripts/watod-setup-docker-env.sh
 if [ ! -z $VERBOSE ]; then # if we want to see all verbose coming from setting up env
     cd $MONO_DIR && . ./watod_scripts/watod-setup-docker-env.sh
 else
     cd $MONO_DIR && . ./watod_scripts/watod-setup-docker-env.sh &> /dev/null
+fi
+
+# override to use arm64 images
+if [ "$PLATFORM" = "arm64" ]; then
+    echo "BASE_IMAGE_OVERRIDE=ghcr.io/watonomous/robot_base/base:humble-arm64" >> "$MODULES_DIR/.env"
+else
+    echo "BASE_IMAGE_OVERRIDE=ghcr.io/watonomous/robot_base/base:humble-ubuntu22.04" >> "$MODULES_DIR/.env"
 fi
 
 if [ ! -z $SETUP_COMPLETION ]; then

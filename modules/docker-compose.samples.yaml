@@ -19,6 +19,8 @@ services:
       cache_from:
         - "${SAMPLES_AGGREGATOR_IMAGE:?}:${TAG}"
         - "${SAMPLES_AGGREGATOR_IMAGE:?}:main"
+      args:
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
     image: "${SAMPLES_AGGREGATOR_IMAGE:?}:${TAG}"
     profiles: [deploy]
     command: /bin/bash -c "ros2 launch aggregator aggregator.launch.py"
@@ -32,6 +34,8 @@ services:
       cache_from:
         - "${SAMPLES_PRODUCER_IMAGE:?}:${TAG}"
         - "${SAMPLES_PRODUCER_IMAGE:?}:main"
+      args:
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
     image: "${SAMPLES_PRODUCER_IMAGE:?}:${TAG}"
     profiles: [deploy]
     command: /bin/bash -c "ros2 launch producer producer.launch.py"
@@ -58,6 +62,8 @@ services:
       cache_from:
         - "${SAMPLES_TRANSFORMER_IMAGE:?}:${TAG}"
         - "${SAMPLES_TRANSFORMER_IMAGE:?}:main"
+      args:
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
     image: "${SAMPLES_TRANSFORMER_IMAGE:?}:${TAG}"
     profiles: [deploy]
     command: /bin/bash -c "ros2 launch transformer transformer.launch.py"
