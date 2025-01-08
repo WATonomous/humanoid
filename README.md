@@ -1,5 +1,5 @@
 # wato_asd_training
-Training repository for newcomers to WATonomous
+WATonomous ASD Admissions Assignment
 
 ## Prerequisite Installation
 These steps are to setup the monorepo to work on your own PC. We utilize Rootless docker to enable ease of reproducibility and deployability.
