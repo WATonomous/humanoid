@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <queue>
+
 #include "costmap_core.hpp"
 
 namespace robot
