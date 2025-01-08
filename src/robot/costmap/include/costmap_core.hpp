@@ -1,10 +1,6 @@
 #ifndef COSTMAP_CORE_HPP_
 #define COSTMAP_CORE_HPP_
 
-#include "rclcpp/rclcpp.hpp"
-#include "nav_msgs/msg/occupancy_grid.hpp"
-#include "sensor_msgs/msg/laser_scan.hpp"
-
 namespace robot
 {
 

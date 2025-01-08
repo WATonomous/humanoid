@@ -8,5 +8,3 @@ planner_node:
     # Path start-end params
     goal_tolerance: 1.5
     plan_timeout_seconds: 60.0
-
-
