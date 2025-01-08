@@ -11,13 +11,13 @@ map_memory_node:
     update_distance: 1.5
 
     global_map:
-      resolution: 0.4
-      width: 80
-      height: 80
+      resolution: 0.5
+      width: 60
+      height: 60
 
       origin:
         position:
-          x: -16.0 # given by -1 * width * resolution / 2
-          y: -16.0 # given by -1 * height * resolution / 2
+          x: -15.0 # given by -1 * width * resolution / 2
+          y: -15.0 # given by -1 * height * resolution / 2
         orientation:
           w: 1.0
