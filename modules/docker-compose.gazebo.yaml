@@ -6,6 +6,8 @@ services:
       cache_from:
         - "${GAZEBO_SERVER_IMAGE:?}:${TAG}"
         - "${GAZEBO_SERVER_IMAGE:?}:main"
+      args:
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
     image: "${GAZEBO_SERVER_IMAGE:?}:${TAG}"
     ipc: host
     tty: true

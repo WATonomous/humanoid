@@ -5,14 +5,13 @@
   <description>Bringup Robot package for launching the robot</description>
 
   <maintainer email="e23zhou@watonomous.ca">Eddy Zhou</maintainer>
-  <license>TODO</license>
+  <license>Apache2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>odometry_spoof</depend>
   <depend>costmap</depend>
   <depend>map_memory</depend>
-  <depend>state_machine</depend>
   <depend>planner</depend>
   <depend>control</depend>
 

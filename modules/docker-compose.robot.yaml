@@ -6,6 +6,8 @@ services:
       cache_from:
         - "${ROBOT_IMAGE:?}:${TAG}"
         - "${ROBOT_IMAGE:?}:main"
+      args:
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
     image: "${ROBOT_IMAGE:?}:${TAG}"
     profiles:
       - deploy
