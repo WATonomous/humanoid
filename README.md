@@ -1,4 +1,4 @@
-#WATonomous ASD Admissions Assignment
+# WATonomous ASD Admissions Assignment
 
 ## Prerequisite Installation
 These steps are to setup the monorepo to work on your own PC. We utilize docker to enable ease of reproducibility and deployability.
