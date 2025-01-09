@@ -10,6 +10,4 @@ These steps are to setup the monorepo to work on your own PC. We utilize docker 
 2. Once inside Linux, [Download Docker Engine using the `apt` repository](https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository)
 3. You're all set! You can begin the assignment by visiting the WATonomous Wiki.
 
-> Make sure you are always running the assignment inside Linux
-
 Link to Onboarding Assignment: https://wiki.watonomous.ca/
