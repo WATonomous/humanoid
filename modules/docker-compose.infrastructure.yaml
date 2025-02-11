@@ -2,7 +2,7 @@ services:
   foxglove:
     build:
       context: ..
-      dockerfile: docker/vis_tools/foxglove.Dockerfile
+      dockerfile: docker/infrastructure/foxglove.Dockerfile
       cache_from:
         - "${INFRASTRUCTURE_FOXGLOVE_IMAGE:?}:${TAG}"
         - "${INFRASTRUCTURE_FOXGLOVE_IMAGE:?}:main"

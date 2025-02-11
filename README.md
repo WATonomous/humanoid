@@ -1,6 +1,11 @@
 # WATonomous + UWRL Humanoid Project
+Building a Dextrous Humanoid from scratch
 
-## Prerequisite Installation
-These steps are to setup the repo to work on your own PC. We utilize docker to enable ease of reproducibility and deployability.
+## Necessary Docs
+[https://github.com/WATonomous/wato_monorepo/tree/main/docs/dev]Project Infrastructure Development Docs
+[src/samples/README.md]ROS Structure Docs
 
-1. Need Linux Ubuntu >= 22.04, Windows (WSL), and MacOS. 
+## Dependencies:
+- Ubuntu >= 22.04, Windows (WSL), and MacOS.
+
+

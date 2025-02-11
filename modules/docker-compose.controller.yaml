@@ -2,7 +2,7 @@ services:
   robot: 
     build: &robot_build
       context: ..
-      dockerfile: docker/robot/robot.Dockerfile
+      dockerfile: docker/controller/robot.Dockerfile
       cache_from:
         - "${ROBOT_IMAGE:?}:${TAG}"
         - "${ROBOT_IMAGE:?}:main"
@@ -20,4 +20,4 @@ services:
     profiles:
       - develop
     volumes:
-      - ${MONO_DIR}/src/robot:/root/ament_ws/src
+      - ${MONO_DIR}/src/controller/robot:/root/ament_ws/src
