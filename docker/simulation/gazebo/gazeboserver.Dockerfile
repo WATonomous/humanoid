@@ -6,7 +6,7 @@ FROM ${BASE_IMAGE} AS source
 WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
-COPY src/gazebo gazebo
+COPY src/simulation/gazebo gazebo
 
 # Scan for rosdeps
 RUN apt-get -qq update && rosdep update && \

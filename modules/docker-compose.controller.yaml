@@ -2,7 +2,7 @@ services:
   robot: 
     build: &robot_build
       context: ..
-      dockerfile: docker/controller/robot.Dockerfile
+      dockerfile: docker/controller/robot/robot.Dockerfile
       cache_from:
         - "${ROBOT_IMAGE:?}:${TAG}"
         - "${ROBOT_IMAGE:?}:main"

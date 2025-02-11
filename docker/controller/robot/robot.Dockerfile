@@ -6,12 +6,12 @@ FROM ${BASE_IMAGE} AS source
 WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
-COPY src/robot/odometry_spoof odometry_spoof
-COPY src/robot/costmap costmap
-COPY src/robot/map_memory map_memory
-COPY src/robot/planner planner
-COPY src/robot/control control
-COPY src/robot/bringup_robot bringup_robot
+COPY src/controller/robot/odometry_spoof odometry_spoof
+COPY src/controller/robot/costmap costmap
+COPY src/controller/robot/map_memory map_memory
+COPY src/controller/robot/planner planner
+COPY src/controller/robot/control control
+COPY src/controller/robot/bringup_robot bringup_robot
 
 # Scan for rosdeps
 RUN apt-get -qq update && rosdep update && \
