@@ -31,7 +31,7 @@ jobs:
       - name: Setup Watod Environment
         run: |
           MODULES_DIR="$GITHUB_WORKSPACE/modules"
-          . ./watod_scripts/watod-setup-env.sh
+          . ./watod_scripts/watod-setup-docker-env.sh
         shell: bash
 
       - name: Generate Docker Environment
