@@ -52,7 +52,7 @@ SAMPLES_AGGREGATOR_IMAGE=${SAMPLES_AGGREGATOR_IMAGE:-"$REGISTRY_URL/samples/samp
 SAMPLES_PRODUCER_IMAGE=${SAMPLES_PRODUCER_IMAGE:-"$REGISTRY_URL/samples/samples_producer"}
 SAMPLES_TRANSFORMER_IMAGE=${SAMPLES_TRANSFORMER_IMAGE:-"$REGISTRY_URL/samples/samples_transformer"}
 
-# ASD Training Images
+# Images
 INFRASTRUCTURE_FOXGLOVE_IMAGE=${INFRASTRUCTURE_FOXGLOVE_IMAGE:-"$REGISTRY_URL/infrastructure/foxglove"}
 
 ## --------------------------- Ports ------------------------------

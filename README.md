@@ -1,7 +1,7 @@
 # WATonomous + UWRL Humanoid Project
 Dockerized ROS2 setup controlling and interfacing with Humanoid Hand
 
-## File Structure
+## Repo Structure
 ```
 humanoid
 ├── watod-setup-env.sh
@@ -35,7 +35,7 @@ humanoid
 │   ├── simulation
 └── watod
 ```
-## Necessary Docs
+## Infra Documentation
 1. [Project Infrastructure Development Docs](https://github.com/WATonomous/wato_monorepo/tree/main/docs/dev/)
 2. [ROS Structure Docs](src/samples/README.md)
 
