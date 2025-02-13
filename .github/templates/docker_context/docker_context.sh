@@ -13,9 +13,9 @@ json_objects=()
 
 # Check for infrastructure changes
 TEST_ALL=false
-if [[ $MODIFIED_MODULES = "infrastructure" ]]; then
-    TEST_ALL=true
-fi
+# if [[ $MODIFIED_MODULES = "infrastructure" ]]; then
+#     TEST_ALL=true
+# fi
 
 # Loop through each module
 while read -r module; do
@@ -48,6 +48,8 @@ while read -r module; do
         '{module: $module_out, service: $service_out}')
         # Append JSON object to the array
         json_objects+=($json_object)
+        
+    echo $json_objects | jq
     done <<< "$services"
 done <<< "$modules"
 
