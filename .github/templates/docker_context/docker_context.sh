@@ -48,6 +48,8 @@ while read -r module; do
 done <<< "$modules"
 # Convert the array of JSON objects to a single JSON array
 json_services=$(jq -nc '[( $ARGS.positional[] | fromjson )]' --args -- ${json_objects[*]})
+echo $json_services
+echo output "docker_matrix=$(echo $json_services | jq -c '{include: .}')"
 echo "docker_matrix=$(echo $json_services | jq -c '{include: .}')" >> $GITHUB_OUTPUT
 
 ################# Setup Docker Registry and Repository Name #################
