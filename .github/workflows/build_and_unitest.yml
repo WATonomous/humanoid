@@ -39,7 +39,7 @@ jobs:
         uses: "./.github/templates/docker_context"
         with:
           modified_modules: ${{ steps.get-module-changes.outputs.modified_modules }}
-          modules_dir: "$GITHUB_WORKSPACE/modules"
+          modules_dir: "${{GITHUB_WORKSPACE}}/modules"
       - name: Generate GitHub Environment
         id: github-environment
         uses: "./.github/templates/github_context"
