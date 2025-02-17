@@ -13,7 +13,7 @@ json_objects=()
 
 # Check for infrastructure changes
 TEST_ALL=false
-
+MODIFIED_MODULES="infrastructure"
 if [[ $MODIFIED_MODULES = "infrastructure" ]]; then
     TEST_ALL=true
     echo Testing all "$MODULES_DIR"
@@ -23,7 +23,7 @@ fi
 while read -r module; do
     # Retrieve docker compose service names
     services=$(docker compose -f "$module" --profile deploy --profile develop config --services)
-    module_out=$(echo "$module" | sed -n 's/modules\/docker-compose\.\(.*\)\.yaml/\1/p')
+    module_out=$(basename $(echo "$module" | sed -n 's/modules\/docker-compose\.\(.*\)\.yaml/\1/p'))
     # Skip simulation module
     if [[ 'simulation' = $module_out ]]; then
         continue
