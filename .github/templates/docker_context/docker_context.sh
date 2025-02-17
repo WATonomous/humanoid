@@ -7,7 +7,7 @@ set -e
 
 # Find docker compose files in 'modules' directory
 modules=$(find $modules -maxdepth 1 -name "docker-compose*")
-
+echo $modules
 # Initialize an empty array for JSON objects
 json_objects=()
 
