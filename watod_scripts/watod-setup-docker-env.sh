@@ -44,7 +44,6 @@ REGISTRY_URL=${REGISTRY_URL:-"ghcr.io/watonomous/humanoid"}
 REGISTRY=$(echo "$REGISTRY_URL" | sed 's|^\(.*\)/.*$|\1|')
 REPOSITORY=$(echo "$REGISTRY_URL" | sed 's|^.*/\(.*\)$|\1|')
 
-MODULES_DIR="$MONO_DIR/modules"
 modules=$(ls $MODULES_DIR)
 
 ## --------------------------- Images -------------------------------
