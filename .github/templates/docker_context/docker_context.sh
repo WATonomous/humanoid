@@ -6,8 +6,8 @@ set -e
 # dynamically builds a json matrix for downstream CI build and testing
 
 # Find docker compose files in 'modules' directory
-modules=$(find ${MODULES_DIR} -maxdepth 1 -name "docker-compose*")
-echo $modules
+modules=$(find $MODULES_DIR -maxdepth 1 -name "docker-compose*")
+
 # Initialize an empty array for JSON objects
 json_objects=()
 
@@ -16,7 +16,7 @@ TEST_ALL=false
 
 if [[ $MODIFIED_MODULES = "infrastructure" ]]; then
     TEST_ALL=true
-    echo Testing all
+    echo Testing all "$MODULES_DIR"
 fi
 
 # Loop through each module
