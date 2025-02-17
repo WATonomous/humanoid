@@ -27,6 +27,5 @@ runs:
     - id: environment-generator
       env: 
         MODIFIED_MODULES: ${{ inputs.modified_modules }}
-        MODULES_DIR: ${{ inputs.modules_dir }}
       run: ${{ github.action_path }}/docker_context.sh
       shell: bash
