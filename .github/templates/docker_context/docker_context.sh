@@ -40,8 +40,9 @@ while read -r module; do
         #     continue
         # fi
         # Construct JSON object for each service with module and service name
-        json_object=$(jq -nc --arg module_out "$module_out" --arg service_out "$service_out" \
-        '{module: $module_out, service: $service_out}')
+        dockerfile=$(docker compose -f "$module" config | yq ".services.$service_out.build.dockerfile")
+        json_object=$(jq -nc --arg module_out "$module_out" --arg service_out "$service_out" --arg dockerfile "$dockerfile" \
+        '{module: $module_out, service: $service_out, dockerfile: $dockerfile}')
         # Append JSON object to the array
         json_objects+=($json_object)
         
