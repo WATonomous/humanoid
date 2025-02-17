@@ -16,6 +16,7 @@ TEST_ALL=false
 
 if [[ $MODIFIED_MODULES = "infrastructure" ]]; then
     TEST_ALL=true
+    echo Testing all
 fi
 
 # Loop through each module
@@ -28,7 +29,7 @@ while read -r module; do
         continue
     fi
     # Only work with modules that are modified
-    if [[ $MODIFIED_MODULES != *$module_out* && $TEST_ALL = "false" ]]; then
+    if [[ $MODIFIED_MODULES != *$module_out* && $TEST_ALL = "false"  ]]; then
         continue
     fi
     # Loop through each service
@@ -48,7 +49,11 @@ while read -r module; do
 done <<< "$modules"
 # Convert the array of JSON objects to a single JSON array
 json_services=$(jq -nc '[( $ARGS.positional[] | fromjson )]' --args -- ${json_objects[*]})
-echo $json_services
+
+if [ -z $json_services ]; then
+    exit 1
+fi
+
 echo output "docker_matrix=$(echo $json_services | jq -c '{include: .}')"
 echo "docker_matrix=$(echo $json_services | jq -c '{include: .}')" >> $GITHUB_OUTPUT
 
