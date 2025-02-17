@@ -20,12 +20,8 @@ fi
 
 # Loop through each module
 while read -r module; do
-    if [ -z "$(cat "$module")" ]; then
-        continue
-    fi
     # Retrieve docker compose service names
     services=$(docker compose -f "$module" --profile deploy --profile develop config --services)
-    echo services = $services
     module_out=$(echo "$module" | sed -n 's/modules\/docker-compose\.\(.*\)\.yaml/\1/p')
     # Skip simulation module
     if [[ 'simulation' = $module_out ]]; then
@@ -33,17 +29,13 @@ while read -r module; do
     fi
     # Only work with modules that are modified
     if [[ $MODIFIED_MODULES != *$module_out* && $TEST_ALL = "false" ]]; then
-        echo skipping due to no mods
         continue
     fi
-    echo getting service things
     # Loop through each service
     while read -r service_out; do
         # Temporarily skip perception services that have too large image size
         # if  [[ "$service_out" == "lane_detection" ]] || \
         #     [[ "$service_out" == "camera_object_detection" ]] || \
-        #     [[ "$service_out" == "lidar_object_detection" ]] || \
-        #     [[ "$service_out" == "semantic_segmentation" ]]; then
         #     continue
         # fi
         # Construct JSON object for each service with module and service name
@@ -54,7 +46,6 @@ while read -r module; do
         
     done <<< "$services"
 done <<< "$modules"
-echo exited
 # Convert the array of JSON objects to a single JSON array
 json_services=$(jq -nc '[( $ARGS.positional[] | fromjson )]' --args -- ${json_objects[*]})
 echo "docker_matrix=$(echo $json_services | jq -c '{include: .}')" >> $GITHUB_OUTPUT
