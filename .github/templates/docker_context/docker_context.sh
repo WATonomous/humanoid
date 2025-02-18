@@ -40,7 +40,8 @@ while read -r module; do
         #     continue
         # fi
         # Construct JSON object for each service with module and service name
-        dockerfile=$(docker compose -f "$module" --profile deploy --profile develop config | yq ".services.$service_out.build.dockerfile")
+        # TODO: Expose whole profile object to env
+        dockerfile=$(docker compose -f "$module" --profile deploy --profile develop config | yq ".services.$service_out")
         json_object=$(jq -nc --arg module_out "$module_out" --arg service_out "$service_out" --arg dockerfile "$dockerfile" \
         '{module: $module_out, service: $service_out, dockerfile: $dockerfile}')
         # Append JSON object to the array
