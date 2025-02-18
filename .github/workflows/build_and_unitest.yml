@@ -115,8 +115,18 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           target: build
 
+      - name: Check if deploy stage exists
+        id: check_deploy_stage
+        run: |
+          if ! grep -q 'FROM.*AS deploy' ${{ matrix.dockerfile }}; then
+            echo "Deploy stage not found, skipping build"
+            echo "skip_build=true" >> $GITHUB_ENV
+          else
+            echo "Deploy stage found, proceeding with build"
+            echo "skip_build=false" >> $GITHUB_ENV
+
       - name: Security Sanitation for Deployment
-        if: ${{ matrix.dockerfile }}
+        if: ${{ env.skip_build != 'true' }} 
         uses: docker/build-push-action@v5
         with:
           context: .
