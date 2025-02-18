@@ -116,7 +116,7 @@ jobs:
           target: build
 
       - name: Security Sanitation for Deployment
-        if: ${{ -z matrix.dockerfile }}
+        if: ${{ matrix.dockerfile }}
         uses: docker/build-push-action@v5
         with:
           context: .
