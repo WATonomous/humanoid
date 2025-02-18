@@ -115,15 +115,16 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           target: build
 
+      # TODO: Expose the whole profile to the environment and check via compose flags 
       - name: Check if deploy stage exists
         id: check_deploy_stage
         run: |
           if ! grep -q 'FROM.*AS deploy' ${{ matrix.dockerfile }}; then
             echo "Deploy stage not found, skipping build"
-            echo "skip_build=true" >> $GITHUB_ENV
+            echo "skip_build=true" >> $GITHUB_OUTPUT
           else
             echo "Deploy stage found, proceeding with build"
-            echo "skip_build=false" >> $GITHUB_ENV
+            echo "skip_build=false" >> $GITHUB_OUTPUT
 
       - name: Security Sanitation for Deployment
         if: ${{ env.skip_build != 'true' }} 
