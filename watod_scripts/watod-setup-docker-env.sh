@@ -36,9 +36,16 @@ TAG=${TAG/\//-}
 ##	 - controller		    :	starts controller nodes
 ##	 - simulation			:	starts simulation
 ##   - samples             	:   starts sample ROS2 pubsub nodes
+##   - infrastructure     	:   starts visualization tools
+##   - interfacing          :   starts interfacing nodes
+##	 - perception			:	starts perception nodes
+##	 - controller		    :	starts controller nodes
+##	 - simulation			:	starts simulation
+##   - samples             	:   starts sample ROS2 pubsub nodes
 ACTIVE_MODULES=${ACTIVE_MODULES:-""}
 
 # Docker Registry to pull/push images
+REGISTRY_URL=${REGISTRY_URL:-"ghcr.io/watonomous/humanoid"}
 REGISTRY_URL=${REGISTRY_URL:-"ghcr.io/watonomous/humanoid"}
 
 REGISTRY=$(echo "$REGISTRY_URL" | sed 's|^\(.*\)/.*$|\1|')
@@ -86,6 +93,7 @@ echo "SAMPLES_AGGREGATOR_IMAGE=$SAMPLES_AGGREGATOR_IMAGE" >> "$MODULES_DIR/.env"
 echo "SAMPLES_PRODUCER_IMAGE=$SAMPLES_PRODUCER_IMAGE" >> "$MODULES_DIR/.env"
 echo "SAMPLES_TRANSFORMER_IMAGE=$SAMPLES_TRANSFORMER_IMAGE" >> "$MODULES_DIR/.env"
 
+# Images
 # Images
 echo "INFRASTRUCTURE_FOXGLOVE_IMAGE=$INFRASTRUCTURE_FOXGLOVE_IMAGE" >> "$MODULES_DIR/.env"
 echo "CONTROLLER_IMAGE=$CONTROLLER_IMAGE" >> "$MODULES_DIR/.env"
