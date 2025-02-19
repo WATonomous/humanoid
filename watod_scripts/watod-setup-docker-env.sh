@@ -30,13 +30,16 @@ TAG=${TAG/\//-}
 
 # List of active profiles to run, defined in docker-compose.yaml.
 # Possible values:
-#   - vis_tools     		  :   starts visualization tools (vnc and foxglove)
-#   - production    		  :   configs for all containers required in production
-#   - samples             :   starts sample ROS2 pubsub nodes
+##   - infrastructure     	:   starts visualization tools
+##   - interfacing          :   starts interfacing nodes
+##	 - perception			:	starts perception nodes
+##	 - controller		    :	starts controller nodes
+##	 - simulation			:	starts simulation
+##   - samples             	:   starts sample ROS2 pubsub nodes
 ACTIVE_MODULES=${ACTIVE_MODULES:-""}
 
 # Docker Registry to pull/push images
-REGISTRY_URL=${REGISTRY_URL:-"ghcr.io/watonomous/wato_asd_training"}
+REGISTRY_URL=${REGISTRY_URL:-"ghcr.io/watonomous/humanoid"}
 
 REGISTRY=$(echo "$REGISTRY_URL" | sed 's|^\(.*\)/.*$|\1|')
 REPOSITORY=$(echo "$REGISTRY_URL" | sed 's|^.*/\(.*\)$|\1|')
@@ -45,20 +48,17 @@ REPOSITORY=$(echo "$REGISTRY_URL" | sed 's|^.*/\(.*\)$|\1|')
 # NOTE: ALL IMAGE NAMES MUCH BE IN THE FORMAT OF <COMPOSE_FILE>_<SERVICE>
 
 # ROS2 C++ Samples
-SAMPLES_AGGREGATOR_IMAGE=${SAMPLES_AGGREGATOR_IMAGE:-"$REGISTRY_URL/samples_aggregator"}
-SAMPLES_PRODUCER_IMAGE=${SAMPLES_PRODUCER_IMAGE:-"$REGISTRY_URL/samples_producer"}
-SAMPLES_TRANSFORMER_IMAGE=${SAMPLES_TRANSFORMER_IMAGE:-"$REGISTRY_URL/samples_transformer"}
+SAMPLES_AGGREGATOR_IMAGE=${SAMPLES_AGGREGATOR_IMAGE:-"$REGISTRY_URL/samples/samples_aggregator"}
+SAMPLES_PRODUCER_IMAGE=${SAMPLES_PRODUCER_IMAGE:-"$REGISTRY_URL/samples/samples_producer"}
+SAMPLES_TRANSFORMER_IMAGE=${SAMPLES_TRANSFORMER_IMAGE:-"$REGISTRY_URL/samples/samples_transformer"}
 
-# ASD Training Images
-GAZEBO_SERVER_IMAGE=${GAZEBO_SERVER_IMAGE:-"$REGISTRY_URL/gazebo_server"}
-INFRASTRUCTURE_FOXGLOVE_IMAGE=${INFRASTRUCTURE_FOXGLOVE_IMAGE:-"$REGISTRY_URL/infrastructure_foxglove"}
-ROBOT_IMAGE=${ROBOT_IMAGE:-"$REGISTRY_URL/robot"}
+# Images
+INFRASTRUCTURE_FOXGLOVE_IMAGE=${INFRASTRUCTURE_FOXGLOVE_IMAGE:-"$REGISTRY_URL/infrastructure/foxglove"}
 
 ## --------------------------- Ports ------------------------------
 
 BASE_PORT=${BASE_PORT:-$(($(id -u)*20))}
 FOXGLOVE_BRIDGE_PORT=${FOXGLOVE_BRIDGE_PORT:-$((BASE_PORT++))}
-GAZEBO_PORT=${GAZEBO_PORT:-$((BASE_PORT++))}
 
 ## -------------------- Environment Variables -------------------------
 
@@ -79,14 +79,11 @@ echo "TAG=$TAG" >> "$MODULES_DIR/.env"
 # Ports
 echo "BASE_PORT=$BASE_PORT" >> "$MODULES_DIR/.env"
 echo "FOXGLOVE_BRIDGE_PORT=$FOXGLOVE_BRIDGE_PORT" >> "$MODULES_DIR/.env"
-echo "GAZEBO_PORT=$GAZEBO_PORT" >> "$MODULES_DIR/.env"
 
 # ROS2 Samples
 echo "SAMPLES_AGGREGATOR_IMAGE=$SAMPLES_AGGREGATOR_IMAGE" >> "$MODULES_DIR/.env"
 echo "SAMPLES_PRODUCER_IMAGE=$SAMPLES_PRODUCER_IMAGE" >> "$MODULES_DIR/.env"
 echo "SAMPLES_TRANSFORMER_IMAGE=$SAMPLES_TRANSFORMER_IMAGE" >> "$MODULES_DIR/.env"
 
-# ASD Training Images
-echo "GAZEBO_SERVER_IMAGE=$GAZEBO_SERVER_IMAGE" >> "$MODULES_DIR/.env"
+# Images
 echo "INFRASTRUCTURE_FOXGLOVE_IMAGE=$INFRASTRUCTURE_FOXGLOVE_IMAGE" >> "$MODULES_DIR/.env"
-echo "ROBOT_IMAGE=$ROBOT_IMAGE" >> "$MODULES_DIR/.env"

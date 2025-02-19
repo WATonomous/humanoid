@@ -10,12 +10,14 @@
 ## List of active modules to run, defined in docker-compose.yaml.
 ##
 ## Possible values:
-##   - vis_tools        :   starts tools for data visualization (foxglove)
-##   - gazebo           :   starts robot simulator (gazebo)
-##   - robot            :   starts up robot nodes
-##   - samples          :   starts up sample nodes for reference
+##   - infrastructure     	:   starts visualization tools
+##   - interfacing          :   starts interfacing nodes
+##	 - perception			:	starts perception nodes
+##	 - controller		    :	starts controller nodes
+##	 - simulation			:	starts simulation
+##   - samples             	:   starts sample ROS2 pubsub nodes
 
-# ACTIVE_MODULES=""
+ACTIVE_MODULES=""
 
 ################################# MODE OF OPERATION #################################
 ## Possible modes of operation when running watod.
