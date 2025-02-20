@@ -24,6 +24,7 @@ humanoid
 │   │       ├── msg
 │   │       └── package.xml
 │   ├── samples
+│   │   ├── README.md
 │   │   └── cpp
 │   │       ├── aggregator
 │   │       ├── image
@@ -35,9 +36,14 @@ humanoid
 │   ├── simulation
 └── watod
 ```
-## Infra Documentation
-1. [Project Infrastructure Development Docs](https://github.com/WATonomous/wato_monorepo/tree/main/docs/dev/)
-2. [ROS Structure Docs](src/samples/README.md)
+## Documentation
+Documentation structure of this repo can be found [docs/README.md](docs/README.md)
+
+Before developing please read these documents.
+
+1. [Documentation Structure of Repo](docs/README.md)
+2. [WATO Infrastructure Development Docs](https://github.com/WATonomous/wato_monorepo/tree/main/docs/dev/)
+3. [ROS Node/Core Structure Docs](src/samples/README.md)
 
 ## Dependencies:
 - Ubuntu >= 22.04, Windows (WSL), and MacOS.
