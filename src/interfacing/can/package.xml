@@ -4,7 +4,7 @@
   <name>can</name>
   <version>0.0.0</version>
   <description>can communication layer</description>
-  <maintainer email="e23zhou@watonomous.ca">eddyzhou</maintainer>
+  <maintainer email="miekale.smith@uwaterloo.ca">miekale</maintainer>
   <license>Apache2.0: License declaration</license>
 
   <test_depend>ament_copyright</test_depend>
