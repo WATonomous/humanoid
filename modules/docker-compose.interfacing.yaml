@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  interfacing:
+    build: &interfacing
+      context: ..
+      dockerfile: docker/interfacing/interfacing.Dockerfile
+      cache_from:
+        - "${INTERFACING_IMAGE:?}:${TAG}"
+        - "${INTERFACING_IMAGE:?}:main"
+    image: "${INTERFACING_IMAGE:?}:${TAG}"
+    profiles: [deploy, develop]
+    command: /bin/bash -c "ros2 launch interfacing interfacing.launch.py"
+    volumes:
+      - ${MONO_DIR}/src/interfacing:/root/ament_ws/src/interfacing
