@@ -15,7 +15,7 @@
 import math
 
 
-class ProducerCore():
+class DepthEstimationCore():
 
     def __init__(self, pos_x, pos_y, pos_z, vel):
         # Init member variables for serialization

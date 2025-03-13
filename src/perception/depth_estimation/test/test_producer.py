@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from producer.producer_core import ProducerCore
+from depth_estimation.depth_estimation_core import DepthEstimationCore
 
 
 def test_update_position():
-    producer_core = ProducerCore(1, 1, 1, 1)
-    producer_core.update_position()
+    depth_estimation_core = DepthEstimationCore(1, 1, 1, 1)
+    depth_estimation_core.update_position()
 
-    assert producer_core.serialize_data() == \
+    assert depth_estimation_core.serialize_data() == \
         "x:1.5773502691896257;y:1.5773502691896257;z:1.5773502691896257;"

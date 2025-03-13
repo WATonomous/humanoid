@@ -2,7 +2,7 @@ import os
 from glob import glob
 from setuptools import setup
 
-package_name = 'producer'
+package_name = 'depth_estimation'
 
 setup(
     name=package_name,
@@ -28,7 +28,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'producer_node = producer.producer_node:main'
+            'depth_estimation_node = depth_estimation.depth_estimation_node:main'
         ],
     },
 )
