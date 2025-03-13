@@ -24,16 +24,16 @@ def generate_launch_description():
     # path is the share directory. Check setup.py for how
     # the param file got there
     param_file_path = os.path.join(
-        get_package_share_directory('producer'),
+        get_package_share_directory('depth_estimation'),
         'config',
         'params.yaml'
     )
 
     return LaunchDescription([
         Node(
-            package='producer',
-            name='producer_node',
-            executable='producer_node',
+            package='depth_estimation',
+            name='depth_estimation_node',
+            executable='depth_estimation_node',
             parameters=[param_file_path]
         )
     ])

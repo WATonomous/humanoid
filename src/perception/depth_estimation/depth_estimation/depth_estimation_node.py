@@ -18,10 +18,10 @@ import rclpy
 from rclpy.node import Node
 
 from sample_msgs.msg import Unfiltered
-from producer.producer_core import ProducerCore
+from depth_estimation.depth_estimation_core import DepthEstimationCore
 
 
-class ProducerNode(Node):
+class DepthEstimationNode(Node):
 
     def __init__(self):
         super().__init__('python_producer')
@@ -39,7 +39,7 @@ class ProducerNode(Node):
         velocity = self.get_parameter('velocity').get_parameter_value().double_value
 
         # Initialize producer core logic for serialization
-        self.__producer = ProducerCore(pos_x, pos_y, pos_z, velocity)
+        self.__producer = DepthEstimationCore(pos_x, pos_y, pos_z, velocity)
 
         # Initialize ROS2 constructs
         queue_size = 10
@@ -49,10 +49,10 @@ class ProducerNode(Node):
         self.timer = self.create_timer(timer_period, self.__publish_position)
 
     def __publish_position(self):
-        self.__producer.update_position()
+        self.__depth_estimation.update_position()
         msg = Unfiltered()
 
-        msg.data = self.__producer.serialize_data()
+        msg.data = self.__depth_estimation.serialize_data()
         msg.valid = True
         msg.timestamp = int(time.time() * 1000)
 
@@ -64,14 +64,14 @@ class ProducerNode(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    python_producer = ProducerNode()
+    python_depth_estimation = DepthEstimationNode()
 
-    rclpy.spin(python_producer)
+    rclpy.spin(python_depth_estimation)
 
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically
     # when the garbage collector destroys the node object)
-    python_producer.destroy_node()
+    python_depth_estimation.destroy_node()
     rclpy.shutdown()
 
 
