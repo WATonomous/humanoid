@@ -6,7 +6,7 @@ FROM ${BASE_IMAGE} AS source
 WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
-COPY src/perception/depth_estimation depth_estimation
+COPY src/perception/depth_estimation depth_estimation 
 COPY src/wato_msgs/sample_msgs sample_msgs
 
 # Scan for rosdeps
