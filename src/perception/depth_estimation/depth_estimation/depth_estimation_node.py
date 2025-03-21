@@ -24,56 +24,13 @@ from depth_estimation.depth_estimation_core import DepthEstimationCore
 class DepthEstimationNode(Node):
 
     def __init__(self):
-        super().__init__('python_producer')
-        # Declare and get the parameters
-        self.declare_parameter('pos_x', 0.0)
-        self.declare_parameter('pos_y', 0.0)
-        self.declare_parameter('pos_z', 0.0)
-        self.declare_parameter('velocity', 0.0)
+        pass
 
-        # For parameters, we need to explicitely declare its type for Python to know
-        # what to do with it
-        pos_x = self.get_parameter('pos_x').get_parameter_value().double_value
-        pos_y = self.get_parameter('pos_y').get_parameter_value().double_value
-        pos_z = self.get_parameter('pos_z').get_parameter_value().double_value
-        velocity = self.get_parameter('velocity').get_parameter_value().double_value
-
-        # Initialize producer core logic for serialization
-        self.__producer = DepthEstimationCore(pos_x, pos_y, pos_z, velocity)
-
-        # Initialize ROS2 constructs
-        queue_size = 10
-        self.publisher_ = self.create_publisher(Unfiltered, '/unfiltered_topic', queue_size)
-
-        timer_period = 0.5
-        self.timer = self.create_timer(timer_period, self.__publish_position)
-
-    def __publish_position(self):
-        self.__depth_estimation.update_position()
-        msg = Unfiltered()
-
-        msg.data = self.__depth_estimation.serialize_data()
-        msg.valid = True
-        msg.timestamp = int(time.time() * 1000)
-
-        self.get_logger().info(f'Publishing: {msg.data}')
-
-        self.publisher_.publish(msg)
 
 
 def main(args=None):
     rclpy.init(args=args)
-
-    python_depth_estimation = DepthEstimationNode()
-
-    rclpy.spin(python_depth_estimation)
-
-    # Destroy the node explicitly
-    # (optional - otherwise it will be done automatically
-    # when the garbage collector destroys the node object)
-    python_depth_estimation.destroy_node()
-    rclpy.shutdown()
-
+    return
 
 if __name__ == '__main__':
     main()
