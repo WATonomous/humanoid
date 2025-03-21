@@ -12,12 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
+
+import rclpy
+from rclpy.node import Node
+
+from sample_msgs.msg import Unfiltered
 from depth_estimation.depth_estimation_core import DepthEstimationCore
 
 
-def test_update_position():
-    depth_estimation_core = DepthEstimationCore(1, 1, 1, 1)
-    depth_estimation_core.update_position()
+class DepthEstimationNode(Node):
 
-    assert depth_estimation_core.serialize_data() == \
-        "x:1.5773502691896257;y:1.5773502691896257;z:1.5773502691896257;"
+    def __init__(self):
+        pass
+
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    return
+
+if __name__ == '__main__':
+    main()

@@ -15,21 +15,9 @@
 import math
 
 
-class ProducerCore():
+class DepthEstimationCore():
 
     def __init__(self, pos_x, pos_y, pos_z, vel):
-        # Init member variables for serialization
-        self.__pos_x = pos_x
-        self.__pos_y = pos_y
-        self.__pos_z = pos_z
-        self.__velocity = vel
 
-    def update_position(self):
-        # velocity in 3D delta_x = delta_y = delta_z
-        self.__pos_x += self.__velocity / math.sqrt(3)
-        self.__pos_y += self.__velocity / math.sqrt(3)
-        self.__pos_z += self.__velocity / math.sqrt(3)
 
-    def serialize_data(self):
-        return "x:" + str(self.__pos_x) + ";y:" + \
-            str(self.__pos_y) + ";z:" + str(self.__pos_z) + ";"
+
