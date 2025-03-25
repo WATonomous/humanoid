@@ -1,0 +1,16 @@
+  
+services:
+  controller: 
+    build: &controller_build
+      context: ..
+      dockerfile: docker/controller/controller.Dockerfile
+      cache_from:
+        - "${CONTROLLER_IMAGE:?}:${TAG}"
+        - "${CONTROLLER_IMAGE:?}:main"
+      args:
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
+    image: "${SAMPLES_AGGREGATOR_IMAGE:?}:${TAG}"
+    profiles: [deploy]
+    command: /bin/bash -c "ros2 launch costmap costmap.launch.py"
+    volumes:
+      - ${MONO_DIR}/src/controller/costmap:/root/ament_ws/src/controller/costmap
