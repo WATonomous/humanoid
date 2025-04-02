@@ -16,6 +16,9 @@ RUN apt-get -qq update && rosdep update && \
         | awk '{print $3}' \
         | sort  > /tmp/colcon_install_list
 
+# Get Real Sense Dependencies
+RUN apt-get -y install ros-humble-librealsense2*
+
 ################################# Dependencies ################################
 FROM ${BASE_IMAGE} AS dependencies
 

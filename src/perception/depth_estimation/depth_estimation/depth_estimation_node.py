@@ -30,7 +30,8 @@ class DepthEstimationNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    return
+    while True:
+        time.sleep(1)
 
 if __name__ == '__main__':
     main()
