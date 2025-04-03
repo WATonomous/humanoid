@@ -6,36 +6,70 @@ FROM ${BASE_IMAGE} AS source
 WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
-COPY src/perception/depth_estimation depth_estimation 
-COPY src/wato_msgs/sample_msgs sample_msgs
+COPY src/perception/depth_estimation ${AMENT_WS}/src/perception/depth_estimation
+COPY src/wato_msgs/sample_msgs ${AMENT_WS}/src/wato_msgs/sample_msgs
 
-# Scan for rosdeps
-RUN apt-get -qq update && rosdep update && \
-    rosdep install --from-paths . --ignore-src -r -s \
-        | grep 'apt-get install' \
-        | awk '{print $3}' \
-        | sort  > /tmp/colcon_install_list
+# Check if src directory is correctly copied
+RUN ls -al ${AMENT_WS}/src
 
-# Get Real Sense Dependencies
-RUN apt-get -y install ros-humble-librealsense2*
+# Update rosdep
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-rosdep \
+    && rm -rf /var/lib/apt/lists/* \
+    && (rosdep init || echo "rosdep already initialized, skipping...") \
+    && rosdep update
 
-# Get the real sense repo => specific release (git archive maybe?)
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    libssl-dev \
+    usbutils \
+    libusb-1.0-0-dev \
+    pkg-config \
+    libgtk-3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone realsense-ros r/4.56.3 (wrapper)
+RUN git clone --branch r/4.56.3 --depth=1 https://github.com/IntelRealSense/realsense-ros.git ${AMENT_WS}/src/realsense-ros
+
+# Download and extract matching librealsense SDK (v2.56.3)
+RUN cd ${AMENT_WS}/src/realsense-ros && \
+    wget https://github.com/IntelRealSense/librealsense/archive/refs/tags/v2.56.3.tar.gz && \
+    tar xvf v2.56.3.tar.gz && \
+    mv librealsense-2.56.3 librealsense && \
+    rm v2.56.3.tar.gz
+
+# Build librealsense SDK first
+RUN cd ${AMENT_WS}/src/realsense-ros/librealsense && \
+    mkdir build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DFORCE_RSUSB_BACKEND=ON \
+             -DBUILD_EXAMPLES=false -DBUILD_GRAPHICAL_EXAMPLES=false && \
+    make -j$(nproc) && make install
 
 ################################# Dependencies ################################
 FROM ${BASE_IMAGE} AS dependencies
 
-# Install Rosdep requirements
-COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
-RUN apt-fast install -qq -y --no-install-recommends $(cat /tmp/colcon_install_list)
-
 # Copy in source code from source stage
 WORKDIR ${AMENT_WS}
 COPY --from=source ${AMENT_WS}/src src
+COPY --from=source /usr/local/lib /usr/local/lib
+COPY --from=source /usr/local/include /usr/local/include
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libusb-1.0-0 \
+    libssl3 \
+    && ldconfig \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rosdep requirements
+RUN apt-get update && rosdep install -i --from-path src --rosdistro $ROS_DISTRO -y \
+    && rm -rf /var/lib/apt/lists/*
 
 # Dependency Cleanup
-WORKDIR /
-RUN apt-get -qq autoremove -y && apt-get -qq autoclean && apt-get -qq clean && \
-    rm -rf /root/* /root/.ros /tmp/* /var/lib/apt/lists/* /usr/share/doc/*
+RUN apt-get autoremove -y && apt-get clean && \
+    rm -rf /root/.cache /tmp/* /var/lib/apt/lists/* /usr/share/doc/*
 
 ################################ Build ################################
 FROM dependencies AS build
@@ -44,11 +78,10 @@ FROM dependencies AS build
 WORKDIR ${AMENT_WS}
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
     colcon build \
-        --cmake-args -DCMAKE_BUILD_TYPE=Release --install-base ${WATONOMOUS_INSTALL}
+        --cmake-args -DCMAKE_BUILD_TYPE=Release \
+        --install-base ${WATONOMOUS_INSTALL} \
+    && rm -rf build log
 
-# Source and Build Artifact Cleanup 
-RUN rm -rf src/* build/* devel/* install/* log/*
-
-# Entrypoint will run before any CMD on launch. Sources ~/opt/<ROS_DISTRO>/setup.bash and ~/ament_ws/install/setup.bash
-COPY docker/wato_ros_entrypoint.sh ${AMENT_WS}/wato_ros_entrypoint.sh
-ENTRYPOINT ["./wato_ros_entrypoint.sh"]
+# Entrypoint will run before any CMD on launch
+COPY docker/wato_ros_entrypoint.sh /wato_ros_entrypoint.sh
+ENTRYPOINT ["/wato_ros_entrypoint.sh"]

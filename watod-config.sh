@@ -17,7 +17,7 @@
 ##	 - simulation			:	starts simulation
 ##   - samples             	:   starts sample ROS2 pubsub nodes
 
-ACTIVE_MODULES=""
+ACTIVE_MODULES="infrastructure perception"
 
 ################################# MODE OF OPERATION #################################
 ## Possible modes of operation when running watod.
@@ -25,7 +25,7 @@ ACTIVE_MODULES=""
 ##	 - deploy (default)		:	runs production-grade containers (non-editable)
 ##	 - develop   		    :	runs developer containers (editable)
 
-# MODE_OF_OPERATION=""
+MODE_OF_OPERATION="deploy"
 
 ############################## ADVANCED CONFIGURATIONS ##############################
 ## Name to append to docker containers. DEFAULT = "<your_watcloud_username>"
@@ -40,4 +40,5 @@ ACTIVE_MODULES=""
 
 ## Platform in which to build the docker images with. 
 ## Either arm64 (apple silicon, raspberry pi) or amd64 (most computers)
-# PLATFORM="amd64"
+
+PLATFORM="amd64"
