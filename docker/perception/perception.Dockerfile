@@ -19,6 +19,8 @@ RUN apt-get -qq update && rosdep update && \
 # Get Real Sense Dependencies
 RUN apt-get -y install ros-humble-librealsense2*
 
+# Get the real sense repo => specific release (git archive maybe?)
+
 ################################# Dependencies ################################
 FROM ${BASE_IMAGE} AS dependencies
 
