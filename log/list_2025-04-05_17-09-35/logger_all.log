@@ -1,0 +1,368 @@
+[0.343s] DEBUG:colcon:Command line arguments: ['/usr/bin/colcon', 'list', '-p', '--base-paths', '/home/brianzheng/humanoid']
+[0.343s] DEBUG:colcon:Parsed command line arguments: Namespace(log_base=None, log_level=None, verb_name='list', build_base='build', ignore_user_meta=False, metas=['./colcon.meta'], base_paths=['/home/brianzheng/humanoid'], packages_ignore=None, packages_ignore_regex=None, paths=None, packages_up_to=None, packages_up_to_regex=None, packages_above=None, packages_above_and_dependencies=None, packages_above_depth=None, packages_select_by_dep=None, packages_skip_by_dep=None, packages_skip_up_to=None, packages_select_build_failed=False, packages_skip_build_finished=False, packages_select_test_failures=False, packages_skip_test_passed=False, packages_select=None, packages_skip=None, packages_select_regex=None, packages_skip_regex=None, packages_start=None, packages_end=None, allow_overriding=[], topological_order=False, names_only=False, paths_only=True, topological_graph=False, topological_graph_dot=False, topological_graph_density=False, topological_graph_legend=False, topological_graph_dot_cluster=False, topological_graph_dot_include_skipped=False, mixin_files=None, mixin=None, verb_parser=<colcon_mixin.mixin.mixin_argument.MixinArgumentDecorator object at 0x7f88f05be8a0>, verb_extension=<colcon_package_information.verb.list.ListVerb object at 0x7f88f05bdaf0>, main=<bound method ListVerb.main of <colcon_package_information.verb.list.ListVerb object at 0x7f88f05bdaf0>>, mixin_verb=('list',))
+[0.389s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) check parameters
+[0.390s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) check parameters
+[0.390s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) check parameters
+[0.390s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) check parameters
+[0.390s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) discover
+[0.390s] INFO:colcon.colcon_core.package_discovery:Crawling recursively for packages in '/home/brianzheng/humanoid'
+[0.390s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid) by extensions ['ignore', 'ignore_ament_install']
+[0.390s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid) by extension 'ignore'
+[0.390s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid) by extension 'ignore_ament_install'
+[0.390s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid) by extensions ['colcon_pkg']
+[0.390s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid) by extension 'colcon_pkg'
+[0.391s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid) by extensions ['colcon_meta']
+[0.391s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid) by extension 'colcon_meta'
+[0.391s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid) by extensions ['ros']
+[0.391s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid) by extension 'ros'
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid) by extensions ['cmake', 'python']
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid) by extension 'cmake'
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid) by extension 'python'
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid) by extensions ['python_setup_py']
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid) by extension 'python_setup_py'
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/config) by extensions ['ignore', 'ignore_ament_install']
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/config) by extension 'ignore'
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/config) by extension 'ignore_ament_install'
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/config) by extensions ['colcon_pkg']
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/config) by extension 'colcon_pkg'
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/config) by extensions ['colcon_meta']
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/config) by extension 'colcon_meta'
+[0.418s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/config) by extensions ['ros']
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/config) by extension 'ros'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/config) by extensions ['cmake', 'python']
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/config) by extension 'cmake'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/config) by extension 'python'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/config) by extensions ['python_setup_py']
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/config) by extension 'python_setup_py'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker) by extensions ['ignore', 'ignore_ament_install']
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker) by extension 'ignore'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker) by extension 'ignore_ament_install'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker) by extensions ['colcon_pkg']
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker) by extension 'colcon_pkg'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker) by extensions ['colcon_meta']
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker) by extension 'colcon_meta'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker) by extensions ['ros']
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker) by extension 'ros'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker) by extensions ['cmake', 'python']
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker) by extension 'cmake'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker) by extension 'python'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker) by extensions ['python_setup_py']
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker) by extension 'python_setup_py'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/base) by extensions ['ignore', 'ignore_ament_install']
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/base) by extension 'ignore'
+[0.419s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/base) by extension 'ignore_ament_install'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/base) by extensions ['colcon_pkg']
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/base) by extension 'colcon_pkg'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/base) by extensions ['colcon_meta']
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/base) by extension 'colcon_meta'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/base) by extensions ['ros']
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/base) by extension 'ros'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/base) by extensions ['cmake', 'python']
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/base) by extension 'cmake'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/base) by extension 'python'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/base) by extensions ['python_setup_py']
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/base) by extension 'python_setup_py'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure) by extensions ['ignore', 'ignore_ament_install']
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure) by extension 'ignore'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure) by extension 'ignore_ament_install'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure) by extensions ['colcon_pkg']
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure) by extension 'colcon_pkg'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure) by extensions ['colcon_meta']
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure) by extension 'colcon_meta'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure) by extensions ['ros']
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure) by extension 'ros'
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure) by extensions ['cmake', 'python']
+[0.420s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure) by extension 'cmake'
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure) by extension 'python'
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure) by extensions ['python_setup_py']
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure) by extension 'python_setup_py'
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure/foxglove) by extensions ['ignore', 'ignore_ament_install']
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure/foxglove) by extension 'ignore'
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure/foxglove) by extension 'ignore_ament_install'
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure/foxglove) by extensions ['colcon_pkg']
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure/foxglove) by extension 'colcon_pkg'
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure/foxglove) by extensions ['colcon_meta']
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure/foxglove) by extension 'colcon_meta'
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure/foxglove) by extensions ['ros']
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure/foxglove) by extension 'ros'
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure/foxglove) by extensions ['cmake', 'python']
+[0.421s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure/foxglove) by extension 'cmake'
+[0.422s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure/foxglove) by extension 'python'
+[0.422s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure/foxglove) by extensions ['python_setup_py']
+[0.422s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/infrastructure/foxglove) by extension 'python_setup_py'
+[0.422s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/perception) by extensions ['ignore', 'ignore_ament_install']
+[0.422s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/perception) by extension 'ignore'
+[0.422s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/perception) by extension 'ignore_ament_install'
+[0.422s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/perception) by extensions ['colcon_pkg']
+[0.422s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/perception) by extension 'colcon_pkg'
+[0.422s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/perception) by extensions ['colcon_meta']
+[0.422s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/perception) by extension 'colcon_meta'
+[0.422s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/perception) by extensions ['ros']
+[0.422s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/perception) by extension 'ros'
+[0.422s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/perception) by extensions ['cmake', 'python']
+[0.422s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/perception) by extension 'cmake'
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/perception) by extension 'python'
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/perception) by extensions ['python_setup_py']
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/perception) by extension 'python_setup_py'
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/samples) by extensions ['ignore', 'ignore_ament_install']
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/samples) by extension 'ignore'
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/samples) by extension 'ignore_ament_install'
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/samples) by extensions ['colcon_pkg']
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/samples) by extension 'colcon_pkg'
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/samples) by extensions ['colcon_meta']
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/samples) by extension 'colcon_meta'
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/samples) by extensions ['ros']
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/samples) by extension 'ros'
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/samples) by extensions ['cmake', 'python']
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/samples) by extension 'cmake'
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/samples) by extension 'python'
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/samples) by extensions ['python_setup_py']
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/samples) by extension 'python_setup_py'
+[0.423s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation) by extensions ['ignore', 'ignore_ament_install']
+[0.424s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation) by extension 'ignore'
+[0.424s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation) by extension 'ignore_ament_install'
+[0.424s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation) by extensions ['colcon_pkg']
+[0.424s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation) by extension 'colcon_pkg'
+[0.424s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation) by extensions ['colcon_meta']
+[0.424s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation) by extension 'colcon_meta'
+[0.424s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation) by extensions ['ros']
+[0.424s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation) by extension 'ros'
+[0.424s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation) by extensions ['cmake', 'python']
+[0.424s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation) by extension 'cmake'
+[0.424s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation) by extension 'python'
+[0.424s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation) by extensions ['python_setup_py']
+[0.424s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation) by extension 'python_setup_py'
+[0.424s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation/isaac_sim) by extensions ['ignore', 'ignore_ament_install']
+[0.424s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation/isaac_sim) by extension 'ignore'
+[0.424s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation/isaac_sim) by extension 'ignore_ament_install'
+[0.425s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation/isaac_sim) by extensions ['colcon_pkg']
+[0.425s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation/isaac_sim) by extension 'colcon_pkg'
+[0.425s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation/isaac_sim) by extensions ['colcon_meta']
+[0.425s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation/isaac_sim) by extension 'colcon_meta'
+[0.425s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation/isaac_sim) by extensions ['ros']
+[0.425s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation/isaac_sim) by extension 'ros'
+[0.425s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation/isaac_sim) by extensions ['cmake', 'python']
+[0.425s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation/isaac_sim) by extension 'cmake'
+[0.425s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation/isaac_sim) by extension 'python'
+[0.425s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation/isaac_sim) by extensions ['python_setup_py']
+[0.425s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/docker/simulation/isaac_sim) by extension 'python_setup_py'
+[0.425s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/log) by extensions ['ignore', 'ignore_ament_install']
+[0.425s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/log) by extension 'ignore'
+[0.425s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/log) ignored
+[0.426s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules) by extensions ['ignore', 'ignore_ament_install']
+[0.426s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules) by extension 'ignore'
+[0.426s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules) by extension 'ignore_ament_install'
+[0.426s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules) by extensions ['colcon_pkg']
+[0.426s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules) by extension 'colcon_pkg'
+[0.426s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules) by extensions ['colcon_meta']
+[0.426s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules) by extension 'colcon_meta'
+[0.426s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules) by extensions ['ros']
+[0.426s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules) by extension 'ros'
+[0.426s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules) by extensions ['cmake', 'python']
+[0.426s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules) by extension 'cmake'
+[0.426s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules) by extension 'python'
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules) by extensions ['python_setup_py']
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules) by extension 'python_setup_py'
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules_future) by extensions ['ignore', 'ignore_ament_install']
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules_future) by extension 'ignore'
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules_future) by extension 'ignore_ament_install'
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules_future) by extensions ['colcon_pkg']
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules_future) by extension 'colcon_pkg'
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules_future) by extensions ['colcon_meta']
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules_future) by extension 'colcon_meta'
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules_future) by extensions ['ros']
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules_future) by extension 'ros'
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules_future) by extensions ['cmake', 'python']
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules_future) by extension 'cmake'
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules_future) by extension 'python'
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules_future) by extensions ['python_setup_py']
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/modules_future) by extension 'python_setup_py'
+[0.427s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src) by extensions ['ignore', 'ignore_ament_install']
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src) by extension 'ignore'
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src) by extension 'ignore_ament_install'
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src) by extensions ['colcon_pkg']
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src) by extension 'colcon_pkg'
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src) by extensions ['colcon_meta']
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src) by extension 'colcon_meta'
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src) by extensions ['ros']
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src) by extension 'ros'
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src) by extensions ['cmake', 'python']
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src) by extension 'cmake'
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src) by extension 'python'
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src) by extensions ['python_setup_py']
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src) by extension 'python_setup_py'
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception) by extensions ['ignore', 'ignore_ament_install']
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception) by extension 'ignore'
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception) by extension 'ignore_ament_install'
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception) by extensions ['colcon_pkg']
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception) by extension 'colcon_pkg'
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception) by extensions ['colcon_meta']
+[0.428s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception) by extension 'colcon_meta'
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception) by extensions ['ros']
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception) by extension 'ros'
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception) by extensions ['cmake', 'python']
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception) by extension 'cmake'
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception) by extension 'python'
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception) by extensions ['python_setup_py']
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception) by extension 'python_setup_py'
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception/depth_estimation) by extensions ['ignore', 'ignore_ament_install']
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception/depth_estimation) by extension 'ignore'
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception/depth_estimation) by extension 'ignore_ament_install'
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception/depth_estimation) by extensions ['colcon_pkg']
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception/depth_estimation) by extension 'colcon_pkg'
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception/depth_estimation) by extensions ['colcon_meta']
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception/depth_estimation) by extension 'colcon_meta'
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception/depth_estimation) by extensions ['ros']
+[0.429s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/perception/depth_estimation) by extension 'ros'
+[0.431s] DEBUG:colcon.colcon_core.package_identification:Package '/home/brianzheng/humanoid/src/perception/depth_estimation' with type 'ros.ament_python' and name 'depth_estimation'
+[0.431s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples) by extensions ['ignore', 'ignore_ament_install']
+[0.431s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples) by extension 'ignore'
+[0.431s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples) by extension 'ignore_ament_install'
+[0.431s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples) by extensions ['colcon_pkg']
+[0.431s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples) by extension 'colcon_pkg'
+[0.431s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples) by extensions ['colcon_meta']
+[0.431s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples) by extension 'colcon_meta'
+[0.431s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples) by extensions ['ros']
+[0.431s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples) by extension 'ros'
+[0.431s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples) by extensions ['cmake', 'python']
+[0.431s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples) by extension 'cmake'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples) by extension 'python'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples) by extensions ['python_setup_py']
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples) by extension 'python_setup_py'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp) by extensions ['ignore', 'ignore_ament_install']
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp) by extension 'ignore'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp) by extension 'ignore_ament_install'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp) by extensions ['colcon_pkg']
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp) by extension 'colcon_pkg'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp) by extensions ['colcon_meta']
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp) by extension 'colcon_meta'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp) by extensions ['ros']
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp) by extension 'ros'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp) by extensions ['cmake', 'python']
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp) by extension 'cmake'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp) by extension 'python'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp) by extensions ['python_setup_py']
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp) by extension 'python_setup_py'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/aggregator) by extensions ['ignore', 'ignore_ament_install']
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/aggregator) by extension 'ignore'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/aggregator) by extension 'ignore_ament_install'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/aggregator) by extensions ['colcon_pkg']
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/aggregator) by extension 'colcon_pkg'
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/aggregator) by extensions ['colcon_meta']
+[0.432s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/aggregator) by extension 'colcon_meta'
+[0.433s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/aggregator) by extensions ['ros']
+[0.433s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/aggregator) by extension 'ros'
+[0.433s] DEBUG:colcon.colcon_core.package_identification:Package '/home/brianzheng/humanoid/src/samples/cpp/aggregator' with type 'ros.ament_cmake' and name 'aggregator'
+[0.433s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/producer) by extensions ['ignore', 'ignore_ament_install']
+[0.434s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/producer) by extension 'ignore'
+[0.434s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/producer) by extension 'ignore_ament_install'
+[0.434s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/producer) by extensions ['colcon_pkg']
+[0.434s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/producer) by extension 'colcon_pkg'
+[0.434s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/producer) by extensions ['colcon_meta']
+[0.434s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/producer) by extension 'colcon_meta'
+[0.434s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/producer) by extensions ['ros']
+[0.434s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/producer) by extension 'ros'
+[0.434s] DEBUG:colcon.colcon_core.package_identification:Package '/home/brianzheng/humanoid/src/samples/cpp/producer' with type 'ros.ament_cmake' and name 'producer'
+[0.434s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/transformer) by extensions ['ignore', 'ignore_ament_install']
+[0.435s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/transformer) by extension 'ignore'
+[0.435s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/transformer) by extension 'ignore_ament_install'
+[0.435s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/transformer) by extensions ['colcon_pkg']
+[0.435s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/transformer) by extension 'colcon_pkg'
+[0.435s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/transformer) by extensions ['colcon_meta']
+[0.435s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/transformer) by extension 'colcon_meta'
+[0.435s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/transformer) by extensions ['ros']
+[0.435s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/cpp/transformer) by extension 'ros'
+[0.436s] DEBUG:colcon.colcon_core.package_identification:Package '/home/brianzheng/humanoid/src/samples/cpp/transformer' with type 'ros.ament_cmake' and name 'transformer'
+[0.436s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python) by extensions ['ignore', 'ignore_ament_install']
+[0.436s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python) by extension 'ignore'
+[0.436s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python) by extension 'ignore_ament_install'
+[0.436s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python) by extensions ['colcon_pkg']
+[0.436s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python) by extension 'colcon_pkg'
+[0.436s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python) by extensions ['colcon_meta']
+[0.436s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python) by extension 'colcon_meta'
+[0.436s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python) by extensions ['ros']
+[0.436s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python) by extension 'ros'
+[0.436s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python) by extensions ['cmake', 'python']
+[0.437s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python) by extension 'cmake'
+[0.437s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python) by extension 'python'
+[0.437s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python) by extensions ['python_setup_py']
+[0.437s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python) by extension 'python_setup_py'
+[0.437s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/aggregator) by extensions ['ignore', 'ignore_ament_install']
+[0.437s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/aggregator) by extension 'ignore'
+[0.437s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/aggregator) by extension 'ignore_ament_install'
+[0.437s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/aggregator) by extensions ['colcon_pkg']
+[0.437s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/aggregator) by extension 'colcon_pkg'
+[0.437s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/aggregator) by extensions ['colcon_meta']
+[0.437s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/aggregator) by extension 'colcon_meta'
+[0.437s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/aggregator) by extensions ['ros']
+[0.437s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/aggregator) by extension 'ros'
+[0.437s] DEBUG:colcon.colcon_core.package_identification:Package '/home/brianzheng/humanoid/src/samples/python/aggregator' with type 'ros.ament_python' and name 'aggregator'
+[0.438s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/producer) by extensions ['ignore', 'ignore_ament_install']
+[0.438s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/producer) by extension 'ignore'
+[0.438s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/producer) by extension 'ignore_ament_install'
+[0.438s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/producer) by extensions ['colcon_pkg']
+[0.438s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/producer) by extension 'colcon_pkg'
+[0.438s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/producer) by extensions ['colcon_meta']
+[0.438s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/producer) by extension 'colcon_meta'
+[0.438s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/producer) by extensions ['ros']
+[0.438s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/producer) by extension 'ros'
+[0.438s] DEBUG:colcon.colcon_core.package_identification:Package '/home/brianzheng/humanoid/src/samples/python/producer' with type 'ros.ament_python' and name 'producer'
+[0.438s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/transformer) by extensions ['ignore', 'ignore_ament_install']
+[0.438s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/transformer) by extension 'ignore'
+[0.438s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/transformer) by extension 'ignore_ament_install'
+[0.439s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/transformer) by extensions ['colcon_pkg']
+[0.439s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/transformer) by extension 'colcon_pkg'
+[0.439s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/transformer) by extensions ['colcon_meta']
+[0.439s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/transformer) by extension 'colcon_meta'
+[0.439s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/transformer) by extensions ['ros']
+[0.439s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/python/transformer) by extension 'ros'
+[0.439s] DEBUG:colcon.colcon_core.package_identification:Package '/home/brianzheng/humanoid/src/samples/python/transformer' with type 'ros.ament_python' and name 'transformer'
+[0.439s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/sample_msgs) by extensions ['ignore', 'ignore_ament_install']
+[0.439s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/sample_msgs) by extension 'ignore'
+[0.439s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/sample_msgs) by extension 'ignore_ament_install'
+[0.439s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/sample_msgs) by extensions ['colcon_pkg']
+[0.439s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/sample_msgs) by extension 'colcon_pkg'
+[0.439s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/sample_msgs) by extensions ['colcon_meta']
+[0.439s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/sample_msgs) by extension 'colcon_meta'
+[0.439s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/sample_msgs) by extensions ['ros']
+[0.440s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/samples/sample_msgs) by extension 'ros'
+[0.440s] DEBUG:colcon.colcon_core.package_identification:Package '/home/brianzheng/humanoid/src/samples/sample_msgs' with type 'ros.ament_cmake' and name 'sample_msgs'
+[0.440s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs) by extensions ['ignore', 'ignore_ament_install']
+[0.440s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs) by extension 'ignore'
+[0.440s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs) by extension 'ignore_ament_install'
+[0.440s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs) by extensions ['colcon_pkg']
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs) by extension 'colcon_pkg'
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs) by extensions ['colcon_meta']
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs) by extension 'colcon_meta'
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs) by extensions ['ros']
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs) by extension 'ros'
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs) by extensions ['cmake', 'python']
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs) by extension 'cmake'
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs) by extension 'python'
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs) by extensions ['python_setup_py']
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs) by extension 'python_setup_py'
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs/sample_msgs) by extensions ['ignore', 'ignore_ament_install']
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs/sample_msgs) by extension 'ignore'
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs/sample_msgs) by extension 'ignore_ament_install'
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs/sample_msgs) by extensions ['colcon_pkg']
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs/sample_msgs) by extension 'colcon_pkg'
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs/sample_msgs) by extensions ['colcon_meta']
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs/sample_msgs) by extension 'colcon_meta'
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs/sample_msgs) by extensions ['ros']
+[0.441s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/src/wato_msgs/sample_msgs) by extension 'ros'
+[0.442s] DEBUG:colcon.colcon_core.package_identification:Package '/home/brianzheng/humanoid/src/wato_msgs/sample_msgs' with type 'ros.ament_cmake' and name 'sample_msgs'
+[0.442s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/watod_scripts) by extensions ['ignore', 'ignore_ament_install']
+[0.442s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/watod_scripts) by extension 'ignore'
+[0.442s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/watod_scripts) by extension 'ignore_ament_install'
+[0.442s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/watod_scripts) by extensions ['colcon_pkg']
+[0.442s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/watod_scripts) by extension 'colcon_pkg'
+[0.442s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/watod_scripts) by extensions ['colcon_meta']
+[0.442s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/watod_scripts) by extension 'colcon_meta'
+[0.442s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/watod_scripts) by extensions ['ros']
+[0.442s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/watod_scripts) by extension 'ros'
+[0.442s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/watod_scripts) by extensions ['cmake', 'python']
+[0.442s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/watod_scripts) by extension 'cmake'
+[0.442s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/watod_scripts) by extension 'python'
+[0.442s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/watod_scripts) by extensions ['python_setup_py']
+[0.442s] Level 1:colcon.colcon_core.package_identification:_identify(/home/brianzheng/humanoid/watod_scripts) by extension 'python_setup_py'
+[0.442s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) using defaults
