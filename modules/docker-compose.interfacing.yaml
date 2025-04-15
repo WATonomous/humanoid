@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  perception:
+    build: &producer_build
+      context: ..
+      dockerfile: docker/interfacing/interfacing.Dockerfile
+      cache_from:
+        - "${SAMPLES_PRODUCER_IMAGE:?}:${TAG}"
+        - "${SAMPLES_PRODUCER_IMAGE:?}:main"
+      target: deploy
+    image: "${SAMPLES_PRODUCER_IMAGE:?}:${TAG}"
+    container_name: interfacing
+    profiles: [deploy]
+    command: /bin/bash -c "ros2 launch realsense2_camera rs_launch.py"
+    volumes:
+      - ${MONO_DIR}/src/samples/python/perception:/root/ament_ws/src/perception
+      - /dev:/dev
+      - /run/udev:/run/udev:ro
+    privileged: true
+    network_mode: host
+    environment:
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_DOMAIN_ID=0
+      - DISPLAY=${DISPLAY}
+      - LIBGL_ALWAYS_SOFTWARE=1
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
