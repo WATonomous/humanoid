@@ -34,14 +34,27 @@ if [ $SIMULATION_CHANGED == 'true' ]; then
     echo "Detected simulation changes"
     MODIFIED_MODULES+="simulation "
 fi
+# Embedded
+if [ $EMBEDDED_CHANGED == 'true' ]; then
+    echo "::notice:: Detected infrastructure changes"
+    MODIFIED_MODULES+="embedded"
+fi 
 
 # Infrastructure
 if [ $INFRASTRUCTURE_CHANGED == 'true' ]; then
     echo "::notice:: Detected infrastructure changes"
-    MODIFIED_MODULES="infrastructure"
+    MODIFIED_MODULES+="infrastructure"
+fi
+
+# Embedded
+if [ $EMBEDDED_CHANGED == 'true' ]; then
+    echo "::notice:: Detected infrastructure changes"
+    MODIFIED_MODULES="embedded"
 else
     echo "::notice:: MODIFIED_MODULES are $MODIFIED_MODULES" 
 fi
+
+
 
 # Output lis
 echo "modified_modules=$MODIFIED_MODULES" >> $GITHUB_OUTPUT

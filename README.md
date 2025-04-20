@@ -16,7 +16,7 @@ humanoid
 ├── modules
 │   └── docker-compose.samples.yaml
 ├── scripts
-├── src
+├── autonomy
 │   ├── perception
 │   ├── wato_msgs
 │   │   └── sample_msgs
@@ -34,6 +34,10 @@ humanoid
 │   ├── controller
 │   ├── interfacing
 │   ├── simulation
+├── embedded
+│   ├── ESP32
+│   ├── STM32
+│   ├── torque-testing
 └── watod
 ```
 ## Documentation
@@ -43,7 +47,7 @@ Before developing please read these documents.
 
 1. [Documentation Structure of Repo](docs/README.md)
 2. [WATO Infrastructure Development Docs](https://github.com/WATonomous/wato_monorepo/tree/main/docs/dev/)
-3. [ROS Node/Core Structure Docs](src/samples/README.md)
+3. [ROS Node/Core Structure Docs](autonomy/samples/README.md)
 
 ## Dependencies:
 - Ubuntu >= 22.04, Windows (WSL), and MacOS.
