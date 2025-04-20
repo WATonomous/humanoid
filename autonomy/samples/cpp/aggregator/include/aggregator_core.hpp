@@ -3,18 +3,16 @@
 
 #include "rclcpp/rclcpp.hpp"
 
-#include "sample_msgs/msg/unfiltered.hpp"
 #include "sample_msgs/msg/filtered_array.hpp"
+#include "sample_msgs/msg/unfiltered.hpp"
 
-namespace samples
-{
+namespace samples {
 
 /**
  * Implementation of the internal logic used by the Aggregator Node to
  * calculate the operating frequency of topics.
  */
-class AggregatorCore
-{
+class AggregatorCore {
 public:
   /**
    * Aggregator constructor.
@@ -44,16 +42,14 @@ public:
    *
    * @param msg
    */
-  void add_raw_msg(
-    const sample_msgs::msg::Unfiltered::SharedPtr msg);
+  void add_raw_msg(const sample_msgs::msg::Unfiltered::SharedPtr msg);
   /**
    * Used to keep track of latest timestamp and number of messages received
    * over the "filtered" topic. Should be called before filtered_frequency().
    *
    * @param msg
    */
-  void add_filtered_msg(
-    const sample_msgs::msg::FilteredArray::SharedPtr msg);
+  void add_filtered_msg(const sample_msgs::msg::FilteredArray::SharedPtr msg);
 
 private:
   // Number of message received on "unfiltered" and "filtered" topics.
@@ -70,6 +66,6 @@ private:
   int64_t latest_filtered_time_;
 };
 
-}  // namespace samples
+} // namespace samples
 
-#endif  // AGGREGATOR_CORE_HPP_
+#endif // AGGREGATOR_CORE_HPP_

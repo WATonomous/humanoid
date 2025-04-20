@@ -10,15 +10,15 @@
 #include "transformer_core.hpp"
 
 /**
- * Implementation of a ROS2 node that converts unfiltered messages to filtered_array
- * messages.
+ * Implementation of a ROS2 node that converts unfiltered messages to
+ * filtered_array messages.
  *
  * Listens to the "unfiltered" topic and filters out data with invalid fields
  * and odd timestamps. Once the node collects BUFFER_CAPACITY messages it packs
- * the processed messages into an array and publishes it to the "filtered" topic.
+ * the processed messages into an array and publishes it to the "filtered"
+ * topic.
  */
-class TransformerNode : public rclcpp::Node
-{
+class TransformerNode : public rclcpp::Node {
 public:
   // Configure pubsub nodes to keep last 20 messages.
   // https://docs.ros.org/en/foxy/Concepts/About-Quality-of-Service-Settings.html
@@ -36,8 +36,7 @@ private:
    *
    * @param msg a raw message from the "unfiltered" topic
    */
-  void unfiltered_callback(
-    const sample_msgs::msg::Unfiltered::SharedPtr msg);
+  void unfiltered_callback(const sample_msgs::msg::Unfiltered::SharedPtr msg);
 
   // ROS2 subscriber listening to the unfiltered topic.
   rclcpp::Subscription<sample_msgs::msg::Unfiltered>::SharedPtr raw_sub_;
@@ -49,4 +48,4 @@ private:
   samples::TransformerCore transformer_;
 };
 
-#endif  // TRANSFORMER_NODE_HPP_
+#endif // TRANSFORMER_NODE_HPP_
