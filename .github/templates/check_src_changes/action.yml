@@ -12,8 +12,8 @@ runs:
       with:
         fetch-depth: 0
       
-    - name: Find changed files outside of autonomy and embedded folders
-      id: changed-files-outside-autonomy
+    - name: Find changed files outside of development folders
+      id: changed-files-outside-development
       uses: tj-actions/changed-files@v42
       with:
         files: |
@@ -67,7 +67,7 @@ runs:
       env:
         INFRASTRUCTURE_CHANGED: >
           ${{ steps.changed-files-wato-msgs.outputs.any_changed == 'true' 
-          || steps.changed-files-outside-autonomy.outputs.any_changed == 'true' }}
+          || steps.changed-files-outside-development.outputs.any_changed == 'true' }}
         CONTROLLER_CHANGED: ${{ steps.changed-files-controller.outputs.any_changed }}
         INTERFACING_CHANGED: ${{ steps.changed-files-interfacing.outputs.any_changed }}
         PERCEPTION_CHANGED: ${{ steps.changed-files-perception.outputs.any_changed }}
