@@ -12,11 +12,13 @@ runs:
       with:
         fetch-depth: 0
       
-    - name: Find changed files outside of autonomy directory
+    - name: Find changed files outside of autonomy and embedded folders
       id: changed-files-outside-autonomy
       uses: tj-actions/changed-files@v42
       with:
-        files: '!autonomy/**'
+        files: |
+          !autonomy/**
+          !embedded/**
     
     - name: Find changed files inside autonomy/wato_msgs folder
       id: changed-files-wato-msgs
@@ -55,7 +57,7 @@ runs:
         files: autonomy/simulation/**
 
     - name: Find changed files inside embedded folder
-      id: changed-files-wato-msgs
+      id: changed-files-embedded
       uses: tj-actions/changed-files@v42
       with:
         files: embedded/**
