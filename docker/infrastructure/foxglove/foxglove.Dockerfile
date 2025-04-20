@@ -6,7 +6,7 @@ FROM ${BASE_IMAGE} AS source
 WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
-COPY src/wato_msgs wato_msgs
+COPY autonomy/wato_msgs wato_msgs
 
 # Scan for rosdeps
 RUN apt-get -qq update && rosdep update && \
