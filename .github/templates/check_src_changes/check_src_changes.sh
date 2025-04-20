@@ -38,7 +38,13 @@ fi
 # Infrastructure
 if [ $INFRASTRUCTURE_CHANGED == 'true' ]; then
     echo "::notice:: Detected infrastructure changes"
-    MODIFIED_MODULES="infrastructure"
+    MODIFIED_MODULES+="infrastructure"
+fi
+
+# Embedded
+if [ $EMBEDDED_CHANGED == 'true' ]; then
+    echo "::notice:: Detected infrastructure changes"
+    MODIFIED_MODULES="embedded"
 else
     echo "::notice:: MODIFIED_MODULES are $MODIFIED_MODULES" 
 fi

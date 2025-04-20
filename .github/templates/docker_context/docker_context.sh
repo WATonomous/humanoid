@@ -25,7 +25,8 @@ while read -r module; do
     services=$(docker compose -f "$module" --profile deploy --profile develop config --services)
     module_out=$(basename $(echo "$module" | sed -n 's/modules\/docker-compose\.\(.*\)\.yaml/\1/p'))
     # Skip simulation module
-    if [[ 'simulation' = $module_out ]]; then
+    # TODO: Add custom handling for embedded testing
+    if [[ 'simulation' = $module_out || 'embedded' = $module_out ]]; then
         continue
     fi
     # Only work with modules that are modified

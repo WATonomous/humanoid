@@ -6,8 +6,8 @@ FROM ${BASE_IMAGE} AS source
 WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
-COPY src/samples/cpp/transformer transformer
-COPY src/wato_msgs/sample_msgs sample_msgs
+COPY autonomy/samples/cpp/transformer transformer
+COPY autonomy/wato_msgs/sample_msgs sample_msgs
 
 # Scan for rosdeps
 RUN apt-get -qq update && rosdep update && \

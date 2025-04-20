@@ -12,59 +12,66 @@ runs:
       with:
         fetch-depth: 0
       
-    - name: Find changed files outside of src directory
-      id: changed-files-outside-src
+    - name: Find changed files outside of autonomy directory
+      id: changed-files-outside-autonomy
       uses: tj-actions/changed-files@v42
       with:
-        files: '!src/**'
+        files: '!autonomy/**'
     
-    - name: Find changed files inside src/wato_msgs folder
+    - name: Find changed files inside autonomy/wato_msgs folder
       id: changed-files-wato-msgs
       uses: tj-actions/changed-files@v42
       with:
-        files: src/wato_msgs/**
+        files: autonomy/wato_msgs/**
 
-    - name: Find changed files inside src/controller folder
+    - name: Find changed files inside autonomy/controller folder
       id: changed-files-controller
       uses: tj-actions/changed-files@v42
       with:
-        files: src/controller/**
+        files: autonomy/controller/**
       
-    - name: Get changed files inside src/interfacing folder
+    - name: Get changed files inside autonomy/interfacing folder
       id: changed-files-interfacing
       uses: tj-actions/changed-files@v42
       with:
-        files: src/interfacing/**
+        files: autonomy/interfacing/**
     
-    - name: Get changed files inside src/perception folder
+    - name: Get changed files inside autonomy/perception folder
       id: changed-files-perception
       uses: tj-actions/changed-files@v42
       with:
-        files: src/perception/**
+        files: autonomy/perception/**
     
-    - name: Get changed files inside src/samples folder
+    - name: Get changed files inside autonomy/samples folder
       id: changed-files-samples
       uses: tj-actions/changed-files@v42
       with:
-        files: src/samples/**
+        files: autonomy/samples/**
     
-    - name: Get changed files inside src/simulation folder
+    - name: Get changed files inside autonomy/simulation folder
       id: changed-files-simulation
       uses: tj-actions/changed-files@v42
       with:
-        files: src/simulation/**
+        files: autonomy/simulation/**
+
+    - name: Find changed files inside embedded folder
+      id: changed-files-wato-msgs
+      uses: tj-actions/changed-files@v42
+      with:
+        files: embedded/**
     
     - name: Create list of changed modules
       id: output-changes
       env:
         INFRASTRUCTURE_CHANGED: >
           ${{ steps.changed-files-wato-msgs.outputs.any_changed == 'true' 
-          || steps.changed-files-outside-src.outputs.any_changed == 'true' }}
+          || steps.changed-files-outside-autonomy.outputs.any_changed == 'true' }}
         CONTROLLER_CHANGED: ${{ steps.changed-files-controller.outputs.any_changed }}
         INTERFACING_CHANGED: ${{ steps.changed-files-interfacing.outputs.any_changed }}
         PERCEPTION_CHANGED: ${{ steps.changed-files-perception.outputs.any_changed }}
         SAMPLES_CHANGED: ${{ steps.changed-files-samples.outputs.any_changed }}
         SIMULATION_CHANGED: ${{ steps.changed-files-simulation.outputs.any_changed }}
+        EMBEDDED_CHANGED: ${{ steps.changed-files-embedded.outputs.any_changed }}
 
       run: ${{ github.action_path }}/check_src_changes.sh
       shell: bash
