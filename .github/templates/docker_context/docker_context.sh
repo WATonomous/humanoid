@@ -13,7 +13,7 @@ json_objects=()
 
 # Check for infrastructure changes
 TEST_ALL=false
-MODIFIED_MODULES="infrastructure"
+
 if [[ $MODIFIED_MODULES = "infrastructure" ]]; then
     TEST_ALL=true
     echo Testing all "$MODULES_DIR"
@@ -21,17 +21,22 @@ fi
 
 # Loop through each module
 while read -r module; do
+
     # Retrieve docker compose service names
     services=$(docker compose -f "$module" --profile deploy --profile develop config --services)
     module_out=$(basename $(echo "$module" | sed -n 's/modules\/docker-compose\.\(.*\)\.yaml/\1/p'))
+
     # Skip simulation module
-    if [[ 'simulation' = $module_out ]]; then
+    # TODO: Add custom handling for embedded testing
+    if [[ 'simulation' = $module_out || 'embedded' = $module_out ]]; then
         continue
     fi
+
     # Only work with modules that are modified
     if [[ $MODIFIED_MODULES != *$module_out* && $TEST_ALL = "false"  ]]; then
         continue
     fi
+
     # Loop through each service
     while read -r service_out; do
         # Temporarily skip perception services that have too large image size
@@ -39,7 +44,7 @@ while read -r module; do
         #     [[ "$service_out" == "camera_object_detection" ]] || \
         #     continue
         # fi
-        # Construct JSON object for each service with module and service name
+
         # TODO: Expose whole profile object to env
         dockerfile=$(docker compose -f "$module" --profile deploy --profile develop config | yq ".services.$service_out.build.dockerfile")
         json_object=$(jq -nc --arg module_out "$module_out" --arg service_out "$service_out" --arg dockerfile "$dockerfile" \
@@ -49,6 +54,7 @@ while read -r module; do
         
     done <<< "$services"
 done <<< "$modules"
+
 # Convert the array of JSON objects to a single JSON array
 json_services=$(jq -nc '[( $ARGS.positional[] | fromjson )]' --args -- ${json_objects[*]})
 

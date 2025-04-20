@@ -10,7 +10,7 @@ services:
   #   profiles: [deploy]
   #   command: /bin/bash -c "ros2 launch aggregator aggregator.launch.py"
   #   volumes:
-  #     - ${MONO_DIR}/src/samples/cpp/aggregator:/root/ament_ws/src/aggregator
+  #     - ${MONO_DIR}/autonomy/samples/cpp/aggregator:/root/ament_ws/src/aggregator
 
   aggregator: # PYTHON
     build: &aggregator_build
@@ -25,7 +25,7 @@ services:
     profiles: [deploy]
     command: /bin/bash -c "ros2 launch aggregator aggregator.launch.py"
     volumes:
-      - ${MONO_DIR}/src/samples/python/aggregator:/root/ament_ws/src/aggregator
+      - ${MONO_DIR}/autonomy/samples/python/aggregator:/root/ament_ws/src/aggregator
 
   producer: # C++
     build: &producer_build
@@ -40,7 +40,7 @@ services:
     profiles: [deploy]
     command: /bin/bash -c "ros2 launch producer producer.launch.py"
     volumes:
-      - ${MONO_DIR}/src/samples/cpp/producer:/root/ament_ws/src/producer
+      - ${MONO_DIR}/autonomy/samples/cpp/producer:/root/ament_ws/src/producer
 
   # producer: # PYTHON
   #   build: &producer_build
@@ -53,7 +53,7 @@ services:
   #   profiles: [deploy]
   #   command: /bin/bash -c "ros2 launch producer producer.launch.py"
   #   volumes:
-  #     - ${MONO_DIR}/src/samples/python/producer:/root/ament_ws/src/producer
+  #     - ${MONO_DIR}/autonomy/samples/python/producer:/root/ament_ws/src/producer
 
   transformer: # C++
     build: &transformer_build
@@ -68,7 +68,7 @@ services:
     profiles: [deploy]
     command: /bin/bash -c "ros2 launch transformer transformer.launch.py"
     volumes:
-      - ${MONO_DIR}/src/samples/cpp/transformer:/root/ament_ws/src/transformer
+      - ${MONO_DIR}/autonomy/samples/cpp/transformer:/root/ament_ws/src/transformer
 
   # transformer: # PYTHON
   #   build: &transformer_build
@@ -81,7 +81,7 @@ services:
   #   profiles: [deploy]
   #   command: /bin/bash -c "ros2 launch transformer transformer.launch.py"
   #   volumes:
-  #     - ${MONO_DIR}/src/samples/python/transformer:/root/ament_ws/src/transformer
+  #     - ${MONO_DIR}/autonomy/samples/python/transformer:/root/ament_ws/src/transformer
 
   aggregator_dev:
     build: *aggregator_build
@@ -89,8 +89,8 @@ services:
     command: tail -F anything
     profiles: [develop]
     volumes:
-      - ${MONO_DIR}/src/samples/python/aggregator:/root/ament_ws/src/python/aggregator
-      - ${MONO_DIR}/src/samples/cpp/aggregator:/root/ament_ws/src/cpp/aggregator
+      - ${MONO_DIR}/autonomy/samples/python/aggregator:/root/ament_ws/src/python/aggregator
+      - ${MONO_DIR}/autonomy/samples/cpp/aggregator:/root/ament_ws/src/cpp/aggregator
 
   producer_dev:
     build: *producer_build
@@ -98,8 +98,8 @@ services:
     command: tail -F anything
     profiles: [develop]
     volumes:
-      - ${MONO_DIR}/src/samples/python/producer:/root/ament_ws/src/python/producer
-      - ${MONO_DIR}/src/samples/cpp/producer:/root/ament_ws/src/cpp/producer
+      - ${MONO_DIR}/autonomy/samples/python/producer:/root/ament_ws/src/python/producer
+      - ${MONO_DIR}/autonomy/samples/cpp/producer:/root/ament_ws/src/cpp/producer
 
   transformer_dev:
     build: *transformer_build
@@ -107,5 +107,5 @@ services:
     command: tail -F anything
     profiles: [develop]
     volumes:
-      - ${MONO_DIR}/src/samples/python/transformer:/root/ament_ws/src/python/transformer
-      - ${MONO_DIR}/src/samples/cpp/transformer:/root/ament_ws/src/cpp/transformer
+      - ${MONO_DIR}/autonomy/samples/python/transformer:/root/ament_ws/src/python/transformer
+      - ${MONO_DIR}/autonomy/samples/cpp/transformer:/root/ament_ws/src/cpp/transformer

@@ -6,8 +6,8 @@ FROM ${BASE_IMAGE} AS source
 WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
-COPY src/samples/python/producer producer
-COPY src/wato_msgs/sample_msgs sample_msgs
+COPY autonomy/samples/python/producer producer
+COPY autonomy/wato_msgs/sample_msgs sample_msgs
 
 # Scan for rosdeps
 RUN apt-get -qq update && rosdep update && \
