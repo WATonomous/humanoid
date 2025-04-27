@@ -12,4 +12,4 @@ services:
     profiles: [deploy, develop]
     command: /bin/bash -c "ros2 launch can can.launch.py"
     volumes:
-      - ${MONO_DIR}/src/interfacing:/root/ament_ws/src/interfacing
+      - ${MONO_DIR}/autonomy/interfacing:/root/ament_ws/src/interfacing
