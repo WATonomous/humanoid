@@ -28,7 +28,8 @@ class CanNode(Node):
         print("test")
 
 def main(args=None):
-    print("hello")
+    while True:
+        time.sleep(1)
 
 if __name__ == '__main__':
     main()
