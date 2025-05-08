@@ -11,5 +11,8 @@ services:
     image: "${INTERFACING_IMAGE:?}:${TAG}"
     profiles: [deploy, develop]
     command: /bin/bash -c "ros2 launch can can.launch.py"
+    privileged: true
+    devices:
+      - /dev/canable:/dev/canable
     volumes:
       - ${MONO_DIR}/autonomy/interfacing:/root/ament_ws/src/interfacing
