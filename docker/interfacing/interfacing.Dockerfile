@@ -22,7 +22,7 @@ FROM ${BASE_IMAGE} AS dependencies
 # Install Rosdep requirements
 COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
 RUN apt-fast install -qq -y --no-install-recommends \
-    $(cat /tmp/colcon_install_list) can-utils 
+    $(cat /tmp/colcon_install_list) can-utils net-tools iproute2
 
 # Copy in source code from source stage
 WORKDIR ${AMENT_WS}
@@ -44,6 +44,9 @@ RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
 
 # Source and Build Artifact Cleanup 
 RUN rm -rf src/* build/* devel/* install/* log/*
+
+# pass through the udev-created symlinks to the container.
+ENV UDEV=1
 
 # Entrypoint will run before any CMD on launch. Sources ~/opt/<ROS_DISTRO>/setup.bash and ~/ament_ws/install/setup.bash
 COPY docker/wato_ros_entrypoint.sh ${AMENT_WS}/wato_ros_entrypoint.sh
