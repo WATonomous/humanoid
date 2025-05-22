@@ -6,6 +6,8 @@
 #include "stm32g4xx_hal_pwr_ex.h"
 #include "stm32g4xx_hal_fdcan.h"
 #include "fdcan_functions.c"
+
+
 #define PWR_REGULATOR_VOLTAGE_SCALE1_BOOST  ((uint32_t)0x00000000)
 
 COM_InitTypeDef BspCOMInit;

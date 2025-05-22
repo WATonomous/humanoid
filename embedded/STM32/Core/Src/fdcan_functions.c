@@ -1,5 +1,6 @@
 #include "stm32g4xx_hal.h"
 #include "stm32g4xx_nucleo.h"
+#include "stm32g4xx_hal_fdcan.h"
 
 
 FDCAN_HandleTypeDef hfdcan1;
@@ -10,7 +11,12 @@ FDCAN_TxHeaderTypeDef TxHeader;
 FDCAN_RxHeaderTypeDef RxHeader;
 uint8_t TxData[8] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
 uint8_t RxData[64];
-
+int main(void){
+    HAL_Init();
+  SystemClock_Config();
+  MX_GPIO_Init();
+  MX_FDCAN1_Init();
+    
 TxHeader.Identifier = 0x321;
 TxHeader.IdType = FDCAN_STANDARD_ID;
 TxHeader.TxFrameType = FDCAN_DATA_FRAME;
@@ -21,6 +27,17 @@ TxHeader.FDFormat = FDCAN_CLASSIC_CAN;
 TxHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
 TxHeader.MessageMarker = 0;
 
+  // Start FDCAN
+  HAL_FDCAN_Start(&hfdcan1);
+
+  // Optional: transmit a frame here
+
+  while (1)
+  {
+    // Main loop
+  }
+
+}
 static void MX_FDCAN1_Init(void)
 {
   hfdcan1.Instance = FDCAN1;
