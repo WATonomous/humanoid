@@ -1,7 +1,12 @@
 // Code for CAN implementation
-
+#include "stm32g4xx_hal.h"
+#include "stm32g474xx.h"
+#include "stm32g4xx_nucleo.h"
 #include "main.h"
-#include "fdcan_functions.h"
+#include "stm32g4xx_hal_pwr_ex.h"
+#include "stm32g4xx_hal_fdcan.h"
+#include "fdcan_functions.c"
+#define PWR_REGULATOR_VOLTAGE_SCALE1_BOOST  ((uint32_t)0x00000000)
 
 COM_InitTypeDef BspCOMInit;
 
@@ -13,12 +18,11 @@ int main(void)
   SystemClock_Config();
   MX_GPIO_Init();
   MX_FDCAN1_Init();
-  MX_FDCAN2_Init();
-  MX_FDCAN3_Init();
 
+
+  HAL_FDCAN_Start(&hfdcan1);
   BSP_LED_Init(LED_GREEN);
-  BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
-
+ // BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
   BspCOMInit.BaudRate   = 115200;
   BspCOMInit.WordLength = COM_WORDLENGTH_8B;
   BspCOMInit.StopBits   = COM_STOPBITS_1;
