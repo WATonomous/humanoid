@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../../.."
+		},
+		{
+			"name": "STM32",
+			"path": "../.."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"stm32g4xx_hal.h": "c",
+			"main.h": "c"
+		}
+	}
+}

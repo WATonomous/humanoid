@@ -16,7 +16,7 @@ int main(void){
   SystemClock_Config();
   MX_GPIO_Init();
   MX_FDCAN1_Init();
-    
+
 TxHeader.Identifier = 0x321;
 TxHeader.IdType = FDCAN_STANDARD_ID;
 TxHeader.TxFrameType = FDCAN_DATA_FRAME;

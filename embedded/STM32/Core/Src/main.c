@@ -1,11 +1,11 @@
 // Code for CAN implementation
 #include "stm32g4xx_hal.h"
 #include "stm32g474xx.h"
-#include "stm32g4xx_nucleo.h"
-#include "main.h"
-#include "stm32g4xx_hal_pwr_ex.h"
-#include "stm32g4xx_hal_fdcan.h"
-#include "fdcan_functions.c"
+// #include "stm32g4xx_nucleo.h"
+// #include "main.h"
+// #include "stm32g4xx_hal_pwr_ex.h"
+// #include "stm32g4xx_hal_fdcan.h"
+// #include "fdcan_functions.c"
 
 
 #define PWR_REGULATOR_VOLTAGE_SCALE1_BOOST  ((uint32_t)0x00000000)
