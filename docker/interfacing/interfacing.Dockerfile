@@ -24,6 +24,11 @@ COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
 RUN apt-fast install -qq -y --no-install-recommends \
     $(cat /tmp/colcon_install_list) can-utils net-tools iproute2
 
+# pip 
+RUN apt-get update -y
+RUN apt-get install -y git curl apache2 php5 libapache2-mod-php5 php5-mcrypt php5-mysql python3.4 python-pip
+RUN pip install python-can
+
 # Copy in source code from source stage
 WORKDIR ${AMENT_WS}
 COPY --from=source ${AMENT_WS}/src src
