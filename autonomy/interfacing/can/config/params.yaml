@@ -1,7 +1,16 @@
-# more info on YAML configs for ROS2 Params:
-# https://roboticsbackend.com/ros2-yaml-params/
-can_node: 
+/**
+ * Parameters for the CAN node
+ */
+can_node:
   ros__parameters:
+    # The name of the CAN interface to use (e.g., can0, can1, slcan0)
+    can_interface: "can0"
+    
+    # Publishing rate in Hz for checking incoming CAN messages
+    publish_rate_hz: 50
+
+    # more info on YAML configs for ROS2 Params:
+    # https://roboticsbackend.com/ros2-yaml-params/
     pos_x: 1.0
     pos_y: 1.0
     pos_z: 1.0

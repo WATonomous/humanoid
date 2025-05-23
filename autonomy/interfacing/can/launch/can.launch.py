@@ -1,39 +1,37 @@
-# Copyright 2023 WATonomous
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-import os
-from ament_index_python.packages import get_package_share_directory
-
 from launch import LaunchDescription
 from launch_ros.actions import Node
-
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 
 def generate_launch_description():
-    # To load the yaml file, we are searching for its
-    # path is the share directory. Check setup.py for how
-    # the param file got there
-    param_file_path = os.path.join(
-        get_package_share_directory('can'),
-        'config',
-        'params.yaml'
+    # Declare launch arguments
+    can_interface_arg = DeclareLaunchArgument(
+        'can_interface',
+        default_value='can0',
+        description='Name of the CAN interface to use (e.g., can0)'
     )
-
+    
+    publish_rate_arg = DeclareLaunchArgument(
+        'publish_rate_hz',
+        default_value='50',
+        description='Rate in Hz at which to check for CAN messages'
+    )
+    
+    # Create the CAN node
+    can_node = Node(
+        package='can',
+        executable='can_node',
+        name='can_node',
+        parameters=[{
+            'can_interface': LaunchConfiguration('can_interface'),
+            'publish_rate_hz': LaunchConfiguration('publish_rate_hz')
+        }],
+        output='screen'
+    )
+    
+    # Return the launch description
     return LaunchDescription([
-        Node(
-            package='can',
-            name='can_node',
-            executable='can_node',
-            parameters=[param_file_path]
-        )
+        can_interface_arg,
+        publish_rate_arg,
+        can_node
     ])
