@@ -9,6 +9,7 @@ public:
   CanNode();
 
 private:
+  autonomy::CanCore can_;
 };
 
 #endif // CAN_NODE_HPP

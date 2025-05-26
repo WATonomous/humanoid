@@ -39,7 +39,29 @@ The package implements the following workflow:
 - Data flow, including message types, service calls, or file interactions
 
 #### Key Features
-- Key classes, nodes, or scripts, along with their relationships
+
+**Architecture Design Pattern: Core vs Node Separation**
+
+This package follows a clean architecture pattern that separates concerns between hardware abstraction and ROS integration:
+
+- **CanCore** (`can_core.hpp/.cpp`): 
+  - Pure C++ class handling low-level CAN bus operations
+  - Hardware abstraction layer for CAN communication
+  - Reusable component independent of ROS 
+  - Responsibilities: socket management, frame transmission/reception, interface setup
+  - Could be used in non-ROS applications or embedded systems
+
+- **CanNode** (`can_node.hpp/.cpp`):
+  - ROS 2 Node class managing ROS ecosystem integration
+  - Message translation between ROS and CAN protocols
+  - ROS-specific functionality: publishers, subscribers, parameters, timers
+  - Responsibilities: ROS message handling, topic management, service calls
+
+This separation provides:
+- **Single Responsibility**: Each class has one clear purpose
+- **Testability**: CanCore can be unit tested without ROS overhead  
+- **Reusability**: CanCore can be used in other projects
+- **Maintainability**: CAN protocol changes only affect CanCore, ROS changes only affect CanNode
 
 #### Usage
 - How to build, run, and test the package

@@ -3,16 +3,23 @@
  */
 can_node:
   ros__parameters:
-    # The name of the CAN interface to use (e.g., can0, can1, slcan0)
-    can_interface: "can0"
+    # CAN Interface Configuration
+    can_interface: "can0"              # CAN interface name (can0, can1, etc.)
+    device_path: "/dev/ttyACM0"        # Serial device path for SLCAN
+    bustype: "slcan"                   # Bus type: "socketcan" or "slcan"
+    bitrate: 500000                    # CAN bitrate in bps (125000, 250000, 500000, 1000000)
     
-    # Publishing rate in Hz for checking incoming CAN messages
-    publish_rate_hz: 50
-
-    # more info on YAML configs for ROS2 Params:
-    # https://roboticsbackend.com/ros2-yaml-params/
-    pos_x: 1.0
-    pos_y: 1.0
-    pos_z: 1.0
+    # Communication Settings
+    publish_rate_hz: 50                # Rate for checking incoming CAN messages
+    receive_timeout_ms: 100            # Timeout for receiving CAN messages
     
-    velocity: 1.0
+    # CAN Message IDs (example configuration)
+    hand_command_id: 0x100             # CAN ID for sending hand commands
+    hand_status_id: 0x200              # CAN ID for receiving hand status
+    hand_odometry_id: 0x300            # CAN ID for receiving hand odometry
+    
+    # Hand Control Parameters
+    max_finger_position: 100.0         # Maximum finger position value
+    max_finger_velocity: 50.0          # Maximum finger velocity value
+    position_scale_factor: 1.0         # Scaling factor for position commands
+    velocity_scale_factor: 1.0         # Scaling factor for velocity commands
