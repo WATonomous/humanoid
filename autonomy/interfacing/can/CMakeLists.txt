@@ -36,6 +36,10 @@ ament_target_dependencies(can_lib
   std_msgs
 )
 
+# Link system libraries for CAN support
+# Note: Using system CAN libraries instead of libsocketcan for broader compatibility
+target_link_libraries(can_lib)
+
 # Create the can_node executable
 add_executable(can_node src/can_node.cpp src/can_core.cpp)
 ament_target_dependencies(can_node rclcpp std_msgs)
