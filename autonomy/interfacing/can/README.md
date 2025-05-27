@@ -13,6 +13,8 @@ can/
 │   └── can_node.hpp
 ├── launch/
 │   └── can.launch.py
+├── scripts/
+│   └── setup_can.sh
 ├── src/
 │   ├── can_core.cpp
 │   └── can_node.cpp
@@ -68,6 +70,20 @@ This separation provides:
 
 #### Configuration
 - Relevant parameters, environment variables, or dependencies
+
+#### Dependencies
+- List of required packages, libraries, or tools
+  - `rclcpp`: ROS 2 C++ client library
+  - `can_msgs`: Custom message definitions for CAN frames
+  - `socketcan`: Linux socket CAN interface
+  - `ament_cmake`: Build system for ROS 2 packages
+
+#### Config 
+- Configuration files, environment variables, or command-line arguments
+  - `config/params.yaml`: Contains parameters for CAN interface setup, such as:
+    - `can_interface`: Name of the CAN interface (e.g., `can0`)
+m down    - `baud_rate`: CAN bus speed (e.g., `500000`)
+    - `frame_timeout`: Timeout for receiving frames in milliseconds
 
 ### Package Architecture
 <!-- TODO: Create the architecture diagram of how messages are transmitted and received -->
