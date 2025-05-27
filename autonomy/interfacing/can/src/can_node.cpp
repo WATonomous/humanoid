@@ -5,7 +5,7 @@ CanNode::CanNode() : Node("can_node"), can_(autonomy::CanCore(this->get_logger()
   
   // Load parameters from config/params.yaml
   this->declare_parameter("can_interface", "can0");
-  this->declare_parameter("device_path", "/dev/ttyACM0");
+  this->declare_parameter("device_path", "/dev/canable");
   this->declare_parameter("bustype", "slcan");
   this->declare_parameter("bitrate", 500000);
   

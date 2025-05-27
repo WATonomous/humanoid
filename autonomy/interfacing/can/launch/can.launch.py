@@ -2,8 +2,17 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
+from ament_index_python.packages import get_package_share_directory
+import os
 
 def generate_launch_description():
+    # Get the path to the config file
+    config_file = os.path.join(
+        get_package_share_directory('can'),
+        'config',
+        'params.yaml'
+    )
+    
     # Declare launch arguments
     can_interface_arg = DeclareLaunchArgument(
         'can_interface',
@@ -22,7 +31,7 @@ def generate_launch_description():
         package='can',
         executable='can_node',
         name='can_node',
-        parameters=[{
+        parameters=[config_file, {
             'can_interface': LaunchConfiguration('can_interface'),
             'publish_rate_hz': LaunchConfiguration('publish_rate_hz')
         }],

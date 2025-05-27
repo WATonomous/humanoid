@@ -11,6 +11,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # Find dependencies
+find_package(ament_index_cpp REQUIRED) # ROS tool to find shared directories of installed packages
 find_package(ament_cmake REQUIRED) # ROS2 build tool
 find_package(rclcpp REQUIRED) # ROS2 C++ package
 find_package(std_msgs REQUIRED) # ROS2 message package
@@ -32,6 +33,7 @@ target_include_directories(can_lib
 
 # Add ROS2 dependencies required by package 
 ament_target_dependencies(can_lib
+  ament_index_cpp
   rclcpp
   std_msgs
 )
@@ -56,6 +58,11 @@ install(DIRECTORY
   launch
   config
   DESTINATION share/${PROJECT_NAME})
+
+# Install scripts with execute permissions
+install(PROGRAMS
+  scripts/setup_can.sh
+  DESTINATION share/${PROJECT_NAME}/scripts)
 
 # Testing
 if(BUILD_TESTING)
