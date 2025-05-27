@@ -10,14 +10,3 @@ can_node:
     # Communication Settings
     publish_rate_hz: 50                # Rate for checking incoming CAN messages
     receive_timeout_ms: 100            # Timeout for receiving CAN messages
-    
-    # CAN Message IDs (example configuration)
-    hand_command_id: 0x100             # CAN ID for sending hand commands
-    hand_status_id: 0x200              # CAN ID for receiving hand status
-    hand_odometry_id: 0x300            # CAN ID for receiving hand odometry
-    
-    # Hand Control Parameters
-    max_finger_position: 100.0         # Maximum finger position value
-    max_finger_velocity: 50.0          # Maximum finger velocity value
-    position_scale_factor: 1.0         # Scaling factor for position commands
-    velocity_scale_factor: 1.0         # Scaling factor for velocity commands
