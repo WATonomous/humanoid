@@ -60,22 +60,64 @@ bool CanCore::isInitialized() const
 
 bool CanCore::sendMessage(const CanMessage& message)
 {
-    return 0;
+    // TODO: Implement CAN message transmission using SocketCAN
+    // Steps to implement:
+    // 1. Validate the message using validateMessage()
+    // 2. Create a struct can_frame and populate it with message data
+    // 3. Set frame ID (message.id) and handle extended frame flag (CAN_EFF_FLAG)
+    // 4. Copy message.data to frame.data (up to 8 bytes)
+    // 5. Use send() or write() system call to transmit via socket_fd_
+    // 6. Log the message using logCanMessage(message, true)
+    // 7. Return true on success, false on failure (and set last_error_)
+    
+    RCLCPP_WARN(logger_, "sendMessage not yet implemented");
+    return false;
 }
 
 bool CanCore::sendMessage(uint32_t id, const std::vector<uint8_t>& data, bool is_extended_id)
 {
-    return 0;
+    // TODO: Convert parameters to CanMessage struct and call the main sendMessage function
+    // Steps to implement:
+    // 1. Create a CanMessage struct
+    // 2. Set message.id = id
+    // 3. Set message.data = data
+    // 4. Set message.is_extended_id = is_extended_id
+    // 5. Set message.is_remote_frame = false (normal data frame)
+    // 6. Set message.timestamp_us = current time in microseconds
+    // 7. Call sendMessage(message) and return its result
+    
+    RCLCPP_WARN(logger_, "sendMessage(id, data, extended) not yet implemented");
+    return false;
 }
 
 bool CanCore::receiveMessage(CanMessage& message)
 {
-    return 0;
+    // TODO: Implement CAN message reception using SocketCAN
+    // Steps to implement:
+    // 1. Check if socket_fd_ is valid and interface is connected
+    // 2. Use recv() or read() with timeout to receive from socket_fd_
+    // 3. Parse received struct can_frame into CanMessage
+    // 4. Extract frame ID and check for extended frame (CAN_EFF_FLAG)
+    // 5. Copy frame data to message.data vector
+    // 6. Set message.timestamp_us to current time
+    // 7. Log the message using logCanMessage(message, false)
+    // 8. Return true if message received, false if timeout/error
+    
+    RCLCPP_WARN(logger_, "receiveMessage not yet implemented");
+    return false;
 }
 
 bool CanCore::receiveMessage(uint32_t& id, std::vector<uint8_t>& data, bool& is_extended_id)
 {
-    return 0;
+    // TODO: Implement convenience wrapper for receiveMessage
+    // Steps to implement:
+    // 1. Create a CanMessage struct
+    // 2. Call receiveMessage(message)
+    // 3. If successful, extract id, data, and is_extended_id from message
+    // 4. Return the result from receiveMessage(message)
+    
+    RCLCPP_WARN(logger_, "receiveMessage(id, data, extended) not yet implemented");
+    return false;
 }
 
 bool CanCore::setBitrate(uint32_t bitrate)
@@ -85,6 +127,11 @@ bool CanCore::setBitrate(uint32_t bitrate)
     config_.bitrate = bitrate;
     
     // TODO: Implement actual bitrate configuration
+    // Notes:
+    // - For SLCAN: Bitrate is set during interface creation via slcand -sX parameter
+    // - For SocketCAN: Bitrate is typically set using 'ip link set canX type can bitrate Y'
+    // - This function mainly updates the config for future interface reconfigurations
+    // - Consider implementing runtime bitrate changes for interfaces that support it
     
     return true;
 }
@@ -129,9 +176,13 @@ bool CanCore::setupSocketCan()
     }
     
     // TODO: Implement complete SocketCAN setup
-    // - Configure interface address
-    // - Bind socket to interface
-    // - Set socket options
+    // Steps to implement:
+    // 1. Configure interface address using struct sockaddr_can
+    // 2. Use if_nametoindex() to get interface index from config_.interface_name
+    // 3. Bind socket to the CAN interface using bind()
+    // 4. Set socket options (timeouts, filters, etc.) using setsockopt()
+    // 5. Consider setting CAN_RAW_RECV_OWN_MSGS, CAN_RAW_FD_FRAMES if needed
+    // 6. Test the connection by attempting a simple operation
     
     initialized_ = true;
     connected_ = true;
@@ -205,9 +256,15 @@ bool CanCore::configureInterface()
     RCLCPP_INFO(logger_, "Configuring CAN interface");
     
     // TODO: Implement interface configuration
-    // - Set filters
-    // - Configure timeouts
-    // - Set error handling options
+    // Steps to implement:
+    // 1. Set CAN filters using setsockopt() with CAN_RAW_FILTER
+    //    - Define which CAN IDs this node should receive
+    //    - Example: struct can_filter rfilter[1]; rfilter[0].can_id = 0x123;
+    // 2. Configure receive timeouts using SO_RCVTIMEO
+    // 3. Set error handling options (CAN_RAW_ERR_FILTER for error frames)
+    // 4. Configure loopback behavior (CAN_RAW_LOOPBACK, CAN_RAW_RECV_OWN_MSGS)
+    // 5. For CAN-FD support: set CAN_RAW_FD_FRAMES if needed
+    // 6. Validate configuration by testing a simple operation
     
     return true;
 }
