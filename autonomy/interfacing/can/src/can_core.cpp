@@ -1,11 +1,16 @@
 #include "can_core.hpp"
-#include <sys/socket.h>
-#include <linux/can.h>
-#include <linux/can/raw.h>
-#include <net/if.h>
+#include <sys/socket.h> // Core socket functions for SocketCAN [socket(), bind(), send(), recv()]
+#include <linux/can.h> // Definitions for can frames
+#include <linux/can/raw.h> // CAN RAW
+#include <net/if.h> 
 #include <sys/ioctl.h>
-#include <unistd.h>
+#include <unistd.h> 
 #include <cstring>
+#include <cstdlib> // For std::system to call the external script for slcand
+#include <sys/stat.h> // checking if script files exist 
+
+#include "ament_index_cpp/get_package_share_directory.hpp" // to load the bash scripts 
+#include "ament_index_cpp/get_package_prefix.hpp" // defines PackageNotFoundError
 
 namespace autonomy
 {
@@ -55,59 +60,22 @@ bool CanCore::isInitialized() const
 
 bool CanCore::sendMessage(const CanMessage& message)
 {
-    if (!validateMessage(message)) {
-        return false;
-    }
-    
-    if (!connected_) {
-        last_error_ = "CAN interface not connected";
-        RCLCPP_ERROR(logger_, "%s", last_error_.c_str());
-        return false;
-    }
-    
-    // TODO: Implement actual CAN message transmission using socket_fd_
-    logCanMessage(message, true);
-    RCLCPP_DEBUG(logger_, "Sent CAN message ID: 0x%X", message.id);
-    
-    return true;
+    return 0;
 }
 
 bool CanCore::sendMessage(uint32_t id, const std::vector<uint8_t>& data, bool is_extended_id)
 {
-    CanMessage message;
-    message.id = id;
-    message.data = data;
-    message.is_extended_id = is_extended_id;
-    message.is_remote_frame = false;
-    message.timestamp_us = 0; // Will be set by system
-    
-    return sendMessage(message);
+    return 0;
 }
 
 bool CanCore::receiveMessage(CanMessage& message)
 {
-    if (!connected_) {
-        last_error_ = "CAN interface not connected";
-        RCLCPP_ERROR(logger_, "%s", last_error_.c_str());
-        return false;
-    }
-    
-    // TODO: Implement actual CAN message reception using socket_fd_
-    // For now, return false indicating no message received
-    return false;
+    return 0;
 }
 
 bool CanCore::receiveMessage(uint32_t& id, std::vector<uint8_t>& data, bool& is_extended_id)
 {
-    CanMessage message;
-    if (receiveMessage(message)) {
-        id = message.id;
-        data = message.data;
-        is_extended_id = message.is_extended_id;
-        return true;
-    }
-    
-    return false;
+    return 0;
 }
 
 bool CanCore::setBitrate(uint32_t bitrate)
@@ -117,7 +85,6 @@ bool CanCore::setBitrate(uint32_t bitrate)
     config_.bitrate = bitrate;
     
     // TODO: Implement actual bitrate configuration
-    // This would require interface reconfiguration
     
     return true;
 }
@@ -175,19 +142,62 @@ bool CanCore::setupSocketCan()
 
 bool CanCore::setupSlcan()
 {
-    RCLCPP_INFO(logger_, "Setting up SLCAN interface");
+    RCLCPP_INFO(logger_, "Setting up SLCAN interface '%s' via external script.", config_.interface_name.c_str());
+    RCLCPP_INFO(logger_, "  Device path for script: %s", config_.device_path.c_str());
+    RCLCPP_INFO(logger_, "  Bitrate for script: %u", config_.bitrate);
+
+    // Run the slcand daemon to initialize the CAN bus
+    std::string package_share_directory;
+    try {
+        package_share_directory = ament_index_cpp::get_package_share_directory("can"); // the package we're in is can
+    } catch (const ament_index_cpp::PackageNotFoundError& e) {
+        RCLCPP_ERROR(logger_, "Package not found for script path: %s", e.what());
+        last_error_ = "Could not find package 'can' to locate setup script.";
+        return false;
+    }
+    std::string script_path = package_share_directory + "/scripts/setup_can.sh";
+
+    // Check if the script actually exists at this script_path
+    struct stat buffer;
+    if (stat(script_path.c_str(), &buffer) != 0) {
+        RCLCPP_ERROR(logger_, "Setup script not found");
+        last_error_ = "Setup script not found";
+        return false;
+    }
+
+    std::string bitrate_code;
+
+    // Map config_.bitrate to the slcan code (e.g., 500000 -> "-s6")
+    if (config_.bitrate == 10000) bitrate_code = "-s0";
+    else if (config_.bitrate == 20000) bitrate_code = "-s1";
+    else if (config_.bitrate == 50000) bitrate_code = "-s2";
+    else if (config_.bitrate == 100000) bitrate_code = "-s3";
+    else if (config_.bitrate == 125000) bitrate_code = "-s4";
+    else if (config_.bitrate == 250000) bitrate_code = "-s5";
+    else if (config_.bitrate == 500000) bitrate_code = "-s6";
+    else if (config_.bitrate == 750000) bitrate_code = "-s7"; 
+    else if (config_.bitrate == 1000000) bitrate_code = "-s8";
+    else {
+        last_error_ = "Unsupported bitrate for slcan script: " + std::to_string(config_.bitrate);
+        RCLCPP_ERROR(logger_, "%s", last_error_.c_str());
+        return false;
+    }
+
+    std::string command = script_path + " " + config_.device_path + " " + config_.interface_name + " " + bitrate_code;
     
-    // TODO: Implement SLCAN setup
-    // - Open serial device
-    // - Configure SLCAN protocol
-    // - Set bitrate
-    // - Open CAN interface
+    RCLCPP_INFO(logger_, "Executing CAN setup script: %s", command.c_str());
+    int result = std::system(command.c_str());
     
-    initialized_ = true;
-    connected_ = true;
-    
-    RCLCPP_INFO(logger_, "SLCAN interface setup completed");
-    return true;
+    if (result != 0) {
+        last_error_ = "CAN setup script '" + script_path + "' failed with exit code " + std::to_string(result) + ". Check script output and permissions.";
+        RCLCPP_ERROR(logger_, "%s", last_error_.c_str());
+        return false;
+    }
+    RCLCPP_INFO(logger_, "CAN setup script executed successfully.");
+
+    // by now, a new CAN interface should be created based on the name given in the can/config/params.yml
+    RCLCPP_INFO(logger_, "Proceeding to configure '%s' as a SocketCAN interface.", config_.interface_name.c_str());
+    return setupSocketCan();
 }
 
 bool CanCore::configureInterface()

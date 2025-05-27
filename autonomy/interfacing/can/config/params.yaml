@@ -1,11 +1,9 @@
-/**
- * Parameters for the CAN node
- */
+# Parameters for the CAN node
 can_node:
   ros__parameters:
     # CAN Interface Configuration
     can_interface: "can0"              # CAN interface name (can0, can1, etc.)
-    device_path: "/dev/ttyACM0"        # Serial device path for SLCAN
+    device_path: "/dev/canable"        # Serial device path for SLCAN
     bustype: "slcan"                   # Bus type: "socketcan" or "slcan"
     bitrate: 500000                    # CAN bitrate in bps (125000, 250000, 500000, 1000000)
     
