@@ -1,6 +1,6 @@
 services:
   perception: # PYTHON
-    build: &producer_build
+    build: &perception_build
       context: ..
       dockerfile: docker/perception/perception.Dockerfile
       cache_from:
@@ -8,6 +8,6 @@ services:
         - "${SAMPLES_PRODUCER_IMAGE:?}:main"
     image: "${SAMPLES_PRODUCER_IMAGE:?}:${TAG}"
     profiles: [deploy]
-    command: /bin/bash -c "ros2 launch depth_estimation depth_estimation.launch.py"
+    command: /bin/bash -c "ros2 launch perception_launch perception.launch.py"
     volumes:
-      - ${MONO_DIR}/src/samples/python/perception:/root/ament_ws/src/perception
+      - ${MONO_DIR}/src/perception:/root/ament_ws/src/perception

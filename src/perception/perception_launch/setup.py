@@ -2,7 +2,7 @@ import os
 from glob import glob
 from setuptools import setup
 
-package_name = 'depth_estimation'
+package_name = 'perception_launch'
 
 setup(
     name=package_name,
@@ -16,19 +16,16 @@ setup(
         # Include all launch files
         (os.path.join('share', package_name, 'launch'),
          glob(os.path.join('launch', '*.launch.py'))),
-        # Include config files for parameters
-        (os.path.join('share', package_name, 'config'), glob(os.path.join('config', '*.yaml'))),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='eddyzhou, aryanafrouzi',
-    maintainer_email='e23zhou@watonomous.ca, aafrouzi@watonomous.ca',
-    description='Depth estimation module for humanoid robot perception',
+    maintainer='conjeevaram',
+    maintainer_email='pconjeevaram@watonomous.ca',
+    description='Launch files for the perception module',
     license='Apache2.0',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'depth_estimation_node = depth_estimation.depth_estimation_node:main'
         ],
     },
 )

@@ -20,11 +20,16 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    # To load the yaml file, we are searching for its
-    # path is the share directory. Check setup.py for how
-    # the param file got there
-    param_file_path = os.path.join(
+    # Load depth estimation parameters
+    depth_param_file_path = os.path.join(
         get_package_share_directory('depth_estimation'),
+        'config',
+        'params.yaml'
+    )
+    
+    # Load pose estimation parameters
+    pose_param_file_path = os.path.join(
+        get_package_share_directory('pose_estimation'),
         'config',
         'params.yaml'
     )
@@ -34,6 +39,12 @@ def generate_launch_description():
             package='depth_estimation',
             name='depth_estimation_node',
             executable='depth_estimation_node',
-            parameters=[param_file_path]
+            parameters=[depth_param_file_path]
+        ),
+        Node(
+            package='pose_estimation',
+            name='pose_estimation_node',
+            executable='pose_estimation_node',
+            parameters=[pose_param_file_path]
         )
     ])

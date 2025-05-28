@@ -2,7 +2,7 @@ import os
 from glob import glob
 from setuptools import setup
 
-package_name = 'depth_estimation'
+package_name = 'pose_estimation'
 
 setup(
     name=package_name,
@@ -21,14 +21,14 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='eddyzhou, aryanafrouzi',
-    maintainer_email='e23zhou@watonomous.ca, aafrouzi@watonomous.ca',
-    description='Depth estimation module for humanoid robot perception',
+    maintainer='parasmaiconjeevaram, miekalesmith',
+    maintainer_email='pconjeevaram@watonomous.ca',
+    description='Pose estimation module for humanoid robot perception',
     license='Apache2.0',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'depth_estimation_node = depth_estimation.depth_estimation_node:main'
+            'pose_estimation_node = pose_estimation.pose_estimation_node:main'
         ],
     },
 )

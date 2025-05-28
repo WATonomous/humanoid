@@ -3,9 +3,12 @@
 <package format="3">
   <name>depth_estimation</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>Depth estimation module for humanoid robot perception</description>
   <maintainer email="e23zhou@watonomous.ca">eddyzhou</maintainer>
-  <license>Apache2.0: License declaration</license>
+  <license>Apache2.0</license>
+
+  <depend>rclpy</depend>
+  <depend>sample_msgs</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

@@ -7,6 +7,8 @@ WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
 COPY src/perception/depth_estimation depth_estimation 
+COPY src/perception/pose_estimation pose_estimation
+COPY src/perception/perception_launch perception_launch
 COPY src/wato_msgs/sample_msgs sample_msgs
 
 # Scan for rosdeps
