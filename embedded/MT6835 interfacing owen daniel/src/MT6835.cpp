@@ -1,6 +1,6 @@
 
-#include "./MT6835.h"
-#include "common/foc_utils.h"
+#include "MT6835.h"
+#include "foc_utils.h"
 
 
 MT6835::MT6835(SPISettings settings, int nCS) : settings(settings), nCS(nCS) {
