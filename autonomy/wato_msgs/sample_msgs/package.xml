@@ -4,7 +4,7 @@
   <version>0.0.0</version>
   <description>Sample ROS messages</description>
 
-  <maintainer email="watouser@todo.todo">watouser</maintainer>
+  <maintainer email="pconjeevaram@watonomous.ca">conjeevaram</maintainer>
   <license>Apache2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
