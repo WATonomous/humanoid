@@ -73,30 +73,10 @@ Build the package using the standard ROS 2 build process within the interfacing 
 **Running the CAN Node**
 1. Start the interfacing container
 2. Access the container: `sudo ./watod -t interfacing`
-3. Source the environment: `source /opt/watonomous/setup.bash`
+3. Source the environment: `source ./watod_ros_entrypoint.sh`
 4. Launch the CAN node: `ros2 launch can can.launch.py`
 
-**Running the Test Controller Node**
-The test controller node publishes test messages to `/test_controller` topic at 1Hz for testing purposes.
-
-1. In a separate terminal, access the interfacing container: `sudo ./watod -t interfacing`
-2. Source the environment: `source ./wato_ros_entrypoint.sh`
-3. Run the test controller using one of these options:
-
-   **Option 1: Run the test controller node directly**
-   ```bash
-   ros2 run can test_controller_node
-   ```
-
-   **Option 2: Use the test launch file that includes both nodes**
-   ```bash
-   ros2 launch can can_test.launch.py
-   ```
-
-**Verifying the Setup**
-- Check running nodes: `ros2 node list`
-- Check available topics: `ros2 topic list`
-- Monitor test messages: `ros2 topic echo /test_controller`
+**Note**: The launch file includes a test controller node for development/testing. To disable it for production use, comment out the test controller section in `launch/can.launch.py` (lines marked with "TEST CONTROLLER NODE" comments).
 
 #### Configuration
 - Relevant parameters, environment variables, or dependencies

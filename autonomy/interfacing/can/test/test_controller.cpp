@@ -33,7 +33,7 @@ private:
         // Publish the message
         publisher_->publish(message);
         
-        RCLCPP_INFO(this->get_logger(), "Published: %s", message.data.c_str());
+        // RCLCPP_INFO(this->get_logger(), "Published: %s", message.data.c_str());
     }
     
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
