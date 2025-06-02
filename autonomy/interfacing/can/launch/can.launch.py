@@ -38,9 +38,24 @@ def generate_launch_description():
         output='screen'
     )
     
+    # ============================================================================
+    # TEST CONTROLLER NODE (for development/testing only)
+    # Comment out the following section if you want to disable the test controller
+    # ============================================================================
+    test_controller_node = Node(
+        package='can',
+        executable='test_controller_node',
+        name='test_controller',
+        output='screen'
+    )
+    # ============================================================================
+    # End of test controller section
+    # ============================================================================
+    
     # Return the launch description
     return LaunchDescription([
         can_interface_arg,
         publish_rate_arg,
-        can_node
+        can_node,
+        test_controller_node  # Comment out this line to disable test controller
     ])

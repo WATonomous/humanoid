@@ -9,4 +9,8 @@ can_node:
     
     # Communication Settings
     publish_rate_hz: 50                # Rate for checking incoming CAN messages
-    receive_timeout_ms: 100            # Timeout for receiving CAN messages
+    receive_timeout_ms: 100000            # Timeout for receiving CAN messages
+
+    # Topics to subscribe to (message types will be auto-detected)
+    topics:
+      - "/test_controller"         
