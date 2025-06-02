@@ -80,7 +80,7 @@ Build the package using the standard ROS 2 build process within the interfacing 
 The test controller node publishes test messages to `/test_controller` topic at 1Hz for testing purposes.
 
 1. In a separate terminal, access the interfacing container: `sudo ./watod -t interfacing`
-2. Source the environment: `source /opt/watonomous/setup.bash`
+2. Source the environment: `source ./wato_ros_entrypoint.sh`
 3. Run the test controller using one of these options:
 
    **Option 1: Run the test controller node directly**
