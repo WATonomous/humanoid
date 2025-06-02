@@ -64,15 +64,17 @@ install(PROGRAMS
   scripts/setup_can.sh
   DESTINATION share/${PROJECT_NAME}/scripts)
 
-# Testing
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  ament_lint_auto_find_test_dependencies()
+# Testing and Development
+find_package(ament_lint_auto REQUIRED)
+ament_lint_auto_find_test_dependencies()
 
-  # Add tests
-  # ament_add_gtest(can_test test/can_test.cpp)
-  # target_include_directories(can_test PUBLIC include)
-  # target_link_libraries(can_test)
-endif()
+# Add test executables (comment out if not needed in production)
+# Test controller that publishes to /test_controller topic
+add_executable(test_controller_node test/test_controller.cpp)
+ament_target_dependencies(test_controller_node rclcpp std_msgs)
+
+install(TARGETS
+  test_controller_node
+  DESTINATION lib/${PROJECT_NAME})
 
 ament_package()
