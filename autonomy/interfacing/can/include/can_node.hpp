@@ -29,7 +29,6 @@ private:
   void createSubscribers();
   std::string discoverTopicType(const std::string& topic_name);
   void genericTopicCallback(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name, const std::string& topic_type);
-  void processMessageForCan(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name, const std::string& topic_type);
 };
 
 #endif // CAN_NODE_HPP

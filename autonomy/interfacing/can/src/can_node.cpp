@@ -133,17 +133,6 @@ void CanNode::createSubscribers() {
 void CanNode::genericTopicCallback(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name, const std::string& topic_type) {
   RCLCPP_INFO(this->get_logger(), "Received message on topic '%s' (type: %s), serialized size: %zu bytes", 
              topic_name.c_str(), topic_type.c_str(), msg->size());
-  
-  // Just log the received message for now
-  // The actual CAN message processing will be handled by can_core when needed
-}
-
-void CanNode::processMessageForCan(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name, const std::string& topic_type) {
-  // This method is currently not used but kept for future CAN integration
-  // When needed, this will interface with can_core to send CAN-FD frames
-  (void)msg;       // Suppress unused parameter warning
-  (void)topic_name;
-  (void)topic_type;
 }
 
 int main(int argc, char **argv) {
