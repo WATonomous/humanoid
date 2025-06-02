@@ -82,7 +82,7 @@ This separation provides:
 - Configuration files, environment variables, or command-line arguments
   - `config/params.yaml`: Contains parameters for CAN interface setup, such as:
     - `can_interface`: Name of the CAN interface (e.g., `can0`)
-m down    - `baud_rate`: CAN bus speed (e.g., `500000`)
+    - `baud_rate`: CAN bus speed (e.g., `500000`)
     - `frame_timeout`: Timeout for receiving frames in milliseconds
 
 ### Package Architecture
