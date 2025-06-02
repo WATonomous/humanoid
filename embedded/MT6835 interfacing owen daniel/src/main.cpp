@@ -1,40 +1,37 @@
 #include <Arduino.h>
 #include <SPI.h>
-#include "MT6835.h"            
-#include "foc_utils.h"         
+#include "MT6835.h"
+#include "foc_utils.h"
 
+// XIAO ESP32‑S3 pin mapping for SPI:
+constexpr uint8_t PIN_MOSI = 9;   // D10 = GPIO9
+constexpr uint8_t PIN_MISO = 8;   // D9  = GPIO8
+constexpr uint8_t PIN_SCK  = 7;   // D8  = GPIO7
+constexpr uint8_t PIN_CS   = 6;   // D7  = GPIO6  (example)
 
-// // MT6835       → XIAO ESP32‑S3
-// ─────────────┬─────────────────────
-// MOSI         │ MOSI / GPIO9
-// MISO         │ MISO / GPIO8
-// SCK          │ SCK / GPIO7
-// CS           │ D10 / GPIO10
-// VDD          │ 3V3
-// GND          │ GND
-
-constexpr uint8_t CS_PIN = 10;  
 SPISettings encSPI(1000000, MSBFIRST, SPI_MODE3);
-MT6835 encoder(encSPI, CS_PIN);
+MT6835 encoder(encSPI, PIN_CS);
 
 void setup() {
   Serial.begin(115200);
   while (!Serial) {}
 
+  // Tell the SPI bus exactly which pins to use:
+  SPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_CS);
+
+  // Initialize the encoder on that SPI bus:
   encoder.init(&SPI);
 
-  // Optional: enable CRC checking on angle reads
+  // (Remaining setup as before…)
   encoder.checkcrc = true;
-
-  // Print initial calibration status
   uint8_t cal = encoder.getCalibrationStatus();
   Serial.print("Calibration Status: ");
   switch (cal) {
     case 0: Serial.println("Not Calibrated"); break;
-    case 1: Serial.println("Calibrating"); break;
-    case 2: Serial.println("Calibrated"); break;
+    case 1: Serial.println("Calibrating");    break;
+    case 2: Serial.println("Calibrated");     break;
     case 3: Serial.println("Calibration Error"); break;
-    default: Serial.println("Unknown"); break;
+    default: Serial.println("Unknown");        break;
   }
 
   Serial.print("Default Bandwidth: ");
@@ -44,7 +41,6 @@ void setup() {
   Serial.print("Default Rotation Dir: ");
   Serial.println(encoder.getRotationDirection());
 
-  // Optional: print ABZ settings
   Serial.print("ABZ Enabled? ");
   Serial.println(encoder.isABZEnabled() ? "Yes" : "No");
   Serial.print("ABZ Resolution: ");
@@ -56,17 +52,11 @@ void setup() {
 }
 
 void loop() {
-  // 1) Read raw 21-bit angle
   uint32_t raw = encoder.readRawAngle21();
-
-  // 2) Read CRC and status bits
   uint8_t status = encoder.getStatus();
   bool crcErr = (status & MT6835_CRC_ERROR);
-
-  // 3) Convert to floating-point radians (with CRC check)
   float angleRad = encoder.getCurrentAngle();
 
-  // 4) Print results
   Serial.print("Raw=0x");
   Serial.print(raw, HEX);
   Serial.print("   Status=0b");
@@ -87,7 +77,6 @@ void loop() {
   }
   Serial.println();
 
-  // 5) Every 5 seconds, toggle ABZ enable and report
   static uint32_t lastToggle = 0;
   if (millis() - lastToggle > 5000) {
     lastToggle = millis();
