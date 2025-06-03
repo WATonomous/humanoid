@@ -120,7 +120,7 @@ void CanNode::createSubscribers() {
       10,
       [this, topic_name = topic_config.name, topic_type = topic_config.type]
       (std::shared_ptr<rclcpp::SerializedMessage> msg) {
-        this->genericTopicCallback(msg, topic_name, topic_type);
+        this->topicCallback(msg, topic_name, topic_type);
       }
     );
     
@@ -130,7 +130,7 @@ void CanNode::createSubscribers() {
   }
 }
 
-void CanNode::genericTopicCallback(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name, const std::string& topic_type) {
+void CanNode::topicCallback(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name, const std::string& topic_type) {
   RCLCPP_INFO(this->get_logger(), "Received message on topic '%s' (type: %s), serialized size: %zu bytes", 
              topic_name.c_str(), topic_type.c_str(), msg->size());
 }

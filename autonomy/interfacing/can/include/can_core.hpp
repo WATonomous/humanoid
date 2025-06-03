@@ -27,7 +27,6 @@ struct CanConfig {
     uint32_t bitrate;               // Bitrate in bps for arbitration phase
     uint32_t data_bitrate;          // Data bitrate in bps for CAN-FD data phase
     uint32_t receive_timeout_ms;    // Receive timeout in milliseconds
-    bool enable_canfd;              // Enable CAN-FD support
 };
 
 class CanCore {
@@ -41,25 +40,9 @@ public:
     
     // Message Transmission
     bool sendMessage(const CanMessage& message);
-    bool sendMessage(uint32_t id, const std::vector<uint8_t>& data, bool is_extended_id = false);
-    bool sendCanFdMessage(uint32_t id, const std::vector<uint8_t>& data, bool is_extended_id = false, bool is_brs = true);
     
     // Message Reception
     bool receiveMessage(CanMessage& message);
-    bool receiveMessage(uint32_t& id, std::vector<uint8_t>& data, bool& is_extended_id);
-    
-    // Configuration and Status
-    bool setBitrate(uint32_t bitrate);
-    bool setDataBitrate(uint32_t data_bitrate);
-    uint32_t getBitrate() const;
-    uint32_t getDataBitrate() const;
-    bool isCanFdEnabled() const;
-    std::string getInterfaceInfo() const;
-    bool isConnected() const;
-    
-    // Error Handling
-    std::string getLastError() const;
-    void clearErrors();
     
 private:
     rclcpp::Logger logger_;
@@ -69,14 +52,10 @@ private:
     bool initialized_;
     bool connected_;
     CanConfig config_;
-    std::string last_error_;
     
     // Internal helper methods
     bool setupSocketCan();
     bool setupSlcan();
-    bool configureInterface();
-    bool validateMessage(const CanMessage& message);
-    void logCanMessage(const CanMessage& message, bool is_tx);
 };
 
 }

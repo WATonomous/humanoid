@@ -32,8 +32,7 @@ bool CanCore::initialize(const CanConfig& config)
     } else if (config.bustype == "slcan") {
         return setupSlcan();
     } else {
-        last_error_ = "Unsupported bus type: " + config.bustype;
-        RCLCPP_ERROR(logger_, "%s", last_error_.c_str());
+        RCLCPP_ERROR(logger_, "Unsupported bus type: %s", config.bustype.c_str());
         return false;
     }
 }
@@ -61,106 +60,17 @@ bool CanCore::isInitialized() const
 bool CanCore::sendMessage(const CanMessage& message)
 {
     // TODO: Implement CAN message transmission using SocketCAN
-    // Steps to implement:
-    // 1. Validate the message using validateMessage()
-    // 2. Create a struct can_frame and populate it with message data
-    // 3. Set frame ID (message.id) and handle extended frame flag (CAN_EFF_FLAG)
-    // 4. Copy message.data to frame.data (up to 8 bytes)
-    // 5. Use send() or write() system call to transmit via socket_fd_
-    // 6. Log the message using logCanMessage(message, true)
-    // 7. Return true on success, false on failure (and set last_error_)
     
     RCLCPP_WARN(logger_, "sendMessage not yet implemented");
-    return false;
-}
-
-bool CanCore::sendMessage(uint32_t id, const std::vector<uint8_t>& data, bool is_extended_id)
-{
-    // TODO: Convert parameters to CanMessage struct and call the main sendMessage function
-    // Steps to implement:
-    // 1. Create a CanMessage struct
-    // 2. Set message.id = id
-    // 3. Set message.data = data
-    // 4. Set message.is_extended_id = is_extended_id
-    // 5. Set message.is_remote_frame = false (normal data frame)
-    // 6. Set message.timestamp_us = current time in microseconds
-    // 7. Call sendMessage(message) and return its result
-    
-    RCLCPP_WARN(logger_, "sendMessage(id, data, extended) not yet implemented");
     return false;
 }
 
 bool CanCore::receiveMessage(CanMessage& message)
 {
     // TODO: Implement CAN message reception using SocketCAN
-    // Steps to implement:
-    // 1. Check if socket_fd_ is valid and interface is connected
-    // 2. Use recv() or read() with timeout to receive from socket_fd_
-    // 3. Parse received struct can_frame into CanMessage
-    // 4. Extract frame ID and check for extended frame (CAN_EFF_FLAG)
-    // 5. Copy frame data to message.data vector
-    // 6. Set message.timestamp_us to current time
-    // 7. Log the message using logCanMessage(message, false)
-    // 8. Return true if message received, false if timeout/error
     
     RCLCPP_WARN(logger_, "receiveMessage not yet implemented");
     return false;
-}
-
-bool CanCore::receiveMessage(uint32_t& id, std::vector<uint8_t>& data, bool& is_extended_id)
-{
-    // TODO: Implement convenience wrapper for receiveMessage
-    // Steps to implement:
-    // 1. Create a CanMessage struct
-    // 2. Call receiveMessage(message)
-    // 3. If successful, extract id, data, and is_extended_id from message
-    // 4. Return the result from receiveMessage(message)
-    
-    RCLCPP_WARN(logger_, "receiveMessage(id, data, extended) not yet implemented");
-    return false;
-}
-
-bool CanCore::setBitrate(uint32_t bitrate)
-{
-    RCLCPP_INFO(logger_, "Setting bitrate to: %u", bitrate);
-    
-    config_.bitrate = bitrate;
-    
-    // TODO: Implement actual bitrate configuration
-    // Notes:
-    // - For SLCAN: Bitrate is set during interface creation via slcand -sX parameter
-    // - For SocketCAN: Bitrate is typically set using 'ip link set canX type can bitrate Y'
-    // - This function mainly updates the config for future interface reconfigurations
-    // - Consider implementing runtime bitrate changes for interfaces that support it
-    
-    return true;
-}
-
-uint32_t CanCore::getBitrate() const
-{
-    return config_.bitrate;
-}
-
-std::string CanCore::getInterfaceInfo() const
-{
-    return "Interface: " + config_.interface_name + 
-           ", Type: " + config_.bustype + 
-           ", Bitrate: " + std::to_string(config_.bitrate);
-}
-
-bool CanCore::isConnected() const
-{
-    return connected_;
-}
-
-std::string CanCore::getLastError() const
-{
-    return last_error_;
-}
-
-void CanCore::clearErrors()
-{
-    last_error_.clear();
 }
 
 bool CanCore::setupSocketCan()
@@ -170,8 +80,7 @@ bool CanCore::setupSocketCan()
     // Create socket
     socket_fd_ = socket(PF_CAN, SOCK_RAW, CAN_RAW);
     if (socket_fd_ < 0) {
-        last_error_ = "Failed to create SocketCAN socket";
-        RCLCPP_ERROR(logger_, "%s", last_error_.c_str());
+        RCLCPP_ERROR(logger_, "Failed to create SocketCAN socket");
         return false;
     }
     
@@ -203,7 +112,6 @@ bool CanCore::setupSlcan()
         package_share_directory = ament_index_cpp::get_package_share_directory("can"); // the package we're in is can
     } catch (const ament_index_cpp::PackageNotFoundError& e) {
         RCLCPP_ERROR(logger_, "Package not found for script path: %s", e.what());
-        last_error_ = "Could not find package 'can' to locate setup script.";
         return false;
     }
     std::string script_path = package_share_directory + "/scripts/setup_can.sh";
@@ -212,7 +120,6 @@ bool CanCore::setupSlcan()
     struct stat buffer;
     if (stat(script_path.c_str(), &buffer) != 0) {
         RCLCPP_ERROR(logger_, "Setup script not found");
-        last_error_ = "Setup script not found";
         return false;
     }
 
@@ -229,8 +136,7 @@ bool CanCore::setupSlcan()
     else if (config_.bitrate == 750000) bitrate_code = "-s7"; 
     else if (config_.bitrate == 1000000) bitrate_code = "-s8";
     else {
-        last_error_ = "Unsupported bitrate for slcan script: " + std::to_string(config_.bitrate);
-        RCLCPP_ERROR(logger_, "%s", last_error_.c_str());
+        RCLCPP_ERROR(logger_, "Unsupported bitrate for slcan script: %u", config_.bitrate);
         return false;
     }
 
@@ -240,8 +146,7 @@ bool CanCore::setupSlcan()
     int result = std::system(command.c_str());
     
     if (result != 0) {
-        last_error_ = "CAN setup script '" + script_path + "' failed with exit code " + std::to_string(result) + ". Check script output and permissions.";
-        RCLCPP_ERROR(logger_, "%s", last_error_.c_str());
+        RCLCPP_ERROR(logger_, "CAN setup script failed with exit code %d. Check script output and permissions.", result);
         return false;
     }
     RCLCPP_INFO(logger_, "CAN setup script executed successfully.");
@@ -249,64 +154,6 @@ bool CanCore::setupSlcan()
     // by now, a new CAN interface should be created based on the name given in the can/config/params.yml
     RCLCPP_INFO(logger_, "Proceeding to configure '%s' as a SocketCAN interface.", config_.interface_name.c_str());
     return setupSocketCan();
-}
-
-bool CanCore::configureInterface()
-{
-    RCLCPP_INFO(logger_, "Configuring CAN interface");
-    
-    // TODO: Implement interface configuration
-    // Steps to implement:
-    // 1. Set CAN filters using setsockopt() with CAN_RAW_FILTER
-    //    - Define which CAN IDs this node should receive
-    //    - Example: struct can_filter rfilter[1]; rfilter[0].can_id = 0x123;
-    // 2. Configure receive timeouts using SO_RCVTIMEO
-    // 3. Set error handling options (CAN_RAW_ERR_FILTER for error frames)
-    // 4. Configure loopback behavior (CAN_RAW_LOOPBACK, CAN_RAW_RECV_OWN_MSGS)
-    // 5. For CAN-FD support: set CAN_RAW_FD_FRAMES if needed
-    // 6. Validate configuration by testing a simple operation
-    
-    return true;
-}
-
-bool CanCore::validateMessage(const CanMessage& message)
-{
-    // Check message ID range
-    if (message.is_extended_id && message.id > 0x1FFFFFFF) {
-        last_error_ = "Extended CAN ID out of range";
-        RCLCPP_ERROR(logger_, "%s", last_error_.c_str());
-        return false;
-    }
-    
-    if (!message.is_extended_id && message.id > 0x7FF) {
-        last_error_ = "Standard CAN ID out of range";
-        RCLCPP_ERROR(logger_, "%s", last_error_.c_str());
-        return false;
-    }
-    
-    // Check data length
-    if (message.data.size() > 8) {
-        last_error_ = "CAN data length exceeds 8 bytes";
-        RCLCPP_ERROR(logger_, "%s", last_error_.c_str());
-        return false;
-    }
-    
-    return true;
-}
-
-void CanCore::logCanMessage(const CanMessage& message, bool is_tx)
-{
-    std::string direction = is_tx ? "TX" : "RX";
-    std::string data_str;
-    
-    for (const auto& byte : message.data) {
-        if (!data_str.empty()) data_str += " ";
-        data_str += std::to_string(byte);
-    }
-    
-    RCLCPP_DEBUG(logger_, "%s CAN: ID=0x%X, Data=[%s], Ext=%s", 
-                 direction.c_str(), message.id, data_str.c_str(),
-                 message.is_extended_id ? "true" : "false");
 }
 
 }
