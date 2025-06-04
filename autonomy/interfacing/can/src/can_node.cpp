@@ -3,8 +3,9 @@
 #include <rclcpp/serialization.hpp>
 #include <thread>
 #include <chrono>
+#include <cstring> // Required for std::memcpy
 
-CanNode::CanNode() : Node("can_node"), can_(autonomy::CanCore(this->get_logger())) {
+CanNode::CanNode() : Node("can_node"), can_(this->get_logger()) {
   RCLCPP_INFO(this->get_logger(), "CAN Node has been initialized");
   
   // Load parameters from config/params.yaml
@@ -34,7 +35,7 @@ CanNode::CanNode() : Node("can_node"), can_(autonomy::CanCore(this->get_logger()
   if (can_.initialize(config)) {
     RCLCPP_INFO(this->get_logger(), "CAN Core interface initialized successfully");
   } else {
-    RCLCPP_ERROR(this->get_logger(), "Failed to initialize CAN Core: %s", can_.getLastError().c_str());
+    RCLCPP_ERROR(this->get_logger(), "Failed to initialize CAN Core");
   }
   
   // Load topic configurations and create subscribers
@@ -130,9 +131,69 @@ void CanNode::createSubscribers() {
   }
 }
 
-void CanNode::topicCallback(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name, const std::string& topic_type) {
-  RCLCPP_INFO(this->get_logger(), "Received message on topic '%s' (type: %s), serialized size: %zu bytes", 
-             topic_name.c_str(), topic_type.c_str(), msg->size());
+void CanNode::topicCallback(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name, [[maybe_unused]] const std::string& topic_type) {
+  // Create CAN message from ROS message
+  autonomy::CanMessage can_message = createCanMessage(topic_name, msg);
+  
+  // Send the CAN message
+  if (can_.sendMessage(can_message)) {
+    return;
+  } else {
+    RCLCPP_ERROR(this->get_logger(), "Failed to send CAN message for topic '%s'", topic_name.c_str());
+  }
+}
+
+uint32_t CanNode::generateCanId(const std::string& topic_name) {
+  // Generate a CAN ID from topic name using hash
+  // Use the first 29 bits for extended CAN ID (CAN 2.0B)
+  std::hash<std::string> hasher;
+  uint32_t hash = static_cast<uint32_t>(hasher(topic_name));
+  
+  // Mask to 29 bits for extended CAN ID (0x1FFFFFFF)
+  // For CAN-FD, we can use the full extended ID range
+  return hash & 0x1FFFFFFF;
+}
+
+autonomy::CanMessage CanNode::createCanMessage(const std::string& topic_name, std::shared_ptr<rclcpp::SerializedMessage> ros_msg) {
+  autonomy::CanMessage can_msg;
+  
+  // Generate CAN ID from topic name
+  can_msg.id = generateCanId(topic_name);
+  
+  can_msg.is_fd_frame = true;
+  can_msg.is_extended_id = true;  
+  can_msg.is_remote_frame = false;
+  can_msg.is_brs = true;  // Enable bit rate switching for faster data transmission
+  can_msg.is_esi = false; // Error state indicator (false = active error state)
+  
+  // Get current timestamp
+  auto now = std::chrono::high_resolution_clock::now();
+  can_msg.timestamp_us = std::chrono::duration_cast<std::chrono::microseconds>(
+    now.time_since_epoch()).count();
+  
+  // Package the ROS message data into CAN frame. CAN-FD supports up to 64 bytes of data
+  const size_t max_can_fd_data_size = 64;
+  size_t ros_msg_size = ros_msg->size();
+  
+  // Data Packaging
+  if (ros_msg_size <= max_can_fd_data_size) { // if message fits in single CAN-FD frame
+    can_msg.data.resize(ros_msg_size);
+    std::memcpy(can_msg.data.data(), ros_msg->get_rcl_serialized_message().buffer, ros_msg_size);
+    
+    RCLCPP_DEBUG(this->get_logger(), "Packaged %zu bytes from topic '%s' into single CAN-FD frame with ID 0x%X", 
+                ros_msg_size, topic_name.c_str(), can_msg.id);
+  } else {
+    // Message is too large for single CAN-FD frame
+    // For now, we'll truncate to fit in one frame and log a warning
+    // TODO: Implement multi-frame transmission protocol
+    RCLCPP_WARN(this->get_logger(), "Message from topic '%s' (%zu bytes) exceeds CAN-FD frame limit (%zu bytes). Truncating.", 
+               topic_name.c_str(), ros_msg_size, max_can_fd_data_size);
+    
+    can_msg.data.resize(max_can_fd_data_size);
+    std::memcpy(can_msg.data.data(), ros_msg->get_rcl_serialized_message().buffer, max_can_fd_data_size);
+  }
+  
+  return can_msg;
 }
 
 int main(int argc, char **argv) {
