@@ -4,12 +4,12 @@ can_node:
     # CAN Interface Configuration
     can_interface: "can0"              # CAN interface name (can0, can1, etc.)
     device_path: "/dev/canable"        # Serial device path for SLCAN
-    bustype: "slcan"                   # Bus type: "socketcan" or "slcan"
-    bitrate: 500000                    # CAN bitrate in bps (125000, 250000, 500000, 1000000)
+    bustype: "slcan"                   # Bus type to create a CAN interface: "socketcan" or "slcan"
+    bitrate: 1000000                   # CAN bitrate in bps (125000, 250000, 500000, 1000000)
     
     # Communication Settings
     publish_rate_hz: 50                # Rate for checking incoming CAN messages
-    receive_timeout_ms: 100000            # Timeout for receiving CAN messages
+    receive_timeout_ms: 10000           # Timeout for receiving CAN messages
 
     # Topics to subscribe to (message types will be auto-detected)
     topics:

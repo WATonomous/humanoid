@@ -24,16 +24,16 @@ private:
     {
         auto message = std_msgs::msg::String();
         
-        // Simple test message with timestamp
+        // Create a readable test message with timestamp
         auto now = std::chrono::system_clock::now();
         auto time_t = std::chrono::system_clock::to_time_t(now);
         
-        message.data = "test_data:timestamp:" + std::to_string(time_t) + ";status:active;";
+        message.data = "Hello from WATonomous! Timestamp: " + std::to_string(time_t) + " Status: Active";
         
         // Publish the message
         publisher_->publish(message);
         
-        // RCLCPP_INFO(this->get_logger(), "Published: %s", message.data.c_str());
+        RCLCPP_INFO(this->get_logger(), "Published: %s", message.data.c_str());
     }
     
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
