@@ -32,7 +32,7 @@ private:
 
   // Helper methods
   uint32_t generateCanId(const std::string& topic_name);
-  autonomy::CanMessage createCanMessage(const std::string& topic_name, std::shared_ptr<rclcpp::SerializedMessage> ros_msg);
+  std::vector<autonomy::CanMessage> createCanMessages(const std::string& topic_name, std::shared_ptr<rclcpp::SerializedMessage> ros_msg);
 };
 
 #endif // CAN_NODE_HPP

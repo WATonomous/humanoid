@@ -132,14 +132,23 @@ void CanNode::createSubscribers() {
 }
 
 void CanNode::topicCallback(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name, [[maybe_unused]] const std::string& topic_type) {
-  // Create CAN message from ROS message
-  autonomy::CanMessage can_message = createCanMessage(topic_name, msg);
+  // Create CAN message(s) from ROS message
+  std::vector<autonomy::CanMessage> can_messages = createCanMessages(topic_name, msg);
   
-  // Send the CAN message
-  if (can_.sendMessage(can_message)) {
-    return;
-  } else {
-    RCLCPP_ERROR(this->get_logger(), "Failed to send CAN message for topic '%s'", topic_name.c_str());
+  // Send the CAN message(s)
+  int successful_sends = 0;
+  for (const auto& can_message : can_messages) {
+    if (can_.sendMessage(can_message)) {
+      successful_sends++;
+    } else {
+      RCLCPP_ERROR(this->get_logger(), "Failed to send CAN message for topic '%s' (ID 0x%X)", topic_name.c_str(), can_message.id);
+      // Optionally, decide if you want to stop sending other fragments if one fails
+    }
+  }
+  
+  if (can_messages.size() > 1) {
+    RCLCPP_INFO(this->get_logger(), "Successfully sent %d/%zu CAN frames for topic '%s'", 
+                successful_sends, can_messages.size(), topic_name.c_str());
   }
 }
 
@@ -154,46 +163,91 @@ uint32_t CanNode::generateCanId(const std::string& topic_name) {
   return hash & 0x1FFFFFFF;
 }
 
-autonomy::CanMessage CanNode::createCanMessage(const std::string& topic_name, std::shared_ptr<rclcpp::SerializedMessage> ros_msg) {
-  autonomy::CanMessage can_msg;
+std::vector<autonomy::CanMessage> CanNode::createCanMessages(const std::string& topic_name, std::shared_ptr<rclcpp::SerializedMessage> ros_msg) {
+  std::vector<autonomy::CanMessage> messages_to_send;
   
-  // Generate CAN ID from topic name
-  can_msg.id = generateCanId(topic_name);
+  uint32_t can_id = generateCanId(topic_name);
   
-  can_msg.is_fd_frame = true;
-  can_msg.is_extended_id = true;  
-  can_msg.is_remote_frame = false;
-  can_msg.is_brs = true;  // Enable bit rate switching for faster data transmission
-  can_msg.is_esi = false; // Error state indicator (false = active error state)
-  
-  // Get current timestamp
-  auto now = std::chrono::high_resolution_clock::now();
-  can_msg.timestamp_us = std::chrono::duration_cast<std::chrono::microseconds>(
-    now.time_since_epoch()).count();
-  
-  // Package the ROS message data into CAN frame. CAN-FD supports up to 64 bytes of data
-  const size_t max_can_fd_data_size = 64;
+  // Common properties for all messages/fragments
+  bool is_extended = true;
+  bool is_rtr = false;
+
+  auto now_chrono = std::chrono::high_resolution_clock::now();
+  uint64_t timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
+    now_chrono.time_since_epoch()).count();
+
+  const uint8_t* ros_msg_buffer = ros_msg->get_rcl_serialized_message().buffer;
   size_t ros_msg_size = ros_msg->size();
+
+  // Determine max data payload per frame
+  // For Classic CAN, it's 8 bytes maximum
+  // We'll reserve 1 byte for sequence number if fragmentation is needed.
+  const size_t max_data_bytes_per_classic_frame = 8;
   
-  // Data Packaging
-  if (ros_msg_size <= max_can_fd_data_size) { // if message fits in single CAN-FD frame
+  size_t max_payload_per_frame = max_data_bytes_per_classic_frame;
+  size_t data_chunk_size = max_payload_per_frame;
+  bool needs_fragmentation = ros_msg_size > max_payload_per_frame;
+
+  if (needs_fragmentation) {
+    // Reserve 1 byte for sequence number if fragmenting
+    data_chunk_size = max_payload_per_frame - 1; 
+    if (data_chunk_size == 0 && max_payload_per_frame > 0) { // Should not happen with CAN_MAX_DLEN >= 1
+        RCLCPP_ERROR(this->get_logger(), "Calculated data_chunk_size is 0, this should not happen. Max payload: %zu", max_payload_per_frame);
+        return messages_to_send; // Return empty, indicates error
+    }
+  }
+
+  if (!needs_fragmentation) {
+    autonomy::CanMessage can_msg;
+    can_msg.id = can_id;
+    can_msg.is_extended_id = is_extended;
+    can_msg.is_remote_frame = is_rtr;
+    can_msg.timestamp_us = timestamp;
+    
     can_msg.data.resize(ros_msg_size);
-    std::memcpy(can_msg.data.data(), ros_msg->get_rcl_serialized_message().buffer, ros_msg_size);
+    std::memcpy(can_msg.data.data(), ros_msg_buffer, ros_msg_size);
     
-    RCLCPP_DEBUG(this->get_logger(), "Packaged %zu bytes from topic '%s' into single CAN-FD frame with ID 0x%X", 
+    RCLCPP_DEBUG(this->get_logger(), "Packaged %zu bytes from topic '%s' into single CAN frame with ID 0x%X (Classic CAN)", 
                 ros_msg_size, topic_name.c_str(), can_msg.id);
+    messages_to_send.push_back(can_msg);
   } else {
-    // Message is too large for single CAN-FD frame
-    // For now, we'll truncate to fit in one frame and log a warning
-    // TODO: Implement multi-frame transmission protocol
-    RCLCPP_WARN(this->get_logger(), "Message from topic '%s' (%zu bytes) exceeds CAN-FD frame limit (%zu bytes). Truncating.", 
-               topic_name.c_str(), ros_msg_size, max_can_fd_data_size);
-    
-    can_msg.data.resize(max_can_fd_data_size);
-    std::memcpy(can_msg.data.data(), ros_msg->get_rcl_serialized_message().buffer, max_can_fd_data_size);
+    RCLCPP_INFO(this->get_logger(), "Message from topic '%s' (%zu bytes) is too large for a single CAN frame (max %zu bytes). Fragmenting.",
+               topic_name.c_str(), ros_msg_size, max_payload_per_frame);
+
+    size_t bytes_sent = 0;
+    uint8_t sequence_number = 0;
+
+    while (bytes_sent < ros_msg_size) {
+      autonomy::CanMessage can_fragment;
+      can_fragment.id = can_id; // All fragments share the same ID for now
+      can_fragment.is_extended_id = is_extended;
+      can_fragment.is_remote_frame = is_rtr;
+      can_fragment.timestamp_us = timestamp; // Could also update timestamp per fragment
+
+      size_t current_fragment_payload_size = std::min(data_chunk_size, ros_msg_size - bytes_sent);
+      
+      can_fragment.data.resize(1 + current_fragment_payload_size); // 1 byte for sequence number
+      can_fragment.data[0] = sequence_number;
+      std::memcpy(can_fragment.data.data() + 1, ros_msg_buffer + bytes_sent, current_fragment_payload_size);
+      
+      messages_to_send.push_back(can_fragment);
+      
+      RCLCPP_INFO(this->get_logger(), "Created fragment %u for topic '%s' (ID 0x%X), size %zu (payload %zu)",
+                  sequence_number, topic_name.c_str(), can_fragment.id, can_fragment.data.size(), current_fragment_payload_size);
+
+      bytes_sent += current_fragment_payload_size;
+      sequence_number++;
+
+      if (sequence_number == 0 && bytes_sent < ros_msg_size) { // Rollover, too many fragments
+          RCLCPP_ERROR(this->get_logger(), "Too many fragments for message from topic '%s'. Max 256 fragments supported with 1-byte sequence.", topic_name.c_str());
+          messages_to_send.clear(); // Indicate error by returning no messages
+          return messages_to_send;
+      }
+    }
+    RCLCPP_INFO(this->get_logger(), "Fragmented message from topic '%s' into %zu frames.", topic_name.c_str(), messages_to_send.size());
   }
   
-  return can_msg;
+  return messages_to_send;
 }
 
 int main(int argc, char **argv) {

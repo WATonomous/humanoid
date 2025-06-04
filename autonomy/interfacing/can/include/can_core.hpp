@@ -11,12 +11,9 @@ namespace autonomy
 
 struct CanMessage {
     uint32_t id;                    // CAN message ID
-    std::vector<uint8_t> data;      // Message data (up to 8 bytes for classic CAN, up to 64 bytes for CAN-FD)
+    std::vector<uint8_t> data;      // Message data (up to 8 bytes for classic CAN)
     bool is_extended_id;            // Extended frame format flag
     bool is_remote_frame;           // Remote transmission request flag
-    bool is_fd_frame;               // CAN-FD frame flag
-    bool is_brs;                    // Bit Rate Switch (for CAN-FD)
-    bool is_esi;                    // Error State Indicator (for CAN-FD)
     uint64_t timestamp_us;          // Timestamp in microseconds
 };
 

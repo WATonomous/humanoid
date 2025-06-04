@@ -1,6 +1,6 @@
 #include "can_core.hpp"
 #include <sys/socket.h> // Core socket functions for SocketCAN [socket(), bind(), send(), recv()]
-#include <linux/can.h> // Definitions for can frames
+#include <linux/can.h> // Definitions for can frames and CAN FD
 #include <linux/can/raw.h> // CAN RAW
 #include <net/if.h> 
 #include <sys/ioctl.h>
@@ -8,7 +8,6 @@
 #include <cstring>
 #include <cstdlib> // For std::system to call the external script for slcand
 #include <sys/stat.h> // checking if script files exist 
-#include <cerrno> // For errno
 
 #include "ament_index_cpp/get_package_share_directory.hpp" // to load the bash scripts 
 #include "ament_index_cpp/get_package_prefix.hpp" // defines PackageNotFoundError
@@ -60,30 +59,71 @@ bool CanCore::isInitialized() const
 
 bool CanCore::sendMessage(const CanMessage& message)
 {
-    // Log the details of the received CAN message
-    RCLCPP_INFO(logger_, "sendMessage called with CanMessage:");
-    RCLCPP_INFO(logger_, "  ID: 0x%X (%s)", message.id, message.is_extended_id ? "Extended" : "Standard");
-    RCLCPP_INFO(logger_, "  Timestamp (us): %lu", message.timestamp_us);
-    RCLCPP_INFO(logger_, "  Flags: FD=%d, BRS=%d, ESI=%d, RTR=%d",
-                message.is_fd_frame, message.is_brs, message.is_esi, message.is_remote_frame);
-    RCLCPP_INFO(logger_, "  Data Length: %zu bytes", message.data.size());
-
-    if (!message.data.empty()) {
-        std::stringstream ss;
-        ss << "  Data: ";
-        for (size_t i = 0; i < message.data.size(); ++i) {
-            ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(message.data[i]) << " ";
-        }
-        RCLCPP_INFO(logger_, "%s", ss.str().c_str());
-    } else {
-        RCLCPP_INFO(logger_, "  Data: (empty)");
+    if (!initialized_ || socket_fd_ < 0) {
+        RCLCPP_ERROR(logger_, "CAN interface not initialized or socket not valid. Cannot send message.");
+        return false;
     }
 
-    // For now, we are just logging and not actually sending.
+    RCLCPP_INFO(logger_, "Sending CAN frame:");
+    RCLCPP_INFO(logger_, "  ID: 0x%X (%s)", message.id, message.is_extended_id ? "Extended" : "Standard");
+    RCLCPP_INFO(logger_, "  Data Length: %zu bytes", message.data.size());
+    
+    // Log the actual data bytes
+    std::string data_hex = "";
+    for (size_t i = 0; i < message.data.size(); ++i) {
+        char hex_byte[8];
+        snprintf(hex_byte, sizeof(hex_byte), "%02X", message.data[i]);
+        data_hex += hex_byte;
+        if (i < message.data.size() - 1) data_hex += " ";
+    }
+    RCLCPP_INFO(logger_, "  Data: [%s]", data_hex.c_str());
+
+    ssize_t bytes_written = -1;
+    size_t expected_frame_size = 0;
+
+    // Classic CAN frame only
+    struct can_frame frame;
+    std::memset(&frame, 0, sizeof(frame));
+
+    frame.can_id = message.id;
+    if (message.is_extended_id) {
+        frame.can_id |= CAN_EFF_FLAG;
+    }
+    if (message.is_remote_frame) {
+        frame.can_id |= CAN_RTR_FLAG;
+    }
+
+    if (message.data.size() > CAN_MAX_DLEN) {
+        RCLCPP_WARN(logger_, "Classic CAN message data size (%zu) exceeds classic CAN max DLC (%d). Truncating.",
+                    message.data.size(), CAN_MAX_DLEN);
+        frame.can_dlc = CAN_MAX_DLEN;
+    } else {
+        frame.can_dlc = static_cast<__u8>(message.data.size());
+    }
+
+    if (!message.is_remote_frame) {
+        std::memcpy(frame.data, message.data.data(), frame.can_dlc);
+    }
+
+    expected_frame_size = sizeof(struct can_frame);
+    bytes_written = write(socket_fd_, &frame, expected_frame_size);
+
+    if (bytes_written < 0) {
+        RCLCPP_ERROR(logger_, "Failed to write CAN frame to socket: %s", strerror(errno));
+        return false;
+    }
+
+    if (static_cast<size_t>(bytes_written) < expected_frame_size) {
+        RCLCPP_WARN(logger_, "Could not send full CAN frame. Sent %zd bytes, expected %zu bytes.",
+                    bytes_written, expected_frame_size);
+        return false;
+    }
+
+    RCLCPP_INFO(logger_, "CAN frame sent successfully! (%zd bytes written)", bytes_written);
     return true;
 }
 
-bool CanCore::receiveMessage([[maybe_unused]] CanMessage& message)
+bool CanCore::receiveMessage(CanMessage& message)
 {
     // TODO: Implement CAN message reception using SocketCAN
     
@@ -94,7 +134,7 @@ bool CanCore::receiveMessage([[maybe_unused]] CanMessage& message)
 bool CanCore::setupSocketCan()
 {
     RCLCPP_INFO(logger_, "Setting up SocketCAN interface: %s", config_.interface_name.c_str());
-    
+
     // Create socket
     socket_fd_ = socket(PF_CAN, SOCK_RAW, CAN_RAW);
     if (socket_fd_ < 0) {
@@ -102,47 +142,33 @@ bool CanCore::setupSocketCan()
         return false;
     }
 
-    // Enable CAN FD frames
-    int enable_canfd = 1;
-    if (setsockopt(socket_fd_, SOL_CAN_RAW, CAN_RAW_FD_FRAMES, &enable_canfd, sizeof(enable_canfd)) < 0) {
-        RCLCPP_ERROR(logger_, "Failed to enable CAN FD frames on socket: %s", strerror(errno));
-        close(socket_fd_);
-        socket_fd_ = -1;
-        return false;
-    }
-    RCLCPP_INFO(logger_, "CAN FD frames enabled on socket.");
-
     // Get interface index
     struct ifreq ifr;
     std::strncpy(ifr.ifr_name, config_.interface_name.c_str(), IFNAMSIZ - 1);
-    ifr.ifr_name[IFNAMSIZ - 1] = '\\0'; // Ensure null termination
-
+    ifr.ifr_name[IFNAMSIZ - 1] = '\0'; // Ensure null termination
     if (ioctl(socket_fd_, SIOCGIFINDEX, &ifr) < 0) {
-        RCLCPP_ERROR(logger_, "Failed to get interface index for '%s': %s", config_.interface_name.c_str(), strerror(errno));
+        RCLCPP_ERROR(logger_, "Failed to get interface index for %s: %s", config_.interface_name.c_str(), strerror(errno));
         close(socket_fd_);
         socket_fd_ = -1;
         return false;
     }
-    RCLCPP_INFO(logger_, "Interface index for '%s' is %d.", config_.interface_name.c_str(), ifr.ifr_ifindex);
 
-    // Configure socket address
+    // Bind socket to the CAN interface
     struct sockaddr_can addr;
     addr.can_family = AF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;
 
-    // Bind socket
     if (bind(socket_fd_, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        RCLCPP_ERROR(logger_, "Failed to bind SocketCAN socket to interface '%s' (index %d): %s", 
-                     config_.interface_name.c_str(), addr.can_ifindex, strerror(errno));
+        RCLCPP_ERROR(logger_, "Failed to bind SocketCAN socket to %s: %s", config_.interface_name.c_str(), strerror(errno));
         close(socket_fd_);
         socket_fd_ = -1;
         return false;
     }
-    
+
     initialized_ = true;
-    connected_ = true; // Assuming bind success means connected for SocketCAN raw
+    connected_ = true;
     
-    RCLCPP_INFO(logger_, "SocketCAN interface '%s' setup and bound successfully.", config_.interface_name.c_str());
+    RCLCPP_INFO(logger_, "SocketCAN interface %s setup completed successfully (Classic CAN mode).", config_.interface_name.c_str());
     return true;
 }
 
