@@ -29,6 +29,10 @@ private:
   void createSubscribers();
   std::string discoverTopicType(const std::string& topic_name);
   void topicCallback(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name, const std::string& topic_type);
+
+  // Helper methods
+  uint32_t generateCanId(const std::string& topic_name);
+  autonomy::CanMessage createCanMessage(const std::string& topic_name, std::shared_ptr<rclcpp::SerializedMessage> ros_msg);
 };
 
 #endif // CAN_NODE_HPP
