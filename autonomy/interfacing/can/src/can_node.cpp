@@ -50,8 +50,7 @@ void CanNode::loadTopicConfigurations() {
     auto topic_names = this->get_parameter("topics").as_string_array();
     
     for (const auto& topic_name : topic_names) {
-      // Discover the message type for this topic
-      std::string topic_type = discoverTopicType(topic_name);
+      std::string topic_type = discoverTopicType(topic_name); // Discover the message type for a given topic
       
       if (!topic_type.empty()) {
         TopicConfig config;
@@ -77,13 +76,11 @@ void CanNode::loadTopicConfigurations() {
 }
 
 std::string CanNode::discoverTopicType(const std::string& topic_name) {
-  // Get topic information from ROS graph
-  auto topic_names_and_types = this->get_topic_names_and_types();
+  auto topic_names_and_types = this->get_topic_names_and_types(); // get topic information from ROS graph
   
   for (const auto& topic_info : topic_names_and_types) {
     if (topic_info.first == topic_name) {
       if (!topic_info.second.empty()) {
-        // Return the first message type (there's usually only one)
         return topic_info.second[0];
       }
     }
@@ -92,7 +89,7 @@ std::string CanNode::discoverTopicType(const std::string& topic_name) {
   // If topic is not found, wait a bit and try again (topic might not be published yet)
   RCLCPP_INFO(this->get_logger(), "Topic '%s' not found, waiting for it to become available...", topic_name.c_str());
   
-  // Wait up to 10 seconds for the topic to appear (increased from 5)
+  // Wait up to 10 seconds for the topic to appear
   for (int i = 0; i < 100; ++i) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     topic_names_and_types = this->get_topic_names_and_types();
@@ -132,17 +129,15 @@ void CanNode::createSubscribers() {
 }
 
 void CanNode::topicCallback(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name, [[maybe_unused]] const std::string& topic_type) {
-  // Create CAN message(s) from ROS message
-  std::vector<autonomy::CanMessage> can_messages = createCanMessages(topic_name, msg);
+  std::vector<autonomy::CanMessage> can_messages = createCanMessages(topic_name, msg); // Create CAN message(s) from ROS message
   
-  // Send the CAN message(s)
+  // Send CAN message
   int successful_sends = 0;
   for (const auto& can_message : can_messages) {
     if (can_.sendMessage(can_message)) {
       successful_sends++;
     } else {
       RCLCPP_ERROR(this->get_logger(), "Failed to send CAN message for topic '%s' (ID 0x%X)", topic_name.c_str(), can_message.id);
-      // Optionally, decide if you want to stop sending other fragments if one fails
     }
   }
   
@@ -168,9 +163,8 @@ std::vector<autonomy::CanMessage> CanNode::createCanMessages(const std::string& 
   
   uint32_t can_id = generateCanId(topic_name);
   
-  // Common properties for all messages/fragments
-  bool is_extended = true;
-  bool is_rtr = false;
+  bool is_extended = true; // Use extended CAN ID (29 bits)
+  bool is_rtr = false; // Remote Transmission Request
 
   auto now_chrono = std::chrono::high_resolution_clock::now();
   uint64_t timestamp = std::chrono::duration_cast<std::chrono::microseconds>(

@@ -94,8 +94,6 @@ bool CanCore::sendMessage(const CanMessage& message)
     }
 
     if (message.data.size() > CAN_MAX_DLEN) {
-        RCLCPP_WARN(logger_, "Classic CAN message data size (%zu) exceeds classic CAN max DLC (%d). Truncating.",
-                    message.data.size(), CAN_MAX_DLEN);
         frame.can_dlc = CAN_MAX_DLEN;
     } else {
         frame.can_dlc = static_cast<__u8>(message.data.size());
@@ -227,5 +225,4 @@ bool CanCore::setupSlcan()
     RCLCPP_INFO(logger_, "Proceeding to configure '%s' as a SocketCAN interface.", config_.interface_name.c_str());
     return setupSocketCan();
 }
-
 }
