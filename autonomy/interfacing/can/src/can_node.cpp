@@ -175,7 +175,7 @@ std::vector<autonomy::CanMessage> CanNode::createCanMessages(const std::string& 
 
   // Determine max data payload per frame
   // For Classic CAN, it's 8 bytes maximum
-  // We'll reserve 1 byte for sequence number if fragmentation is needed.
+  // But reserve 1 byte for sequence number if fragmentation is needed.
   const size_t max_data_bytes_per_classic_frame = 8;
   
   size_t max_payload_per_frame = max_data_bytes_per_classic_frame;
@@ -226,8 +226,9 @@ std::vector<autonomy::CanMessage> CanNode::createCanMessages(const std::string& 
       
       messages_to_send.push_back(can_fragment);
       
-      RCLCPP_INFO(this->get_logger(), "Created fragment %u for topic '%s' (ID 0x%X), size %zu (payload %zu)",
-                  sequence_number, topic_name.c_str(), can_fragment.id, can_fragment.data.size(), current_fragment_payload_size);
+      // This is just logging that fragment creation was successful
+      // RCLCPP_INFO(this->get_logger(), "Created fragment %u for topic '%s' (ID 0x%X), size %zu (payload %zu)",
+                  // sequence_number, topic_name.c_str(), can_fragment.id, can_fragment.data.size(), current_fragment_payload_size);
 
       bytes_sent += current_fragment_payload_size;
       sequence_number++;
@@ -238,7 +239,7 @@ std::vector<autonomy::CanMessage> CanNode::createCanMessages(const std::string& 
           return messages_to_send;
       }
     }
-    RCLCPP_INFO(this->get_logger(), "Fragmented message from topic '%s' into %zu frames.", topic_name.c_str(), messages_to_send.size());
+    // RCLCPP_INFO(this->get_logger(), "Fragmented message from topic '%s' into %zu frames.", topic_name.c_str(), messages_to_send.size());
   }
   
   return messages_to_send;

@@ -64,19 +64,20 @@ bool CanCore::sendMessage(const CanMessage& message)
         return false;
     }
 
-    RCLCPP_INFO(logger_, "Sending CAN frame:");
-    RCLCPP_INFO(logger_, "  ID: 0x%X (%s)", message.id, message.is_extended_id ? "Extended" : "Standard");
-    RCLCPP_INFO(logger_, "  Data Length: %zu bytes", message.data.size());
+    // Below are just some debug logs to show the message being sent
+    // RCLCPP_INFO(logger_, "Sending CAN frame:");
+    // RCLCPP_INFO(logger_, "  ID: 0x%X (%s)", message.id, message.is_extended_id ? "Extended" : "Standard");
+    // RCLCPP_INFO(logger_, "  Data Length: %zu bytes", message.data.size());
     
-    // Log the actual data bytes
-    std::string data_hex = "";
-    for (size_t i = 0; i < message.data.size(); ++i) {
-        char hex_byte[8];
-        snprintf(hex_byte, sizeof(hex_byte), "%02X", message.data[i]);
-        data_hex += hex_byte;
-        if (i < message.data.size() - 1) data_hex += " ";
-    }
-    RCLCPP_INFO(logger_, "  Data: [%s]", data_hex.c_str());
+    // // Log the actual data bytes
+    // std::string data_hex = "";
+    // for (size_t i = 0; i < message.data.size(); ++i) {
+    //     char hex_byte[8];
+    //     snprintf(hex_byte, sizeof(hex_byte), "%02X", message.data[i]);
+    //     data_hex += hex_byte;
+    //     if (i < message.data.size() - 1) data_hex += " ";
+    // }
+    // RCLCPP_INFO(logger_, "  Data: [%s]", data_hex.c_str());
 
     ssize_t bytes_written = -1;
     size_t expected_frame_size = 0;
@@ -117,7 +118,7 @@ bool CanCore::sendMessage(const CanMessage& message)
         return false;
     }
 
-    RCLCPP_INFO(logger_, "CAN frame sent successfully! (%zd bytes written)", bytes_written);
+    // RCLCPP_INFO(logger_, "CAN frame sent successfully! (%zd bytes written)", bytes_written);
     return true;
 }
 
