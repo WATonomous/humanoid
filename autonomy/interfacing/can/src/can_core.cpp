@@ -5,6 +5,7 @@
 #include <net/if.h> 
 #include <sys/ioctl.h>
 #include <unistd.h> 
+#include <fcntl.h> // For fcntl
 #include <cstring>
 #include <cstdlib> // For std::system to call the external script for slcand
 #include <sys/stat.h> // checking if script files exist 
@@ -124,10 +125,60 @@ bool CanCore::sendMessage(const CanMessage& message)
 
 bool CanCore::receiveMessage(CanMessage& message)
 {
-    // TODO: Implement CAN message reception using SocketCAN
+    if (!initialized_ || socket_fd_ < 0) {
+        RCLCPP_ERROR(logger_, "CAN interface not initialized or socket not valid. Cannot receive message.");
+        return false;
+    }
+
+    struct can_frame frame;
+    ssize_t bytes_read = read(socket_fd_, &frame, sizeof(struct can_frame));
+
+    if (bytes_read < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            // No data available right now (non-blocking mode)
+            return false; 
+        }
+        RCLCPP_ERROR(logger_, "Failed to read CAN frame from socket: %s", strerror(errno));
+        return false;
+    }
+
+    if (bytes_read == 0) {
+        // According to read(2), a return value of 0 indicates end-of-file. 
+        // For a socket, this can mean the peer has performed an orderly shutdown.
+        // For raw CAN sockets, this is less typical than EAGAIN for no data.
+        // RCLCPP_WARN(logger_, "Read 0 bytes from CAN socket. Peer might have closed connection or no data.");
+        return false;
+    }
+
+    if (static_cast<size_t>(bytes_read) < sizeof(struct can_frame)) {
+        RCLCPP_WARN(logger_, "Incomplete CAN frame received. Read %zd bytes, expected %zu bytes.",
+                    bytes_read, sizeof(struct can_frame));
+        return false;
+    }
+
+    message.is_extended_id = (frame.can_id & CAN_EFF_FLAG) ? true : false;
+    message.is_remote_frame = (frame.can_id & CAN_RTR_FLAG) ? true : false;
     
-    RCLCPP_WARN(logger_, "receiveMessage not yet implemented");
-    return false;
+    if (message.is_extended_id) {
+        message.id = frame.can_id & CAN_EFF_MASK;
+    } else {
+        message.id = frame.can_id & CAN_SFF_MASK;
+    }
+
+    message.dlc = frame.can_dlc;
+    message.data.resize(frame.can_dlc);
+    if (!message.is_remote_frame) {
+        std::memcpy(message.data.data(), frame.data, frame.can_dlc);
+    } else {
+        // For RTR frames, data field is irrelevant but dlc indicates requested data length
+        message.data.clear(); 
+    }
+
+    // This is to log received message details for debugging
+    RCLCPP_INFO(logger_, "CAN frame received: ID=0x%X, Extended=%d, RTR=%d",
+                message.id, message.is_extended_id, message.is_remote_frame);
+
+    return true;
 }
 
 bool CanCore::setupSocketCan()
@@ -140,6 +191,22 @@ bool CanCore::setupSocketCan()
         RCLCPP_ERROR(logger_, "Failed to create SocketCAN socket: %s", strerror(errno));
         return false;
     }
+
+    // Set socket to non-blocking
+    int flags = fcntl(socket_fd_, F_GETFL, 0);
+    if (flags == -1) {
+        RCLCPP_ERROR(logger_, "Failed to get socket flags: %s", strerror(errno));
+        close(socket_fd_);
+        socket_fd_ = -1;
+        return false;
+    }
+    if (fcntl(socket_fd_, F_SETFL, flags | O_NONBLOCK) == -1) {
+        RCLCPP_ERROR(logger_, "Failed to set socket to non-blocking: %s", strerror(errno));
+        close(socket_fd_);
+        socket_fd_ = -1;
+        return false;
+    }
+    RCLCPP_INFO(logger_, "Socket set to non-blocking mode.");
 
     // Get interface index
     struct ifreq ifr;

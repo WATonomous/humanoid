@@ -13,15 +13,17 @@ CanNode::CanNode() : Node("can_node"), can_(this->get_logger()) {
   this->declare_parameter("device_path", "/dev/canable");
   this->declare_parameter("bustype", "slcan");
   this->declare_parameter("bitrate", 500000);
+  this->declare_parameter("receive_poll_interval_ms", 10); // Parameter for polling interval
   
   // Get parameter values
   std::string can_interface = this->get_parameter("can_interface").as_string();
   std::string device_path = this->get_parameter("device_path").as_string();
   std::string bustype = this->get_parameter("bustype").as_string();
   int bitrate = this->get_parameter("bitrate").as_int();
+  long receive_poll_interval_ms = this->get_parameter("receive_poll_interval_ms").as_int();
   
-  RCLCPP_INFO(this->get_logger(), "Loaded parameters: interface=%s, bustype=%s, bitrate=%d", 
-              can_interface.c_str(), bustype.c_str(), bitrate);
+  RCLCPP_INFO(this->get_logger(), "Loaded parameters: interface=%s, bustype=%s, bitrate=%d, poll_interval_ms=%ld", 
+              can_interface.c_str(), bustype.c_str(), bitrate, receive_poll_interval_ms);
   
   // Configure CanCore
   autonomy::CanConfig config;
@@ -29,11 +31,18 @@ CanNode::CanNode() : Node("can_node"), can_(this->get_logger()) {
   config.device_path = device_path;
   config.bustype = bustype;
   config.bitrate = bitrate;
-  config.receive_timeout_ms = 10000;
+  config.receive_timeout_ms = 10000; // This specific timeout in CanConfig might be for other uses or can be reviewed.
   
   // Initialize the CAN interface
   if (can_.initialize(config)) {
     RCLCPP_INFO(this->get_logger(), "CAN Core interface initialized successfully");
+
+    // Setup a timer to periodically call receiveCanMessages
+    receive_timer_ = this->create_wall_timer(
+      std::chrono::milliseconds(receive_poll_interval_ms),
+      std::bind(&CanNode::receiveCanMessages, this));
+    RCLCPP_INFO(this->get_logger(), "CAN message receive timer started with %ld ms interval.", receive_poll_interval_ms);
+
   } else {
     RCLCPP_ERROR(this->get_logger(), "Failed to initialize CAN Core");
   }
@@ -145,6 +154,27 @@ void CanNode::topicCallback(std::shared_ptr<rclcpp::SerializedMessage> msg, cons
     RCLCPP_INFO(this->get_logger(), "Successfully sent %d/%zu CAN frames for topic '%s'", 
                 successful_sends, can_messages.size(), topic_name.c_str());
   }
+}
+
+void CanNode::receiveCanMessages() {
+  autonomy::CanMessage received_msg;
+  // Attempt to receive a message. CanCore::receiveMessage is non-blocking.
+  if (can_.receiveMessage(received_msg)) {
+    // Print the received message details to the console
+    std::stringstream ss;
+    ss << "Received CAN Message: ID=0x" << std::hex << received_msg.id
+       << std::dec << ", DLC=" << static_cast<int>(received_msg.dlc)
+       << ", Extended=" << received_msg.is_extended_id
+       << ", RTR=" << received_msg.is_remote_frame
+       << ", Data=[ ";
+    for (size_t i = 0; i < received_msg.data.size(); ++i) {
+      ss << "0x" << std::hex << static_cast<int>(received_msg.data[i]) << (i < received_msg.data.size() - 1 ? " " : "");
+    }
+    ss << std::dec << " ]"; // Switch back to decimal for any further logging if needed
+    RCLCPP_INFO(this->get_logger(), "%s", ss.str().c_str());
+  }
+  // If receiveMessage returns false, it means no message was available at that moment (non-blocking read)
+  // or an error occurred (which CanCore should log). No action needed here for no-message case.
 }
 
 uint32_t CanNode::generateCanId(const std::string& topic_name) {
