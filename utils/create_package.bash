@@ -36,7 +36,6 @@ shift $((OPTIND -1))
 package_name="$1"
 module_name="$2"
 
-
 # Variables & helper function to copy and edit boilerplate files
 PACKAGE_DIR="$REPO_ROOT/autonomy/$module_name/$package_name"
 replace_foo_variants_in_file() {
