@@ -1,46 +1,34 @@
-/***************************************************************************
- *  SimpleFOC – MT6835 SPI encoder demo (ESP32-S3)                         *
- *  Uses ONLY the core "Simple FOC" library                                *
- ***************************************************************************/
 #include <Arduino.h>
 #include <SPI.h>
-#include <SimpleFOC.h>                       // core library – nothing else
-#include <MT6835.h>
+#include <SimpleFOC.h>
 #include <MagneticSensorMT6835.h>
 
+constexpr uint8_t PIN_CS = PB0;     // choose any free output-capable pin
 
-constexpr uint8_t PIN_MOSI = 9;   // XIAO D10 (GPIO  9)
-constexpr uint8_t PIN_MISO = 8;   // XIAO D9  (GPIO  8)
-constexpr uint8_t PIN_SCK  = 7;   // XIAO D8  (GPIO  7)
-constexpr uint8_t PIN_CS   = 5;   // XIAO D7  (GPIO  6)  – use your CS pin
-
-SPISettings mt6835SPI(1000000, MSBFIRST, SPI_MODE3);
-MagneticSensorMT6835 sensor(PIN_CS, mt6835SPI);
+SPISettings mt6835SPI(500000, MSBFIRST, SPI_MODE3);   // start at 500 kHz
+MagneticSensorMT6835 sensor(PIN_CS, mt6835SPI);       // **only 2 args**
 
 void setup() {
   Serial.begin(115200);
-  delay(200);                                      // let USB enumerate
 
-  // ESP32-S3 hardware-SPI bus on explicit pins
-  SPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_CS);
+  // Point the *global* SPI object at the real hardware pins for SPI-1
+  // (works with the official Arduino_Core_STM32)
+  SPI.setMISO(PA6);
+  SPI.setMOSI(PA7);
+  SPI.setSCLK(PA5);
+  SPI.begin();
 
-  sensor.init();                                   // initialise the encoder
+  pinMode(PIN_CS, OUTPUT);
+  digitalWrite(PIN_CS, HIGH);
 
-  Serial.println(F("MT6835 + SimpleFOC ready"));
+  sensor.init();
 }
 
 void loop() {
-  sensor.update();                                 // refresh angle + velocity
-
-  static uint32_t t0 = 0;
-  uint32_t now = millis();
-  if (now - t0 >= 1000) {                          // print once per second
-    t0 = now;
-    Serial.print(F("Angle [rad]: "));
+  sensor.update();
+  Serial.print(F("Angle [rad]: "));
     Serial.print(sensor.getAngle(), 6);
     Serial.print(F("   Velocity [rad/s]: "));
     Serial.println(sensor.getVelocity(), 4);
-  }
-
-  delay(10);                                       // 100 Hz update rate
+  delay(10);
 }
