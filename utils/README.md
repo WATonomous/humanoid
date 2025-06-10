@@ -6,8 +6,10 @@
 `create-package.bash $package_name $module_name [-p] [-h]`
 - $package_name -> required, str: name of package
 - $module_name -> required, str: name of parent module
-- -p -> optional, flag: build python package. Defaults to cpp package.
+- -p -> optional, flag: build python package. Defaults to a cpp package.
 - -h -> optional, flag: help description.
+
+- ⚠️ The `module_name` must exist beforehand for the script to work properly.
 
 ### Description
 - Creates a ros2 python or cpp `package_name` in the `module_name`
