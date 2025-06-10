@@ -13,13 +13,13 @@ while getopts "ph" opt; do
         build_python=true
         ;;
     h)
-        echo "create-package.bash [-p] [-h] package_name module_name"
-        echo "Executes \"docker compose up\" module_name and creates package_name with \"ros2 pkg create\""
-        echo "Required: package_name, module_name"
+        echo -e "create-package.bash [-p] [-h] module_name package_name\n"
+        echo "Executes \"docker compose up\" module_name and creates package_name with \"ros2 pkg create\"."
+        echo "Arguments module_name and package_name are required."
         echo "Use optional -p flag to build a python package. Defaults to a cpp package."
         ;;
     \?)
-        echo "Invalid option: -$OPTARG" >&2
+        echo "Invalid option: -$OPTARG." >&2
         exit 1
         ;;
     :)
@@ -33,8 +33,15 @@ shift $((OPTIND -1))
 
 
 # Positional arguments
-package_name="$1"
-module_name="$2"
+module_name="$1"
+package_name="$2"
+
+if [ -z "$module_name" ] || [ -z "$package_name" ]; then
+    echo -e "create-package.bash [-p] [-h] module_name package_name\n"
+    echo "Arguments module_name and package_name are required."
+    echo "Use optional -p flag to build a python package. Defaults to a cpp package."
+  exit 1
+fi
 
 # Variables & helper function to copy and edit boilerplate files
 PACKAGE_DIR="$REPO_ROOT/autonomy/$module_name/$package_name"
@@ -93,19 +100,19 @@ if [[ "$build_python" != "true" ]]; then # cpp package
     "
     
     # Copy in template files into package directory and modify foo's
-    cp boilerplate-files/foo.launch.py $PACKAGE_DIR/launch/$package_name.launch.py
+    cp $REPO_ROOT/utils/boilerplate-files/foo.launch.py $PACKAGE_DIR/launch/$package_name.launch.py
     replace_foo_variants_in_file "$PACKAGE_DIR/launch/$package_name.launch.py" "$package_name"
-    cp boilerplate-files/foo_test.cpp $PACKAGE_DIR/test/${package_name}_test.cpp
+    cp $REPO_ROOT/utils/boilerplate-files/foo_test.cpp $PACKAGE_DIR/test/${package_name}_test.cpp
     replace_foo_variants_in_file "$PACKAGE_DIR/test/${package_name}_test.cpp" "$package_name"
 
-    cp boilerplate-files/foo_core.cpp $PACKAGE_DIR/src/${package_name}_core.cpp
+    cp $REPO_ROOT/utils/boilerplate-files/foo_core.cpp $PACKAGE_DIR/src/${package_name}_core.cpp
     replace_foo_variants_in_file "$PACKAGE_DIR/src/${package_name}_core.cpp" "$package_name"
-    cp boilerplate-files/foo_core.hpp $PACKAGE_DIR/include/${package_name}_core.hpp
+    cp $REPO_ROOT/utils/boilerplate-files/foo_core.hpp $PACKAGE_DIR/include/${package_name}_core.hpp
     replace_foo_variants_in_file "$PACKAGE_DIR/include/${package_name}_core.hpp" "$package_name"
 
-    cp boilerplate-files/foo_node.cpp $PACKAGE_DIR/src/${package_name}_node.cpp
+    cp $REPO_ROOT/utils/boilerplate-files/foo_node.cpp $PACKAGE_DIR/src/${package_name}_node.cpp
     replace_foo_variants_in_file "$PACKAGE_DIR/src/${package_name}_node.cpp" "$package_name"
-    cp boilerplate-files/foo_node.hpp $PACKAGE_DIR/include/${package_name}_node.hpp
+    cp $REPO_ROOT/utils/boilerplate-files/foo_node.hpp $PACKAGE_DIR/include/${package_name}_node.hpp
     replace_foo_variants_in_file "$PACKAGE_DIR/include/${package_name}_node.hpp" "$package_name"
 
 else # python package
@@ -126,11 +133,11 @@ else # python package
     "
 
     # Copy in template files into package directory and modify foo's
-    cp boilerplate-files/foo.launch.py $PACKAGE_DIR/launch/$package_name.launch.py
+    cp $REPO_ROOT/utils/boilerplate-files/foo.launch.py $PACKAGE_DIR/launch/$package_name.launch.py
     replace_foo_variants_in_file "$PACKAGE_DIR/launch/$package_name.launch.py" "$package_name"
-    cp boilerplate-files/foo_node.py $PACKAGE_DIR/$package_name/${package_name}_node.py
+    cp $REPO_ROOT/utils/boilerplate-files/foo_node.py $PACKAGE_DIR/$package_name/${package_name}_node.py
     replace_foo_variants_in_file "$PACKAGE_DIR/$package_name/${package_name}_node.py" "$package_name"
-    cp boilerplate-files/foo_core.py $PACKAGE_DIR/$package_name/${package_name}_core.py
+    cp $REPO_ROOT/utils/boilerplate-files/foo_core.py $PACKAGE_DIR/$package_name/${package_name}_core.py
     replace_foo_variants_in_file "$PACKAGE_DIR/$package_name/${package_name}_core.py" "$package_name"
 fi
 
