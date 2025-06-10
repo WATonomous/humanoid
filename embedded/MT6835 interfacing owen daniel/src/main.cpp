@@ -7,16 +7,13 @@
 #include <SimpleFOC.h>                       // core library – nothing else
 #include <MT6835.h>
 #include <MagneticSensorMT6835.h>
-// #include "encoders/mt6835/MagneticSensorMT6835.h"   // this header lives in
-//                                                     // SimpleFOC itself
 
-// ---------- board-specific pin map ----------------------------------------
+
 constexpr uint8_t PIN_MOSI = 9;   // XIAO D10 (GPIO  9)
 constexpr uint8_t PIN_MISO = 8;   // XIAO D9  (GPIO  8)
 constexpr uint8_t PIN_SCK  = 7;   // XIAO D8  (GPIO  7)
 constexpr uint8_t PIN_CS   = 5;   // XIAO D7  (GPIO  6)  – use your CS pin
 
-// ---------- SimpleFOC sensor object ---------------------------------------
 SPISettings mt6835SPI(1000000, MSBFIRST, SPI_MODE3);
 MagneticSensorMT6835 sensor(PIN_CS, mt6835SPI);
 
