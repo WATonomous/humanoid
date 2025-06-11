@@ -9,7 +9,9 @@
 - -p -> optional, flag: build python package. Defaults to a cpp package.
 - -h -> optional, flag: help description.
 
-- ⚠️ The `module_name` must exist beforehand for the script to work properly.
+- ⚠️ Double check for these before running the script: 
+    - The `module_name` directory must exist beforehand for the script to work properly.
+    - The `modules/docker-compose.module_name.yaml` must exist for the script to run.
 
 ### Description
 - Creates a ros2 python or cpp `package_name` in the `module_name`
