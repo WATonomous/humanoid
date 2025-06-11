@@ -25,9 +25,9 @@ This package primarily defines message structures. Therefore:
 -   **Message Definitions**: Contains a collection of `.msg` files, each defining a specific data structure. These messages are designed to be generic and applicable in multiple contexts.
 
 ### Message Definitions
--   `ArmPose.msg`: Defines the pose of the humanoid arm, including optional HandPose inside.
--   `HandPose.msg`: Defines the pose of the humanoid hand, including each JointState of each finger's joints.
--   `JointState.msg`: Defines the state of a joint, including position, velocity, orientation, and effort.
+-   `ArmPose.msg`: Describes the pose of an arm, including its major joints and optionally the hand.
+-   `HandPose.msg`: Details the pose of a hand, including individual finger joint states. 
+-   `JointState.msg`: A custom message (similar message structure to [sensor_msgs/JointState](https://docs.ros.org/en/humble/p/sensor_msgs/msg/JointState.html)) to represent a single joint.
 
 ## Usage
 To use the messages defined in this package within another ROS 2 package:
