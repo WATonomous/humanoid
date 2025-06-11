@@ -9,7 +9,7 @@ SPISettings mt6835SPI(500000, MSBFIRST, SPI_MODE3);   // start at 500 kHz
 MagneticSensorMT6835 sensor(PIN_CS, mt6835SPI);       // **only 2 args**
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
 
   // Point the *global* SPI object at the real hardware pins for SPI-1
   // (works with the official Arduino_Core_STM32)
