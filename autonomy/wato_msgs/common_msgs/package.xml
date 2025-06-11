@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>common_msgs</name>
-  <version>0.0.0</version>there was
+  <version>0.0.0</version>
   <description>Common ROS2 message definitions for the WATO Humanoid project.</description>
 
   <maintainer email="gavintranquilino@gmail.com">Gavin Tranquilino</maintainer>
