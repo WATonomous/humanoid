@@ -135,7 +135,7 @@ void CanNode::createSubscribers() {
         topic_config.type,
         10,
         [this](std::shared_ptr<rclcpp::SerializedMessage> msg) {
-          this->handleJointTopic(msg, "/cmd_arm_joint");
+          this->handleArmJointTopic(msg, "/cmd_arm_joint");
         }
       );
     } else if (topic_config.name == "/cmd_hand_joint") {
@@ -144,7 +144,7 @@ void CanNode::createSubscribers() {
         topic_config.type,
         10,
         [this](std::shared_ptr<rclcpp::SerializedMessage> msg) {
-          this->handleJointTopic(msg, "/cmd_hand_joint");
+          this->handleHandJointTopic(msg, "/cmd_hand_joint");
         }
       );
     } else if (topic_config.name == "/cmd_arm_ee") {
@@ -153,7 +153,7 @@ void CanNode::createSubscribers() {
         topic_config.type,
         10,
         [this](std::shared_ptr<rclcpp::SerializedMessage> msg) {
-          this->handleEndEffectorTopic(msg, "/cmd_arm_ee");
+          this->handleArmEeTopic(msg, "/cmd_arm_ee");
         }
       );
     } else if (topic_config.name == "/cmd_hand_ee") {
@@ -162,7 +162,7 @@ void CanNode::createSubscribers() {
         topic_config.type,
         10,
         [this](std::shared_ptr<rclcpp::SerializedMessage> msg) {
-          this->handleEndEffectorTopic(msg, "/cmd_hand_ee");
+          this->handleHandEeTopic(msg, "/cmd_hand_ee");
         }
       );
     } else {
@@ -182,10 +182,10 @@ void CanNode::createSubscribers() {
 }
 
 // dummy handler for testing
-void CanNode::handleControllerTopic(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name) {
+void CanNode::handleArmJointTopic(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name) {
   // Custom CAN ID range for controller messages
   uint32_t can_id = 0x100;  // Controller messages start at 0x100
-y  std::vector<autonomy::CanMessage> can_messages = createCanMessages(topic_name, msg, base_can_id);
+  std::vector<autonomy::CanMessage> can_messages = createCanMessages(topic_name, msg, can_id);
   
   // Send with high priority
   for (const auto& can_message : can_messages) {
@@ -195,30 +195,9 @@ y  std::vector<autonomy::CanMessage> can_messages = createCanMessages(topic_name
   }
 }
 
-void CanNode::handleJointTopic(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name) {
-  // Custom CAN ID range for joint messages
-  uint32_t base_can_id = 0x200;  // Joint messages start at 0x200
-  std::vector<autonomy::CanMessage> can_messages = createCanMessages(topic_name, msg, base_can_id);
-  
-  // Send joint messages
-  for (const auto& can_message : can_messages) {
-    if (!can_.sendMessage(can_message)) {
-      RCLCPP_ERROR(this->get_logger(), "Failed to send joint CAN message (ID 0x%X)", can_message.id);
-    }
-  }
-}
-
-void CanNode::handleEndEffectorTopic(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name) {
-  // Custom CAN ID range for end effector messages
-  uint32_t base_can_id = 0x300;  // End effector messages start at 0x300
-  std::vector<autonomy::CanMessage> can_messages = createCanMessages(topic_name, msg, base_can_id);
-  
-  // Send end effector messages
-  for (const auto& can_message : can_messages) {
-    if (!can_.sendMessage(can_message)) {
-      RCLCPP_ERROR(this->get_logger(), "Failed to send end effector CAN message (ID 0x%X)", can_message.id);
-    }
-  }
+void CanNode::handleHandJointTopic(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name) {}
+void CanNode::handleHandEeTopic(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name) {}
+void CanNode::handleArmEeTopic(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name) {}
 
 
 void CanNode::handleGenericTopic(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name) {
