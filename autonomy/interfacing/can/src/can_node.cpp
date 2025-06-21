@@ -184,15 +184,9 @@ void CanNode::createSubscribers() {
 // dummy handler for testing
 void CanNode::handleArmJointTopic(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name) {
   // Custom CAN ID range for controller messages
-  uint32_t can_id = 0x100;  // Controller messages start at 0x100
-  std::vector<autonomy::CanMessage> can_messages = createCanMessages(topic_name, msg, can_id);
-  
-  // Send with high priority
-  for (const auto& can_message : can_messages) {
-    if (!can_.sendMessage(can_message)) {
-      RCLCPP_ERROR(this->get_logger(), "Failed to send controller CAN message (ID 0x%X)", can_message.id);
-    }
-  }
+  // uint32_t can_id = 0x100;  // set based on robot message
+  // std::vector<autonomy::CanMessage> can_messages = createCanMessages(topic_name, msg, can_id);
+  // sendCanMessages(can_messages, topic_name);
 }
 
 void CanNode::handleHandJointTopic(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name) {}
