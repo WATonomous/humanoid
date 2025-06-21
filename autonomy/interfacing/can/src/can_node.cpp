@@ -120,27 +120,115 @@ std::string CanNode::discoverTopicType(const std::string& topic_name) {
 
 void CanNode::createSubscribers() {
   for (const auto& topic_config : topic_configs_) {
-    // Create generic subscriber that can handle any message type
-    auto subscriber = this->create_generic_subscription(
-      topic_config.name,
-      topic_config.type,
-      10,
-      [this, topic_name = topic_config.name, topic_type = topic_config.type]
-      (std::shared_ptr<rclcpp::SerializedMessage> msg) {
-        this->topicCallback(msg, topic_name, topic_type);
-      }
-    );
+    if (topic_config.name == "/test_controller") {
+      subscribers_[topic_config.name] = this->create_generic_subscription(
+        topic_config.name,
+        topic_config.type,
+        10,
+        [this](std::shared_ptr<rclcpp::SerializedMessage> msg) {
+          this->handleControllerTopic(msg, "/test_controller");
+        }
+      );
+    } else if (topic_config.name == "/cmd_arm_joint") {
+      subscribers_[topic_config.name] = this->create_generic_subscription(
+        topic_config.name,
+        topic_config.type,
+        10,
+        [this](std::shared_ptr<rclcpp::SerializedMessage> msg) {
+          this->handleJointTopic(msg, "/cmd_arm_joint");
+        }
+      );
+    } else if (topic_config.name == "/cmd_hand_joint") {
+      subscribers_[topic_config.name] = this->create_generic_subscription(
+        topic_config.name,
+        topic_config.type,
+        10,
+        [this](std::shared_ptr<rclcpp::SerializedMessage> msg) {
+          this->handleJointTopic(msg, "/cmd_hand_joint");
+        }
+      );
+    } else if (topic_config.name == "/cmd_arm_ee") {
+      subscribers_[topic_config.name] = this->create_generic_subscription(
+        topic_config.name,
+        topic_config.type,
+        10,
+        [this](std::shared_ptr<rclcpp::SerializedMessage> msg) {
+          this->handleEndEffectorTopic(msg, "/cmd_arm_ee");
+        }
+      );
+    } else if (topic_config.name == "/cmd_hand_ee") {
+      subscribers_[topic_config.name] = this->create_generic_subscription(
+        topic_config.name,
+        topic_config.type,
+        10,
+        [this](std::shared_ptr<rclcpp::SerializedMessage> msg) {
+          this->handleEndEffectorTopic(msg, "/cmd_hand_ee");
+        }
+      );
+    } else {
+      subscribers_[topic_config.name] = this->create_generic_subscription(
+        topic_config.name,
+        topic_config.type,
+        10,
+        [this, topic_name = topic_config.name](std::shared_ptr<rclcpp::SerializedMessage> msg) {
+          this->handleGenericTopic(msg, topic_name);
+        }
+      );
+    }
     
-    subscribers_.push_back(subscriber);
     RCLCPP_INFO(this->get_logger(), "Created generic subscriber for topic: %s (type: %s)", 
                topic_config.name.c_str(), topic_config.type.c_str());
   }
 }
 
-void CanNode::topicCallback(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name, [[maybe_unused]] const std::string& topic_type) {
-  std::vector<autonomy::CanMessage> can_messages = createCanMessages(topic_name, msg); // Create CAN message(s) from ROS message
+// Add these new handler methods
+void CanNode::handleControllerTopic(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name) {
+  // Custom CAN ID range for controller messages
+  uint32_t can_id = 0x100;  // Controller messages start at 0x100
+y  std::vector<autonomy::CanMessage> can_messages = createCanMessages(topic_name, msg, base_can_id);
   
-  // Send CAN message
+  // Send with high priority
+  for (const auto& can_message : can_messages) {
+    if (!can_.sendMessage(can_message)) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to send controller CAN message (ID 0x%X)", can_message.id);
+    }
+  }
+}
+
+void CanNode::handleJointTopic(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name) {
+  // Custom CAN ID range for joint messages
+  uint32_t base_can_id = 0x200;  // Joint messages start at 0x200
+  std::vector<autonomy::CanMessage> can_messages = createCanMessages(topic_name, msg, base_can_id);
+  
+  // Send joint messages
+  for (const auto& can_message : can_messages) {
+    if (!can_.sendMessage(can_message)) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to send joint CAN message (ID 0x%X)", can_message.id);
+    }
+  }
+}
+
+void CanNode::handleEndEffectorTopic(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name) {
+  // Custom CAN ID range for end effector messages
+  uint32_t base_can_id = 0x300;  // End effector messages start at 0x300
+  std::vector<autonomy::CanMessage> can_messages = createCanMessages(topic_name, msg, base_can_id);
+  
+  // Send end effector messages
+  for (const auto& can_message : can_messages) {
+    if (!can_.sendMessage(can_message)) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to send end effector CAN message (ID 0x%X)", can_message.id);
+    }
+  }
+
+
+void CanNode::handleGenericTopic(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name) {
+  // Original generic handling
+  std::vector<autonomy::CanMessage> can_messages = createCanMessages(topic_name, msg);
+  sendCanMessages(can_messages, topic_name);
+}
+
+// Helper method to reduce code duplication
+void CanNode::sendCanMessages(const std::vector<autonomy::CanMessage>& can_messages, const std::string& topic_name) {
   int successful_sends = 0;
   for (const auto& can_message : can_messages) {
     if (can_.sendMessage(can_message)) {
@@ -177,6 +265,8 @@ void CanNode::receiveCanMessages() {
   // or an error occurred (which CanCore should log). No action needed here for no-message case.
 }
 
+
+// Not sure if this is needed, but it's here for now
 uint32_t CanNode::generateCanId(const std::string& topic_name) {
   // Generate a CAN ID from topic name using hash
   // Use the first 29 bits for extended CAN ID (CAN 2.0B)
@@ -188,11 +278,9 @@ uint32_t CanNode::generateCanId(const std::string& topic_name) {
   return hash & 0x1FFFFFFF;
 }
 
-std::vector<autonomy::CanMessage> CanNode::createCanMessages(const std::string& topic_name, std::shared_ptr<rclcpp::SerializedMessage> ros_msg) {
+std::vector<autonomy::CanMessage> CanNode::createCanMessages(const std::string& topic_name, std::shared_ptr<rclcpp::SerializedMessage> ros_msg, uint32_t can_id) {
   std::vector<autonomy::CanMessage> messages_to_send;
-  
-  uint32_t can_id = generateCanId(topic_name);
-  
+    
   bool is_extended = true; // Use extended CAN ID (29 bits)
   bool is_rtr = false; // Remote Transmission Request
 
