@@ -181,7 +181,7 @@ void CanNode::createSubscribers() {
   }
 }
 
-// Add these new handler methods
+// dummy handler for testing
 void CanNode::handleControllerTopic(std::shared_ptr<rclcpp::SerializedMessage> msg, const std::string& topic_name) {
   // Custom CAN ID range for controller messages
   uint32_t can_id = 0x100;  // Controller messages start at 0x100
