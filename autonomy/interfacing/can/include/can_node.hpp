@@ -22,7 +22,7 @@ public:
 private:
   autonomy::CanCore can_;
   std::vector<TopicConfig> topic_configs_;
-  std::vector<std::shared_ptr<rclcpp::GenericSubscription>> subscribers_;
+  std::unordered_map<std::string, std::shared_ptr<rclcpp::GenericSubscription>> subscribers_;
   rclcpp::TimerBase::SharedPtr receive_timer_; // Timer to periodically check for CAN messages
   
   // Methods
@@ -34,7 +34,7 @@ private:
 
   // Helper methods
   uint32_t generateCanId(const std::string& topic_name);
-  std::vector<autonomy::CanMessage> createCanMessages(const std::string& topic_name, std::shared_ptr<rclcpp::SerializedMessage> ros_msg);
+  std::vector<autonomy::CanMessage> createCanMessages(const std::string& topic_name, std::shared_ptr<rclcpp::SerializedMessage> ros_msg, uint32_t can_id = 0);
 };
 
 #endif // CAN_NODE_HPP
