@@ -10,6 +10,10 @@ can_node:
     # Communication Settings
     publish_rate_hz: 50                # Rate for checking incoming CAN messages
     receive_timeout_ms: 10000          # Timeout for receiving CAN messages
+
+    profile_type: "trapezoidal" # "trapezoidal" or "triangular"
+    max_acc: 1.0 # m/s^2
+
     # Topics to subscribe to (message types will be auto-detected)
     topics:
       - "/test_controller"         
