@@ -1,17 +1,24 @@
-
 #pragma once
 
-#include "common/base_classes/Sensor.h"
-#include "./MT6835.h"
+#include "Sensor.h"      // your C‐style “base class”
+#include "MT6835.h"      // the C driver you already wrote
 
-class MagneticSensorMT6835 : public Sensor, public MT6835 {
-public:
-	MagneticSensorMT6835(int nCS = -1, SPISettings settings = MT6835SPISettings);
-	virtual ~MagneticSensorMT6835();
+typedef struct MagneticSensorMT6835 {
+    // “Base classes” as members
+    Sensor           sensor;
+    MT6835           encoder;
+} MagneticSensorMT6835;
 
-    virtual float getSensorAngle() override;
+// Constructor / init
+void MagneticSensorMT6835_create(
+    MagneticSensorMT6835* self,
+    int nCS,
+    SPISettings settings,
+    SPIClass* spi
+);
 
-	virtual void init(SPIClass* _spi = &SPI);
-};
+// Virtual override of getSensorAngle
+float MagneticSensorMT6835_getSensorAngle(MagneticSensorMT6835* self);
 
-
+// Virtual override of init()
+void MagneticSensorMT6835_init(MagneticSensorMT6835* self, SPIClass* spi);

@@ -3,8 +3,7 @@
  *  Uses ONLY the core "Simple FOC" library                                *
  ***************************************************************************/
 #include <Arduino.h>
-#include <SPI.h>
-#include <SimpleFOC.h>                       // core library – nothing else
+#include <SPI.h>                    // core library – nothing else
 #include <MT6835.h>
 #include <MagneticSensorMT6835.h>
 
