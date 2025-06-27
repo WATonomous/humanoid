@@ -8,28 +8,58 @@ extern UART_HandleTypeDef huart2;
 /* ----------------- 170 MHz core clock from HSI ------------------------ */
 void SystemClock_Config(void)
 {
-    RCC_OscInitTypeDef osc = {0};
-    RCC_ClkInitTypeDef clk = {0};
+    RCC_OscInitTypeDef RCC_OscInitStruct;
+    RCC_ClkInitTypeDef RCC_ClkInitStruct;
 
-    osc.OscillatorType      = RCC_OSCILLATORTYPE_HSI;
-    osc.HSIState            = RCC_HSI_ON;
-    osc.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-    osc.PLL.PLLState        = RCC_PLL_ON;
-    osc.PLL.PLLSource       = RCC_PLLSOURCE_HSI;
-    osc.PLL.PLLM            = 2;      /* 16 MHz / 2 = 8 MHz  */
-    osc.PLL.PLLN            = 85;     /* 8 MHz × 85 = 680 MHz */
-    osc.PLL.PLLR            = 4;      /* 680 / 4 = 170 MHz -- SYSCLK */
-    HAL_RCC_OscConfig(&osc);
+    __PWR_CLK_ENABLE();
 
-    clk.ClockType      = RCC_CLOCKTYPE_HCLK  | RCC_CLOCKTYPE_SYSCLK |
-                         RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
-    clk.SYSCLKSource   = RCC_SYSCLKSOURCE_PLLCLK;
-    clk.AHBCLKDivider  = RCC_SYSCLK_DIV1;      /* 170 MHz */
-    clk.APB1CLKDivider = RCC_HCLK_DIV2;        /* 85 MHz  */
-    clk.APB2CLKDivider = RCC_HCLK_DIV2;        /* 85 MHz  */
-    HAL_RCC_ClockConfig(&clk, FLASH_LATENCY_4);
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE2);
+
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+    RCC_OscInitStruct.HSICalibrationValue = 16;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+    RCC_OscInitStruct.PLL.PLLM = 16;
+    RCC_OscInitStruct.PLL.PLLN = 336;
+    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+    RCC_OscInitStruct.PLL.PLLQ = 7;
+    HAL_RCC_OscConfig(&RCC_OscInitStruct);
+
+    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_SYSCLK|RCC_CLOCKTYPE_PCLK1;
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+    HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2);
+    
+    // RCC_OscInitTypeDef osc = {0};
+    // RCC_ClkInitTypeDef clk = {0};
+
+    // osc.OscillatorType      = RCC_OSCILLATORTYPE_HSI;
+    // osc.HSIState            = RCC_HSI_ON;
+    // osc.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+    // osc.PLL.PLLState        = RCC_PLL_ON;
+    // osc.PLL.PLLSource       = RCC_PLLSOURCE_HSI;
+    // osc.PLL.PLLM            = 2;      /* 16 MHz / 2 = 8 MHz  */
+    // osc.PLL.PLLN            = 85;     /* 8 MHz × 85 = 680 MHz */
+    // osc.PLL.PLLR            = 4;      /* 680 / 4 = 170 MHz -- SYSCLK */
+    // HAL_RCC_OscConfig(&osc);
+
+    // clk.ClockType      = RCC_CLOCKTYPE_HCLK  | RCC_CLOCKTYPE_SYSCLK |
+    //                      RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+    // clk.SYSCLKSource   = RCC_SYSCLKSOURCE_PLLCLK;
+    // clk.AHBCLKDivider  = RCC_SYSCLK_DIV1;      /* 170 MHz */
+    // clk.APB1CLKDivider = RCC_HCLK_DIV2;        /* 85 MHz  */
+    // clk.APB2CLKDivider = RCC_HCLK_DIV2;        /* 85 MHz  */
+    // HAL_RCC_ClockConfig(&clk, FLASH_LATENCY_4);
 }
 
+void SysTick_Handler(void){
+
+    HAL_IncTick();
+    
+}
 /* ---------------- GPIO:  PB0 → CS (idle-high) ------------------------- */
 void MX_GPIO_Init(void)
 {

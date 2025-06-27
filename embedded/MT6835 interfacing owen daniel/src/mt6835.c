@@ -36,7 +36,7 @@ void MT6835_Update(void)
     uint16_t raw   = readRaw();
 
     /* unwrap, convert to rad */
-    angle = (raw * 2.0f * (float)M_PI) / 16384.0f;
+    angle = (raw * 2.0f * 3.1415926) / 16384.0f;
 
     if (t_prev != 0) {
         int16_t diff = (int16_t)(raw - raw_prev);
@@ -45,7 +45,7 @@ void MT6835_Update(void)
         if (diff < -8191) diff += 16384;
 
         float dt = (t_now - t_prev) / 1000.0f;      /* s */
-        vel = ((float)diff * 2.0f * (float)M_PI) / (16384.0f * dt);
+        vel = ((float)diff * 2.0f * 3.1415926) / (16384.0f * dt);
     }
     raw_prev = raw;
     t_prev   = t_now;
