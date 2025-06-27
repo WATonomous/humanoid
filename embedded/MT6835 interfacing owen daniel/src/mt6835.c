@@ -1,6 +1,7 @@
 /* mt6835.c -------------------------------------------------------------- */
 #include "mt6835.h"
 #include <math.h>
+#include "stm32g4xx_hal.h"
 
 static SPI_HandleTypeDef *hspi_;
 static GPIO_TypeDef *cs_port_;
@@ -22,7 +23,7 @@ void MT6835_Init(SPI_HandleTypeDef *hspi,
 
 static uint16_t readRaw(void)
 {
-    uint16_t dout = 0xFFFF;   /* dummy */
+    uint16_t dout = 0xF;   /* dummy */
     HAL_GPIO_WritePin(cs_port_, cs_pin_, GPIO_PIN_RESET);
     HAL_SPI_TransmitReceive(hspi_, (uint8_t *)&dout,
                                    (uint8_t *)&dout, 1, HAL_MAX_DELAY);
