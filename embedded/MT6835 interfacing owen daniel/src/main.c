@@ -2,6 +2,7 @@
 #include "mt6835.h"
 #include <stdio.h> 
 
+
 /* --- Global handles ---------------------------------------------------- */
 SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart2;
@@ -18,6 +19,7 @@ void MX_GPIO_Init(void)
 
     /* Enable the GPIOA clock (if not already) */
     __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_USART2_CLK_ENABLE();
 
     /* USART2 TX on PA2 */
     GPIO_InitStruct.Pin       = GPIO_PIN_2;
