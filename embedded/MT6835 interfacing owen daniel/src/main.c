@@ -60,7 +60,31 @@ int main(void)
     MT_CS_HIGH();                       /* idle high */
 
     while (1) {
-        printf("Angle: %.2f deg\r\n", MT6835_ReadDeg());
+//         // printf("Float test = %.2f\r\n", 42.42f);
+// uint32_t raw  = MT6835_ReadRaw();           // 0…2 097 151
+
+// /* ---- milli-degrees example (0.001° steps) ---- */
+// uint32_t mdeg = (raw * 360000UL) >> 21;     // scale then shift
+
+// printf("Angle = %lu.%03lu deg\r\n",
+//        mdeg / 1000,       // whole degrees
+//        mdeg % 1000);      // fractional part
+
+
+uint8_t tx[7] = {0xA0,0x03,0x00,0,0,0,0}, rx[7];
+MT_CS_LOW();
+HAL_SPI_TransmitReceive(&hspi1, tx, rx, 7, HAL_MAX_DELAY);
+MT_CS_HIGH();
+printf("RX: %02X %02X %02X %02X %02X %02X %02X\r\n",
+       rx[0],rx[1],rx[2],rx[3],rx[4],rx[5],rx[6]);
+HAL_Delay(500);
+
+
+/* ---- OR centi-degrees (0.01° steps) ----------
+uint32_t cdeg = (raw * 36000UL) >> 21;
+printf("Angle = %lu.%02lu deg\r\n", cdeg / 100, cdeg % 100);
+*/
+
         HAL_Delay(50);
     }
 }
