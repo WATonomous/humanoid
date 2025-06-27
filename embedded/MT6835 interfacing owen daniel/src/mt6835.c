@@ -1,6 +1,7 @@
 /* mt6835.c -------------------------------------------------------------- */
 #include "mt6835.h"
 #include <math.h>
+#include "stm32g4xx_hal.h"
 
 static SPI_HandleTypeDef *hspi_;
 static GPIO_TypeDef *cs_port_;
