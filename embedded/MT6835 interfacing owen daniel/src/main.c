@@ -27,20 +27,33 @@ int _write(int file, char *ptr, int len)
 #define MT_CS_HIGH() HAL_GPIO_WritePin(MT_CS_GPIO, MT_CS_PIN, GPIO_PIN_SET)
 
 /* read 21-bit raw angle (0…2 097 151) */
+/* read 21-bit raw angle (0…2 097 151) */
 static uint32_t MT6835_ReadRaw(void)
 {
-    uint8_t cmd[3] = {0xA0, 0x03, 0x00};   /* burst read @0x003 */
-    uint8_t angle[4] = {0};
+    /* 6-byte burst: 0xA0 0x03 (command) + 4 dummy 0x00 */
+    uint8_t txrx[6] = { 0xA0, 0x03, 0, 0, 0, 0 };
 
     MT_CS_LOW();
-    HAL_SPI_Transmit(&hspi1, cmd, sizeof cmd, HAL_MAX_DELAY);
-    HAL_SPI_Receive (&hspi1, angle, 4, HAL_MAX_DELAY);
+    /* one single SPI transaction while CS stays low */
+    HAL_SPI_TransmitReceive(&hspi1,
+                            txrx,      /* TX buffer (also RX) */
+                            txrx,
+                            6,         /* six bytes */
+                            HAL_MAX_DELAY);
     MT_CS_HIGH();
 
-    uint32_t raw = ((uint32_t)angle[0] << 13) |
-                   ((uint32_t)angle[1] <<  5) |
-                   ((uint32_t)angle[2] >>  3);
-    return raw & 0x1FFFFF;
+    /* status is low 3 bits of byte 4 */
+    uint8_t status = txrx[4] & 0x07;
+    if (status)                        /* overspeed / weak-field / undervolt? */
+        return 0;
+
+    /* assemble 21-bit value: MSB = byte2[7:0], etc. */
+    uint32_t raw =
+        ((uint32_t)txrx[2] << 13) |
+        ((uint32_t)txrx[3] <<  5) |
+        (txrx[4] >> 3);
+
+    return raw & 0x1FFFFF;             /* mask to 21 bits */
 }
 
 static float MT6835_ReadDeg(void)
@@ -60,26 +73,47 @@ int main(void)
     MT_CS_HIGH();                       /* idle high */
 
     while (1) {
-//         // printf("Float test = %.2f\r\n", 42.42f);
-// uint32_t raw  = MT6835_ReadRaw();           // 0…2 097 151
+        // printf("Float test = %.2f\r\n", 42.42f);
+uint32_t raw  = MT6835_ReadRaw();           // 0…2 097 151
 
-// /* ---- milli-degrees example (0.001° steps) ---- */
-// uint32_t mdeg = (raw * 360000UL) >> 21;     // scale then shift
+/* ---- milli-degrees example (0.001° steps) ---- */
+uint32_t mdeg = (raw * 360000UL) >> 14;     // scale then shift
 
-// printf("Angle = %lu.%03lu deg\r\n",
-//        mdeg / 1000,       // whole degrees
-//        mdeg % 1000);      // fractional part
+printf("Angle = %lu.%03lu deg\r\n",
+       mdeg / 1000,       // whole degrees
+       mdeg % 1000);      // fractional part
 
+// uint32_t raw1 = read_raw_21bit();
+// uint32_t cdeg = (raw1 * 36000UL) / 2097152UL;   // centi-degrees
 
-uint8_t tx[7] = {0xA0,0x03,0x00,0,0,0,0}, rx[7];
+// printf("Raw=%lu  Angle=%lu.%02lu deg\r\n",
+//        raw1,
+//        cdeg / 100,          // whole degrees
+//        cdeg % 100);    
+
+uint8_t burst[6] = { 0xA0, 0x03, 0, 0, 0, 0 };
 MT_CS_LOW();
-HAL_SPI_TransmitReceive(&hspi1, tx, rx, 7, HAL_MAX_DELAY);
+HAL_SPI_TransmitReceive(&hspi1, burst, burst, 6, HAL_MAX_DELAY);
 MT_CS_HIGH();
-printf("RX: %02X %02X %02X %02X %02X %02X %02X\r\n",
-       rx[0],rx[1],rx[2],rx[3],rx[4],rx[5],rx[6]);
+
+uint8_t status = burst[4] & 0x07;   /* 0=OK, 1=overspeed, 2=weak-field, 4=undervolt */
+printf("RX echo: %02X %02X  status=%02X  data=%02X %02X %02X\r\n",
+       burst[0], burst[1], status, burst[2], burst[3], burst[4]);
+       
+printf("MODER PA6 = %lu\r\n", (GPIOA->MODER >> 12) & 0x3);
 HAL_Delay(500);
 
+// uint32_t raw = ((uint32_t)buf[2] << 13) |
+//                ((uint32_t)buf[3] <<  5) |
+//                (buf[4] >> 3);
 
+// uint8_t status = buf[4] & 0x07;
+// if (status == 0) {
+//     float deg = raw * (360.0f / 2097152.0f);
+//     printf("Angle = %.3f deg\r\n", deg);
+// } else {
+//     printf("Fault, status=0x%02X\r\n", status);
+// }
 /* ---- OR centi-degrees (0.01° steps) ----------
 uint32_t cdeg = (raw * 36000UL) >> 21;
 printf("Angle = %lu.%02lu deg\r\n", cdeg / 100, cdeg % 100);
@@ -186,4 +220,5 @@ static void MX_SPI1_Init(void)
     hspi1.Init.TIMode            = SPI_TIMODE_DISABLE;
     hspi1.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
     HAL_SPI_Init(&hspi1);
+    
 }
