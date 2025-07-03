@@ -1,5 +1,11 @@
 import os
-from glob import glob
+from glob    install_requires=['setuptools'],
+    zip_safe=True,
+    maintainer='eddyzhou, aryanafrouzi',
+    maintainer_email='e23zhou@watonomous.ca, aafrouzi@watonomous.ca',
+    description='Sample aggregator node for data collection',
+    license='Apache2.0',
+    tests_require=['pytest'], glob
 from setuptools import setup
 
 package_name = 'aggregator'
@@ -21,8 +27,8 @@ setup(
     zip_safe=True,
     maintainer='eddyzhou, aryanafrouzi',
     maintainer_email='e23zhou@watonomous.ca, aryanafrouzi@swaprobotics.com',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    description='Sample aggregator node for data collection',
+    license='Apache2.0',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
