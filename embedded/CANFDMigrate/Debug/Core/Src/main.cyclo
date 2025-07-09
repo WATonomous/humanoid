@@ -1,0 +1,8 @@
+../Core/Src/main.c:65:13:check_can_bus	2
+../Core/Src/main.c:75:6:HAL_FDCAN_ErrorStatusCallback	3
+../Core/Src/main.c:94:5:main	6
+../Core/Src/main.c:240:6:SystemClock_Config	3
+../Core/Src/main.c:291:6:HAL_FDCAN_TxBufferCompleteCallback	2
+../Core/Src/main.c:298:5:_write	1
+../Core/Src/main.c:303:6:HAL_FDCAN_RxFifo0Callback	1
+../Core/Src/main.c:320:6:Error_Handler	1
