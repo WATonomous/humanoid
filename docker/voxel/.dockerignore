@@ -1,0 +1,11 @@
+.git
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+build/
+dist/
+.cache/
+.idea/
+.vscode/
+*.so 
