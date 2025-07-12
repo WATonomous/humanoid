@@ -18,6 +18,7 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import HumanoidRLPackage.HumanoidRLSetup.tasks.manipulation.mdp as mdp
 
+
 @configclass
 class ReachSceneCfg(InteractiveSceneCfg):
     """Configuration for the scene with a robotic arm."""
@@ -34,7 +35,8 @@ class ReachSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.UsdFileCfg(
             usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd",
         ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.55, 0.0, 0.0), rot=(0.70711, 0.0, 0.0, 0.70711)),
+        init_state=AssetBaseCfg.InitialStateCfg(
+            pos=(0.55, 0.0, 0.0), rot=(0.70711, 0.0, 0.0, 0.70711)),
     )
 
     # robots
@@ -58,10 +60,10 @@ class CommandsCfg:
 
     ee_pose = mdp.UniformPoseCommandCfg(
         asset_name="robot",
-        body_name="TIP_B_1", # end_effector name
+        body_name="TIP_B_1",  # end_effector name
         resampling_time_range=(4.0, 4.0),
         debug_vis=True,
-        ranges=mdp.UniformPoseCommandCfg.Ranges( # within task space of finger
+        ranges=mdp.UniformPoseCommandCfg.Ranges(  # within task space of finger
             pos_x=(0.07346, 0.07346),
             pos_y=(0.13, 0.1455),
             pos_z=(0.09, 0.1005),
@@ -154,7 +156,7 @@ class ObservationsCfg:
         # observation terms (order preserved)
         joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        
+
         pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose"})
         pose_command_2 = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose_2"})
         pose_command_3 = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose_3"})
@@ -193,53 +195,63 @@ class RewardsCfg:
     end_effector_position_tracking = RewTerm(
         func=mdp.position_command_error,
         weight=-0.2,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names="TIP_B_1"), "command_name": "ee_pose"},
+        params={"asset_cfg": SceneEntityCfg(
+            "robot", body_names="TIP_B_1"), "command_name": "ee_pose"},
     )
     end_effector_2_position_tracking = RewTerm(
         func=mdp.position_command_error,
         weight=-0.2,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names="TIP_B_2"), "command_name": "ee_pose_2"},
+        params={"asset_cfg": SceneEntityCfg(
+            "robot", body_names="TIP_B_2"), "command_name": "ee_pose_2"},
     )
     end_effector_3_position_tracking = RewTerm(
         func=mdp.position_command_error,
         weight=-0.2,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names="TIP_B_3"), "command_name": "ee_pose_3"},
+        params={"asset_cfg": SceneEntityCfg(
+            "robot", body_names="TIP_B_3"), "command_name": "ee_pose_3"},
     )
     end_effector_4_position_tracking = RewTerm(
         func=mdp.position_command_error,
         weight=-0.2,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names="TIP_B_4"), "command_name": "ee_pose_4"},
+        params={"asset_cfg": SceneEntityCfg(
+            "robot", body_names="TIP_B_4"), "command_name": "ee_pose_4"},
     )
     end_effector_5_position_tracking = RewTerm(
         func=mdp.position_command_error,
         weight=-0.2,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names="TIP_B_5"), "command_name": "ee_pose_5"},
+        params={"asset_cfg": SceneEntityCfg(
+            "robot", body_names="TIP_B_5"), "command_name": "ee_pose_5"},
     )
 
     end_effector_position_tracking_fine_grained = RewTerm(
         func=mdp.position_command_error_tanh,
         weight=0.1,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names="TIP_B_1"), "std": 0.1, "command_name": "ee_pose"},
+        params={"asset_cfg": SceneEntityCfg(
+            "robot", body_names="TIP_B_1"), "std": 0.1, "command_name": "ee_pose"},
     )
     end_effector_2_position_tracking_fine_grained = RewTerm(
         func=mdp.position_command_error_tanh,
         weight=0.1,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names="TIP_B_2"), "std": 0.1, "command_name": "ee_pose_2"},
+        params={"asset_cfg": SceneEntityCfg(
+            "robot", body_names="TIP_B_2"), "std": 0.1, "command_name": "ee_pose_2"},
     )
     end_effector_3_position_tracking_fine_grained = RewTerm(
         func=mdp.position_command_error_tanh,
         weight=0.1,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names="TIP_B_3"), "std": 0.1, "command_name": "ee_pose_3"},
+        params={"asset_cfg": SceneEntityCfg(
+            "robot", body_names="TIP_B_3"), "std": 0.1, "command_name": "ee_pose_3"},
     )
     end_effector_4_position_tracking_fine_grained = RewTerm(
         func=mdp.position_command_error_tanh,
         weight=0.1,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names="TIP_B_4"), "std": 0.1, "command_name": "ee_pose_4"},
+        params={"asset_cfg": SceneEntityCfg(
+            "robot", body_names="TIP_B_4"), "std": 0.1, "command_name": "ee_pose_4"},
     )
     end_effector_5_position_tracking_fine_grained = RewTerm(
         func=mdp.position_command_error_tanh,
         weight=0.1,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names="TIP_B_5"), "std": 0.1, "command_name": "ee_pose_5"},
+        params={"asset_cfg": SceneEntityCfg(
+            "robot", body_names="TIP_B_5"), "std": 0.1, "command_name": "ee_pose_5"},
     )
 
     # end_effector_orientation_tracking = RewTerm(
@@ -289,11 +301,13 @@ class CurriculumCfg:
     """Curriculum terms for the MDP."""
 
     action_rate = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -0.005, "num_steps": 4500}
+        func=mdp.modify_reward_weight, params={
+            "term_name": "action_rate", "weight": -0.005, "num_steps": 4500}
     )
 
     joint_vel = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.001, "num_steps": 4500}
+        func=mdp.modify_reward_weight, params={
+            "term_name": "joint_vel", "weight": -0.001, "num_steps": 4500}
     )
 
 

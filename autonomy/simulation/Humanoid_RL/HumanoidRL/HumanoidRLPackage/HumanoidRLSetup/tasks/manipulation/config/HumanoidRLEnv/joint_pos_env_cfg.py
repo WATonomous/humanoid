@@ -14,45 +14,60 @@ class HumanoidHandReachEnvCfg(ReachEnvCfg):
 
         # self.scene.robot = UR10_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.robot = HAND_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        
+
         marker_scale = 0.02
 
-        self.commands.ee_pose.goal_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
-        self.commands.ee_pose.current_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
+        self.commands.ee_pose.goal_pose_visualizer_cfg.markers["frame"].scale = (
+            marker_scale, marker_scale, marker_scale)
+        self.commands.ee_pose.current_pose_visualizer_cfg.markers["frame"].scale = (
+            marker_scale, marker_scale, marker_scale)
 
-        self.commands.ee_pose_2.goal_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
-        self.commands.ee_pose_2.current_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
+        self.commands.ee_pose_2.goal_pose_visualizer_cfg.markers["frame"].scale = (
+            marker_scale, marker_scale, marker_scale)
+        self.commands.ee_pose_2.current_pose_visualizer_cfg.markers["frame"].scale = (
+            marker_scale, marker_scale, marker_scale)
 
-        self.commands.ee_pose_3.goal_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
-        self.commands.ee_pose_3.current_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
+        self.commands.ee_pose_3.goal_pose_visualizer_cfg.markers["frame"].scale = (
+            marker_scale, marker_scale, marker_scale)
+        self.commands.ee_pose_3.current_pose_visualizer_cfg.markers["frame"].scale = (
+            marker_scale, marker_scale, marker_scale)
 
-        self.commands.ee_pose_4.goal_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
-        self.commands.ee_pose_4.current_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
+        self.commands.ee_pose_4.goal_pose_visualizer_cfg.markers["frame"].scale = (
+            marker_scale, marker_scale, marker_scale)
+        self.commands.ee_pose_4.current_pose_visualizer_cfg.markers["frame"].scale = (
+            marker_scale, marker_scale, marker_scale)
 
-        self.commands.ee_pose_5.goal_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
-        self.commands.ee_pose_5.current_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
+        self.commands.ee_pose_5.goal_pose_visualizer_cfg.markers["frame"].scale = (
+            marker_scale, marker_scale, marker_scale)
+        self.commands.ee_pose_5.current_pose_visualizer_cfg.markers["frame"].scale = (
+            marker_scale, marker_scale, marker_scale)
 
         # override events
         self.events.reset_robot_joints.params["position_range"] = (0.75, 1.25)
         # override rewards
         self.rewards.end_effector_position_tracking.params["asset_cfg"].body_names = ["TIP_B_1"]
-        self.rewards.end_effector_position_tracking_fine_grained.params["asset_cfg"].body_names = ["TIP_B_1"]
+        self.rewards.end_effector_position_tracking_fine_grained.params["asset_cfg"].body_names = [
+            "TIP_B_1"]
         # self.rewards.end_effector_orientation_tracking.params["asset_cfg"].body_names = ["TIP_B_1"]
 
         self.rewards.end_effector_2_position_tracking.params["asset_cfg"].body_names = ["TIP_B_2"]
-        self.rewards.end_effector_2_position_tracking_fine_grained.params["asset_cfg"].body_names = ["TIP_B_2"]
+        self.rewards.end_effector_2_position_tracking_fine_grained.params["asset_cfg"].body_names = [
+            "TIP_B_2"]
         # self.rewards.end_effector_2_orientation_tracking.params["asset_cfg"].body_names = ["TIP_B_2"]
 
         self.rewards.end_effector_3_position_tracking.params["asset_cfg"].body_names = ["TIP_B_3"]
-        self.rewards.end_effector_3_position_tracking_fine_grained.params["asset_cfg"].body_names = ["TIP_B_3"]
+        self.rewards.end_effector_3_position_tracking_fine_grained.params["asset_cfg"].body_names = [
+            "TIP_B_3"]
         # self.rewards.end_effector_3_orientation_tracking.params["asset_cfg"].body_names = ["TIP_B_3"]
 
         self.rewards.end_effector_4_position_tracking.params["asset_cfg"].body_names = ["TIP_B_4"]
-        self.rewards.end_effector_4_position_tracking_fine_grained.params["asset_cfg"].body_names = ["TIP_B_4"]
+        self.rewards.end_effector_4_position_tracking_fine_grained.params["asset_cfg"].body_names = [
+            "TIP_B_4"]
         # self.rewards.end_effector_4_orientation_tracking.params["asset_cfg"].body_names = ["TIP_B_4"]
 
         self.rewards.end_effector_5_position_tracking.params["asset_cfg"].body_names = ["TIP_B_5"]
-        self.rewards.end_effector_5_position_tracking_fine_grained.params["asset_cfg"].body_names = ["TIP_B_5"]
+        self.rewards.end_effector_5_position_tracking_fine_grained.params["asset_cfg"].body_names = [
+            "TIP_B_5"]
         # self.rewards.end_effector_5_orientation_tracking.params["asset_cfg"].body_names = ["TIP_B_5"]
 
         # override actions

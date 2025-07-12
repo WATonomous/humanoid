@@ -13,7 +13,7 @@ HAND_CFG = ArticulationCfg(
         ),
         activate_contact_sensors=False,
     ),
-    init_state = ArticulationCfg.InitialStateCfg(
+    init_state=ArticulationCfg.InitialStateCfg(
         joint_pos={
             "Revolute_1": 0.0,
             "Revolute_2": 0.0,

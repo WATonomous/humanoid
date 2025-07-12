@@ -32,8 +32,8 @@ def launch_setup(context, *args, **kwargs):
         node_parameters.append(param_file_path)
         print(f"INFO: Using parameter file for {node_name}: {param_file_path}")
     else:
-        print(f"WARNING: No params.yaml found for {node_name} at {param_file_path}. Launching without parameters.")
-
+        print(
+            f"WARNING: No params.yaml found for {node_name} at {param_file_path}. Launching without parameters.")
 
     # Define the Node action
     node = Node(
@@ -42,7 +42,7 @@ def launch_setup(context, *args, **kwargs):
         name=node_name,
         parameters=node_parameters,
         output='screen',  # Optional: 'screen' or 'log'. 'screen' prints output to the console.
-        emulate_tty=True, # Optional: Set to True for colored output in the console.
+        emulate_tty=True,  # Optional: Set to True for colored output in the console.
     )
 
     return [node]
@@ -78,7 +78,7 @@ def generate_launch_description():
         # e.g., ros2 launch ... node_name:=my_custom_node_name
         DeclareLaunchArgument(
             'node_name',
-            default_value=LaunchConfiguration('executable_name'), # Defaults to the executable name
+            default_value=LaunchConfiguration('executable_name'),  # Defaults to the executable name
             description='Name to assign to the ROS 2 node.'
         ),
         # OpaqueFunction defers the creation of the Node action until launch arguments are resolved.

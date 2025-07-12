@@ -3,6 +3,7 @@ from rclpy.node import Node
 
 from foo.foo_core import FooCore
 
+
 class Foo(Node):
     def __init__(self):
         super().__init__('python_foo')
@@ -11,6 +12,7 @@ class Foo(Node):
         self.declare_parameter('version', 1)
 
         self.__foo = FooCore()
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -24,6 +26,7 @@ def main(args=None):
     # when the garbage collector destroys the node object)
     python_foo.destroy_node()
     rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()
