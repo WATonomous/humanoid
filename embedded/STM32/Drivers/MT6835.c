@@ -1,1 +1,0 @@
-//Driver level code for magnetic encoder will be implemented here
