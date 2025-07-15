@@ -1,48 +1,6 @@
-
-#include "../inc/common_defines.h"
-#include "../inc/system.h"
+#include "stm32g4xx_hal.h"
 #include <stdio.h>
-#include "stm32g4xx.h"
-#include "FreeRTOS.h"
-#include "task.h"
-
-#define BOOTLOADER_SIZE     (0x08008000U)
-
-//set the vector table offset of app firmware image
-static void vector_setup(void) {
-    SCB->VTOR = BOOTLOADER_SIZE;
-}
-
-
-//thread for blinking led
-void blink_led(void *pvParams) {
-    while(1) {
-        HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-        //vTaskDelay(pdMS_TO_TICKS(500));
-        HAL_Delay(500);
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#include <string.h>
 
 static void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
@@ -88,18 +46,35 @@ static float MT6835_ReadDeg(void)
     return MT6835_ReadRaw() * (360.0f / 2097152.0f);
 }
 
+int main(void)
+{
+    HAL_Init();
+    SystemClock_Config();
+    MX_GPIO_Init();
+    MX_USART2_UART_Init();
+    MX_SPI1_Init();
 
+    MT_CS_HIGH();
 
+    while (1) {
+        uint32_t raw  = MT6835_ReadRaw();
+        uint32_t mdeg = (uint64_t)raw * 360000ULL / 2097152ULL;
+        printf("Angle = %lu.%03lu deg\r\n", mdeg / 1000, mdeg % 1000);
 
+        uint8_t burst[6] = { 0xA0, 0x03, 0, 0, 0, 0 };
+        MT_CS_LOW();
+        HAL_SPI_TransmitReceive(&hspi1, burst, burst, 6, HAL_MAX_DELAY);
+        MT_CS_HIGH();
 
+        uint8_t status = burst[4] & 0x07;
+        printf("RX echo: %02X %02X  status=%02X  data=%02X %02X %02X\r\n",
+               burst[0], burst[1], status, burst[2], burst[3], burst[4]);
 
-
-
-
-
-
-
-
+        printf("MODER PA6 = %lu\r\n", (GPIOA->MODER >> 12) & 0x3);
+        HAL_Delay(500);
+        HAL_Delay(50);
+    }
+}
 
 static void SystemClock_Config(void)
 {
@@ -153,7 +128,7 @@ static void MX_USART2_UART_Init(void)
     HAL_GPIO_Init(GPIOA, &g);
 
     huart2.Instance          = USART2;
-    huart2.Init.BaudRate     = 9600;
+    huart2.Init.BaudRate     = 115200;
     huart2.Init.WordLength   = UART_WORDLENGTH_8B;
     huart2.Init.StopBits     = UART_STOPBITS_1;
     huart2.Init.Parity       = UART_PARITY_NONE;
@@ -188,115 +163,4 @@ static void MX_SPI1_Init(void)
     hspi1.Init.TIMode            = SPI_TIMODE_DISABLE;
     hspi1.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
     HAL_SPI_Init(&hspi1);
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-int main() {
-    vector_setup();
-    HAL_Init();
-    system_setup();
-    
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-
-    //Configure GPIO PIN5;
-    GPIO_InitTypeDef GPIO_InitStruct;
-    GPIO_InitStruct.Pin = GPIO_PIN_5;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-    //create blinking led task
-    xTaskCreate(blink_led, "BLINK_LED", 128, NULL, 1, NULL);
-
-    //start FreeRTOS Scheduler
-    vTaskStartScheduler();
-
-
-
-    HAL_Init();
-    SystemClock_Config();
-    MX_GPIO_Init();
-    MX_USART2_UART_Init();
-    MX_SPI1_Init();
-
-    MT_CS_HIGH();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    while(1){
-                uint32_t raw  = MT6835_ReadRaw();
-        uint32_t mdeg = (uint64_t)raw * 360000ULL / 2097152ULL;
-        printf("Angle = %lu.%03lu deg\r\n", mdeg / 1000, mdeg % 1000);
-
-        uint8_t burst[6] = { 0xA0, 0x03, 0, 0, 0, 0 };
-        MT_CS_LOW();
-        HAL_SPI_TransmitReceive(&hspi1, burst, burst, 6, HAL_MAX_DELAY);
-        MT_CS_HIGH();
-
-        uint8_t status = burst[4] & 0x07;
-        printf("RX echo: %02X %02X  status=%02X  data=%02X %02X %02X\r\n",
-               burst[0], burst[1], status, burst[2], burst[3], burst[4]);
-
-        printf("MODER PA6 = %lu\r\n", (GPIOA->MODER >> 12) & 0x3);
-        HAL_Delay(500);
-        HAL_Delay(50);
-
-
-
-
-        
-    }
 }
