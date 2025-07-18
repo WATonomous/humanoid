@@ -1,6 +1,5 @@
-#include <stm32g4xx_hal_rcc.h>
-
-
+#include <SimpleFOC.h>
+#include "SysClock.h"
 
 void SystemClock_Config(void)
 {
@@ -55,3 +54,4 @@ void SystemClock_Config(void)
     Error_Handler();
   }
 }
+
