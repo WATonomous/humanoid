@@ -2,7 +2,7 @@ import os
 from glob import glob
 from setuptools import setup
 
-package_name = 'transformer'
+package_name = 'depth_estimation'
 
 setup(
     name=package_name,
@@ -13,9 +13,9 @@ setup(
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         # Include our package.xml file
         (os.path.join('share', package_name), ['package.xml']),
-        # Include all launch files.
-        (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch',
-                                                                          '*.launch.py'))),
+        # Include all launch files
+        (os.path.join('share', package_name, 'launch'),
+         glob(os.path.join('launch', '*.launch.py'))),
         # Include config files for parameters
         (os.path.join('share', package_name, 'config'), glob(os.path.join('config', '*.yaml'))),
     ],
@@ -23,12 +23,12 @@ setup(
     zip_safe=True,
     maintainer='eddyzhou, aryanafrouzi',
     maintainer_email='e23zhou@watonomous.ca, aafrouzi@watonomous.ca',
-    description='Sample transformer node for data processing',
+    description='Depth estimation module for humanoid robot perception',
     license='Apache2.0',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'transformer_node = transformer.transformer_node:main'
+            'depth_estimation_node = depth_estimation.depth_estimation_node:main'
         ],
     },
 )
