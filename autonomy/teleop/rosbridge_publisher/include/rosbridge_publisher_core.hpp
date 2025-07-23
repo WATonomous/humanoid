@@ -7,7 +7,6 @@
 
 class ROSbridgePublisherCore {
 public:
-
   explicit ROSbridgePublisherCore();
 
   std::string hand_pose_to_string(const sample_msgs::msg::HandPose pose);
