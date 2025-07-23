@@ -5,8 +5,8 @@ from launch_ros.actions import Node
 def generate_launch_description():
     """Launch costmap node."""
     costmap_node = Node(
-        package='costmap',
-        executable='costmap_node',
+        package='rosbridge_publisher',
+        executable='rosbridge_publisher',
     )
 
     return LaunchDescription([
