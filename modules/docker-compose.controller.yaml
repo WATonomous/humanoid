@@ -9,8 +9,8 @@ services:
         - "${CONTROLLER_IMAGE:?}:main"
       args:
         BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
-    image: "${SAMPLES_AGGREGATOR_IMAGE:?}:${TAG}"
+    image: "${CONTROLLER_IMAGE:?}:${TAG}"
     profiles: [deploy]
-    command: /bin/bash -c "ros2 launch costmap costmap.launch.py"
+    command: /bin/bash -c "ros2 launch controller launch.py"
     volumes:
-      - ${MONO_DIR}/src/controller/costmap:/root/ament_ws/src/controller/costmap
+      - ${MONO_DIR}/autonomy/controller/:/root/ament_ws/src/controller/
