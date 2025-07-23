@@ -91,6 +91,8 @@ int main()
     vector_setup();
     HAL_Init();
     system_setup();
+    // MX_USART1_UART_Init();
+
 
     __HAL_RCC_GPIOA_CLK_ENABLE();
 
@@ -104,9 +106,9 @@ int main()
 
     // create blinking led task
     // // xTaskCreate(blink_led, "BLINK_LED", 128, NULL, 1, NULL);
-    // xTaskCreate(stm_to_esp, "STM_TO_ESP", 128, NULL, 1, NULL);
-    const char debug_msg[] = "Debug\r\n";
-    HAL_UART_Transmit(&huart1, (uint8_t *)debug_msg, strlen(debug_msg), HAL_MAX_DELAY);
+    xTaskCreate(stm_to_esp, "STM_TO_ESP", 128, NULL, 1, NULL);
+    // const char debug_msg[] = "Debug\r\n";
+    // HAL_UART_Transmit(&huart1, (uint8_t *)debug_msg, strlen(debug_msg), HAL_MAX_DELAY);
 
     // start FreeRTOS Scheduler
     vTaskStartScheduler();

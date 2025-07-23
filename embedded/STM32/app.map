@@ -3,7 +3,7 @@ Archive member included to satisfy reference by file (symbol)
 .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
                               .pio/build/app/app/src/system.o (xPortSysTickHandler)
 .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
-                              .pio/build/app/app/src/firmware.o (vTaskStartScheduler)
+                              .pio/build/app/app/src/firmware.o (xTaskCreate)
 .pio/build/app/libef1/libFreeRTOS-Kernel.a(heap_4.o)
                               .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o) (pvPortMalloc)
 .pio/build/app/libef1/libFreeRTOS-Kernel.a(list.o)
@@ -3273,8 +3273,6 @@ Discarded input sections
                 0x0000000000000000      0x2e8 .pio/build/app/FrameworkHALDriver/Src/stm32g4xx_hal_uart.o
  .text.UART_AdvFeatureConfig
                 0x0000000000000000       0xa8 .pio/build/app/FrameworkHALDriver/Src/stm32g4xx_hal_uart.o
- .text.HAL_UART_Receive
-                0x0000000000000000       0xe0 .pio/build/app/FrameworkHALDriver/Src/stm32g4xx_hal_uart.o
  .text.UART_CheckIdleState
                 0x0000000000000000       0xb8 .pio/build/app/FrameworkHALDriver/Src/stm32g4xx_hal_uart.o
  .text.HAL_UART_Init
@@ -3741,8 +3739,6 @@ Discarded input sections
  .bss           0x0000000000000000        0x0 .pio/build/app/app/src/firmware.o
  .text.blink_led
                 0x0000000000000000       0x16 .pio/build/app/app/src/firmware.o
- .text.stm_to_esp
-                0x0000000000000000       0x60 .pio/build/app/app/src/firmware.o
  .text          0x0000000000000000        0x0 .pio/build/app/app/src/system.o
  .data          0x0000000000000000        0x0 .pio/build/app/app/src/system.o
  .bss           0x0000000000000000        0x0 .pio/build/app/app/src/system.o
@@ -4050,7 +4046,7 @@ LOAD /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/g
                 0x0000000000000200                _Min_Heap_Size = 0x200
                 0x0000000000000400                _Min_Stack_Size = 0x400
 
-.text           0x0000000008000000     0x9850
+.text           0x0000000008000000     0x9980
  *(.bootloader_section)
  .bootloader_section
                 0x0000000008000000     0x8000 .pio/build/app/app/src/bootloader.o
@@ -4110,285 +4106,292 @@ LOAD /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/g
  .text.HAL_UART_Transmit
                 0x0000000008008c60       0xaa .pio/build/app/FrameworkHALDriver/Src/stm32g4xx_hal_uart.o
                 0x0000000008008c60                HAL_UART_Transmit
- *fill*         0x0000000008008d0a        0x2 
+ .text.HAL_UART_Receive
+                0x0000000008008d0a       0xe0 .pio/build/app/FrameworkHALDriver/Src/stm32g4xx_hal_uart.o
+                0x0000000008008d0a                HAL_UART_Receive
+ *fill*         0x0000000008008dea        0x2 
+ .text.stm_to_esp
+                0x0000000008008dec       0x60 .pio/build/app/app/src/firmware.o
+                0x0000000008008dec                stm_to_esp
  .text.startup.main
-                0x0000000008008d0c       0x78 .pio/build/app/app/src/firmware.o
-                0x0000000008008d0c                main
+                0x0000000008008e4c       0x68 .pio/build/app/app/src/firmware.o
+                0x0000000008008e4c                main
  .text.SysTick_Handler
-                0x0000000008008d84        0xe .pio/build/app/app/src/system.o
-                0x0000000008008d84                SysTick_Handler
- *fill*         0x0000000008008d92        0x2 
+                0x0000000008008eb4        0xe .pio/build/app/app/src/system.o
+                0x0000000008008eb4                SysTick_Handler
+ *fill*         0x0000000008008ec2        0x2 
  .text.system_setup
-                0x0000000008008d94       0x80 .pio/build/app/app/src/system.o
-                0x0000000008008d94                system_setup
+                0x0000000008008ec4       0x80 .pio/build/app/app/src/system.o
+                0x0000000008008ec4                system_setup
  .text.prvTaskExitError
-                0x0000000008008e14       0x20 .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
+                0x0000000008008f44       0x20 .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
  .text.prvPortStartFirstTask
-                0x0000000008008e34       0x28 .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
+                0x0000000008008f64       0x28 .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
  .text.vPortEnableVFP
-                0x0000000008008e5c       0x14 .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
+                0x0000000008008f8c       0x14 .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
  .text.pxPortInitialiseStack
-                0x0000000008008e70       0x2c .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
-                0x0000000008008e70                pxPortInitialiseStack
+                0x0000000008008fa0       0x2c .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
+                0x0000000008008fa0                pxPortInitialiseStack
  .text.SVC_Handler
-                0x0000000008008e9c       0x20 .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
-                0x0000000008008e9c                SVC_Handler
+                0x0000000008008fcc       0x20 .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
+                0x0000000008008fcc                SVC_Handler
  .text.vPortEnterCritical
-                0x0000000008008ebc       0x20 .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
-                0x0000000008008ebc                vPortEnterCritical
+                0x0000000008008fec       0x20 .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
+                0x0000000008008fec                vPortEnterCritical
  .text.vPortExitCritical
-                0x0000000008008edc       0x14 .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
-                0x0000000008008edc                vPortExitCritical
+                0x000000000800900c       0x14 .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
+                0x000000000800900c                vPortExitCritical
  .text.PendSV_Handler
-                0x0000000008008ef0       0x60 .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
-                0x0000000008008ef0                PendSV_Handler
+                0x0000000008009020       0x60 .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
+                0x0000000008009020                PendSV_Handler
  .text.xPortSysTickHandler
-                0x0000000008008f50       0x2c .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
-                0x0000000008008f50                xPortSysTickHandler
+                0x0000000008009080       0x2c .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
+                0x0000000008009080                xPortSysTickHandler
  .text.vPortSetupTimerInterrupt
-                0x0000000008008f7c       0x34 .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
-                0x0000000008008f7c                vPortSetupTimerInterrupt
+                0x00000000080090ac       0x34 .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
+                0x00000000080090ac                vPortSetupTimerInterrupt
  .text.xPortStartScheduler
-                0x0000000008008fb0       0x4c .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
-                0x0000000008008fb0                xPortStartScheduler
+                0x00000000080090e0       0x4c .pio/build/app/libef1/libFreeRTOS-Kernel.a(port.o)
+                0x00000000080090e0                xPortStartScheduler
  .text.prvIdleTask
-                0x0000000008008ffc       0x24 .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
+                0x000000000800912c       0x24 .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
  .text.prvResetNextTaskUnblockTime
-                0x0000000008009020       0x24 .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
+                0x0000000008009150       0x24 .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
  .text.xTaskCreate
-                0x0000000008009044      0x1c4 .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
-                0x0000000008009044                xTaskCreate
+                0x0000000008009174      0x1c4 .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
+                0x0000000008009174                xTaskCreate
  .text.vTaskStartScheduler
-                0x0000000008009208       0x8c .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
-                0x0000000008009208                vTaskStartScheduler
+                0x0000000008009338       0x8c .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
+                0x0000000008009338                vTaskStartScheduler
  .text.vTaskSuspendAll
-                0x0000000008009294       0x10 .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
-                0x0000000008009294                vTaskSuspendAll
+                0x00000000080093c4       0x10 .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
+                0x00000000080093c4                vTaskSuspendAll
  .text.xTaskIncrementTick
-                0x00000000080092a4      0x17c .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
-                0x00000000080092a4                xTaskIncrementTick
+                0x00000000080093d4      0x17c .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
+                0x00000000080093d4                xTaskIncrementTick
  .text.xTaskResumeAll
-                0x0000000008009420      0x154 .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
-                0x0000000008009420                xTaskResumeAll
+                0x0000000008009550      0x154 .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
+                0x0000000008009550                xTaskResumeAll
  .text.vTaskSwitchContext
-                0x0000000008009574       0x60 .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
-                0x0000000008009574                vTaskSwitchContext
+                0x00000000080096a4       0x60 .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
+                0x00000000080096a4                vTaskSwitchContext
  .text.pvPortMalloc
-                0x00000000080095d4       0xf8 .pio/build/app/libef1/libFreeRTOS-Kernel.a(heap_4.o)
-                0x00000000080095d4                pvPortMalloc
+                0x0000000008009704       0xf8 .pio/build/app/libef1/libFreeRTOS-Kernel.a(heap_4.o)
+                0x0000000008009704                pvPortMalloc
  .text.vPortFree
-                0x00000000080096cc       0x90 .pio/build/app/libef1/libFreeRTOS-Kernel.a(heap_4.o)
-                0x00000000080096cc                vPortFree
+                0x00000000080097fc       0x90 .pio/build/app/libef1/libFreeRTOS-Kernel.a(heap_4.o)
+                0x00000000080097fc                vPortFree
  .text.vListInitialise
-                0x000000000800975c       0x16 .pio/build/app/libef1/libFreeRTOS-Kernel.a(list.o)
-                0x000000000800975c                vListInitialise
+                0x000000000800988c       0x16 .pio/build/app/libef1/libFreeRTOS-Kernel.a(list.o)
+                0x000000000800988c                vListInitialise
  .text.vListInitialiseItem
-                0x0000000008009772        0x6 .pio/build/app/libef1/libFreeRTOS-Kernel.a(list.o)
-                0x0000000008009772                vListInitialiseItem
+                0x00000000080098a2        0x6 .pio/build/app/libef1/libFreeRTOS-Kernel.a(list.o)
+                0x00000000080098a2                vListInitialiseItem
  .text.__libc_init_array
-                0x0000000008009778       0x48 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/../../../../arm-none-eabi/lib/thumb/v7e-m/fpv4-sp/hard/libc_nano.a(lib_a-init.o)
-                0x0000000008009778                __libc_init_array
- .text.memset   0x00000000080097c0       0x10 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/../../../../arm-none-eabi/lib/thumb/v7e-m/fpv4-sp/hard/libc_nano.a(lib_a-memset.o)
-                0x00000000080097c0                memset
+                0x00000000080098a8       0x48 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/../../../../arm-none-eabi/lib/thumb/v7e-m/fpv4-sp/hard/libc_nano.a(lib_a-init.o)
+                0x00000000080098a8                __libc_init_array
+ .text.memset   0x00000000080098f0       0x10 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/../../../../arm-none-eabi/lib/thumb/v7e-m/fpv4-sp/hard/libc_nano.a(lib_a-memset.o)
+                0x00000000080098f0                memset
  .text.Reset_Handler
-                0x00000000080097d0       0x50 .pio/build/app/libFrameworkCMSISDevice.a(startup_stm32g474xx.o)
-                0x00000000080097d0                Reset_Handler
+                0x0000000008009900       0x50 .pio/build/app/libFrameworkCMSISDevice.a(startup_stm32g474xx.o)
+                0x0000000008009900                Reset_Handler
  .text.Default_Handler
-                0x0000000008009820        0x2 .pio/build/app/libFrameworkCMSISDevice.a(startup_stm32g474xx.o)
-                0x0000000008009820                TIM1_BRK_TIM15_IRQHandler
-                0x0000000008009820                EXTI2_IRQHandler
-                0x0000000008009820                TIM8_TRG_COM_IRQHandler
-                0x0000000008009820                TIM8_CC_IRQHandler
-                0x0000000008009820                HRTIM1_Master_IRQHandler
-                0x0000000008009820                DebugMon_Handler
-                0x0000000008009820                SPI4_IRQHandler
-                0x0000000008009820                FDCAN3_IT0_IRQHandler
-                0x0000000008009820                TIM1_CC_IRQHandler
-                0x0000000008009820                HardFault_Handler
-                0x0000000008009820                HRTIM1_FLT_IRQHandler
-                0x0000000008009820                HRTIM1_TIMF_IRQHandler
-                0x0000000008009820                USB_HP_IRQHandler
-                0x0000000008009820                CORDIC_IRQHandler
-                0x0000000008009820                HRTIM1_TIMD_IRQHandler
-                0x0000000008009820                DMA2_Channel8_IRQHandler
-                0x0000000008009820                NMI_Handler
-                0x0000000008009820                EXTI3_IRQHandler
-                0x0000000008009820                I2C3_ER_IRQHandler
-                0x0000000008009820                EXTI0_IRQHandler
-                0x0000000008009820                I2C2_EV_IRQHandler
-                0x0000000008009820                FPU_IRQHandler
-                0x0000000008009820                FDCAN1_IT1_IRQHandler
-                0x0000000008009820                TIM1_UP_TIM16_IRQHandler
-                0x0000000008009820                UsageFault_Handler
-                0x0000000008009820                ADC1_2_IRQHandler
-                0x0000000008009820                HRTIM1_TIME_IRQHandler
-                0x0000000008009820                SPI1_IRQHandler
-                0x0000000008009820                TIM6_DAC_IRQHandler
-                0x0000000008009820                HRTIM1_TIMC_IRQHandler
-                0x0000000008009820                TIM8_UP_IRQHandler
-                0x0000000008009820                DMA2_Channel2_IRQHandler
-                0x0000000008009820                DMA1_Channel4_IRQHandler
-                0x0000000008009820                TIM20_TRG_COM_IRQHandler
-                0x0000000008009820                USART3_IRQHandler
-                0x0000000008009820                DMA1_Channel7_IRQHandler
-                0x0000000008009820                UART5_IRQHandler
-                0x0000000008009820                ADC3_IRQHandler
-                0x0000000008009820                TIM4_IRQHandler
-                0x0000000008009820                DMA2_Channel1_IRQHandler
-                0x0000000008009820                QUADSPI_IRQHandler
-                0x0000000008009820                I2C1_EV_IRQHandler
-                0x0000000008009820                DMA1_Channel6_IRQHandler
-                0x0000000008009820                UART4_IRQHandler
-                0x0000000008009820                DMA2_Channel4_IRQHandler
-                0x0000000008009820                TIM3_IRQHandler
-                0x0000000008009820                RCC_IRQHandler
-                0x0000000008009820                TIM20_UP_IRQHandler
-                0x0000000008009820                DMA1_Channel1_IRQHandler
-                0x0000000008009820                Default_Handler
-                0x0000000008009820                DMA2_Channel7_IRQHandler
-                0x0000000008009820                RTC_TAMP_LSECSS_IRQHandler
-                0x0000000008009820                FMAC_IRQHandler
-                0x0000000008009820                EXTI15_10_IRQHandler
-                0x0000000008009820                DMA1_Channel8_IRQHandler
-                0x0000000008009820                HRTIM1_TIMA_IRQHandler
-                0x0000000008009820                TIM7_DAC_IRQHandler
-                0x0000000008009820                FDCAN3_IT1_IRQHandler
-                0x0000000008009820                TIM5_IRQHandler
-                0x0000000008009820                UCPD1_IRQHandler
-                0x0000000008009820                I2C3_EV_IRQHandler
-                0x0000000008009820                EXTI9_5_IRQHandler
-                0x0000000008009820                RTC_WKUP_IRQHandler
-                0x0000000008009820                PVD_PVM_IRQHandler
-                0x0000000008009820                SPI2_IRQHandler
-                0x0000000008009820                MemManage_Handler
-                0x0000000008009820                ADC5_IRQHandler
-                0x0000000008009820                DMA2_Channel5_IRQHandler
-                0x0000000008009820                CRS_IRQHandler
-                0x0000000008009820                DMA1_Channel5_IRQHandler
-                0x0000000008009820                USB_LP_IRQHandler
-                0x0000000008009820                EXTI4_IRQHandler
-                0x0000000008009820                RNG_IRQHandler
-                0x0000000008009820                HRTIM1_TIMB_IRQHandler
-                0x0000000008009820                TIM1_TRG_COM_TIM17_IRQHandler
-                0x0000000008009820                FDCAN2_IT1_IRQHandler
-                0x0000000008009820                DMA1_Channel3_IRQHandler
-                0x0000000008009820                ADC4_IRQHandler
-                0x0000000008009820                WWDG_IRQHandler
-                0x0000000008009820                I2C4_EV_IRQHandler
-                0x0000000008009820                FDCAN2_IT0_IRQHandler
-                0x0000000008009820                LPUART1_IRQHandler
-                0x0000000008009820                DMA2_Channel6_IRQHandler
-                0x0000000008009820                FDCAN1_IT0_IRQHandler
-                0x0000000008009820                TIM2_IRQHandler
-                0x0000000008009820                COMP7_IRQHandler
-                0x0000000008009820                COMP1_2_3_IRQHandler
-                0x0000000008009820                EXTI1_IRQHandler
-                0x0000000008009820                USART2_IRQHandler
-                0x0000000008009820                COMP4_5_6_IRQHandler
-                0x0000000008009820                TIM20_BRK_IRQHandler
-                0x0000000008009820                I2C2_ER_IRQHandler
-                0x0000000008009820                DMA1_Channel2_IRQHandler
-                0x0000000008009820                TIM8_BRK_IRQHandler
-                0x0000000008009820                FLASH_IRQHandler
-                0x0000000008009820                TIM20_CC_IRQHandler
-                0x0000000008009820                BusFault_Handler
-                0x0000000008009820                USART1_IRQHandler
-                0x0000000008009820                SPI3_IRQHandler
-                0x0000000008009820                I2C1_ER_IRQHandler
-                0x0000000008009820                FMC_IRQHandler
-                0x0000000008009820                LPTIM1_IRQHandler
-                0x0000000008009820                DMAMUX_OVR_IRQHandler
-                0x0000000008009820                I2C4_ER_IRQHandler
-                0x0000000008009820                USBWakeUp_IRQHandler
-                0x0000000008009820                SAI1_IRQHandler
-                0x0000000008009820                DMA2_Channel3_IRQHandler
-                0x0000000008009820                RTC_Alarm_IRQHandler
- *fill*         0x0000000008009822        0x2 
+                0x0000000008009950        0x2 .pio/build/app/libFrameworkCMSISDevice.a(startup_stm32g474xx.o)
+                0x0000000008009950                TIM1_BRK_TIM15_IRQHandler
+                0x0000000008009950                EXTI2_IRQHandler
+                0x0000000008009950                TIM8_TRG_COM_IRQHandler
+                0x0000000008009950                TIM8_CC_IRQHandler
+                0x0000000008009950                HRTIM1_Master_IRQHandler
+                0x0000000008009950                DebugMon_Handler
+                0x0000000008009950                SPI4_IRQHandler
+                0x0000000008009950                FDCAN3_IT0_IRQHandler
+                0x0000000008009950                TIM1_CC_IRQHandler
+                0x0000000008009950                HardFault_Handler
+                0x0000000008009950                HRTIM1_FLT_IRQHandler
+                0x0000000008009950                HRTIM1_TIMF_IRQHandler
+                0x0000000008009950                USB_HP_IRQHandler
+                0x0000000008009950                CORDIC_IRQHandler
+                0x0000000008009950                HRTIM1_TIMD_IRQHandler
+                0x0000000008009950                DMA2_Channel8_IRQHandler
+                0x0000000008009950                NMI_Handler
+                0x0000000008009950                EXTI3_IRQHandler
+                0x0000000008009950                I2C3_ER_IRQHandler
+                0x0000000008009950                EXTI0_IRQHandler
+                0x0000000008009950                I2C2_EV_IRQHandler
+                0x0000000008009950                FPU_IRQHandler
+                0x0000000008009950                FDCAN1_IT1_IRQHandler
+                0x0000000008009950                TIM1_UP_TIM16_IRQHandler
+                0x0000000008009950                UsageFault_Handler
+                0x0000000008009950                ADC1_2_IRQHandler
+                0x0000000008009950                HRTIM1_TIME_IRQHandler
+                0x0000000008009950                SPI1_IRQHandler
+                0x0000000008009950                TIM6_DAC_IRQHandler
+                0x0000000008009950                HRTIM1_TIMC_IRQHandler
+                0x0000000008009950                TIM8_UP_IRQHandler
+                0x0000000008009950                DMA2_Channel2_IRQHandler
+                0x0000000008009950                DMA1_Channel4_IRQHandler
+                0x0000000008009950                TIM20_TRG_COM_IRQHandler
+                0x0000000008009950                USART3_IRQHandler
+                0x0000000008009950                DMA1_Channel7_IRQHandler
+                0x0000000008009950                UART5_IRQHandler
+                0x0000000008009950                ADC3_IRQHandler
+                0x0000000008009950                TIM4_IRQHandler
+                0x0000000008009950                DMA2_Channel1_IRQHandler
+                0x0000000008009950                QUADSPI_IRQHandler
+                0x0000000008009950                I2C1_EV_IRQHandler
+                0x0000000008009950                DMA1_Channel6_IRQHandler
+                0x0000000008009950                UART4_IRQHandler
+                0x0000000008009950                DMA2_Channel4_IRQHandler
+                0x0000000008009950                TIM3_IRQHandler
+                0x0000000008009950                RCC_IRQHandler
+                0x0000000008009950                TIM20_UP_IRQHandler
+                0x0000000008009950                DMA1_Channel1_IRQHandler
+                0x0000000008009950                Default_Handler
+                0x0000000008009950                DMA2_Channel7_IRQHandler
+                0x0000000008009950                RTC_TAMP_LSECSS_IRQHandler
+                0x0000000008009950                FMAC_IRQHandler
+                0x0000000008009950                EXTI15_10_IRQHandler
+                0x0000000008009950                DMA1_Channel8_IRQHandler
+                0x0000000008009950                HRTIM1_TIMA_IRQHandler
+                0x0000000008009950                TIM7_DAC_IRQHandler
+                0x0000000008009950                FDCAN3_IT1_IRQHandler
+                0x0000000008009950                TIM5_IRQHandler
+                0x0000000008009950                UCPD1_IRQHandler
+                0x0000000008009950                I2C3_EV_IRQHandler
+                0x0000000008009950                EXTI9_5_IRQHandler
+                0x0000000008009950                RTC_WKUP_IRQHandler
+                0x0000000008009950                PVD_PVM_IRQHandler
+                0x0000000008009950                SPI2_IRQHandler
+                0x0000000008009950                MemManage_Handler
+                0x0000000008009950                ADC5_IRQHandler
+                0x0000000008009950                DMA2_Channel5_IRQHandler
+                0x0000000008009950                CRS_IRQHandler
+                0x0000000008009950                DMA1_Channel5_IRQHandler
+                0x0000000008009950                USB_LP_IRQHandler
+                0x0000000008009950                EXTI4_IRQHandler
+                0x0000000008009950                RNG_IRQHandler
+                0x0000000008009950                HRTIM1_TIMB_IRQHandler
+                0x0000000008009950                TIM1_TRG_COM_TIM17_IRQHandler
+                0x0000000008009950                FDCAN2_IT1_IRQHandler
+                0x0000000008009950                DMA1_Channel3_IRQHandler
+                0x0000000008009950                ADC4_IRQHandler
+                0x0000000008009950                WWDG_IRQHandler
+                0x0000000008009950                I2C4_EV_IRQHandler
+                0x0000000008009950                FDCAN2_IT0_IRQHandler
+                0x0000000008009950                LPUART1_IRQHandler
+                0x0000000008009950                DMA2_Channel6_IRQHandler
+                0x0000000008009950                FDCAN1_IT0_IRQHandler
+                0x0000000008009950                TIM2_IRQHandler
+                0x0000000008009950                COMP7_IRQHandler
+                0x0000000008009950                COMP1_2_3_IRQHandler
+                0x0000000008009950                EXTI1_IRQHandler
+                0x0000000008009950                USART2_IRQHandler
+                0x0000000008009950                COMP4_5_6_IRQHandler
+                0x0000000008009950                TIM20_BRK_IRQHandler
+                0x0000000008009950                I2C2_ER_IRQHandler
+                0x0000000008009950                DMA1_Channel2_IRQHandler
+                0x0000000008009950                TIM8_BRK_IRQHandler
+                0x0000000008009950                FLASH_IRQHandler
+                0x0000000008009950                TIM20_CC_IRQHandler
+                0x0000000008009950                BusFault_Handler
+                0x0000000008009950                USART1_IRQHandler
+                0x0000000008009950                SPI3_IRQHandler
+                0x0000000008009950                I2C1_ER_IRQHandler
+                0x0000000008009950                FMC_IRQHandler
+                0x0000000008009950                LPTIM1_IRQHandler
+                0x0000000008009950                DMAMUX_OVR_IRQHandler
+                0x0000000008009950                I2C4_ER_IRQHandler
+                0x0000000008009950                USBWakeUp_IRQHandler
+                0x0000000008009950                SAI1_IRQHandler
+                0x0000000008009950                DMA2_Channel3_IRQHandler
+                0x0000000008009950                RTC_Alarm_IRQHandler
+ *fill*         0x0000000008009952        0x2 
  .text.SystemInit
-                0x0000000008009824       0x14 .pio/build/app/libFrameworkCMSISDevice.a(system_stm32g4xx.o)
-                0x0000000008009824                SystemInit
+                0x0000000008009954       0x14 .pio/build/app/libFrameworkCMSISDevice.a(system_stm32g4xx.o)
+                0x0000000008009954                SystemInit
  *(.glue_7)
- .glue_7        0x0000000008009838        0x0 linker stubs
+ .glue_7        0x0000000008009968        0x0 linker stubs
  *(.glue_7t)
- .glue_7t       0x0000000008009838        0x0 linker stubs
+ .glue_7t       0x0000000008009968        0x0 linker stubs
  *(.eh_frame)
- .eh_frame      0x0000000008009838        0x0 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crtbegin.o
+ .eh_frame      0x0000000008009968        0x0 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crtbegin.o
  *(.init)
- .init          0x0000000008009838        0x4 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crti.o
-                0x0000000008009838                _init
- .init          0x000000000800983c        0x8 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crtn.o
+ .init          0x0000000008009968        0x4 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crti.o
+                0x0000000008009968                _init
+ .init          0x000000000800996c        0x8 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crtn.o
  *(.fini)
- .fini          0x0000000008009844        0x4 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crti.o
-                0x0000000008009844                _fini
- .fini          0x0000000008009848        0x8 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crtn.o
-                0x0000000008009850                . = ALIGN (0x4)
-                0x0000000008009850                _etext = .
+ .fini          0x0000000008009974        0x4 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crti.o
+                0x0000000008009974                _fini
+ .fini          0x0000000008009978        0x8 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crtn.o
+                0x0000000008009980                . = ALIGN (0x4)
+                0x0000000008009980                _etext = .
 
-.vfp11_veneer   0x0000000008009850        0x0
- .vfp11_veneer  0x0000000008009850        0x0 linker stubs
+.vfp11_veneer   0x0000000008009980        0x0
+ .vfp11_veneer  0x0000000008009980        0x0 linker stubs
 
-.v4_bx          0x0000000008009850        0x0
- .v4_bx         0x0000000008009850        0x0 linker stubs
+.v4_bx          0x0000000008009980        0x0
+ .v4_bx         0x0000000008009980        0x0 linker stubs
 
-.iplt           0x0000000008009850        0x0
- .iplt          0x0000000008009850        0x0 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crtbegin.o
+.iplt           0x0000000008009980        0x0
+ .iplt          0x0000000008009980        0x0 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crtbegin.o
 
-.rodata         0x0000000008009850       0x20
-                0x0000000008009850                . = ALIGN (0x4)
+.rodata         0x0000000008009980       0x28
+                0x0000000008009980                . = ALIGN (0x4)
  *(.rodata)
  *(.rodata*)
+ .rodata.main.str1.1
+                0x0000000008009980        0xb .pio/build/app/app/src/firmware.o
  .rodata.stm_to_esp.str1.1
-                0x0000000008009850        0x8 .pio/build/app/app/src/firmware.o
+                0x000000000800998b        0x8 .pio/build/app/app/src/firmware.o
  .rodata.vTaskStartScheduler.str1.1
-                0x0000000008009858        0x5 .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
+                0x0000000008009993        0x5 .pio/build/app/libef1/libFreeRTOS-Kernel.a(tasks.o)
  .rodata.AHBPrescTable
-                0x000000000800985d       0x10 .pio/build/app/libFrameworkCMSISDevice.a(system_stm32g4xx.o)
-                0x000000000800985d                AHBPrescTable
-                0x0000000008009870                . = ALIGN (0x4)
- *fill*         0x000000000800986d        0x3 
+                0x0000000008009998       0x10 .pio/build/app/libFrameworkCMSISDevice.a(system_stm32g4xx.o)
+                0x0000000008009998                AHBPrescTable
+                0x00000000080099a8                . = ALIGN (0x4)
 
-.rel.dyn        0x0000000008009870        0x0
- .rel.iplt      0x0000000008009870        0x0 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crtbegin.o
+.rel.dyn        0x00000000080099a8        0x0
+ .rel.iplt      0x00000000080099a8        0x0 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crtbegin.o
 
-.ARM.extab      0x0000000008009870        0x0
-                0x0000000008009870                . = ALIGN (0x4)
+.ARM.extab      0x00000000080099a8        0x0
+                0x00000000080099a8                . = ALIGN (0x4)
  *(.ARM.extab* .gnu.linkonce.armextab.*)
-                0x0000000008009870                . = ALIGN (0x4)
+                0x00000000080099a8                . = ALIGN (0x4)
 
-.ARM            0x0000000008009870        0x0
-                0x0000000008009870                . = ALIGN (0x4)
-                0x0000000008009870                __exidx_start = .
+.ARM            0x00000000080099a8        0x0
+                0x00000000080099a8                . = ALIGN (0x4)
+                0x00000000080099a8                __exidx_start = .
  *(.ARM.exidx*)
-                0x0000000008009870                __exidx_end = .
-                0x0000000008009870                . = ALIGN (0x4)
+                0x00000000080099a8                __exidx_end = .
+                0x00000000080099a8                . = ALIGN (0x4)
 
-.preinit_array  0x0000000008009870        0x0
-                0x0000000008009870                . = ALIGN (0x4)
-                0x0000000008009870                PROVIDE (__preinit_array_start, .)
+.preinit_array  0x00000000080099a8        0x0
+                0x00000000080099a8                . = ALIGN (0x4)
+                0x00000000080099a8                PROVIDE (__preinit_array_start, .)
  *(.preinit_array*)
-                0x0000000008009870                PROVIDE (__preinit_array_end, .)
-                0x0000000008009870                . = ALIGN (0x4)
+                0x00000000080099a8                PROVIDE (__preinit_array_end, .)
+                0x00000000080099a8                . = ALIGN (0x4)
 
-.init_array     0x0000000008009870        0x4
-                0x0000000008009870                . = ALIGN (0x4)
-                0x0000000008009870                PROVIDE (__init_array_start, .)
+.init_array     0x00000000080099a8        0x4
+                0x00000000080099a8                . = ALIGN (0x4)
+                0x00000000080099a8                PROVIDE (__init_array_start, .)
  *(SORT_BY_NAME(.init_array.*))
  *(.init_array*)
- .init_array    0x0000000008009870        0x4 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crtbegin.o
-                0x0000000008009874                PROVIDE (__init_array_end, .)
-                0x0000000008009874                . = ALIGN (0x4)
+ .init_array    0x00000000080099a8        0x4 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crtbegin.o
+                0x00000000080099ac                PROVIDE (__init_array_end, .)
+                0x00000000080099ac                . = ALIGN (0x4)
 
-.fini_array     0x0000000008009874        0x4
-                0x0000000008009874                . = ALIGN (0x4)
+.fini_array     0x00000000080099ac        0x4
+                0x00000000080099ac                . = ALIGN (0x4)
                 [!provide]                        PROVIDE (__fini_array_start, .)
  *(SORT_BY_NAME(.fini_array.*))
  *(.fini_array*)
- .fini_array    0x0000000008009874        0x4 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crtbegin.o
+ .fini_array    0x00000000080099ac        0x4 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crtbegin.o
                 [!provide]                        PROVIDE (__fini_array_end, .)
-                0x0000000008009878                . = ALIGN (0x4)
-                0x0000000008009878                _sidata = LOADADDR (.data)
+                0x00000000080099b0                . = ALIGN (0x4)
+                0x00000000080099b0                _sidata = LOADADDR (.data)
 
-.data           0x0000000020000000       0x14 load address 0x0000000008009878
+.data           0x0000000020000000       0x14 load address 0x00000000080099b0
                 0x0000000020000000                . = ALIGN (0x4)
                 0x0000000020000000                _sdata = .
  *(.data)
@@ -4411,11 +4414,11 @@ LOAD /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/g
                 0x0000000020000014                . = ALIGN (0x4)
                 0x0000000020000014                _edata = .
 
-.igot.plt       0x0000000020000014        0x0 load address 0x000000000800988c
+.igot.plt       0x0000000020000014        0x0 load address 0x00000000080099c4
  .igot.plt      0x0000000020000014        0x0 /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/gcc/arm-none-eabi/7.2.1/thumb/v7e-m/fpv4-sp/hard/crtbegin.o
                 0x0000000020000014                . = ALIGN (0x4)
 
-.bss            0x0000000020000014     0x21a8 load address 0x000000000800988c
+.bss            0x0000000020000014     0x21a8 load address 0x00000000080099c4
                 0x0000000020000014                _sbss = .
                 0x0000000020000014                __bss_start__ = _sbss
  *(.bss)
@@ -4479,7 +4482,7 @@ LOAD /Users/ellalewis/.platformio/packages/toolchain-gccarmnoneeabi/bin/../lib/g
                 0x00000000200021bc                __bss_end__ = _ebss
 
 ._user_heap_stack
-                0x00000000200021bc      0x604 load address 0x000000000800988c
+                0x00000000200021bc      0x604 load address 0x00000000080099c4
                 0x00000000200021c0                . = ALIGN (0x8)
  *fill*         0x00000000200021bc        0x4 
                 [!provide]                        PROVIDE (end, .)
