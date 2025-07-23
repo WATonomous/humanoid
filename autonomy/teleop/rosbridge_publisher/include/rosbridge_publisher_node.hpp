@@ -11,21 +11,18 @@
  * Implementation of a ROS2 node that listens to the "unfiltered" and "filtered"
  * topics and echoes the operating frequency of the topic to the console.
  */
-class ROSbridgePublisherNode: public rclcpp::Node {
+class ROSbridgePublisherNode : public rclcpp::Node {
 public:
-  
-    ROSbridgePublisherNode();
+  ROSbridgePublisherNode();
 
 private:
+  void timer_callback();
 
-    void timer_callback();
+  rclcpp::TimerBase::SharedPtr timer_;
 
-    rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::Publisher<sample_msgs::msg::HandPose>::SharedPtr hand_pose_pub_;
 
-    rclcpp::Publisher<sample_msgs::msg::HandPose>::SharedPtr hand_pose_pub_;
-
-    ROSbridgePublisherCore rosbridge_publisher_;
-
+  ROSbridgePublisherCore rosbridge_publisher_;
 };
 
 #endif
