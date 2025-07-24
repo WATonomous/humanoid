@@ -3,7 +3,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 
-#include "sample_msgs/msg/hand_pose.hpp"
+#include "sample_msgs/msg/vr_hand_pose.hpp"
 
 #include "rosbridge_listener_core.hpp"
 
@@ -16,12 +16,14 @@ public:
   ROSbridgeListenerNode();
 
 private:
+
   std::string
-  hand_pose_to_string(const sample_msgs::msg::HandPose::SharedPtr pose);
+  hand_pose_to_string(const sample_msgs::msg::VRHandPose::SharedPtr pose);
 
-  void hand_pose_callback(const sample_msgs::msg::HandPose::SharedPtr msg);
+  void hand_pose_callback(const sample_msgs::msg::VRHandPose::SharedPtr msg);
 
-  rclcpp::Subscription<sample_msgs::msg::HandPose>::SharedPtr hand_pose_sub_;
+  rclcpp::Subscription<sample_msgs::msg::VRHandPose>::SharedPtr hand_pose_sub_;
+
 };
 
 #endif

@@ -6,12 +6,12 @@
 ROSbridgePublisherCore::ROSbridgePublisherCore() {}
 
 std::string ROSbridgePublisherCore::hand_pose_to_string(
-    const sample_msgs::msg::HandPose pose) {
+    const sample_msgs::msg::VRHandPose pose){
   std::string s;
-  std::vector<float> hand_pose = pose.data;
+  std::vector<float> positions = pose.positions;
   s += "[";
-  for (int i = 0; i < hand_pose.size(); i++) {
-    s += std::to_string(hand_pose[i]);
+  for (int i = 0; i < positions.size(); i++){
+    s += std::to_string(positions[i]);
     s += ",";
   }
   s += "]";

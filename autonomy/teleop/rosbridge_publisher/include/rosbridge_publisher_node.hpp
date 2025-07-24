@@ -3,7 +3,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 
-#include "sample_msgs/msg/hand_pose.hpp"
+#include "sample_msgs/msg/vr_hand_pose.hpp"
 
 #include "rosbridge_publisher_core.hpp"
 
@@ -20,7 +20,7 @@ private:
 
   rclcpp::TimerBase::SharedPtr timer_;
 
-  rclcpp::Publisher<sample_msgs::msg::HandPose>::SharedPtr hand_pose_pub_;
+  rclcpp::Publisher<sample_msgs::msg::VRHandPose>::SharedPtr hand_pose_pub_;
 
   ROSbridgePublisherCore rosbridge_publisher_;
 };

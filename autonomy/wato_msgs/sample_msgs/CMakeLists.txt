@@ -18,7 +18,7 @@ set(msg_files
     msg/FilteredArray.msg
     msg/Unfiltered.msg
     msg/Metadata.msg
-    msg/HandPose.msg)
+    msg/VRHandPose.msg)
 rosidl_generate_interfaces(sample_msgs
     ${msg_files}
     DEPENDENCIES std_msgs)

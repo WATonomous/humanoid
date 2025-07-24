@@ -3,13 +3,13 @@
 
 #include "rclcpp/rclcpp.hpp"
 
-#include "sample_msgs/msg/hand_pose.hpp"
+#include "sample_msgs/msg/vr_hand_pose.hpp"
 
 class ROSbridgePublisherCore {
 public:
   explicit ROSbridgePublisherCore();
 
-  std::string hand_pose_to_string(const sample_msgs::msg::HandPose pose);
+  std::string hand_pose_to_string(const sample_msgs::msg::VRHandPose pose);
 
 private:
 };
