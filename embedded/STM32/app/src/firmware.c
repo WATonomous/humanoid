@@ -66,35 +66,37 @@ static void MX_USART1_UART_Init(void)
     huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
     huart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
     huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-    if (HAL_UART_Init(&huart1) != HAL_OK)
-    {
-        Error_Handler();
-    }
-    if (HAL_UARTEx_SetTxFifoThreshold(&huart1, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
-    {
-        Error_Handler();
-    }
-    if (HAL_UARTEx_SetRxFifoThreshold(&huart1, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
-    {
-        Error_Handler();
-    }
-    if (HAL_UARTEx_DisableFifoMode(&huart1) != HAL_OK)
-    {
-        Error_Handler();
-    }
+    // if (HAL_UART_Init(&huart1) != HAL_OK)
+    // {
+    //     Error_Handler();
+    // }
+    // if (HAL_UARTEx_SetTxFifoThreshold(&huart1, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+    // {
+    //     Error_Handler();
+    // }
+    // if (HAL_UARTEx_SetRxFifoThreshold(&huart1, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+    // {
+    //     Error_Handler();
+    // }
+    // if (HAL_UARTEx_DisableFifoMode(&huart1) != HAL_OK)
+    // {
+    //     Error_Handler();
+    // }
     /* USER CODE BEGIN USART1_Init 2 */
 
     /* USER CODE END USART1_Init 2 */
+    HAL_UART_Init(&huart1);
 }
 int main()
 {
     vector_setup();
     HAL_Init();
     system_setup();
-    // MX_USART1_UART_Init();
+    MX_USART1_UART_Init();
 
 
     __HAL_RCC_GPIOA_CLK_ENABLE();
+
 
     // Configure GPIO PIN5;
     GPIO_InitTypeDef GPIO_InitStruct;
@@ -104,14 +106,24 @@ int main()
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
+    
+    uint8_t rx_buf[32] = {0};
+    HAL_StatusTypeDef status;
+    const char debug_msg[] = "Debug\r\n";
+    HAL_UART_Transmit(&huart1, (uint8_t *)debug_msg, strlen(debug_msg), HAL_MAX_DELAY);
+
     // create blinking led task
     // // xTaskCreate(blink_led, "BLINK_LED", 128, NULL, 1, NULL);
-    xTaskCreate(stm_to_esp, "STM_TO_ESP", 128, NULL, 1, NULL);
+
+
+    // xTaskCreate(stm_to_esp, "STM_TO_ESP", 128, NULL, 1, NULL);
+
+
     // const char debug_msg[] = "Debug\r\n";
     // HAL_UART_Transmit(&huart1, (uint8_t *)debug_msg, strlen(debug_msg), HAL_MAX_DELAY);
 
     // start FreeRTOS Scheduler
-    vTaskStartScheduler();
+    // vTaskStartScheduler();
 
     while (1)
     {
