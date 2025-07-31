@@ -12,6 +12,8 @@ COPY src/wato_msgs/sample_msgs ${AMENT_WS}/src/wato_msgs/sample_msgs
 # Check if src directory is correctly copied
 RUN ls -al ${AMENT_WS}/src
 
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+
 # Update rosdep
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-rosdep \
@@ -62,6 +64,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     && ldconfig \
     && rm -rf /var/lib/apt/lists/*
+
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
 
 # Install Rosdep requirements
 RUN apt-get update && rosdep install -i --from-path src --rosdistro $ROS_DISTRO -y \
