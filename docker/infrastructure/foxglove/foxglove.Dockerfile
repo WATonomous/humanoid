@@ -7,6 +7,7 @@ WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
 COPY autonomy/wato_msgs wato_msgs
+COPY autonomy/URDF/arm_assembly_4_description arm_assembly_4_description
 
 # Scan for rosdeps
 RUN apt-get -qq update && rosdep update && \
@@ -18,8 +19,11 @@ RUN apt-get -qq update && rosdep update && \
 ################################# Dependencies ################################
 FROM ${BASE_IMAGE} AS dependencies
 
+# Fix ROS2 GPG key issue BEFORE any apt operations
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+
 # Install Foxglove Deps
-RUN apt-get update && apt-get install -y curl ros-humble-ros2bag ros-humble-rosbag2* ros-humble-foxglove-msgs&& \
+RUN apt-get update && apt-get install -y curl && \
     rm -rf /var/lib/apt/lists/*
 
 # Set up apt repo
@@ -28,11 +32,10 @@ RUN apt-get update && apt-get install -y lsb-release software-properties-common 
 
 # Install Dependencies
 RUN apt-get update && \
-    apt-get install -y \ 
+    apt-get install -y --no-install-recommends \
     ros-$ROS_DISTRO-foxglove-bridge \
     ros-$ROS_DISTRO-rosbridge-server \
-    ros-$ROS_DISTRO-topic-tools \
-    ros-$ROS_DISTRO-vision-msgs
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Rosdep requirements
 COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list

@@ -2,18 +2,18 @@
   "configById": {
     "3D!185ho2t": {
       "cameraState": {
-        "distance": 79.89004262246002,
+        "distance": 2.997805080941263,
         "perspective": true,
-        "phi": 5.282201562692081,
+        "phi": 75.96336004425879,
         "target": [
           0,
           0,
           0
         ],
         "targetOffset": [
-          0.09611896191354179,
-          -1.3056713894765997,
-          -2.750829735521747e-16
+          -0.27728202633764654,
+          0.272647615920001,
+          -1.5788112168309897e-16
         ],
         "targetOrientation": [
           0,
@@ -21,7 +21,7 @@
           0,
           1
         ],
-        "thetaOffset": 129.23020245291644,
+        "thetaOffset": -38.22449122045766,
         "fovy": 45,
         "near": 0.5,
         "far": 5000
@@ -71,7 +71,17 @@
         },
         "frame:sim_world": {
           "visible": true
-        }
+        },
+        "frame:shoulder_link_1_v9_1": {},
+        "frame:shoulder_link_2_v4_1": {},
+        "frame:elbow_link_1_v6_1": {},
+        "frame:elbow_link_2_v7_1": {},
+        "frame:forearm_v8_1": {},
+        "frame:PALM_GAVIN_1DoF_Hinge_v2_1": {},
+        "frame:MCP_INDEX_v1_1": {},
+        "frame:PIP_INDEX_v1_1": {},
+        "frame:DIP_INDEX_v1_1": {},
+        "frame:PIP_MIDDLE_v1_1": {}
       },
       "topics": {
         "/lidar": {
@@ -126,25 +136,21 @@
             "#90ff6bff",
             "#eeff6b80"
           ]
+        },
+        "/robot_description": {
+          "visible": true
+        },
+        "/move_base_simple/goal": {
+          "visible": false
+        },
+        "/initialpose": {
+          "visible": false
+        },
+        "/goal_pose": {
+          "visible": true
         }
       },
       "layers": {
-        "9e830917-d6fe-4f25-8e7b-25afa5a47d21": {
-          "visible": true,
-          "frameLocked": true,
-          "label": "URDF",
-          "instanceId": "9e830917-d6fe-4f25-8e7b-25afa5a47d21",
-          "layerId": "foxglove.Urdf",
-          "sourceType": "url",
-          "url": "https://raw.githubusercontent.com/WATonomous/wato_asd_training/refs/heads/main/autonomy/gazebo/launch/robot.urdf",
-          "filePath": "",
-          "parameter": "",
-          "topic": "",
-          "framePrefix": "",
-          "displayMode": "auto",
-          "fallbackColor": "#ffffff",
-          "order": 1
-        },
         "6387c3f4-066a-4fb9-a043-d9bbb06d4697": {
           "visible": true,
           "frameLocked": true,
@@ -164,7 +170,7 @@
             0
           ],
           "order": 2,
-          "size": 30,
+          "size": 1.5,
           "lineWidth": 1
         },
         "cadf14d8-072e-4af6-8fd0-60bf81d00399": {
@@ -174,14 +180,16 @@
           "instanceId": "cadf14d8-072e-4af6-8fd0-60bf81d00399",
           "layerId": "foxglove.Urdf",
           "sourceType": "url",
-          "url": "https://raw.githubusercontent.com/WATonomous/wato_asd_training/refs/heads/main/autonomy/gazebo/launch/env.urdf",
-          "filePath": "",
-          "parameter": "",
+          "url": "package://arm_assembly_4_description/arm.urdf",
+          "filePath": "/home/gavin/Documents/Projects/humanoid/autonomy/URDF/arm_assembly_4_description/arm.urdf",
+          "parameter": "package://arm_assembly_4_description/arm.urdf",
           "topic": "",
           "framePrefix": "",
           "displayMode": "auto",
           "fallbackColor": "#454545",
-          "order": 3
+          "order": 3,
+          "opacity": 1,
+          "showOutlines": true
         }
       },
       "publish": {
@@ -195,27 +203,7 @@
       },
       "imageMode": {}
     },
-    "Teleop!1rfn0xj": {
-      "topic": "/cmd_vel",
-      "publishRate": 1,
-      "upButton": {
-        "field": "linear-x",
-        "value": 1
-      },
-      "downButton": {
-        "field": "linear-x",
-        "value": 0
-      },
-      "leftButton": {
-        "field": "angular-z",
-        "value": 1
-      },
-      "rightButton": {
-        "field": "angular-z",
-        "value": -1
-      }
-    },
-    "Image!4fph4p5": {
+    "Image!3hjvm1k": {
       "cameraState": {
         "distance": 20,
         "perspective": true,
@@ -255,9 +243,7 @@
         "poseEstimateYDeviation": 0.5,
         "poseEstimateThetaDeviation": 0.26179939
       },
-      "imageMode": {
-        "imageTopic": "/camera"
-      }
+      "imageMode": {}
     }
   },
   "globalVariables": {},
@@ -267,12 +253,8 @@
   },
   "layout": {
     "first": "3D!185ho2t",
-    "second": {
-      "first": "Teleop!1rfn0xj",
-      "second": "Image!4fph4p5",
-      "direction": "column"
-    },
+    "second": "Image!3hjvm1k",
     "direction": "row",
-    "splitPercentage": 65.85648148148148
+    "splitPercentage": 80.77009374969514
   }
 }
