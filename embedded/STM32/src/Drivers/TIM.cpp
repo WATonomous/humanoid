@@ -1,5 +1,5 @@
 #include <SimpleFOC.h>
-#include "Tim.h"
+#include "TIM.h"  // Fix capitalization to match actual filename
 TIM_HandleTypeDef htim4;
 
 
