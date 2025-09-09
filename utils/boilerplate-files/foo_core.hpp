@@ -11,7 +11,6 @@ public:
   FooCore();
 
 private:
-  
 };
 
 #endif
