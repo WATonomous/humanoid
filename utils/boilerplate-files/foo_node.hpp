@@ -13,7 +13,6 @@ public:
   FooNode();
 
 private:
-  
 };
 
 #endif
