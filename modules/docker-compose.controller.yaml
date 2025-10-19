@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  voxel_grid:
+    build: &voxel_grid_build
+      context: ..
+      dockerfile: docker/controller/voxel_grid/voxel_grid.Dockerfile
+      cache_from:
+        - "${CONTROLLER_VOXEL_IMAGE:?}:${TAG}"
+        - "${CONTROLLER_VOXEL_IMAGE:?}:main"
+      args:
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
+    image: "${CONTROLLER_VOXEL_IMAGE:?}:${TAG}"
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    profiles: [deploy]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    volumes:
+      - ${MONO_DIR}/autonomy/controller/voxel_grid:/root/ament_ws/src/voxel_grid
+    command: tail -F anything
+
+  voxel_grid_dev:
+    build: *voxel_grid_build
+    image: "${CONTROLLER_VOXEL_IMAGE:?}:dev_${TAG}"
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    profiles: [develop]
+    volumes:
+      - ${MONO_DIR}/autonomy/controller/voxel_grid:/root/ament_ws/src/voxel_grid
+    command: tail -F anything
