@@ -1,5 +1,9 @@
 FROM nvcr.io/nvidia/cuda:12.2.2-devel-ubuntu22.04
 
+WORKDIR ${AMENT_WS}/src
+
+COPY autonomy/controller/voxel_grid voxel_grid
+
 # Avoid interactive package prompts
 ENV DEBIAN_FRONTEND=noninteractive \
     TZ=Etc/UTC \
@@ -37,8 +41,6 @@ RUN if [ "$INSTALL_ROS2" = "true" ]; then \
 
 RUN python3 -m pip install --upgrade pip
 
-WORKDIR /workspace
-
 RUN python3 -m pip install --no-cache-dir \
       pccm>=0.4.16 \
       ccimport>=0.4.4 \
@@ -49,4 +51,4 @@ RUN python3 -m pip install --no-cache-dir \
 # Install prebuilt spconv-cu120 (compatible with CUDA 12.2 due to minor version compatibility)
 RUN python3 -m pip install --no-cache-dir spconv-cu120
 
-CMD ["/bin/bash"] 
+ENTRYPOINT ["./wato_ros_entrypoint.sh"]
