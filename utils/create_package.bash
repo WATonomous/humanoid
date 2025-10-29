@@ -87,7 +87,7 @@ if [[ "$build_python" != "true" ]]; then # cpp package
 
     docker compose --profile deploy \
     -f $MODULES_DIR/docker-compose.$module_name.yaml \
-    exec controller bash -c "
+    exec samples bash -c "
     source /opt/watonomous/setup.bash
     cd ~/ament_ws/src/$module_name
     ros2 pkg create $package_name --build-type ament_cmake --dependencies rclcpp
