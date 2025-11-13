@@ -2,7 +2,7 @@ import os
 from glob import glob
 from setuptools import setup
 
-package_name = 'transformer'
+package_name = 'pose_estimation'
 
 setup(
     name=package_name,
@@ -13,22 +13,22 @@ setup(
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         # Include our package.xml file
         (os.path.join('share', package_name), ['package.xml']),
-        # Include all launch files.
-        (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch',
-                                                                          '*.launch.py'))),
+        # Include all launch files
+        (os.path.join('share', package_name, 'launch'),
+         glob(os.path.join('launch', '*.launch.py'))),
         # Include config files for parameters
         (os.path.join('share', package_name, 'config'), glob(os.path.join('config', '*.yaml'))),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='eddyzhou, aryanafrouzi',
-    maintainer_email='e23zhou@watonomous.ca, aafrouzi@watonomous.ca',
-    description='Sample transformer node for data processing',
+    maintainer='parasmaiconjeevaram, miekalesmith',
+    maintainer_email='pconjeevaram@watonomous.ca',
+    description='Pose estimation module for humanoid robot perception',
     license='Apache2.0',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'transformer_node = transformer.transformer_node:main'
+            'pose_estimation_node = pose_estimation.pose_estimation_node:main'
         ],
     },
 )
