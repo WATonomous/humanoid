@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  simulation:
+    build: &simulation_build
+      context: ..
+      dockerfile: docker/simulation/isaac_sim/isaac_sim.Dockerfile
+      cache_from:
+        - "${SIMULATION_IMAGE:?}:${TAG}"
+        - "${SIMULATION_IMAGE:?}:main"
+      args:
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
+    image: "${SIMULATION_IMAGE:?}:${TAG}"
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=/tmp/.docker.xauth
+    profiles: [deploy]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
+      - ${MONO_DIR}/autonomy/simulation:/root/ament_ws/src/simulation
+    network_mode: host
+    stdin_open: true
+    tty: true
+    command: tail -F anything
+
+  simulation_dev:
+    build: *simulation_build
+    image: "${SIMULATION_IMAGE:?}:dev_${TAG}"
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=/tmp/.docker.xauth
+    profiles: [develop]
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
+      - ${MONO_DIR}/autonomy/simulation:/root/ament_ws/src/simulation
+    network_mode: host
+    stdin_open: true
+    tty: true
+    command: tail -F anything

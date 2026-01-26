@@ -14,42 +14,50 @@ class VoxelGridNode(Node):
     def __init__(self):
         super().__init__('voxel_grid_node')
         
+        # Subscribe to processed perception data
         self.rgb_sub = self.create_subscription(
-            Image, '/camera/color/image_raw', self.rgb_callback, 10)
+            Image, '/perception/rgb_processed', self.rgb_callback, 10)
         self.depth_sub = self.create_subscription(
-            Image, '/camera/depth/image_raw', self.depth_callback, 10)
+            Image, '/perception/depth_processed', self.depth_callback, 10)
         self.info_sub = self.create_subscription(
-            CameraInfo, '/camera/depth/camera_info', self.info_callback, 10)
+            CameraInfo, '/perception/camera_info', self.info_callback, 10)
 
-        self.voxel_pub = self.create_publisher(PointCloud2, '/voxel_grid', 10)
+        self.voxel_pub = self.create_publisher(PointCloud2, '/behaviour/voxel_grid', 10)
         
         self.rgb_image = None
         self.depth_image = None
         self.bridge = CvBridge()
         
-        # Camera intrinsics (overwritten for your camera)
+        # Camera intrinsics (will be updated from camera info)
         self.fx, self.fy, self.cx, self.cy = 525.0, 525.0, 320.0, 240.0
         
         self.voxel_size = 0.04  
         self.max_range = 3.5    
         
-        self.get_logger().info('Voxel Grid Node started')
+        self.get_logger().info('Voxel Grid Node started - subscribing to processed perception data')
 
     def info_callback(self, msg):
+        """Update camera intrinsics from perception node."""
         self.fx = msg.k[0]
         self.fy = msg.k[4]
         self.cx = msg.k[2]
         self.cy = msg.k[5]
+        self.get_logger().info(f'Updated camera intrinsics: fx={self.fx}, fy={self.fy}')
 
     def rgb_callback(self, msg):
+        """Receive processed RGB image from perception node."""
         self.rgb_image = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
         self.process_rgbd_if_ready()
+        self.get_logger().info('Received processed RGB image from perception')
 
     def depth_callback(self, msg):
+        """Receive processed depth image from perception node."""
         self.depth_image = self.bridge.imgmsg_to_cv2(msg, 'passthrough')
         self.process_rgbd_if_ready()
+        self.get_logger().info('Received processed depth image from perception')
 
     def process_rgbd_if_ready(self):
+        """Process RGBD data when both images are available."""
         if self.rgb_image is None or self.depth_image is None:
             return
             
@@ -62,14 +70,17 @@ class VoxelGridNode(Node):
             
             # Publish voxel grid as point cloud
             self.publish_voxel_grid(voxel_centers)
+        else:
+            self.get_logger().warn('No valid points found for voxel grid creation')
 
     def rgbd_to_pointcloud(self, rgb, depth):
+        """Convert RGBD images to 3D point cloud."""
         points = []
         h, w = depth.shape
         
-        for v in range(0, h, 4):  # Skipping every 4 pixels to downsample
+        for v in range(0, h, 4):  # Downsample every 4 pixels
             for u in range(0, w, 4):
-                z = depth[v, u] / 1000.0 
+                z = depth[v, u] / 1000.0  # Convert mm to meters
                 
                 if z > 0.1 and z < self.max_range:  
                     x = (u - self.cx) * z / self.fx
@@ -79,6 +90,7 @@ class VoxelGridNode(Node):
         return np.array(points, dtype=np.float32)
 
     def create_voxel_grid(self, points):
+        """Create voxel grid from point cloud."""
         points_scaled = points / self.voxel_size
         
         min_coords = points_scaled.min(axis=0)
@@ -108,6 +120,7 @@ class VoxelGridNode(Node):
         return voxel_centers
 
     def publish_voxel_grid(self, voxel_centers):
+        """Publish voxel grid as point cloud."""
         header = Header()
         header.stamp = self.get_clock().now().to_msg()
         header.frame_id = 'camera_link'
@@ -120,6 +133,7 @@ class VoxelGridNode(Node):
         
         pc_msg = pc2.create_cloud(header, fields, voxel_centers)
         self.voxel_pub.publish(pc_msg)
+        self.get_logger().info('Published voxel grid to /behaviour/voxel_grid')
 
 def main(args=None):
     rclpy.init(args=args)
