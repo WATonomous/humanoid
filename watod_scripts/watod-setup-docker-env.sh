@@ -35,6 +35,7 @@ TAG=${TAG/\//-}
 ##	 - perception			:	starts perception nodes
 ##	 - controller		    :	starts controller nodes
 ##	 - simulation			:	starts simulation
+##	 - behaviour			:	starts behaviour nodes
 ##   - samples             	:   starts sample ROS2 pubsub nodes
 ACTIVE_MODULES=${ACTIVE_MODULES:-""}
 
@@ -55,7 +56,7 @@ SAMPLES_TRANSFORMER_IMAGE=${SAMPLES_TRANSFORMER_IMAGE:-"$REGISTRY_URL/samples/sa
 # Images
 INFRASTRUCTURE_FOXGLOVE_IMAGE=${INFRASTRUCTURE_FOXGLOVE_IMAGE:-"$REGISTRY_URL/infrastructure/foxglove"}
 
-CONTROLLER_VOXEL_IMAGE=${CONTROLLER_VOXEL_IMAGE:-"$REGISTRY_URL/controller/voxel_grid"}
+BEHAVIOUR_VOXEL_IMAGE=${BEHAVIOUR_VOXEL_IMAGE:-"$REGISTRY_URL/behaviour/voxel_grid"}
 
 ## --------------------------- Ports ------------------------------
 
@@ -90,4 +91,4 @@ echo "SAMPLES_TRANSFORMER_IMAGE=$SAMPLES_TRANSFORMER_IMAGE" >> "$MODULES_DIR/.en
 # Images
 echo "INFRASTRUCTURE_FOXGLOVE_IMAGE=$INFRASTRUCTURE_FOXGLOVE_IMAGE" >> "$MODULES_DIR/.env"
 
-echo "CONTROLLER_VOXEL_IMAGE=$CONTROLLER_VOXEL_IMAGE" >> "$MODULES_DIR/.env"
+echo "BEHAVIOUR_VOXEL_IMAGE=$BEHAVIOUR_VOXEL_IMAGE" >> "$MODULES_DIR/.env"

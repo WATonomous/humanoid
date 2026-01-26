@@ -15,9 +15,10 @@
 ##	 - perception			:	starts perception nodes
 ##	 - controller		    :	starts controller nodes
 ##	 - simulation			:	starts simulation
+##   - behaviour            :   starts behaviour nodes       
 ##   - samples             	:   starts sample ROS2 pubsub nodes
 
-ACTIVE_MODULES=""
+# ACTIVE_MODULES=""
 
 ################################# MODE OF OPERATION #################################
 ## Possible modes of operation when running watod.
