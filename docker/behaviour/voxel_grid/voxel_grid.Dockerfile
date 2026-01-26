@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=nvcr.io/nvidia/cuda:12.2.2-devel-ubuntu22.04
+ARG BASE_IMAGE=ghcr.io/watonomous/robot_base/base:humble
 
 ################################ Source ################################
 FROM ${BASE_IMAGE} AS source
@@ -7,16 +7,20 @@ ARG AMENT_WS=/home/wato/wato_ws
 WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
-COPY autonomy/controller/voxel_grid voxel_grid
+COPY autonomy/behaviour/voxel_grid voxel_grid
 COPY autonomy/wato_msgs/common_msgs wato_msgs/common_msgs
 
 # Scan for rosdeps
+# RUN apt-get -qq update
+# RUN rosdep update
+# RUN rosdep install --from-paths . --ignore-src -r -s \
+#         | grep 'apt-get install' \
+#         | awk '{print $3}' \
+#         | sort  > /tmp/colcon_install_list
+
 RUN apt-get -qq update
 RUN rosdep update
-RUN rosdep install --from-paths . --ignore-src -r -s \
-        | grep 'apt-get install' \
-        | awk '{print $3}' \
-        | sort  > /tmp/colcon_install_list
+RUN echo "" > /tmp/colcon_install_list
 
 ################################# Dependencies ################################
 FROM ${BASE_IMAGE} AS dependencies
@@ -60,7 +64,8 @@ RUN python3 -m pip install --no-cache-dir \
       ccimport>=0.4.4 \
       pybind11>=2.6.0 \
       numpy \
-      fire
+      fire \
+      cv_bridge
 
 # Install prebuilt spconv-cu120 (compatible with CUDA 12.2 due to minor version compatibility)
 RUN python3 -m pip install --no-cache-dir spconv-cu120
