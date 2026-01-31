@@ -2,7 +2,7 @@ import os
 from glob import glob
 from setuptools import setup
 
-package_name = 'perception'
+package_name = 'octo_map'
 
 setup(
     name=package_name,
@@ -24,13 +24,12 @@ setup(
     zip_safe=True,
     maintainer='watonomous',
     maintainer_email='watonomous@uwaterloo.ca',
-    description='Perception pipeline for humanoid robot',
+    description='OctoMap generation for 3D mapping',
     license='Apache-2.0',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'perception_node = perception.perception_node:main',
-            'dummy_publisher_node = perception.dummy_publisher_node:main'
+            'octo_map_node = octo_map.octo_map_node:main'
         ],
     },
 )

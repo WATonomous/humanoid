@@ -54,6 +54,7 @@ RUN apt-get update && \
       curl \
       ca-certificates \
       gnupg2 \
+      libgl1-mesa-glx \
       lsb-release && \
     rm -rf /var/lib/apt/lists/*
 
@@ -65,7 +66,8 @@ RUN python3 -m pip install --no-cache-dir \
       pybind11>=2.6.0 \
       numpy \
       fire \
-      cv_bridge
+      cv_bridge \
+      opencv-python
 
 # Install prebuilt spconv-cu120 (compatible with CUDA 12.2 due to minor version compatibility)
 RUN python3 -m pip install --no-cache-dir spconv-cu120

@@ -7,7 +7,7 @@ ARG AMENT_WS=/home/wato/wato_ws
 WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
-COPY autonomy/behaviour/voxel_grid voxel_grid
+COPY autonomy/behaviour/octo_map octo_map
 COPY autonomy/wato_msgs/common_msgs wato_msgs/common_msgs
 
 # Scan for rosdeps
@@ -27,7 +27,7 @@ FROM ${BASE_IMAGE} AS dependencies
 
 # Install Rosdep requirements
 COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
-RUN apt-get install -qq -y --no-install-recommends $(cat /tmp/colcon_install_list)
+RUN apt-fast install -qq -y --no-install-recommends $(cat /tmp/colcon_install_list)
 
 # Dependency Cleanup
 WORKDIR /
@@ -65,7 +65,8 @@ RUN python3 -m pip install --no-cache-dir \
       pybind11>=2.6.0 \
       numpy \
       fire \
-      torch 
+      cv_bridge \
+      opencv-python
 
 # Install prebuilt spconv-cu120 (compatible with CUDA 12.2 due to minor version compatibility)
 RUN python3 -m pip install --no-cache-dir spconv-cu120
