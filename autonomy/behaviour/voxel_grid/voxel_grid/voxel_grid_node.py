@@ -1,144 +1,228 @@
+#!/usr/bin/env python3
+
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
+
 import numpy as np
 import torch
 from spconv.pytorch.utils import PointToVoxel
-import cv2
-from cv_bridge import CvBridge
 
 from sensor_msgs.msg import Image, PointCloud2, PointField, CameraInfo
 from std_msgs.msg import Header
 import sensor_msgs_py.point_cloud2 as pc2
 
+
 class VoxelGridNode(Node):
+    """
+    World-modelling voxel grid node.
+
+    - NO OpenCV, NO cv_bridge (works in headless containers).
+    - Expects depth in millimeters (uint16) or meters (float32/float16).
+    - Publishes voxel centers as PointCloud2.
+    """
+
     def __init__(self):
         super().__init__('voxel_grid_node')
-        
-        # Subscribe to processed perception data
-        self.rgb_sub = self.create_subscription(
-            Image, '/perception/rgb_processed', self.rgb_callback, 10)
-        self.depth_sub = self.create_subscription(
-            Image, '/perception/depth_processed', self.depth_callback, 10)
-        self.info_sub = self.create_subscription(
-            CameraInfo, '/perception/camera_info', self.info_callback, 10)
 
-        self.voxel_pub = self.create_publisher(PointCloud2, '/behaviour/voxel_grid', 10)
-        
+        # Subscriptions (sensor QoS is best for camera streams)
+        self.rgb_sub = self.create_subscription(
+            Image, '/perception/rgb_processed', self.rgb_callback, qos_profile_sensor_data
+        )
+        self.depth_sub = self.create_subscription(
+            Image, '/perception/depth_processed', self.depth_callback, qos_profile_sensor_data
+        )
+        self.info_sub = self.create_subscription(
+            CameraInfo, '/perception/camera_info', self.info_callback, qos_profile_sensor_data
+        )
+
+        self.voxel_pub = self.create_publisher(
+            PointCloud2, '/behaviour/voxel_grid', qos_profile_sensor_data
+        )
+
         self.rgb_image = None
         self.depth_image = None
-        self.bridge = CvBridge()
-        
-        # Camera intrinsics (will be updated from camera info)
+
+        # Intrinsics updated by CameraInfo
         self.fx, self.fy, self.cx, self.cy = 525.0, 525.0, 320.0, 240.0
-        
-        self.voxel_size = 0.04  
-        self.max_range = 3.5    
-        
-        self.get_logger().info('Voxel Grid Node started - subscribing to processed perception data')
+        self.have_intrinsics = False
 
-    def info_callback(self, msg):
-        """Update camera intrinsics from perception node."""
-        self.fx = msg.k[0]
-        self.fy = msg.k[4]
-        self.cx = msg.k[2]
-        self.cy = msg.k[5]
-        self.get_logger().info(f'Updated camera intrinsics: fx={self.fx}, fy={self.fy}')
+        # World modelling params
+        self.voxel_size = 0.04   # meters
+        self.max_range = 3.5     # meters
+        self.min_range = 0.1     # meters
+        self.stride = 4          # pixel downsample
 
-    def rgb_callback(self, msg):
-        """Receive processed RGB image from perception node."""
-        self.rgb_image = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
+        self.get_logger().info('Voxel Grid Node started (world modelling, headless)')
+
+    # ---------- message decoding helpers ----------
+    @staticmethod
+    def _decode_rgb_bgr8(msg: Image) -> np.ndarray:
+        # bgr8 => uint8 HxWx3 (assumes contiguous, step==width*3)
+        arr = np.frombuffer(msg.data, dtype=np.uint8)
+        return arr.reshape(msg.height, msg.width, 3)
+
+    @staticmethod
+    def _decode_depth(msg: Image) -> np.ndarray:
+        """
+        Returns depth in meters as float32 HxW.
+        Supports:
+          - mono16 / 16UC1: uint16 in millimeters
+          - 32FC1: float32 in meters
+          - 16FC1: float16 in meters
+        """
+        enc = (msg.encoding or '').lower()
+
+        if enc in ('mono16', '16uc1'):
+            d = np.frombuffer(msg.data, dtype=np.uint16).reshape(msg.height, msg.width)
+            return (d.astype(np.float32) / 1000.0)  # mm -> m
+
+        if enc == '32fc1':
+            d = np.frombuffer(msg.data, dtype=np.float32).reshape(msg.height, msg.width)
+            return d
+
+        if enc == '16fc1':
+            d = np.frombuffer(msg.data, dtype=np.float16).reshape(msg.height, msg.width)
+            return d.astype(np.float32)
+
+        # Fallback attempt: treat as uint16 mm (common)
+        d = np.frombuffer(msg.data, dtype=np.uint16).reshape(msg.height, msg.width)
+        return (d.astype(np.float32) / 1000.0)
+
+    # ---------- callbacks ----------
+    def info_callback(self, msg: CameraInfo):
+        self.fx = float(msg.k[0])
+        self.fy = float(msg.k[4])
+        self.cx = float(msg.k[2])
+        self.cy = float(msg.k[5])
+        self.have_intrinsics = True
+        # log once-ish
+        self.get_logger().info(f'Intrinsics updated: fx={self.fx:.2f}, fy={self.fy:.2f}, cx={self.cx:.2f}, cy={self.cy:.2f}')
+
+    def rgb_callback(self, msg: Image):
+        # Only keep if you need it later; voxelization uses depth only.
+        # If your perception node may send rgb8 instead of bgr8, adjust here.
+        if (msg.encoding or '').lower() != 'bgr8':
+            # Try to decode anyway as bgr8 (most pipelines are bgr8). You can change this if needed.
+            pass
+        self.rgb_image = self._decode_rgb_bgr8(msg)
         self.process_rgbd_if_ready()
-        self.get_logger().info('Received processed RGB image from perception')
 
-    def depth_callback(self, msg):
-        """Receive processed depth image from perception node."""
-        self.depth_image = self.bridge.imgmsg_to_cv2(msg, 'passthrough')
+    def depth_callback(self, msg: Image):
+        self.depth_image = self._decode_depth(msg)
         self.process_rgbd_if_ready()
-        self.get_logger().info('Received processed depth image from perception')
 
     def process_rgbd_if_ready(self):
-        """Process RGBD data when both images are available."""
-        if self.rgb_image is None or self.depth_image is None:
+        # For voxel grid, depth + intrinsics are sufficient.
+        if self.depth_image is None or not self.have_intrinsics:
             return
-            
-        # Convert RGBD to point cloud
-        points = self.rgbd_to_pointcloud(self.rgb_image, self.depth_image)
-        
-        if len(points) > 0:
-            # Create voxel grid
-            voxel_centers = self.create_voxel_grid(points)
-            
-            # Publish voxel grid as point cloud
-            self.publish_voxel_grid(voxel_centers)
-        else:
-            self.get_logger().warn('No valid points found for voxel grid creation')
 
-    def rgbd_to_pointcloud(self, rgb, depth):
-        """Convert RGBD images to 3D point cloud."""
-        points = []
-        h, w = depth.shape
-        
-        for v in range(0, h, 4):  # Downsample every 4 pixels
-            for u in range(0, w, 4):
-                z = depth[v, u] / 1000.0  # Convert mm to meters
-                
-                if z > 0.1 and z < self.max_range:  
-                    x = (u - self.cx) * z / self.fx
-                    y = (v - self.cy) * z / self.fy
-                    points.append([x, y, z])
-        
-        return np.array(points, dtype=np.float32)
+        points = self.depth_to_pointcloud(self.depth_image)
 
-    def create_voxel_grid(self, points):
-        """Create voxel grid from point cloud."""
-        points_scaled = points / self.voxel_size
-        
-        min_coords = points_scaled.min(axis=0)
-        max_coords = points_scaled.max(axis=0)
-        padding = 2.0
-        
-        coors_range = [
-            min_coords[0] - padding, min_coords[1] - padding, min_coords[2] - padding,
-            max_coords[0] + padding, max_coords[1] + padding, max_coords[2] + padding
-        ]
-        
+        if points.shape[0] == 0:
+            self.get_logger().warn('No valid points for voxelization')
+            return
+
+        voxel_centers = self.create_voxel_grid(points)
+        if voxel_centers.shape[0] == 0:
+            self.get_logger().warn('Voxelization returned 0 voxels')
+            return
+
+        self.publish_voxel_grid(voxel_centers)
+
+        # Clear frames so we don’t reprocess the same pair repeatedly if only one stream updates
+        self.depth_image = None
+        self.rgb_image = None
+
+    # ---------- core logic ----------
+    def depth_to_pointcloud(self, depth_m: np.ndarray) -> np.ndarray:
+        """
+        Depth image (meters) -> Nx3 point cloud in camera frame.
+        Uses stride downsampling and range filtering.
+        """
+        h, w = depth_m.shape
+
+        v = np.arange(0, h, self.stride, dtype=np.int32)
+        u = np.arange(0, w, self.stride, dtype=np.int32)
+        uu, vv = np.meshgrid(u, v)  # shapes: (len(v), len(u))
+
+        z = depth_m[vv, uu]
+        valid = (z > self.min_range) & (z < self.max_range) & np.isfinite(z)
+
+        if not np.any(valid):
+            return np.zeros((0, 3), dtype=np.float32)
+
+        uu = uu[valid].astype(np.float32)
+        vv = vv[valid].astype(np.float32)
+        z = z[valid].astype(np.float32)
+
+        x = (uu - self.cx) * z / self.fx
+        y = (vv - self.cy) * z / self.fy
+
+        pts = np.stack([x, y, z], axis=1).astype(np.float32)
+        return pts
+
+    def create_voxel_grid(self, points: np.ndarray) -> np.ndarray:
+        """
+        Uses spconv PointToVoxel to voxelize points, then returns voxel center coordinates (meters).
+        """
+        # Define a fixed-ish range in meters to keep indices stable (optional but recommended)
+        # Here we set it from observed points with a little padding.
+        mins = points.min(axis=0)
+        maxs = points.max(axis=0)
+        padding = 0.5  # meters
+
+        coors_range_m = np.array([
+            mins[0] - padding, mins[1] - padding, mins[2] - padding,
+            maxs[0] + padding, maxs[1] + padding, maxs[2] + padding
+        ], dtype=np.float32)
+
         voxel_gen = PointToVoxel(
-            vsize_xyz=[1.0, 1.0, 1.0], 
-            coors_range_xyz=coors_range,
+            vsize_xyz=[self.voxel_size, self.voxel_size, self.voxel_size],
+            coors_range_xyz=coors_range_m.tolist(),
             num_point_features=3,
             max_num_voxels=10000,
             max_num_points_per_voxel=20
         )
-        
-        pc_tensor = torch.from_numpy(points_scaled)
-        voxels, indices, num_points_per_voxel = voxel_gen(pc_tensor)
-        
-        voxel_centers = indices.numpy() * self.voxel_size + np.array(coors_range[:3]) * self.voxel_size + self.voxel_size/2
-        
-        self.get_logger().info(f'Created {len(voxels)} voxels from {len(points)} points')
-        
-        return voxel_centers
 
-    def publish_voxel_grid(self, voxel_centers):
-        """Publish voxel grid as point cloud."""
+        pc_tensor = torch.from_numpy(points)  # float32
+        voxels, indices, num_points = voxel_gen(pc_tensor)  # indices: [M, 3] (z,y,x) or (x,y,z) depending on impl
+
+        if indices.numel() == 0:
+            return np.zeros((0, 3), dtype=np.float32)
+
+        # spconv PointToVoxel indices are typically in (z, y, x) order.
+        # We’ll convert to xyz centers robustly by mapping:
+        idx = indices.cpu().numpy().astype(np.float32)
+
+        # Heuristic: treat idx as (z,y,x) then reorder to (x,y,z)
+        # If your output looks swapped, flip this reorder.
+        idx_xyz = idx[:, ::-1]  # (z,y,x) -> (x,y,z)
+
+        origin = coors_range_m[:3]  # meters
+        centers = origin + (idx_xyz + 0.5) * self.voxel_size  # meters
+
+        self.get_logger().info(f'Voxels: {centers.shape[0]} from points: {points.shape[0]}')
+        return centers.astype(np.float32)
+
+    def publish_voxel_grid(self, voxel_centers: np.ndarray):
         header = Header()
         header.stamp = self.get_clock().now().to_msg()
-        header.frame_id = 'camera_link'
-        
+        header.frame_id = 'camera_link'  # change if your TF uses a different camera frame
+
         fields = [
             PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
             PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
             PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1),
         ]
-        
-        pc_msg = pc2.create_cloud(header, fields, voxel_centers)
+
+        pc_msg = pc2.create_cloud(header, fields, voxel_centers.tolist())
         self.voxel_pub.publish(pc_msg)
-        self.get_logger().info('Published voxel grid to /behaviour/voxel_grid')
+
 
 def main(args=None):
     rclpy.init(args=args)
     node = VoxelGridNode()
-    
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
@@ -146,6 +230,7 @@ def main(args=None):
     finally:
         node.destroy_node()
         rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()
