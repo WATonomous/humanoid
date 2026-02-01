@@ -27,13 +27,13 @@ class VoxelGridNode(Node):
 
         # Subscriptions (sensor QoS is best for camera streams)
         self.rgb_sub = self.create_subscription(
-            Image, '/perception/rgb_processed', self.rgb_callback, qos_profile_sensor_data
+            Image, '/camera/color/image_raw', self.rgb_callback, qos_profile_sensor_data
         )
         self.depth_sub = self.create_subscription(
-            Image, '/perception/depth_processed', self.depth_callback, qos_profile_sensor_data
+            Image, '/camera/depth/image_raw', self.depth_callback, qos_profile_sensor_data
         )
         self.info_sub = self.create_subscription(
-            CameraInfo, '/perception/camera_info', self.info_callback, qos_profile_sensor_data
+            CameraInfo, '/camera/depth/camera_info', self.info_callback, qos_profile_sensor_data
         )
 
         self.voxel_pub = self.create_publisher(
