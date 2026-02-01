@@ -3,7 +3,7 @@ ARG BASE_IMAGE=ghcr.io/watonomous/robot_base/base:humble
 ################################ Source ################################
 FROM ${BASE_IMAGE} AS source
 
-ARG AMENT_WS=/home/wato/wato_ws
+ARG AMENT_WS=/root/ament_ws
 WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
@@ -15,7 +15,7 @@ COPY autonomy/wato_msgs/common_msgs wato_msgs/common_msgs
 # RUN rosdep update
 # RUN rosdep install --from-paths . --ignore-src -r -s \
 #         | grep 'apt-get install' \
-#         | awk '{print $3}' \
+#         | awk '{print $3}' \Is 
 #         | sort  > /tmp/colcon_install_list
 
 RUN apt-get -qq update
@@ -77,6 +77,7 @@ RUN apt-get -qq autoremove -y && apt-get -qq autoclean && apt-get -qq clean && \
 
 ################################ Build ################################
 FROM dependencies AS build
+ARG AMENT_WS=/root/ament_ws
 
 # Build ROS2 packages
 WORKDIR ${AMENT_WS}
