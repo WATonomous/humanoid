@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
@@ -17,7 +15,6 @@ class DummyPublisherNode(Node):
 
         self.bridge = CvBridge()
 
-        # Publishers (sensor QoS is IMPORTANT)
         self.rgb_pub = self.create_publisher(
             Image,
             '/camera/color/image_raw',
@@ -59,7 +56,7 @@ class DummyPublisherNode(Node):
 
         depth_image = np.full(
             (480, 640), 1500, dtype=np.uint16
-        )  # flat plane at 1.5m
+        )  
 
         depth_msg = self.bridge.cv2_to_imgmsg(
             depth_image, encoding='mono16'
