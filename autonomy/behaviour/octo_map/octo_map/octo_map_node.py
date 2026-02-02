@@ -56,85 +56,9 @@ class OctoMapNode(Node):
         self.process_rgbd_if_ready()
         self.get_logger().info('Received processed depth image from perception')
 
-    def process_rgbd_if_ready(self):
-        """Process RGBD data when both images are available."""
-        if self.rgb_image is None or self.depth_image is None:
-            return
-            
-        # Convert RGBD to point cloud
-        points = self.rgbd_to_pointcloud(self.rgb_image, self.depth_image)
-        
-        if len(points) > 0:
-            # Create octo map
-            octo_centers = self.create_octo_map(points)
-            
-            # Publish octo map as point cloud
-            self.publish_octo_map(octo_centers)
-        else:
-            self.get_logger().warn('No valid points found for octo map creation')
+    # TODO: Implement point cloud generation and octomap updating
 
-    def rgbd_to_pointcloud(self, rgb, depth):
-        """Convert RGBD images to 3D point cloud."""
-        points = []
-        h, w = depth.shape
-        
-        for v in range(0, h, 4):  # Downsample every 4 pixels
-            for u in range(0, w, 4):
-                z = depth[v, u] / 1000.0  # Convert mm to meters
-                
-                if z > 0.1 and z < self.max_range:  
-                    x = (u - self.cx) * z / self.fx
-                    y = (v - self.cy) * z / self.fy
-                    points.append([x, y, z])
-        
-        return np.array(points, dtype=np.float32)
-
-    def create_octo_map(self, points):
-        """Create octo map from point cloud."""
-        points_scaled = points / self.voxel_size
-        
-        min_coords = points_scaled.min(axis=0)
-        max_coords = points_scaled.max(axis=0)
-        padding = 2.0
-        
-        coors_range = [
-            min_coords[0] - padding, min_coords[1] - padding, min_coords[2] - padding,
-            max_coords[0] + padding, max_coords[1] + padding, max_coords[2] + padding
-        ]
-        
-        voxel_gen = PointToVoxel(
-            vsize_xyz=[1.0, 1.0, 1.0], 
-            coors_range_xyz=coors_range,
-            num_point_features=3,
-            max_num_voxels=10000,
-            max_num_points_per_voxel=20
-        )
-        
-        pc_tensor = torch.from_numpy(points_scaled)
-        voxels, indices, num_points_per_voxel = voxel_gen(pc_tensor)
-        
-        octo_centers = indices.numpy() * self.voxel_size + np.array(coors_range[:3]) * self.voxel_size + self.voxel_size/2
-        
-        self.get_logger().info(f'Created {len(voxels)} octo voxels from {len(points)} points')
-        
-        return octo_centers
-
-    def publish_octo_map(self, octo_centers):
-        """Publish octo map as point cloud."""
-        header = Header()
-        header.stamp = self.get_clock().now().to_msg()
-        header.frame_id = 'camera_link'
-        
-        fields = [
-            PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
-            PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
-            PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1),
-        ]
-        
-        pc_msg = pc2.create_cloud(header, fields, octo_centers)
-        self.octo_pub.publish(pc_msg)
-        self.get_logger().info('Published octo map to /behaviour/octo_map')
-
+    
 def main(args=None):
     rclpy.init(args=args)
     node = OctoMapNode()

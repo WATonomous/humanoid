@@ -29,7 +29,6 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'perception_node = perception.perception_node:main',
             'dummy_publisher_node = perception.dummy_publisher_node:main'
         ],
     },

@@ -9,11 +9,16 @@ WORKDIR ${AMENT_WS}/src
 COPY autonomy/wato_msgs wato_msgs
 
 # Scan for rosdeps
-RUN apt-get -qq update && rosdep update && \
-    rosdep install --from-paths . --ignore-src -r -s \
-        | grep 'apt-get install' \
-        | awk '{print $3}' \
-        | sort  > /tmp/colcon_install_list
+# RUN apt-get -qq update
+# RUN rosdep update
+# RUN rosdep install --from-paths . --ignore-src -r -s \
+#         | grep 'apt-get install' \
+#         | awk '{print $3}' \Is 
+#         | sort  > /tmp/colcon_install_list
+
+RUN apt-get -qq update
+RUN rosdep update
+RUN echo "" > /tmp/colcon_install_list
 
 ################################# Dependencies ################################
 FROM ${BASE_IMAGE} AS dependencies

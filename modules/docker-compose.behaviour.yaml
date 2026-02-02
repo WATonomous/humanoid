@@ -1,10 +1,5 @@
 version: "3.8"
 
-networks:
-  ros_network:
-    driver: bridge
-    external: true
-
 services:
   voxel_grid:
     build: &voxel_grid_build
@@ -20,10 +15,6 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-      - ROS_DOMAIN_ID=42
-      - ROS_DISCOVERY_SERVER=
-    networks:
-      - ros_network
     profiles: [deploy]
     deploy:
       resources:
@@ -42,10 +33,6 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-      - ROS_DOMAIN_ID=42
-      - ROS_DISCOVERY_SERVER=
-    networks:
-      - ros_network
     profiles: [develop]
     volumes:
       - ${MONO_DIR}/autonomy/behaviour/voxel_grid:/root/ament_ws/src/voxel_grid
@@ -65,10 +52,6 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-      - ROS_DOMAIN_ID=42
-      - ROS_DISCOVERY_SERVER=
-    networks:
-      - ros_network
     profiles: [deploy]
     deploy:
       resources:
@@ -94,10 +77,6 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-      - ROS_DOMAIN_ID=42
-      - ROS_DISCOVERY_SERVER=
-    networks:
-      - ros_network
     profiles: [develop]
     volumes:
       - ${MONO_DIR}/autonomy/behaviour/octo_map:/root/ament_ws/src/octo_map
