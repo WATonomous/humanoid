@@ -13,13 +13,15 @@ def launch_setup(context, *args, **kwargs):
     This function is called by OpaqueFunction to resolve launch arguments
     and create the Node action.
     """
-    # These values are resolved from the DeclareLaunchArgument definitions below
+    # These values are resolved from the DeclareLaunchArgument definitions
+    # below
     package_name = LaunchConfiguration('package_name').perform(context)
     executable_name = LaunchConfiguration('executable_name').perform(context)
     node_name = LaunchConfiguration('node_name').perform(context)
 
     # Construct the path to the parameter file within the current package
-    # This assumes your params.yaml is in a 'config' subdirectory within your package's share directory.
+    # This assumes your params.yaml is in a 'config' subdirectory within your
+    # package's share directory.
     param_file_path = os.path.join(
         get_package_share_directory(package_name),
         'config',
@@ -41,8 +43,10 @@ def launch_setup(context, *args, **kwargs):
         executable=executable_name,
         name=node_name,
         parameters=node_parameters,
-        output='screen',  # Optional: 'screen' or 'log'. 'screen' prints output to the console.
-        emulate_tty=True,  # Optional: Set to True for colored output in the console.
+        output='screen',
+        # Optional: 'screen' or 'log'. 'screen' prints output to the console.
+        emulate_tty=True,
+        # Optional: Set to True for colored output in the console.
     )
 
     return [node]
