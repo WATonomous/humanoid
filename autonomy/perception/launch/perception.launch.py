@@ -9,13 +9,13 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'log_level',
             default_value='info',
-            description='Log level for the perception node'
+            description='Log level for the dummy publisher node'
         ),
         
         Node(
             package='perception',
-            executable='perception_node',
-            name='perception_node',
+            executable='dummy_publisher_node',
+            name='dummy_publisher_node',
             output='screen',
             parameters=[
                 {'log_level': LaunchConfiguration('log_level')}

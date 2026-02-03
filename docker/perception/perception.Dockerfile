@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ghcr.io/watonomous/robot_base/base:humble
+ARG BASE_IMAGE=ghcr.io/watonomous/robot_base/base:humble-ubuntu22.04
 
 ################################ Source ################################
 FROM ${BASE_IMAGE} AS source
