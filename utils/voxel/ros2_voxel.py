@@ -6,7 +6,7 @@ from spconv.pytorch.utils import PointToVoxel
 import cv2
 from cv_bridge import CvBridge
 
-from sensor_msgs.msg import Image, PointCloud2, PointField
+from sensor_msgs.msg import Image, PointCloud2, PointField, CameraInfo
 from std_msgs.msg import Header
 import sensor_msgs_py.point_cloud2 as pc2
 
@@ -67,7 +67,7 @@ class VoxelGridNode(Node):
         points = []
         h, w = depth.shape
         
-        for v in range(0, h, 4):  #Skipping every 4 pixels to downsample, can change if nessary
+        for v in range(0, h, 4):  #Skipping every 4 pixels to downsample, can change if necessary
             for u in range(0, w, 4):
                 z = depth[v, u] / 1000.0 
                 
