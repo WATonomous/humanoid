@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ghcr.io/watonomous/robot_base/base:humble
+ARG BASE_IMAGE=ghcr.io/watonomous/robot_base/base:humble-ubuntu22.04
 
 ################################ Source ################################
 FROM ${BASE_IMAGE} AS source
@@ -15,7 +15,7 @@ COPY autonomy/wato_msgs/common_msgs wato_msgs/common_msgs
 # RUN rosdep update
 # RUN rosdep install --from-paths . --ignore-src -r -s \
 #         | grep 'apt-get install' \
-#         | awk '{print $3}' \Is 
+#         | awk '{print $3}' \ 
 #         | sort  > /tmp/colcon_install_list
 
 RUN apt-get -qq update

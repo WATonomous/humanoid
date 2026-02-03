@@ -101,7 +101,7 @@ class VoxelGridNode(Node):
 
     def process_rgbd_if_ready(self):
         # Check depth + intrinsics are for voxelization
-        if self.depth_image is None or self.have_intrinsics == False:
+        if self.depth_image is None or not self.have_intrinsics:
             return
 
         points = self.depth_to_pointcloud(self.depth_image)
