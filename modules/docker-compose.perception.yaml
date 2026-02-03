@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  perception:
+    build: &perception_build
+      context: ..
+      dockerfile: docker/perception/perception.Dockerfile
+      cache_from:
+        - "${PERCEPTION_IMAGE:?}:${TAG}"
+        - "${PERCEPTION_IMAGE:?}:main"
+      args:
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
+    image: "${PERCEPTION_IMAGE:?}:${TAG}"
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    profiles: [deploy]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    volumes:
+      - ${MONO_DIR}/autonomy/perception:/root/ament_ws/src/perception
+    command: tail -F anything
+
+  perception_dev:
+    build: *perception_build
+    image: "${PERCEPTION_IMAGE:?}:dev_${TAG}"
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    profiles: [develop]
+    volumes:
+      - ${MONO_DIR}/autonomy/perception:/root/ament_ws/src/perception
+    command: tail -F anything
