@@ -1,0 +1,26 @@
+# Perception configuration parameters
+perception_node:
+  ros__parameters:
+    # Camera parameters
+    camera:
+      image_topic: "/camera/image_raw"
+      depth_topic: "/camera/depth/image_raw"
+      camera_frame: "camera_link"
+      
+    # Image processing parameters
+    image_processing:
+      enable_edge_detection: true
+      canny_threshold_low: 100
+      canny_threshold_high: 200
+      
+    # Depth processing parameters
+    depth_processing:
+      max_range: 10.0  # meters
+      min_range: 0.1   # meters
+      
+    # Publishing parameters
+    publish_rate: 30.0  # Hz
+    
+    # Debug parameters
+    debug_mode: false
+    save_debug_images: false
