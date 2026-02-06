@@ -7,15 +7,11 @@
 
 """Launch Isaac Sim Simulator first."""
 
-import sys
-import argparse
-from isaaclab.app import AppLauncher
-import cli_args  # isort: skip
-import gymnasium as gym
-import os
-import torch
-from datetime import datetime
-from rsl_rl.runners import OnPolicyRunner
+from isaaclab_tasks.utils.hydra import hydra_task_config
+from isaaclab_tasks.utils import get_checkpoint_path
+from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper
+from isaaclab.utils.io import dump_pickle, dump_yaml
+from isaaclab.utils.dict import print_dict
 from isaaclab.envs import (
     DirectMARLEnv,
     DirectMARLEnvCfg,
@@ -23,11 +19,15 @@ from isaaclab.envs import (
     ManagerBasedRLEnvCfg,
     multi_agent_to_single_agent,
 )
-from isaaclab.utils.dict import print_dict
-from isaaclab.utils.io import dump_pickle, dump_yaml
-from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper
-from isaaclab_tasks.utils.hydra import hydra_task_config
-from isaaclab_tasks.utils import get_checkpoint_path
+from rsl_rl.runners import OnPolicyRunner
+from datetime import datetime
+import torch
+import os
+import gymnasium as gym
+import cli_args  # isort: skip
+from isaaclab.app import AppLauncher
+import argparse
+import sys
 
 
 # local imports
@@ -44,7 +44,8 @@ parser.add_argument("--video_interval", type=int, default=2000,
 parser.add_argument("--num_envs", type=int, default=None,
                     help="Number of environments to simulate.")
 parser.add_argument("--task", type=str, default=None, help="Name of the task.")
-parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
+parser.add_argument("--seed", type=int, default=None,
+                    help="Seed used for the environment")
 parser.add_argument("--max_iterations", type=int, default=None,
                     help="RL Policy training iterations.")
 # append RSL-RL cli arguments
@@ -76,17 +77,18 @@ torch.backends.cudnn.benchmark = False
 
 
 @hydra_task_config(args_cli.task, "rsl_rl_cfg_entry_point")
-def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agent_cfg: RslRlOnPolicyRunnerCfg):
+def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg |
+         DirectMARLEnvCfg, agent_cfg: RslRlOnPolicyRunnerCfg):
     """Train with RSL-RL agent."""
     # override configurations with non-hydra CLI arguments
     agent_cfg = cli_args.update_rsl_rl_cfg(agent_cfg, args_cli)
     env_cfg.scene.num_envs = args_cli.num_envs if args_cli.num_envs is not None else env_cfg.scene.num_envs
     agent_cfg.max_iterations = (
-        args_cli.max_iterations if args_cli.max_iterations is not None else agent_cfg.max_iterations
-    )
+        args_cli.max_iterations if args_cli.max_iterations is not None else agent_cfg.max_iterations)
 
     # set the environment seed
-    # note: certain randomizations occur in the environment initialization so we set the seed here
+    # note: certain randomizations occur in the environment initialization so
+    # we set the seed here
     env_cfg.seed = agent_cfg.seed
     env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
 
@@ -103,7 +105,10 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     log_dir = os.path.join(log_root_path, log_dir)
 
     # create isaac environment
-    env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
+    env = gym.make(
+        args_cli.task,
+        cfg=env_cfg,
+        render_mode="rgb_array" if args_cli.video else None)
 
     # convert to single-agent instance if required by the RL algorithm
     if isinstance(env.unwrapped, DirectMARLEnv):
@@ -130,7 +135,11 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     env = RslRlVecEnvWrapper(env)
 
     # create runner from rsl-rl
-    runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    runner = OnPolicyRunner(
+        env,
+        agent_cfg.to_dict(),
+        log_dir=log_dir,
+        device=agent_cfg.device)
     # write git state to logs
     runner.add_git_repo_to_log(__file__)
     # load the checkpoint
@@ -146,7 +155,9 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     dump_pickle(os.path.join(log_dir, "params", "agent.pkl"), agent_cfg)
 
     # run training
-    runner.learn(num_learning_iterations=agent_cfg.max_iterations, init_at_random_ep_len=True)
+    runner.learn(
+        num_learning_iterations=agent_cfg.max_iterations,
+        init_at_random_ep_len=True)
 
     # close the simulator
     env.close()

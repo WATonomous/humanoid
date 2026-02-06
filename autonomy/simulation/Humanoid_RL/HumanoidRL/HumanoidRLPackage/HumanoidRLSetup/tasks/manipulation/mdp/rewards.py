@@ -16,7 +16,10 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
 
-def position_command_error(env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+def position_command_error(
+        env: ManagerBasedRLEnv,
+        command_name: str,
+        asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Penalize tracking of the position error using L2-norm.
 
     The function computes the position error between the desired position (from the command) and the
@@ -30,13 +33,17 @@ def position_command_error(env: ManagerBasedRLEnv, command_name: str, asset_cfg:
     des_pos_b = command[:, :3]
     des_pos_w, _ = combine_frame_transforms(
         asset.data.root_state_w[:, :3], asset.data.root_state_w[:, 3:7], des_pos_b)
-    curr_pos_w = asset.data.body_state_w[:, asset_cfg.body_ids[0], :3]  # type: ignore
+    curr_pos_w = asset.data.body_state_w[:,
+                                         asset_cfg.body_ids[0],
+                                         :3]  # type: ignore
     return torch.norm(curr_pos_w - des_pos_w, dim=1)
 
 
 def position_command_error_tanh(
-    env: ManagerBasedRLEnv, std: float, command_name: str, asset_cfg: SceneEntityCfg
-) -> torch.Tensor:
+        env: ManagerBasedRLEnv,
+        std: float,
+        command_name: str,
+        asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Reward tracking of the position using the tanh kernel.
 
     The function computes the position error between the desired position (from the command) and the
@@ -49,12 +56,17 @@ def position_command_error_tanh(
     des_pos_b = command[:, :3]
     des_pos_w, _ = combine_frame_transforms(
         asset.data.root_state_w[:, :3], asset.data.root_state_w[:, 3:7], des_pos_b)
-    curr_pos_w = asset.data.body_state_w[:, asset_cfg.body_ids[0], :3]  # type: ignore
+    curr_pos_w = asset.data.body_state_w[:,
+                                         asset_cfg.body_ids[0],
+                                         :3]  # type: ignore
     distance = torch.norm(curr_pos_w - des_pos_w, dim=1)
     return 1 - torch.tanh(distance / std)
 
 
-def orientation_command_error(env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+def orientation_command_error(
+        env: ManagerBasedRLEnv,
+        command_name: str,
+        asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Penalize tracking orientation error using shortest path.
 
     The function computes the orientation error between the desired orientation (from the command) and the
@@ -67,5 +79,7 @@ def orientation_command_error(env: ManagerBasedRLEnv, command_name: str, asset_c
     # obtain the desired and current orientations
     des_quat_b = command[:, 3:7]
     des_quat_w = quat_mul(asset.data.root_state_w[:, 3:7], des_quat_b)
-    curr_quat_w = asset.data.body_state_w[:, asset_cfg.body_ids[0], 3:7]  # type: ignore
+    curr_quat_w = asset.data.body_state_w[:,
+                                          asset_cfg.body_ids[0],
+                                          3:7]  # type: ignore
     return quat_error_magnitude(curr_quat_w, des_quat_w)

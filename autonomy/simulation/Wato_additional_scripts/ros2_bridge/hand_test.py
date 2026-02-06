@@ -1,3 +1,14 @@
+from test_subscriber import HandPoseSubscriber
+from test_publisher import TestFloatPublisher
+from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
+from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import HAND_CFG
+from isaaclab.utils import configclass
+from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
+from isaaclab.managers import SceneEntityCfg
+from isaaclab.assets import AssetBaseCfg
+import isaaclab.sim as sim_utils
+import rclpy
+import torch
 import argparse
 from isaaclab.app import AppLauncher
 
@@ -8,19 +19,6 @@ args_cli = parser.parse_args()
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
-import torch
-import rclpy
-
-import isaaclab.sim as sim_utils
-from isaaclab.assets import AssetBaseCfg
-from isaaclab.managers import SceneEntityCfg
-from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
-from isaaclab.utils import configclass
-
-from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import HAND_CFG
-from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
-from test_publisher import TestFloatPublisher
-from test_subscriber import HandPoseSubscriber
 
 @configclass
 class HandSceneCfg(InteractiveSceneCfg):
@@ -32,20 +30,31 @@ class HandSceneCfg(InteractiveSceneCfg):
 
     dome_light = AssetBaseCfg(
         prim_path="/World/Light",
-        spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75))
-    )
+        spawn=sim_utils.DomeLightCfg(
+            intensity=3000.0,
+            color=(
+                0.75,
+                0.75,
+                0.75)))
 
     robot = HAND_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
-def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene, node, test_node):
+
+def run_simulator(
+        sim: sim_utils.SimulationContext,
+        scene: InteractiveScene,
+        node,
+        test_node):
     robot = scene["robot"]
-    robot_entity_cfg = SceneEntityCfg("robot", joint_names=[".*"], body_names=[".*"])
+    robot_entity_cfg = SceneEntityCfg(
+        "robot", joint_names=[".*"], body_names=[".*"])
     robot_entity_cfg.resolve(scene)
 
     # Debug joint configuration
     print(f"Number of joints: {len(robot_entity_cfg.joint_ids)}")
     print(f"Joint IDs: {robot_entity_cfg.joint_ids}")
-    print(f"Default joint positions shape: {robot.data.default_joint_pos.shape}")
+    print(
+        f"Default joint positions shape: {robot.data.default_joint_pos.shape}")
 
     sim_dt = sim.get_physics_dt()
     joint_position = robot.data.default_joint_pos.clone()
@@ -62,21 +71,27 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene, nod
             print(f"[INFO]: Received joint values: {joint_values}")
             # Ensure joint_values is a list of floats
             joint_tensor = torch.tensor(joint_values, device=sim.device)
-            joint_pos_des = joint_tensor.unsqueeze(0)[:, :len(robot_entity_cfg.joint_ids)].clone()
+            joint_pos_des = joint_tensor.unsqueeze(
+                0)[:, :len(robot_entity_cfg.joint_ids)].clone()
             robot.reset()
-            robot.set_joint_position_target(joint_pos_des, joint_ids=robot_entity_cfg.joint_ids)
+            robot.set_joint_position_target(
+                joint_pos_des, joint_ids=robot_entity_cfg.joint_ids)
         else:
             print("[INFO]: No valid joint values received, using default positions.")
-            joint_position_list = [[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]]
-            joint_position = torch.tensor(joint_position_list[0], device=sim.device)
+            joint_position_list = [
+                [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]]
+            joint_position = torch.tensor(
+                joint_position_list[0], device=sim.device)
             robot.reset()
-            joint_pos_des = joint_position.unsqueeze(0)[:, robot_entity_cfg.joint_ids].clone()
-            robot.set_joint_position_target(joint_pos_des, joint_ids=robot_entity_cfg.joint_ids)
-
+            joint_pos_des = joint_position.unsqueeze(
+                0)[:, robot_entity_cfg.joint_ids].clone()
+            robot.set_joint_position_target(
+                joint_pos_des, joint_ids=robot_entity_cfg.joint_ids)
 
         scene.write_data_to_sim()
         sim.step()
         scene.update(sim_dt)
+
 
 def main():
     # Initialize ROS2
@@ -101,6 +116,7 @@ def main():
     test_node.destroy_node()
     rclpy.shutdown()
     simulation_app.close()
+
 
 if __name__ == "__main__":
     main()

@@ -9,4 +9,5 @@ from isaaclab.envs.mdp import *  # noqa: F401, F403
 
 from .rewards import *  # noqa: F401, F403
 
-# From Isaac Lab source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/mdp/__init__.py
+# From Isaac Lab
+# source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/mdp/__init__.py

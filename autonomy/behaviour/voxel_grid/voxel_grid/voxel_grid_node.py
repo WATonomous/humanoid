@@ -23,14 +23,20 @@ class VoxelGridNode(Node):
         super().__init__('voxel_grid_node')
 
         self.rgb_sub = self.create_subscription(
-            Image, '/camera/color/image_raw', self.rgb_callback, qos_profile_sensor_data
-        )
+            Image,
+            '/camera/color/image_raw',
+            self.rgb_callback,
+            qos_profile_sensor_data)
         self.depth_sub = self.create_subscription(
-            Image, '/camera/depth/image_raw', self.depth_callback, qos_profile_sensor_data
-        )
+            Image,
+            '/camera/depth/image_raw',
+            self.depth_callback,
+            qos_profile_sensor_data)
         self.info_sub = self.create_subscription(
-            CameraInfo, '/camera/depth/camera_info', self.info_callback, qos_profile_sensor_data
-        )
+            CameraInfo,
+            '/camera/depth/camera_info',
+            self.info_callback,
+            qos_profile_sensor_data)
 
         self.voxel_pub = self.create_publisher(
             PointCloud2, '/behaviour/voxel_grid', qos_profile_sensor_data
@@ -42,10 +48,10 @@ class VoxelGridNode(Node):
         self.fx, self.fy, self.cx, self.cy = 525.0, 525.0, 320.0, 240.0
         self.have_intrinsics = False
 
-        self.voxel_size = 0.04   
-        self.max_range = 3.5    
-        self.min_range = 0.1  
-        self.stride = 4      
+        self.voxel_size = 0.04
+        self.max_range = 3.5
+        self.min_range = 0.1
+        self.stride = 4
 
         self.get_logger().info('Voxel Grid Node started (world modelling, headless)')
 
@@ -67,18 +73,34 @@ class VoxelGridNode(Node):
         enc = (msg.encoding or '').lower()
 
         if enc in ('mono16', '16uc1'):
-            d = np.frombuffer(msg.data, dtype=np.uint16).reshape(msg.height, msg.width)
+            d = np.frombuffer(
+                msg.data,
+                dtype=np.uint16).reshape(
+                msg.height,
+                msg.width)
             return (d.astype(np.float32) / 1000.0)  # mm -> m
 
         if enc == '32fc1':
-            d = np.frombuffer(msg.data, dtype=np.float32).reshape(msg.height, msg.width)
+            d = np.frombuffer(
+                msg.data,
+                dtype=np.float32).reshape(
+                msg.height,
+                msg.width)
             return d
 
         if enc == '16fc1':
-            d = np.frombuffer(msg.data, dtype=np.float16).reshape(msg.height, msg.width)
+            d = np.frombuffer(
+                msg.data,
+                dtype=np.float16).reshape(
+                msg.height,
+                msg.width)
             return d.astype(np.float32)
 
-        d = np.frombuffer(msg.data, dtype=np.uint16).reshape(msg.height, msg.width)
+        d = np.frombuffer(
+            msg.data,
+            dtype=np.uint16).reshape(
+            msg.height,
+            msg.width)
         return (d.astype(np.float32) / 1000.0)
 
     # ---------- callbacks ----------
@@ -89,7 +111,8 @@ class VoxelGridNode(Node):
         self.cy = float(msg.k[5])
         self.have_intrinsics = True
 
-        self.get_logger().info(f'Intrinsics updated: fx={self.fx:.2f}, fy={self.fy:.2f}, cx={self.cx:.2f}, cy={self.cy:.2f}')
+        self.get_logger().info(
+            f'Intrinsics updated: fx={self.fx:.2f}, fy={self.fy:.2f}, cx={self.cx:.2f}, cy={self.cy:.2f}')
 
     def rgb_callback(self, msg: Image):
         self.rgb_image = self._decode_rgb_bgr8(msg)
@@ -117,7 +140,7 @@ class VoxelGridNode(Node):
 
         self.publish_voxel_grid(voxel_centers)
 
-        #reset
+        # reset
         self.depth_image = None
         self.rgb_image = None
 
@@ -165,14 +188,15 @@ class VoxelGridNode(Node):
 
         voxel_gen = PointToVoxel(
             vsize_xyz=[self.voxel_size, self.voxel_size, self.voxel_size],
-            coors_range_xyz=coors_range_m.tolist(), #Convert numpy to python
+            coors_range_xyz=coors_range_m.tolist(),  # Convert numpy to python
             num_point_features=3,
             max_num_voxels=10000,
             max_num_points_per_voxel=20
         )
 
         pc_tensor = torch.from_numpy(points)  # float32
-        voxels, indices, num_points = voxel_gen(pc_tensor)  # indices: [M, 3] (z,y,x) or (x,y,z) depending on impl
+        # indices: [M, 3] (z,y,x) or (x,y,z) depending on impl
+        voxels, indices, num_points = voxel_gen(pc_tensor)
 
         if indices.numel() == 0:
             return np.zeros((0, 3), dtype=np.float32)
@@ -186,13 +210,14 @@ class VoxelGridNode(Node):
         origin = coors_range_m[:3]  # meters
         centers = origin + (idx_xyz + 0.5) * self.voxel_size  # meters
 
-        self.get_logger().info(f'Voxels: {centers.shape[0]} from points: {points.shape[0]}')
+        self.get_logger().info(
+            f'Voxels: {centers.shape[0]} from points: {points.shape[0]}')
         return centers.astype(np.float32)
 
     def publish_voxel_grid(self, voxel_centers: np.ndarray):
         header = Header()
         header.stamp = self.get_clock().now().to_msg()
-        header.frame_id = 'camera_link'  
+        header.frame_id = 'camera_link'
 
         fields = [
             PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),

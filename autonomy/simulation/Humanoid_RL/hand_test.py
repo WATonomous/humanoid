@@ -27,8 +27,12 @@ class HandSceneCfg(InteractiveSceneCfg):
 
     dome_light = AssetBaseCfg(
         prim_path="/World/Light",
-        spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75))
-    )
+        spawn=sim_utils.DomeLightCfg(
+            intensity=3000.0,
+            color=(
+                0.75,
+                0.75,
+                0.75)))
 
     # table = AssetBaseCfg(
     #     prim_path="{ENV_REGEX_NS}/Table",
@@ -44,7 +48,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     robot = scene["robot"]
 
-    robot_entity_cfg = SceneEntityCfg("robot", joint_names=[".*"], body_names=[".*"])
+    robot_entity_cfg = SceneEntityCfg(
+        "robot", joint_names=[".*"], body_names=[".*"])
 
     robot_entity_cfg.resolve(scene)
 
@@ -63,11 +68,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
         joint_position_list = [[1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
                                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]]
-        joint_position = torch.tensor(joint_position_list[0], device=sim.device)
+        joint_position = torch.tensor(
+            joint_position_list[0], device=sim.device)
 
         robot.reset()
-        joint_pos_des = joint_position.unsqueeze(0)[:, robot_entity_cfg.joint_ids].clone()
-        robot.set_joint_position_target(joint_pos_des, joint_ids=robot_entity_cfg.joint_ids)
+        joint_pos_des = joint_position.unsqueeze(
+            0)[:, robot_entity_cfg.joint_ids].clone()
+        robot.set_joint_position_target(
+            joint_pos_des, joint_ids=robot_entity_cfg.joint_ids)
         scene.write_data_to_sim()
 
         sim.step()

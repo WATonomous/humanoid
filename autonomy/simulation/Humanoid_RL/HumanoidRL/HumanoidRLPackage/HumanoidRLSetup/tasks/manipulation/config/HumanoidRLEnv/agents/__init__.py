@@ -3,4 +3,6 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-# From Isaac Lab source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/<project folder>/agents/__init__.py
+# From Isaac Lab
+# source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/<project
+# folder>/agents/__init__.py
