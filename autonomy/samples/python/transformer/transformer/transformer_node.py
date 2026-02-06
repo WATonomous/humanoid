@@ -35,9 +35,10 @@ class Transformer(Node):
         self.__transformer = TransformerCore()
 
         # Initialize ROS2 Constructs
-        self.publisher_ = self.create_publisher(FilteredArray, '/filtered_topic', 10)
-        self.subscription = self.create_subscription(Unfiltered, '/unfiltered_topic',
-                                                     self.unfiltered_callback, 10)
+        self.publisher_ = self.create_publisher(
+            FilteredArray, '/filtered_topic', 10)
+        self.subscription = self.create_subscription(
+            Unfiltered, '/unfiltered_topic', self.unfiltered_callback, 10)
 
         self.__filtered_array_packets = []
 
@@ -55,8 +56,8 @@ class Transformer(Node):
         filtered_msg.timestamp = msg.timestamp
         filtered_msg.metadata.version = self.get_parameter('version') \
             .get_parameter_value().integer_value
-        filtered_msg.metadata.compression_method = self.get_parameter('compression_method') \
-            .get_parameter_value().integer_value
+        filtered_msg.metadata.compression_method = self.get_parameter(
+            'compression_method') .get_parameter_value().integer_value
 
         # We send off a list of Filtered Messages (a message made of messages!)
         if self.populate_packet(filtered_msg):

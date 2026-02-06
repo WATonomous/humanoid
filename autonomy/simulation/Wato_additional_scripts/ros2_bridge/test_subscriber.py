@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32MultiArray
 
+
 class HandPoseSubscriber(Node):
     def __init__(self):
         super().__init__('hand_pose_subscriber')
@@ -16,12 +17,15 @@ class HandPoseSubscriber(Node):
     def listener_callback(self, msg):
         if len(msg.data) == 15:
             self.joint_positions = list(msg.data)
-            self.get_logger().info(f'Received joint positions: {self.joint_positions}')
+            self.get_logger().info(
+                f'Received joint positions: {self.joint_positions}')
         else:
-            self.get_logger().warn(f'Received invalid joint positions: expected 15 floats, got {len(msg.data)}')
+            self.get_logger().warn(
+                f'Received invalid joint positions: expected 15 floats, got {len(msg.data)}')
 
     def get_latest_joint_positions(self):
         return self.joint_positions
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -32,6 +36,7 @@ def main(args=None):
         pass
     node.destroy_node()
     rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

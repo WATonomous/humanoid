@@ -20,11 +20,14 @@ def add_rsl_rl_args(parser: argparse.ArgumentParser):
         parser: The parser to add the arguments to.
     """
     # create a new argument group
-    arg_group = parser.add_argument_group("rsl_rl", description="Arguments for RSL-RL agent.")
+    arg_group = parser.add_argument_group(
+        "rsl_rl", description="Arguments for RSL-RL agent.")
     # -- experiment arguments
     arg_group.add_argument(
-        "--experiment_name", type=str, default=None, help="Name of the experiment folder where logs will be stored."
-    )
+        "--experiment_name",
+        type=str,
+        default=None,
+        help="Name of the experiment folder where logs will be stored.")
     arg_group.add_argument("--run_name", type=str, default=None,
                            help="Run name suffix to the log directory.")
     # -- load arguments
@@ -36,14 +39,24 @@ def add_rsl_rl_args(parser: argparse.ArgumentParser):
                            help="Checkpoint file to resume from.")
     # -- logger arguments
     arg_group.add_argument(
-        "--logger", type=str, default=None, choices={"wandb", "tensorboard", "neptune"}, help="Logger module to use."
-    )
+        "--logger",
+        type=str,
+        default=None,
+        choices={
+            "wandb",
+            "tensorboard",
+            "neptune"},
+        help="Logger module to use.")
     arg_group.add_argument(
-        "--log_project_name", type=str, default=None, help="Name of the logging project when using wandb or neptune."
-    )
+        "--log_project_name",
+        type=str,
+        default=None,
+        help="Name of the logging project when using wandb or neptune.")
 
 
-def parse_rsl_rl_cfg(task_name: str, args_cli: argparse.Namespace) -> RslRlOnPolicyRunnerCfg:
+def parse_rsl_rl_cfg(
+        task_name: str,
+        args_cli: argparse.Namespace) -> RslRlOnPolicyRunnerCfg:
     """Parse configuration for RSL-RL agent based on inputs.
 
     Args:
@@ -56,12 +69,15 @@ def parse_rsl_rl_cfg(task_name: str, args_cli: argparse.Namespace) -> RslRlOnPol
     from isaaclab_tasks.utils.parse_cfg import load_cfg_from_registry
 
     # load the default configuration
-    rslrl_cfg: RslRlOnPolicyRunnerCfg = load_cfg_from_registry(task_name, "rsl_rl_cfg_entry_point")
+    rslrl_cfg: RslRlOnPolicyRunnerCfg = load_cfg_from_registry(
+        task_name, "rsl_rl_cfg_entry_point")
     rslrl_cfg = update_rsl_rl_cfg(rslrl_cfg, args_cli)
     return rslrl_cfg
 
 
-def update_rsl_rl_cfg(agent_cfg: RslRlOnPolicyRunnerCfg, args_cli: argparse.Namespace):
+def update_rsl_rl_cfg(
+        agent_cfg: RslRlOnPolicyRunnerCfg,
+        args_cli: argparse.Namespace):
     """Update configuration for RSL-RL agent based on inputs.
 
     Args:

@@ -45,39 +45,44 @@ class HumanoidHandReachEnvCfg(ReachEnvCfg):
         # override events
         self.events.reset_robot_joints.params["position_range"] = (0.75, 1.25)
         # override rewards
-        self.rewards.end_effector_position_tracking.params["asset_cfg"].body_names = ["TIP_B_1"]
+        self.rewards.end_effector_position_tracking.params["asset_cfg"].body_names = [
+            "TIP_B_1"]
         self.rewards.end_effector_position_tracking_fine_grained.params["asset_cfg"].body_names = [
             "TIP_B_1"]
         # self.rewards.end_effector_orientation_tracking.params["asset_cfg"].body_names = ["TIP_B_1"]
 
-        self.rewards.end_effector_2_position_tracking.params["asset_cfg"].body_names = ["TIP_B_2"]
+        self.rewards.end_effector_2_position_tracking.params["asset_cfg"].body_names = [
+            "TIP_B_2"]
         self.rewards.end_effector_2_position_tracking_fine_grained.params["asset_cfg"].body_names = [
             "TIP_B_2"]
         # self.rewards.end_effector_2_orientation_tracking.params["asset_cfg"].body_names = ["TIP_B_2"]
 
-        self.rewards.end_effector_3_position_tracking.params["asset_cfg"].body_names = ["TIP_B_3"]
+        self.rewards.end_effector_3_position_tracking.params["asset_cfg"].body_names = [
+            "TIP_B_3"]
         self.rewards.end_effector_3_position_tracking_fine_grained.params["asset_cfg"].body_names = [
             "TIP_B_3"]
         # self.rewards.end_effector_3_orientation_tracking.params["asset_cfg"].body_names = ["TIP_B_3"]
 
-        self.rewards.end_effector_4_position_tracking.params["asset_cfg"].body_names = ["TIP_B_4"]
+        self.rewards.end_effector_4_position_tracking.params["asset_cfg"].body_names = [
+            "TIP_B_4"]
         self.rewards.end_effector_4_position_tracking_fine_grained.params["asset_cfg"].body_names = [
             "TIP_B_4"]
         # self.rewards.end_effector_4_orientation_tracking.params["asset_cfg"].body_names = ["TIP_B_4"]
 
-        self.rewards.end_effector_5_position_tracking.params["asset_cfg"].body_names = ["TIP_B_5"]
+        self.rewards.end_effector_5_position_tracking.params["asset_cfg"].body_names = [
+            "TIP_B_5"]
         self.rewards.end_effector_5_position_tracking_fine_grained.params["asset_cfg"].body_names = [
             "TIP_B_5"]
         # self.rewards.end_effector_5_orientation_tracking.params["asset_cfg"].body_names = ["TIP_B_5"]
 
         # override actions
         self.actions.arm_action = mdp.JointPositionActionCfg(
-            asset_name="robot", joint_names=[".*"], scale=0.5, use_default_offset=True
-        )
+            asset_name="robot", joint_names=[".*"], scale=0.5, use_default_offset=True)
         # override command generator body
         # end-effector is along x-direction
         self.commands.ee_pose.body_name = "TIP_B_1"
-        # self.commands.ee_pose.ranges.pitch = (math.pi / 2, math.pi / 2) # this rotate the pose
+        # self.commands.ee_pose.ranges.pitch = (math.pi / 2, math.pi / 2) #
+        # this rotate the pose
 
         self.commands.ee_pose_2.body_name = "TIP_B_2"
         # self.commands.ee_pose_2.ranges.pitch = (math.pi / 2, math.pi / 2)

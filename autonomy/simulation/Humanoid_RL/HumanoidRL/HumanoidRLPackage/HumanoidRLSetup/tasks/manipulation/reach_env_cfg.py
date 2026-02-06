@@ -36,7 +36,15 @@ class ReachSceneCfg(InteractiveSceneCfg):
             usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd",
         ),
         init_state=AssetBaseCfg.InitialStateCfg(
-            pos=(0.55, 0.0, 0.0), rot=(0.70711, 0.0, 0.0, 0.70711)),
+            pos=(
+                0.55,
+                0.0,
+                0.0),
+            rot=(
+                0.70711,
+                0.0,
+                0.0,
+                0.70711)),
     )
 
     # robots
@@ -45,7 +53,12 @@ class ReachSceneCfg(InteractiveSceneCfg):
     # lights
     light = AssetBaseCfg(
         prim_path="/World/light",
-        spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=2500.0),
+        spawn=sim_utils.DomeLightCfg(
+            color=(
+                0.75,
+                0.75,
+                0.75),
+            intensity=2500.0),
     )
 
 
@@ -154,14 +167,32 @@ class ObservationsCfg:
         """Observations for policy group."""
 
         # observation terms (order preserved)
-        joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+        joint_pos = ObsTerm(
+            func=mdp.joint_pos_rel,
+            noise=Unoise(
+                n_min=-0.01,
+                n_max=0.01))
+        joint_vel = ObsTerm(
+            func=mdp.joint_vel_rel,
+            noise=Unoise(
+                n_min=-0.01,
+                n_max=0.01))
 
-        pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose"})
-        pose_command_2 = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose_2"})
-        pose_command_3 = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose_3"})
-        pose_command_4 = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose_4"})
-        pose_command_5 = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose_5"})
+        pose_command = ObsTerm(
+            func=mdp.generated_commands, params={
+                "command_name": "ee_pose"})
+        pose_command_2 = ObsTerm(
+            func=mdp.generated_commands, params={
+                "command_name": "ee_pose_2"})
+        pose_command_3 = ObsTerm(
+            func=mdp.generated_commands, params={
+                "command_name": "ee_pose_3"})
+        pose_command_4 = ObsTerm(
+            func=mdp.generated_commands, params={
+                "command_name": "ee_pose_4"})
+        pose_command_5 = ObsTerm(
+            func=mdp.generated_commands, params={
+                "command_name": "ee_pose_5"})
 
         actions = ObsTerm(func=mdp.last_action)
 
@@ -226,32 +257,52 @@ class RewardsCfg:
     end_effector_position_tracking_fine_grained = RewTerm(
         func=mdp.position_command_error_tanh,
         weight=0.1,
-        params={"asset_cfg": SceneEntityCfg(
-            "robot", body_names="TIP_B_1"), "std": 0.1, "command_name": "ee_pose"},
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names="TIP_B_1"),
+            "std": 0.1,
+            "command_name": "ee_pose"},
     )
     end_effector_2_position_tracking_fine_grained = RewTerm(
         func=mdp.position_command_error_tanh,
         weight=0.1,
-        params={"asset_cfg": SceneEntityCfg(
-            "robot", body_names="TIP_B_2"), "std": 0.1, "command_name": "ee_pose_2"},
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names="TIP_B_2"),
+            "std": 0.1,
+            "command_name": "ee_pose_2"},
     )
     end_effector_3_position_tracking_fine_grained = RewTerm(
         func=mdp.position_command_error_tanh,
         weight=0.1,
-        params={"asset_cfg": SceneEntityCfg(
-            "robot", body_names="TIP_B_3"), "std": 0.1, "command_name": "ee_pose_3"},
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names="TIP_B_3"),
+            "std": 0.1,
+            "command_name": "ee_pose_3"},
     )
     end_effector_4_position_tracking_fine_grained = RewTerm(
         func=mdp.position_command_error_tanh,
         weight=0.1,
-        params={"asset_cfg": SceneEntityCfg(
-            "robot", body_names="TIP_B_4"), "std": 0.1, "command_name": "ee_pose_4"},
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names="TIP_B_4"),
+            "std": 0.1,
+            "command_name": "ee_pose_4"},
     )
     end_effector_5_position_tracking_fine_grained = RewTerm(
         func=mdp.position_command_error_tanh,
         weight=0.1,
-        params={"asset_cfg": SceneEntityCfg(
-            "robot", body_names="TIP_B_5"), "std": 0.1, "command_name": "ee_pose_5"},
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names="TIP_B_5"),
+            "std": 0.1,
+            "command_name": "ee_pose_5"},
     )
 
     # end_effector_orientation_tracking = RewTerm(

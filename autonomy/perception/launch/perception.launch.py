@@ -11,7 +11,7 @@ def generate_launch_description():
             default_value='info',
             description='Log level for the dummy publisher node'
         ),
-        
+
         Node(
             package='perception',
             executable='dummy_publisher_node',

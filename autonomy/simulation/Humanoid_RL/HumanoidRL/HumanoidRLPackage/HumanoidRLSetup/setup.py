@@ -13,7 +13,11 @@ from setuptools import setup
 # Obtain the extension data from the extension.toml file
 EXTENSION_PATH = os.path.dirname(os.path.realpath(__file__))
 # Read the extension.toml file
-EXTENSION_TOML_DATA = toml.load(os.path.join(EXTENSION_PATH, "config", "extension.toml"))
+EXTENSION_TOML_DATA = toml.load(
+    os.path.join(
+        EXTENSION_PATH,
+        "config",
+        "extension.toml"))
 
 # Minimum dependencies required prior to installation
 INSTALL_REQUIRES = [
@@ -22,7 +26,8 @@ INSTALL_REQUIRES = [
     "torch==2.5.1",
     "torchvision>=0.14.1",  # ensure compatibility with torch 1.13.1
     # 5.26.0 introduced a breaking change, so we restricted it for now.
-    # See issue https://github.com/tensorflow/tensorboard/issues/6808 for details.
+    # See issue https://github.com/tensorflow/tensorboard/issues/6808 for
+    # details.
     "protobuf>=3.20.2, < 5.0.0",
     # basic logger
     "tensorboard",
