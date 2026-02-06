@@ -152,18 +152,17 @@ extern "C" {
  */
 struct xLIST;
 struct xLIST_ITEM {
-  listFIRST_LIST_ITEM_INTEGRITY_CHECK_VALUE /**< Set to a known value if
-                                               configUSE_LIST_DATA_INTEGRITY_CHECK_BYTES
-                                               is set to 1. */
-                                                configLIST_VOLATILE TickType_t
-                                                    xItemValue; /**< The value
-                                                                   being listed.
-                                                                   In most cases
-                                                                   this is used
-                                                                   to sort the
-                                                                   list in
-                                                                   ascending
-                                                                   order. */
+  listFIRST_LIST_ITEM_INTEGRITY_CHECK_VALUE      /**< Set to a known value if
+                                                    configUSE_LIST_DATA_INTEGRITY_CHECK_BYTES
+                                                    is set to 1. */
+      configLIST_VOLATILE TickType_t xItemValue; /**< The value
+                                                    being listed.
+                                                    In most cases
+                                                    this is used
+                                                    to sort the
+                                                    list in
+                                                    ascending
+                                                    order. */
   struct xLIST_ITEM *configLIST_VOLATILE
       pxNext; /**< Pointer to the next ListItem_t in the list. */
   struct xLIST_ITEM *configLIST_VOLATILE
@@ -185,8 +184,7 @@ struct xMINI_LIST_ITEM {
   listFIRST_LIST_ITEM_INTEGRITY_CHECK_VALUE /**< Set to a known value if
                                                configUSE_LIST_DATA_INTEGRITY_CHECK_BYTES
                                                is set to 1. */
-                                                configLIST_VOLATILE TickType_t
-                                                    xItemValue;
+      configLIST_VOLATILE TickType_t xItemValue;
   struct xLIST_ITEM *configLIST_VOLATILE pxNext;
   struct xLIST_ITEM *configLIST_VOLATILE pxPrevious;
 };
@@ -202,8 +200,7 @@ typedef struct xLIST {
   listFIRST_LIST_INTEGRITY_CHECK_VALUE /**< Set to a known value if
                                           configUSE_LIST_DATA_INTEGRITY_CHECK_BYTES
                                           is set to 1. */
-                                           configLIST_VOLATILE UBaseType_t
-                                               uxNumberOfItems;
+      configLIST_VOLATILE UBaseType_t uxNumberOfItems;
   ListItem_t *configLIST_VOLATILE
       pxIndex; /**< Used to walk through the list.  Points to the last item
                   returned by a call to listGET_OWNER_OF_NEXT_ENTRY (). */
@@ -405,8 +402,8 @@ typedef struct xLIST {
     ListItem_t *const pxIndex = (pxList)->pxIndex;                             \
                                                                                \
     /* Only effective when configASSERT() is also defined, these tests may     \
-     * catch the list data structures being overwritten in memory.  They will              \
-     * not catch data errors caused by incorrect configuration or use of                       \
+     * catch the list data structures being overwritten in memory.  They will  \
+     * not catch data errors caused by incorrect configuration or use of       \
      * FreeRTOS. */                                                            \
     listTEST_LIST_INTEGRITY((pxList));                                         \
     listTEST_LIST_ITEM_INTEGRITY((pxNewListItem));                             \
