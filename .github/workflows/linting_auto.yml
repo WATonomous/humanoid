@@ -7,10 +7,6 @@ on:
   pull_request:
     branches:
       - main
-    types:
-      - unlabeled
-      - labeled
-      - synchronize
 
 jobs:
   run-linters:
