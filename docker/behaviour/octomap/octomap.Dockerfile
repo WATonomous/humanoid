@@ -3,20 +3,13 @@ ARG BASE_IMAGE=ghcr.io/watonomous/robot_base/base:humble-ubuntu22.04
 ################################ Source ################################
 FROM ${BASE_IMAGE} AS source
 
-ARG AMENT_WS=/home/wato/wato_ws
+ARG AMENT_WS=/root/ament_ws
 WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
-COPY autonomy/behaviour/octo_map octo_map
 COPY autonomy/wato_msgs/common_msgs wato_msgs/common_msgs
 
-# Scan for rosdeps
-# RUN apt-get -qq update
-# RUN rosdep update
-# RUN rosdep install --from-paths . --ignore-src -r -s \
-#         | grep 'apt-get install' \
-#         | awk '{print $3}' \
-#         | sort  > /tmp/colcon_install_list
+RUN git clone https://github.com/OctoMap/octomap_mapping.git
 
 RUN apt-get -qq update
 RUN rosdep update
@@ -46,15 +39,20 @@ RUN apt-get update && \
       build-essential \
       git \
       cmake \
-      ninja-build \
       python3 \
       python3-pip \
       python3-dev \
       python3-setuptools \
-      curl \
-      ca-certificates \
-      gnupg2 \
-      lsb-release && \
+      ros-humble-octomap \
+      ros-humble-octomap-msgs \
+      ros-humble-octomap-ros \
+      ros-humble-octomap-rviz-plugins \
+      ros-humble-pcl-ros \
+      ros-humble-pcl-conversions \
+      ros-humble-image-transport \
+      ros-humble-depth-image-proc \
+      ros-humble-tf2-ros \
+      ros-humble-tf2-geometry-msgs && \
     rm -rf /var/lib/apt/lists/*
 
 RUN python3 -m pip install --upgrade pip
@@ -64,12 +62,7 @@ RUN python3 -m pip install --no-cache-dir \
       ccimport>=0.4.4 \
       pybind11>=2.6.0 \
       numpy \
-      fire \
-      cv_bridge \
-      opencv-python
-
-# Install prebuilt spconv-cu120 (compatible with CUDA 12.2 due to minor version compatibility)
-RUN python3 -m pip install --no-cache-dir spconv-cu120
+      fire 
 
 # Dependency Cleanup
 WORKDIR /
@@ -78,15 +71,17 @@ RUN apt-get -qq autoremove -y && apt-get -qq autoclean && apt-get -qq clean && \
 
 ################################ Build ################################
 FROM dependencies AS build
+ARG AMENT_WS=/root/ament_ws
 
 # Build ROS2 packages
 WORKDIR ${AMENT_WS}
+COPY --from=source ${AMENT_WS}/src ./src
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
     colcon build \
         --cmake-args -DCMAKE_BUILD_TYPE=Release --install-base ${WATONOMOUS_INSTALL}
 
-# Source and Build Artifact Cleanup 
-RUN rm -rf src/* build/* devel/* install/* log/*
+# Build Artifact Cleanup (keep src for development)
+RUN rm -rf build/* devel/* log/*
 
 # Entrypoint will run before any CMD on launch. Sources ~/opt/<ROS_DISTRO>/setup.bash and ~/ament_ws/install/setup.bash
 COPY docker/wato_ros_entrypoint.sh ${AMENT_WS}/wato_ros_entrypoint.sh

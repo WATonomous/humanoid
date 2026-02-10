@@ -4,6 +4,8 @@ from rclpy.qos import qos_profile_sensor_data
 
 from sensor_msgs.msg import Image, CameraInfo
 from std_msgs.msg import Header
+from geometry_msgs.msg import TransformStamped
+from tf2_ros import StaticTransformBroadcaster
 import cv2
 from cv_bridge import CvBridge
 import numpy as np
@@ -33,16 +35,52 @@ class DummyPublisherNode(Node):
             qos_profile_sensor_data
         )
 
+        # Add TF broadcaster for camera frames
+        self.tf_broadcaster = StaticTransformBroadcaster(self)
+        self.publish_static_transforms()
+
         self.timer = self.create_timer(1.0, self.publish_dummy_data)
 
         self.get_logger().info('Dummy camera publisher started (1 Hz)')
+
+    def publish_static_transforms(self):
+        """Publish static transforms for camera frames"""
+        # Transform from base_link/map to camera_link
+        t1 = TransformStamped()
+        t1.header.stamp = self.get_clock().now().to_msg()
+        t1.header.frame_id = 'map'
+        t1.child_frame_id = 'camera_link'
+        t1.transform.translation.x = 0.0
+        t1.transform.translation.y = 0.0
+        t1.transform.translation.z = 1.5
+        t1.transform.rotation.x = 0.0
+        t1.transform.rotation.y = 0.0
+        t1.transform.rotation.z = 0.0
+        t1.transform.rotation.w = 1.0
+
+        # Transform from camera_link to camera_depth_optical_frame
+        t2 = TransformStamped()
+        t2.header.stamp = self.get_clock().now().to_msg()
+        t2.header.frame_id = 'camera_link'
+        t2.child_frame_id = 'camera_depth_optical_frame'
+        # Standard camera optical frame convention (z forward, x right, y down)
+        t2.transform.translation.x = 0.0
+        t2.transform.translation.y = 0.0
+        t2.transform.translation.z = 0.0
+        # 90 deg rotation about x, then 90 deg about z to align with optical frame
+        t2.transform.rotation.x = -0.5
+        t2.transform.rotation.y = 0.5
+        t2.transform.rotation.z = -0.5
+        t2.transform.rotation.w = 0.5
+
+        self.tf_broadcaster.sendTransform([t1, t2])
 
     def publish_dummy_data(self):
         now = self.get_clock().now().to_msg()
 
         header = Header()
         header.stamp = now
-        header.frame_id = 'camera_link'
+        header.frame_id = 'camera_depth_optical_frame'
 
         # Create a simple scene with geometric shapes at different depths
         rgb_image = np.zeros((480, 640, 3), dtype=np.uint8)
