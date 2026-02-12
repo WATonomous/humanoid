@@ -5,6 +5,7 @@ from launch.substitutions import LaunchConfiguration
 from ament_index_python.packages import get_package_share_directory
 import os
 
+
 def generate_launch_description():
     # Get the path to the config file
     config_file = os.path.join(
@@ -12,20 +13,20 @@ def generate_launch_description():
         'config',
         'params.yaml'
     )
-    
+
     # Declare launch arguments
     can_interface_arg = DeclareLaunchArgument(
         'can_interface',
         default_value='can0',
         description='Name of the CAN interface to use (e.g., can0)'
     )
-    
+
     publish_rate_arg = DeclareLaunchArgument(
         'publish_rate_hz',
         default_value='50',
         description='Rate in Hz at which to check for CAN messages'
     )
-    
+
     # Create the CAN node
     can_node = Node(
         package='can',
@@ -37,7 +38,7 @@ def generate_launch_description():
         }],
         output='screen'
     )
-    
+
     # ============================================================================
     # TEST CONTROLLER NODE (for development/testing only)
     # Comment out the following section if you want to disable the test controller
@@ -51,7 +52,7 @@ def generate_launch_description():
     # ============================================================================
     # End of test controller section
     # ============================================================================
-    
+
     # Return the launch description
     return LaunchDescription([
         can_interface_arg,
