@@ -17,6 +17,17 @@ DEVICE_PATH="$1"
 INTERFACE_NAME="$2"
 BITRATE_CODE="$3" # e.g., -s6 for 500k, -s8 for 1M 
 
+# Check if slcand is installed
+if ! command -v slcand &> /dev/null; then
+    echo "slcand could not be found. Please install can-utils."
+    exit 1
+fi
+
+if ! command -v ifconfig &> /dev/null; then
+    echo "ifconfig could not be found. Please install net-tools."
+    exit 1
+fi
+
 if [ -z "$DEVICE_PATH" ] || [ -z "$INTERFACE_NAME" ] || [ -z "$BITRATE_CODE" ]; then
     echo "Usage: $0 <device_path> <interface_name> <bitrate_code>"
     echo "Example: $0 /dev/ttyACM0 can0 -s6"
