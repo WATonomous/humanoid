@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  interfacing:
+    build: &interfacing
+      context: ..
+      dockerfile: docker/interfacing/interfacing.Dockerfile
+      cache_from:
+        - "${INTERFACING_IMAGE:?}:${TAG}"
+        - "${INTERFACING_IMAGE:?}:main"
+    image: "${INTERFACING_IMAGE:?}:${TAG}"
+    profiles: [deploy, develop]
+    command: /bin/bash -c "ros2 launch can can.launch.py"
+    privileged: false
+    devices:
+      - /dev/canable:/dev/canable
+    network_mode: host # Allow the container to access the host's network interfaces
+    cap_add: # Grant the capability to configure network interfaces
+      - NET_ADMIN 
+    volumes:
+      - ${MONO_DIR}/autonomy/interfacing:/root/ament_ws/src/interfacing
