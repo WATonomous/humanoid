@@ -49,6 +49,18 @@ Before developing please read these documents.
 2. [WATO Infrastructure Development Docs](https://github.com/WATonomous/wato_monorepo/tree/main/docs/dev/)
 3. [ROS Node/Core Structure Docs](autonomy/samples/README.md)
 
+
+## CAN Setup
+If trying to stimulate robot using canable, you will need to set up the CAN interface.
+
+Run the setup script:
+```bash
+./autonomy/interfacing/can/scripts/can_udev.sh install_rule
+```
+
+This configures the mount rules on the host pc
+
+
 ## Dependencies:
 - Ubuntu >= 22.04, Windows (WSL), and MacOS.
 
