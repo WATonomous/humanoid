@@ -12,7 +12,8 @@
 
 set -e
 
-# These parameters are found in the autonomy/interfacing/can/config/params.yaml
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 DEVICE_PATH="$1"
 INTERFACE_NAME="$2"
 BITRATE_CODE="$3" # e.g., -s6 for 500k, -s8 for 1M 
@@ -31,6 +32,7 @@ fi
 if [ -z "$DEVICE_PATH" ] || [ -z "$INTERFACE_NAME" ] || [ -z "$BITRATE_CODE" ]; then
     echo "Usage: $0 <device_path> <interface_name> <bitrate_code>"
     echo "Example: $0 /dev/ttyACM0 can0 -s6"
+    echo ""
     exit 1
 fi
 

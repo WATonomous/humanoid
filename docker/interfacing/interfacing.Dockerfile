@@ -5,49 +5,67 @@ FROM ${BASE_IMAGE} AS source
 
 WORKDIR ${AMENT_WS}/src
 
-# Copy in source code 
+# Copy source code
 COPY autonomy/interfacing/can can
 COPY autonomy/wato_msgs/sample_msgs sample_msgs
 
-# Scan for rosdeps
-RUN apt-get -qq update && rosdep update && \
-    rosdep install --from-paths . --ignore-src -r -s \
-        | grep 'apt-get install' \
-        | awk '{print $3}' \
-        | sort  > /tmp/colcon_install_list
+# Install rosdep if not present, update package lists
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3-rosdep && \
+    rm -rf /var/lib/apt/lists/*
 
-################################# Dependencies ################################
+# Update rosdep database (safe in containers)
+RUN rosdep update
+
+# Generate dependency list (simulated install → extract apt packages)
+RUN rosdep install \
+    --from-paths . \
+    --ignore-src \
+    --rosdistro $ROS_DISTRO \
+    -y \
+    --simulate | \
+    grep "apt-get install" | \
+    sed 's/apt-get install -y //' > /tmp/colcon_install_list || true
+
+
+################################ Dependencies ################################
 FROM ${BASE_IMAGE} AS dependencies
 
-# Install Rosdep requirements
+# Copy dependency list from source stage
 COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
-RUN apt-fast install -qq -y --no-install-recommends \
-    $(cat /tmp/colcon_install_list) can-utils net-tools iproute2
 
-# Copy in source code from source stage
+# Install dependencies + tools (update must be in same layer)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        $(cat /tmp/colcon_install_list) \
+        can-utils \
+        net-tools \
+        iproute2 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy source code into workspace
 WORKDIR ${AMENT_WS}
 COPY --from=source ${AMENT_WS}/src src
 
-# Dependency Cleanup
-WORKDIR /
-RUN apt-get -qq autoremove -y && apt-get -qq autoclean && apt-get -qq clean && \
-    rm -rf /root/* /root/.ros /tmp/* /var/lib/apt/lists/* /usr/share/doc/*
 
 ################################ Build ################################
 FROM dependencies AS build
 
-# Build ROS2 packages
 WORKDIR ${AMENT_WS}
+
+# Build ROS2 workspace
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
     colcon build \
-        --cmake-args -DCMAKE_BUILD_TYPE=Release --install-base ${WATONOMOUS_INSTALL}
+        --cmake-args -DCMAKE_BUILD_TYPE=Release \
+        --install-base ${WATONOMOUS_INSTALL}
 
-# Source and Build Artifact Cleanup 
-RUN rm -rf src/* build/* devel/* install/* log/*
+# Remove source + build artifacts (keeps only install)
+RUN rm -rf src build log
 
-# pass through the udev-created symlinks to the container.
+# Pass udev symlinks into container
 ENV UDEV=1
 
-# Entrypoint will run before any CMD on launch. Sources ~/opt/<ROS_DISTRO>/setup.bash and ~/ament_ws/install/setup.bash
+# Entrypoint
 COPY docker/wato_ros_entrypoint.sh ${AMENT_WS}/wato_ros_entrypoint.sh
 ENTRYPOINT ["./wato_ros_entrypoint.sh"]
+
