@@ -1,5 +1,4 @@
 ARG BASE_IMAGE=ghcr.io/watonomous/robot_base/base:humble-ubuntu22.04
-ARG AMENT_WS=/root/ament_ws
 
 ################################ Source ################################
 FROM ${BASE_IMAGE} AS source
@@ -10,35 +9,37 @@ WORKDIR ${AMENT_WS}/src
 COPY autonomy/perception perception
 COPY autonomy/wato_msgs/common_msgs wato_msgs/common_msgs
 
-# Scan for rosdeps
-# RUN apt-get -qq update
-# RUN rosdep update
-# RUN rosdep install --from-paths . --ignore-src -r -s \
-#         | grep 'apt-get install' \
-#         | awk '{print $3}' \
-#         | sort  > /tmp/colcon_install_list
+# Install rosdep if not present, update package lists
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3-rosdep && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN apt-get -qq update
+# Update rosdep database (safe in containers)
 RUN rosdep update
-RUN echo "" > /tmp/colcon_install_list
+
+# Generate dependency list (simulated install → extract apt packages)
+RUN rosdep install \
+    --from-paths . \
+    --ignore-src \
+    --rosdistro $ROS_DISTRO \
+    -y \
+    --simulate | \
+    grep "apt-get install" | \
+    sed 's/apt-get install -y //' > /tmp/colcon_install_list || true
 
 ################################# Dependencies ################################
 FROM ${BASE_IMAGE} AS dependencies
 
 # Install Rosdep requirements
 COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
-RUN apt-fast install -qq -y --no-install-recommends $(cat /tmp/colcon_install_list)
+
+RUN apt-get update && \
+    apt-fast install -qq -y --no-install-recommends $(cat /tmp/colcon_install_list)
 
 # Dependency Cleanup
 WORKDIR /
 RUN apt-get -qq autoremove -y && apt-get -qq autoclean && apt-get -qq clean && \
     rm -rf /root/* /root/.ros /tmp/* /var/lib/apt/lists/* /usr/share/doc/*
-
-# Avoid interactive package prompts
-ENV DEBIAN_FRONTEND=noninteractive \
-    TZ=Etc/UTC \
-    LANG=C.UTF-8 \
-    LC_ALL=C.UTF-8
 
 # Essential build & Python tooling
 RUN apt-get update && \
@@ -60,7 +61,12 @@ RUN apt-get update && \
       usbutils \
       libusb-1.0-0-dev \
       pkg-config \
-      libgtk-3-dev && \
+      libgtk-3-dev
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      ros-$ROS_DISTRO-librealsense2* \
+      ros-$ROS_DISTRO-realsense2-camera* && \
       rm -rf /var/lib/apt/lists/*
 
 RUN python3 -m pip install --upgrade pip
@@ -71,28 +77,7 @@ RUN python3 -m pip install --no-cache-dir \
       pybind11>=2.6.0 \
       numpy \
       fire \
-      cv_bridge \
       opencv-python
-
-
-# Clone realsense-ros r/4.56.3 (wrapper)
-RUN git clone --branch r/4.56.3 --depth=1 https://github.com/IntelRealSense/realsense-ros.git ${AMENT_WS}/src/realsense-ros
-
-# Download and extract matching librealsense SDK (v2.56.3)
-RUN cd ${AMENT_WS}/src/realsense-ros && \
-    wget https://github.com/IntelRealSense/librealsense/archive/refs/tags/v2.56.3.tar.gz && \
-    tar xvf v2.56.3.tar.gz && \
-    mv librealsense-2.56.3 librealsense && \
-    rm v2.56.3.tar.gz
-
-# Build librealsense SDK first
-RUN cd ${AMENT_WS}/src/realsense-ros/librealsense && \
-    mkdir build && cd build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release \
-             -DFORCE_RSUSB_BACKEND=ON \
-             -DBUILD_EXAMPLES=false \
-             -DBUILD_GRAPHICAL_EXAMPLES=false && \
-    make -j$(nproc) && make install
 
 # Dependency Cleanup
 WORKDIR /
@@ -101,15 +86,14 @@ RUN apt-get -qq autoremove -y && apt-get -qq autoclean && apt-get -qq clean && \
 
 ################################ Build ################################
 FROM dependencies AS build
-COPY --from=dependencies ${AMENT_WS}/src/realsense-ros ${AMENT_WS}/src/realsense-ros
+COPY --from=source ${AMENT_WS}/src ${AMENT_WS}/src
+
 # Build ROS2 packages
 WORKDIR ${AMENT_WS}
+
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
     colcon build \
-        --cmake-args \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DBUILD_EXAMPLES=false \
-        -DBUILD_GRAPHICAL_EXAMPLES=false \
+        --cmake-args -DCMAKE_BUILD_TYPE=Release \
         --install-base ${WATONOMOUS_INSTALL}
 
 # Source and Build Artifact Cleanup 

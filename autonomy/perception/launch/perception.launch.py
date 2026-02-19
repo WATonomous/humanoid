@@ -23,5 +23,15 @@ def generate_launch_description():
             remappings=[
                 # Add any topic remappings here if needed
             ]
+        ),
+        Node(
+            package='realsense2_camera',
+            executable='realsense2_camera_node',
+            name='realsense_node',
+            output='screen',
+            parameters=[{
+                'depth_module.depth_profile': '640x480x30',
+                'pointcloud.enable': True
+            }]
         )
     ])
