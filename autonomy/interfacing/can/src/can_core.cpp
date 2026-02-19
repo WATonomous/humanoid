@@ -301,8 +301,8 @@ bool CanCore::setupSlcan() {
     return false;
   }
 
-  std::string command = "sudo " + script_path + " " + config_.device_path + " " +
-                        config_.interface_name + " " + bitrate_code;
+  std::string command = "sudo " + script_path + " " + config_.device_path +
+                        " " + config_.interface_name + " " + bitrate_code;
 
   RCLCPP_INFO(logger_, "Executing CAN setup script: %s", command.c_str());
   int result = std::system(command.c_str());
