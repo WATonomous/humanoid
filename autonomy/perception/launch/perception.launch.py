@@ -31,7 +31,12 @@ def generate_launch_description():
             output='screen',
             parameters=[{
                 'depth_module.depth_profile': '640x480x30',
-                'pointcloud.enable': True
+                'pointcloud.enable': True,
+                'enable_rgbd': True,
+                'enable_sync': True,
+                'align_depth.enable': True,
+                'enable_color': True,
+                'enable_depth': True
             }]
         )
     ])
