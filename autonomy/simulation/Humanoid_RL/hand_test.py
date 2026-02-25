@@ -1,11 +1,3 @@
-from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
-from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import HAND_CFG
-from isaaclab.utils import configclass
-from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
-from isaaclab.managers import SceneEntityCfg
-from isaaclab.assets import AssetBaseCfg
-import isaaclab.sim as sim_utils
-import torch
 import argparse
 from isaaclab.app import AppLauncher
 
@@ -16,6 +8,14 @@ args_cli = parser.parse_args()
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
+from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
+from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import HAND_CFG
+from isaaclab.utils import configclass
+from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
+from isaaclab.managers import SceneEntityCfg
+from isaaclab.assets import AssetBaseCfg
+import isaaclab.sim as sim_utils
+import torch
 
 @configclass
 class HandSceneCfg(InteractiveSceneCfg):
@@ -93,6 +93,7 @@ def main():
     scene = InteractiveScene(scene_cfg)
 
     sim.reset()
+    sim.play()
 
     print("[INFO]: Setup complete...")
 
