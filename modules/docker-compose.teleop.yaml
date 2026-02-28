@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  teleop:
+    build: &teleop
+      context: ..
+      dockerfile: docker/teleop/teleop.Dockerfile
+      cache_from:
+        - "${TELEOP_IMAGE:?}:${TAG}"
+        - "${TELEOP_IMAGE:?}:main"
+    image: "${TELEOP_IMAGE:?}:${TAG}"
+    profiles: [deploy, develop]
+    command: /bin/bash -c "ros2 launch rosbridge_example rosbridge_example.launch.py"
+    volumes:
+      - ${MONO_DIR}/autonomy/teleop:/root/ament_ws/src/teleop
