@@ -12,11 +12,11 @@ ROSbridgeListenerNode::ROSbridgeListenerNode() : Node("rosbridge_listener") {
 }
 
 std::string ROSbridgeListenerNode::hand_pose_to_string(
-    const sample_msgs::msg::VRHandPose::SharedPtr pose){
+    const sample_msgs::msg::VRHandPose::SharedPtr pose) {
   std::string s;
   std::vector<float> positions = pose->positions;
   s += "[";
-  for (int i = 0; i < positions.size(); i++){
+  for (int i = 0; i < positions.size(); i++) {
     s += std::to_string(positions[i]);
     s += ",";
   }
@@ -25,7 +25,7 @@ std::string ROSbridgeListenerNode::hand_pose_to_string(
 }
 
 void ROSbridgeListenerNode::hand_pose_callback(
-    const sample_msgs::msg::VRHandPose::SharedPtr msg){
+    const sample_msgs::msg::VRHandPose::SharedPtr msg) {
   RCLCPP_INFO(this->get_logger(), "Received Hand Data: %s",
               hand_pose_to_string(msg).c_str());
 }
