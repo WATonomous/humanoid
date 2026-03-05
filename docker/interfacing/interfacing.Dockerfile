@@ -31,8 +31,28 @@ RUN rosdep install \
 ################################ Dependencies ################################
 FROM ${BASE_IMAGE} AS dependencies
 
+# Apt dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    build-essential \
+    cmake \
+    libboost-all-dev \
+    libxml2-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy dependency list from source stage
 COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
+
+# CAN dbc parser
+WORKDIR /usr/local
+RUN git clone --depth 1 --recurse-submodules https://github.com/xR3b0rn/dbcppp.git 
+
+# Build and install dbcppp
+WORKDIR /usr/local/dbcppp
+RUN mkdir build && cd build && \
+    cmake -DCMAKE_BUILD_TYPE=Release .. && \
+    make -j && \
+    make install
 
 # Install dependencies + tools (update must be in same layer)
 RUN apt-get update && \
