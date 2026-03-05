@@ -1,5 +1,11 @@
 # Teleop
 ## Samples
+
+rosbridge listener: a node that subscribes to the "teleop" topic and prints all received messages to the console
+rosbridge publisher: a node that publishes a VRHandPose message to the "teleop" topic on a timer
+
+running humanoid-server will allow you to listen to, and publish over the "teleop" topic over websocket. You should be able to see messages published from humanoid-server on the ros side, and messages published from ros in humanoid-server.
+
 To run rosbridge listener:
 ```
 ros2 run rosbridge_listener rosbridge_listener_node
@@ -23,7 +29,7 @@ These commands were run with the autonomy/samples folder deleted, since some pac
 ```bash
 
 # In humanoid repo:
-cd autonomy
+cd autonomy/teleop
 colcon build
 source install/setup.bash
 ros2 run rosbridge_listener rosbridge_listener_node
