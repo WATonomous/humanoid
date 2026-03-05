@@ -17,8 +17,9 @@
 ##	 - simulation			:	starts simulation
 ##   - behaviour            :   starts behaviour nodes       
 ##   - samples             	:   starts sample ROS2 pubsub nodes
+##   - teleop               :   starts teleop nodes
 
-# ACTIVE_MODULES=""
+ACTIVE_MODULES="teleop"
 
 ################################# MODE OF OPERATION #################################
 ## Possible modes of operation when running watod.
