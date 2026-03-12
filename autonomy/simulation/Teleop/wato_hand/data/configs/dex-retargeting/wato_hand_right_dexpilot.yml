@@ -1,0 +1,34 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+retargeting:
+  finger_tip_link_names:
+  - IP_THUMB_v1_1
+  - DIP_INDEX_v1_1
+  - DIP_MIDDLE_v1_1
+  - DIP_RING_v1_1
+  - DIP_PINKY_v1_1
+  low_pass_alpha: 0.2
+  scaling_factor: 1.0
+  target_joint_names:
+  - mcp_index
+  - pip_index
+  - dip_index
+  - mcp_middle
+  - pip_middle
+  - dip_middle
+  - mcp_ring
+  - pip_ring
+  - dip_ring
+  - mcp_pinky
+  - pip_pinky
+  - dip_pinky
+  - cmc_thumb
+  - mcp_thumb
+  - ip_thumb
+  type: DexPilot
+  # Overwritten at runtime by wato_dex_retargeting_utils to Humanoid_Wato/arm_assembly/arm_assembly.urdf
+  urdf_path: /tmp/wato_arm_assembly.urdf
+  wrist_link_name: PALM_GAVIN_1DoF_Hinge_v2_1

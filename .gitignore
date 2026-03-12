@@ -1,6 +1,7 @@
 .env
 __pycache__
 .vscode/
+.DS_Store
 
 watod-config.local.sh
 utils/voxel/spconv
