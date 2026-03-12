@@ -5,7 +5,7 @@ from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
 _HUMANOID_WATO_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
 )
 _MODEL_ASSETS = os.path.join(_HUMANOID_WATO_ROOT, "ModelAssets")
 
