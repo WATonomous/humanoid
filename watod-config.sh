@@ -13,7 +13,6 @@
 ##   - infrastructure     	:   starts visualization tools
 ##   - interfacing          :   starts interfacing nodes
 ##	 - perception			:	starts perception nodes
-##	 - controller		    :	starts controller nodes
 ##	 - simulation			:	starts simulation
 ##   - behaviour            :   starts behaviour nodes       
 ##   - samples             	:   starts sample ROS2 pubsub nodes

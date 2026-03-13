@@ -22,9 +22,12 @@ services:
           devices:
             - driver: nvidia
               capabilities: [gpu]
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
+    privileged: true
     volumes:
       - ${MONO_DIR}/autonomy/perception:/root/ament_ws/src/perception
-    command: tail -F anything
+    command: /bin/bash -c "ros2 launch perception perception.launch.py"
 
   perception_dev:
     build: *perception_build
@@ -34,6 +37,10 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     profiles: [develop]
+    privileged: true
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
     volumes:
       - ${MONO_DIR}/autonomy/perception:/root/ament_ws/src/perception
-    command: tail -F anything
+    command: /bin/bash -c "ros2 launch perception perception.launch.py"
+    # command: tail -f /dev/null
