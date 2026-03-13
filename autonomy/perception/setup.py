@@ -30,7 +30,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'dummy_publisher_node = perception.dummy_publisher_node:main'
+            'dummy_publisher_node = perception.dummy_publisher_node:main',
+            'pc_publisher_node = perception.publish_pointcloud:main'
         ],
     },
 )

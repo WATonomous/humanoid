@@ -40,48 +40,31 @@ services:
       - ${MONO_DIR}/autonomy/behaviour/voxel_grid:/root/ament_ws/src/voxel_grid
     command: tail -F anything
 
-  # octo_map:
-  #   build:
-  #     context: ..
-  #     dockerfile: docker/behaviour/octo_map/octo_map.Dockerfile
-  #     cache_from:
-  #       - "${BEHAVIOUR_OCTO_IMAGE:?}:${TAG}"
-  #       - "${BEHAVIOUR_OCTO_IMAGE:?}:main"
-  #     args:
-  #       BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
-  #   image: "${BEHAVIOUR_OCTO_IMAGE:?}:${TAG}"
-  #   runtime: nvidia
-  #   environment:
-  #     - NVIDIA_VISIBLE_DEVICES=all
-  #     - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-  #   profiles: [deploy]
-  #   working_dir: /root/ament_ws
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             capabilities: [gpu]
-  #   volumes:
-  #     - ${MONO_DIR}/autonomy/behaviour/octo_map:/root/ament_ws/src/octo_map
-  #   command: tail -F anything
+  octomap:
+    build: &octomap_build
+      context: ..
+      dockerfile: docker/behaviour/octomap/octomap.Dockerfile
+      cache_from:
+        - "${BEHAVIOUR_OCTO_IMAGE:?}:${TAG}"
+        - "${BEHAVIOUR_OCTO_IMAGE:?}:main"
+      args:
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
+    image: "${BEHAVIOUR_OCTO_IMAGE:?}:${TAG}"
+    runtime: nvidia
+    profiles: [deploy]
+    working_dir: /root/ament_ws
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    command: tail -F anything
 
-  # octo_map_dev:
-  #   build:
-  #     context: ..
-  #     dockerfile: docker/behaviour/octo_map/octo_map.Dockerfile
-  #     cache_from:
-  #       - "${BEHAVIOUR_OCTO_IMAGE:?}:dev_${TAG}"
-  #       - "${BEHAVIOUR_OCTO_IMAGE:?}:main"
-  #     args:
-  #       BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
-  #   image: "${BEHAVIOUR_OCTO_IMAGE:?}:dev_${TAG}"
-  #   runtime: nvidia
-  #   environment:
-  #     - NVIDIA_VISIBLE_DEVICES=all
-  #     - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-  #   profiles: [develop]
-  #   working_dir: /root/ament_ws
-  #   volumes:
-  #     - ${MONO_DIR}/autonomy/behaviour/octo_map:/root/ament_ws/src/octo_map
-  #   command: tail -F anything
+  octomap_dev:
+    build: *octomap_build
+    image: "${BEHAVIOUR_OCTO_IMAGE:?}:dev_${TAG}"
+    runtime: nvidia
+    profiles: [develop]
+    working_dir: /root/ament_ws
+    command: tail -F anything
