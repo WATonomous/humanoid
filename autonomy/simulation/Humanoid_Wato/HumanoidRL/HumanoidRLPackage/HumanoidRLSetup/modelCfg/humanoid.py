@@ -5,7 +5,7 @@ from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
 _HUMANOID_WATO_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
 )
 _MODEL_ASSETS = os.path.join(_HUMANOID_WATO_ROOT, "ModelAssets")
 
@@ -40,10 +40,9 @@ HAND_CFG = ArticulationCfg(
     actuators={
         "arm": ImplicitActuatorCfg(
             joint_names_expr=[".*"],
-            # velocity_limit=100.0,
-            # effort_limit=87.0,
             stiffness=0.5,
             damping=0.5,
+            velocity_limit_sim=3.0,
         ),
     },
 )
@@ -93,72 +92,84 @@ ARM_CFG = ArticulationCfg(
             joint_names_expr=["shoulder_flexion_extension"],
             stiffness=757.6,
             damping=60.3,
+            velocity_limit_sim=3.0,
         ),
         # J≈0.95 kg·m², f=4.0 Hz, ζ=1.0 → k=600.0, d=47.7
         "shoulder_aa": ImplicitActuatorCfg(
             joint_names_expr=["shoulder_abduction_adduction"],
             stiffness=600.0,
             damping=47.7,
+            velocity_limit_sim=3.0,
         ),
         # J≈0.77 kg·m², f=4.5 Hz, ζ=1.0 → k=615.5, d=43.5
         "shoulder_rot": ImplicitActuatorCfg(
             joint_names_expr=["shoulder_rotation"],
             stiffness=615.5,
             damping=43.5,
+            velocity_limit_sim=3.0,
         ),
         # J≈0.77 kg·m², f=4.5 Hz, ζ=1.0 → k=615.5, d=43.5
         "elbow": ImplicitActuatorCfg(
             joint_names_expr=["elbow_flexion_extension"],
             stiffness=615.5,
             damping=43.5,
+            velocity_limit_sim=3.0,
         ),
         # J≈0.45 kg·m², f=5.0 Hz, ζ=1.0 → k=444.1, d=28.3
         "forearm": ImplicitActuatorCfg(
             joint_names_expr=["forearm_rotation"],
             stiffness=444.1,
             damping=28.3,
+            velocity_limit_sim=3.0,
         ),
         # J≈0.12 kg·m², f=6.0 Hz, ζ=1.0 → k=170.5, d=9.0
         "wrist": ImplicitActuatorCfg(
             joint_names_expr=["wrist_extension"],
             stiffness=170.5,
             damping=9.0,
+            velocity_limit_sim=3.0,
         ),
         # J≈0.0012 kg·m², f=8.0 Hz, ζ=1.0 → k=3.0, d=0.12
         "finger_mcp": ImplicitActuatorCfg(
             joint_names_expr=["mcp_index", "mcp_middle", "mcp_ring", "mcp_pinky"],
             stiffness=3.0,
             damping=0.12,
+            velocity_limit_sim=3.0,
         ),
         # J≈0.0006 kg·m², f=8.0 Hz, ζ=1.0 → k=1.5, d=0.06
         "finger_pip": ImplicitActuatorCfg(
             joint_names_expr=["pip_index", "pip_middle", "pip_ring", "pip_pinky"],
             stiffness=1.5,
             damping=0.06,
+            velocity_limit_sim=3.0,
         ),
         # J≈0.0002 kg·m², f=8.0 Hz, ζ=1.0 → k=0.5, d=0.02
         "finger_dip": ImplicitActuatorCfg(
             joint_names_expr=["dip_index", "dip_middle", "dip_ring", "dip_pinky"],
             stiffness=0.5,
             damping=0.02,
+            velocity_limit_sim=3.0,
         ),
         # J≈0.003 kg·m², f=8.0 Hz, ζ=1.0 → k=7.6, d=0.30
         "thumb_cmc": ImplicitActuatorCfg(
             joint_names_expr=["cmc_thumb"],
             stiffness=7.6,
             damping=0.30,
+            velocity_limit_sim=3.0,
         ),
         # J≈0.001 kg·m², f=8.0 Hz, ζ=1.0 → k=2.5, d=0.10
         "thumb_mcp": ImplicitActuatorCfg(
             joint_names_expr=["mcp_thumb"],
             stiffness=2.5,
             damping=0.10,
+            velocity_limit_sim=3.0,
         ),
         # J≈0.0002 kg·m², f=8.0 Hz, ζ=1.0 → k=0.5, d=0.02
         "thumb_ip": ImplicitActuatorCfg(
             joint_names_expr=["ip_thumb"],
             stiffness=0.5,
             damping=0.02,
+            velocity_limit_sim=3.0,
         ),
     },
 )

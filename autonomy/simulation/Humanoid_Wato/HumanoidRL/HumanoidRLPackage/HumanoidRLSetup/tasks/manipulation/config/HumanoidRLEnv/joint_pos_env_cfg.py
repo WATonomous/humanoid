@@ -1,17 +1,15 @@
 import math
 from isaaclab.utils import configclass
-import HumanoidRLPackage.HumanoidRLSetup.tasks.manipulation.mdp as mdp
 from HumanoidRLPackage.HumanoidRLSetup.tasks.manipulation.reach_env_cfg import ReachEnvCfg
-# from HumanoidRLPackage.HumanoidRLSetup.modelCfg.universal_robots import UR10_CFG
 from HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_CFG
 
 
+# Config on top of the base ReachEnvCfg, can override any settings
 @configclass
 class HumanoidArmReachEnvCfg(ReachEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
-        # self.scene.robot = UR10_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.robot = ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         
         marker_scale = 0.02
@@ -54,10 +52,6 @@ class HumanoidArmReachEnvCfg(ReachEnvCfg):
         # self.rewards.end_effector_5_position_tracking_fine_grained.params["asset_cfg"].body_names = ["IP_THUMB_v1_.*"]
         # self.rewards.end_effector_5_orientation_tracking.params["asset_cfg"].body_names = ["TIP_B_5"]
 
-        # override actions
-        self.actions.arm_action = mdp.JointPositionActionCfg(
-            asset_name="robot", joint_names=[".*"], scale=0.5, use_default_offset=True
-        )
         # override command generator body
         # end-effector is along x-direction
         self.commands.ee_pose.body_name = "DIP_INDEX_v1_.*"
@@ -82,13 +76,13 @@ class HumanoidArmReachEnvCfg(ReachEnvCfg):
 @configclass
 class HumanoidArmReachEnvCfg_PLAY(HumanoidArmReachEnvCfg):
     def __post_init__(self):
-        # post init of parent
         super().__post_init__()
+
         # make a smaller scene for play
         self.scene.num_envs = 50
         self.scene.env_spacing = 2.5
-        # disable randomization for play
-        self.observations.policy.enable_corruption = False
+        self.observations.policy.enable_corruption = False  # disable randomization for play
+
 
 # (env_isaaclab) hy@hy-LOQ-15IRX9:~/Downloads/Humanoid_Wato/HumanoidRL$ PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Reach-Humanoid-Arm-v0 --headless
 
