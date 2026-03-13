@@ -1,7 +1,5 @@
-from dataclasses import MISSING
-
 import isaaclab.sim as sim_utils
-from isaaclab.assets import ArticulationCfg, AssetBaseCfg
+from isaaclab.assets import AssetBaseCfg
 from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.managers import EventTermCfg as EventTerm
@@ -15,6 +13,8 @@ from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import HumanoidRLPackage.HumanoidRLSetup.tasks.manipulation.mdp as mdp
+from HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_CFG
+
 
 @configclass
 class ReachSceneCfg(InteractiveSceneCfg):
@@ -24,7 +24,7 @@ class ReachSceneCfg(InteractiveSceneCfg):
         init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, -1.05)),
     )
 
-    robot: ArticulationCfg = MISSING
+    robot = ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
     light = AssetBaseCfg(
         prim_path="/World/light",
@@ -34,6 +34,7 @@ class ReachSceneCfg(InteractiveSceneCfg):
 
 @configclass
 class CommandsCfg:
+    # Target end effector position
     ee_pose = mdp.UniformPoseCommandCfg(
         asset_name="robot",
         body_name="DIP_INDEX_v1_.*",
@@ -112,6 +113,7 @@ class CommandsCfg:
 
 @configclass
 class ActionsCfg:
+    # All joints are allowed to move to achieve the target end effector position
     arm_action = mdp.JointPositionActionCfg(
         asset_name="robot", joint_names=[".*"], scale=0.5, use_default_offset=True
     )
@@ -238,11 +240,11 @@ class RewardsCfg:
     #     params={"asset_cfg": SceneEntityCfg("robot", body_names="TIP_B_5"), "command_name": "ee_pose_5"},
     # )
 
-    # action penalty
-    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.000002)
+    # Penalty for avoiding too rapid actions
+    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.03)
     joint_vel = RewTerm(
         func=mdp.joint_vel_l2,
-        weight=-0.005,
+        weight=-0.01,
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
 
@@ -254,12 +256,18 @@ class TerminationsCfg:
 
 @configclass
 class CurriculumCfg:
+    # Curriculum modify reward weights during certain time of training
+    # Current RL training has around 22000 - 25000 steps in each iterations
+
+    # We increase the action rate and joint velocity penalty in the later half of the training 
+    # such that early in the training, it is incentivized to get near the target first 
+    # but afterwards slow down and stablize around the target point
     action_rate = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -0.00005, "num_steps": 18000}
+        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -0.05, "num_steps": 15000}
     )
 
     joint_vel = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.05, "num_steps": 18000}
+        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.15, "num_steps": 15000}
     )
 
 

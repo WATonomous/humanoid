@@ -5,7 +5,7 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, R
 @configclass
 class HumanoidArmReachPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 1000
+    max_iterations = 300
     save_interval = 50
     experiment_name = "reach_humanoid_arm"
     run_name = ""
