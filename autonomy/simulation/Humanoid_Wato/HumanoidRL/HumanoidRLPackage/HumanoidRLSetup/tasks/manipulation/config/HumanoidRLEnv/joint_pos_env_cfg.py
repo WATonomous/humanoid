@@ -1,7 +1,6 @@
 import math
 from isaaclab.utils import configclass
 from HumanoidRLPackage.HumanoidRLSetup.tasks.manipulation.reach_env_cfg import ReachEnvCfg
-from HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_CFG
 
 
 # Config on top of the base ReachEnvCfg, can override any settings
@@ -9,8 +8,6 @@ from HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_CFG
 class HumanoidArmReachEnvCfg(ReachEnvCfg):
     def __post_init__(self):
         super().__post_init__()
-
-        self.scene.robot = ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         
         marker_scale = 0.02
 
