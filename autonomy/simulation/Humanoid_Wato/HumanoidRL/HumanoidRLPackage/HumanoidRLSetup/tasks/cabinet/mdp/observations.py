@@ -1,8 +1,3 @@
-# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
-# All rights reserved.
-#
-# SPDX-License-Identifier: BSD-3-Clause
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -17,6 +12,15 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
 
+def _robot_ee_pos(env: ManagerBasedRLEnv) -> torch.Tensor | None:
+    """End-effector position from robot articulation (body DIP_INDEX). Returns None if not ready."""
+    robot = env.scene["robot"]
+    ids, _ = robot.find_bodies("DIP_INDEX_v1_.*", preserve_order=True)
+    if not ids:
+        return None
+    return robot.data.body_pos_w[:, ids[0], :]
+
+
 def rel_ee_object_distance(env: ManagerBasedRLEnv) -> torch.Tensor:
     """The distance between the end-effector and the object."""
     ee_tf_data: FrameTransformerData = env.scene["ee_frame"].data
@@ -27,10 +31,12 @@ def rel_ee_object_distance(env: ManagerBasedRLEnv) -> torch.Tensor:
 
 def rel_ee_drawer_distance(env: ManagerBasedRLEnv) -> torch.Tensor:
     """The distance between the end-effector and the object."""
-    ee_tf_data: FrameTransformerData = env.scene["ee_frame"].data
+    ee_pos = _robot_ee_pos(env)
+    if ee_pos is None:
+        return torch.zeros(env.num_envs, 3, device=env.device)
     cabinet_tf_data: FrameTransformerData = env.scene["cabinet_frame"].data
-
-    return cabinet_tf_data.target_pos_w[..., 0, :] - ee_tf_data.target_pos_w[..., 0, :]
+    handle_pos = cabinet_tf_data.target_pos_w[..., 0, :]
+    return handle_pos - ee_pos
 
 
 def fingertips_pos(env: ManagerBasedRLEnv) -> torch.Tensor:

@@ -49,8 +49,6 @@ class CabinetSceneCfg(InteractiveSceneCfg):
 
     # robots, Will be populated by agent env cfg
     robot: ArticulationCfg = MISSING
-    # End-effector, Will be populated by agent env cfg
-    ee_frame: FrameTransformerCfg = MISSING
 
     cabinet = ArticulationCfg(
         prim_path="{ENV_REGEX_NS}/Cabinet",
@@ -180,8 +178,8 @@ class EventCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("cabinet", body_names="drawer_handle_top"),
-            "static_friction_range": (1.0, 1.25),
-            "dynamic_friction_range": (1.25, 1.5),
+            "static_friction_range": (2.0, 2.5),
+            "dynamic_friction_range": (2.0, 2.25),
             "restitution_range": (0.0, 0.0),
             "num_buckets": 16,
         },
@@ -223,7 +221,7 @@ class RewardsCfg:
     # 3. Open the drawer
     open_drawer_bonus = RewTerm(
         func=mdp.open_drawer_bonus,
-        weight=7.5,
+        weight=8.0,
         params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
     )
     multi_stage_open_drawer = RewTerm(
@@ -276,3 +274,8 @@ class CabinetEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.physx.bounce_threshold_velocity = 0.2
         self.sim.physx.bounce_threshold_velocity = 0.01
         self.sim.physx.friction_correlation_distance = 0.00625
+
+
+# PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Open-Drawer-Humanoid-Arm-v0 --headless
+
+# PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py --task=Isaac-Open-Drawer-Humanoid-Arm-v0 --num_envs=1
