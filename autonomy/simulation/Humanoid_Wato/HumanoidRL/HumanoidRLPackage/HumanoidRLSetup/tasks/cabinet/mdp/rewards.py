@@ -1,8 +1,3 @@
-# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
-# All rights reserved.
-#
-# SPDX-License-Identifier: BSD-3-Clause
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -14,6 +9,20 @@ from isaaclab.utils.math import matrix_from_quat
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
+
+
+def _robot_ee_pose(env: ManagerBasedRLEnv):
+    """(ee_tcp_pos, ee_tcp_quat, lfinger_pos, rfinger_pos) from robot articulation bodies. Uses body name regex like reach."""
+    robot = env.scene["robot"]
+    ee_ids, _ = robot.find_bodies("DIP_INDEX_v1_.*", preserve_order=True)
+    thumb_ids, _ = robot.find_bodies("IP_THUMB_v1_.*", preserve_order=True)
+    if not ee_ids or not thumb_ids:
+        return None
+    ee_tcp_pos = robot.data.body_pos_w[:, ee_ids[0], :]
+    ee_tcp_quat = robot.data.body_quat_w[:, ee_ids[0], :]
+    lfinger_pos = robot.data.body_pos_w[:, ee_ids[0], :]
+    rfinger_pos = robot.data.body_pos_w[:, thumb_ids[0], :]
+    return (ee_tcp_pos, ee_tcp_quat, lfinger_pos, rfinger_pos)
 
 
 def approach_ee_handle(env: ManagerBasedRLEnv, threshold: float) -> torch.Tensor:
@@ -29,87 +38,59 @@ def approach_ee_handle(env: ManagerBasedRLEnv, threshold: float) -> torch.Tensor
         \end{cases}
 
     """
-    ee_tcp_pos = env.scene["ee_frame"].data.target_pos_w[..., 0, :]
+    pose = _robot_ee_pose(env)
+    if pose is None:
+        return torch.zeros(env.num_envs, device=env.device)
+    ee_tcp_pos, _, _, _ = pose
     handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
 
-    # Compute the distance of the end-effector to the handle
     distance = torch.norm(handle_pos - ee_tcp_pos, dim=-1, p=2)
-
-    # Reward the robot for reaching the handle
     reward = 1.0 / (1.0 + distance**2)
     reward = torch.pow(reward, 2)
     return torch.where(distance <= threshold, 2 * reward, reward)
 
 
 def align_ee_handle(env: ManagerBasedRLEnv) -> torch.Tensor:
-    """Reward for aligning the end-effector with the handle.
-
-    The reward is based on the alignment of the gripper with the handle. It is computed as follows:
-
-    .. math::
-
-        reward = 0.5 * (align_z^2 + align_x^2)
-
-    where :math:`align_z` is the dot product of the z direction of the gripper and the -x direction of the handle
-    and :math:`align_x` is the dot product of the x direction of the gripper and the -y direction of the handle.
-    """
-    ee_tcp_quat = env.scene["ee_frame"].data.target_quat_w[..., 0, :]
+    """Reward for aligning the end-effector with the handle."""
+    pose = _robot_ee_pose(env)
+    if pose is None:
+        return torch.zeros(env.num_envs, device=env.device)
+    _, ee_tcp_quat, _, _ = pose
     handle_quat = env.scene["cabinet_frame"].data.target_quat_w[..., 0, :]
 
     ee_tcp_rot_mat = matrix_from_quat(ee_tcp_quat)
     handle_mat = matrix_from_quat(handle_quat)
 
-    # get current x and y direction of the handle
     handle_x, handle_y = handle_mat[..., 0], handle_mat[..., 1]
-    # get current x and z direction of the gripper
     ee_tcp_x, ee_tcp_z = ee_tcp_rot_mat[..., 0], ee_tcp_rot_mat[..., 2]
 
-    # make sure gripper aligns with the handle
-    # in this case, the z direction of the gripper should be close to the -x direction of the handle
-    # and the x direction of the gripper should be close to the -y direction of the handle
-    # dot product of z and x should be large
     align_z = torch.bmm(ee_tcp_z.unsqueeze(1), -handle_x.unsqueeze(-1)).squeeze(-1).squeeze(-1)
     align_x = torch.bmm(ee_tcp_x.unsqueeze(1), -handle_y.unsqueeze(-1)).squeeze(-1).squeeze(-1)
     return 0.5 * (torch.sign(align_z) * align_z**2 + torch.sign(align_x) * align_x**2)
 
 
 def align_grasp_around_handle(env: ManagerBasedRLEnv) -> torch.Tensor:
-    """Bonus for correct hand orientation around the handle.
-
-    The correct hand orientation is when the left finger is above the handle and the right finger is below the handle.
-    """
-    # Target object position: (num_envs, 3)
+    """Bonus for correct hand orientation around the handle."""
     handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
-    # Fingertips position: (num_envs, n_fingertips, 3)
-    ee_fingertips_w = env.scene["ee_frame"].data.target_pos_w[..., 1:, :]
-    lfinger_pos = ee_fingertips_w[..., 0, :]
-    rfinger_pos = ee_fingertips_w[..., 1, :]
+    pose = _robot_ee_pose(env)
+    if pose is None:
+        return torch.zeros(env.num_envs, device=env.device, dtype=torch.bool)
+    _, _, lfinger_pos, rfinger_pos = pose
 
-    # Check if hand is in a graspable pose
     is_graspable = (rfinger_pos[:, 2] < handle_pos[:, 2]) & (lfinger_pos[:, 2] > handle_pos[:, 2])
-
-    # bonus if left finger is above the drawer handle and right below
     return is_graspable
 
 
 def approach_gripper_handle(env: ManagerBasedRLEnv, offset: float = 0.04) -> torch.Tensor:
-    """Reward the robot's gripper reaching the drawer handle with the right pose.
-
-    This function returns the distance of fingertips to the handle when the fingers are in a grasping orientation
-    (i.e., the left finger is above the handle and the right finger is below the handle). Otherwise, it returns zero.
-    """
-    # Target object position: (num_envs, 3)
+    """Reward the robot's gripper reaching the drawer handle with the right pose."""
     handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
-    # Fingertips position: (num_envs, n_fingertips, 3)
-    ee_fingertips_w = env.scene["ee_frame"].data.target_pos_w[..., 1:, :]
-    lfinger_pos = ee_fingertips_w[..., 0, :]
-    rfinger_pos = ee_fingertips_w[..., 1, :]
+    pose = _robot_ee_pose(env)
+    if pose is None:
+        return torch.zeros(env.num_envs, device=env.device)
+    _, _, lfinger_pos, rfinger_pos = pose
 
-    # Compute the distance of each finger from the handle
     lfinger_dist = torch.abs(lfinger_pos[:, 2] - handle_pos[:, 2])
     rfinger_dist = torch.abs(rfinger_pos[:, 2] - handle_pos[:, 2])
-
-    # Check if hand is in a graspable pose
     is_graspable = (rfinger_pos[:, 2] < handle_pos[:, 2]) & (lfinger_pos[:, 2] > handle_pos[:, 2])
 
     return is_graspable * ((offset - lfinger_dist) + (offset - rfinger_dist))
@@ -126,7 +107,10 @@ def grasp_handle(
     Note:
         It is assumed that zero joint position corresponds to the fingers being closed.
     """
-    ee_tcp_pos = env.scene["ee_frame"].data.target_pos_w[..., 0, :]
+    pose = _robot_ee_pose(env)
+    if pose is None:
+        return torch.zeros(env.num_envs, device=env.device)
+    ee_tcp_pos, _, _, _ = pose
     handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
     gripper_joint_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids]
 
