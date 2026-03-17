@@ -90,6 +90,18 @@ def run_simulator(
     )
     target_markers = VisualizationMarkers(target_marker_cfg)
 
+    # Markers for the 5 current fingertip EE positions (tracking visualization)
+    current_marker_cfg = VisualizationMarkersCfg(
+        prim_path="/Visuals/fingertip_currents",
+        markers={
+            "current": sim_utils.SphereCfg(
+                radius=0.012,
+                visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.1, 1.0, 0.1)),
+            ),
+        },
+    )
+    current_markers = VisualizationMarkers(current_marker_cfg)
+
     # Map fingertip body names (from URDF) to Isaac body indices once.
     fingertip_body_ids: list[int | None] = []
     for name in FINGERTIP_BODIES:
@@ -124,6 +136,21 @@ def run_simulator(
         robot.write_joint_state_to_sim(joint_pos_tensor, joint_vel)
         targets_world = torch.tensor(targets_interp, dtype=torch.float32, device=sim.device) + scene.env_origins[0]
         target_markers.visualize(translations=targets_world)
+
+        # Visualize current fingertip locations (world frame) next to targets
+        current_positions = []
+        for body_id in fingertip_body_ids:
+            if body_id is None:
+                current_positions.append([0.0, 0.0, 0.0])
+            else:
+                pos_w = robot.data.body_pos_w[0, body_id, :]  # world frame
+                current_positions.append(pos_w)
+        current_positions_tensor = torch.stack(
+            [p if torch.is_tensor(p) else torch.tensor(p, device=sim.device) for p in current_positions],
+            dim=0,
+        ).to(device=sim.device, dtype=torch.float32)
+        current_markers.visualize(translations=current_positions_tensor)
+
         scene.write_data_to_sim()
         sim.step()
         scene.update(sim_dt)
@@ -192,7 +219,7 @@ def main():
         data.qpos[:] = 0.0
         qpos, converged, max_err = solve_fingertip_ik(
             model, data, targets_mjc,
-            damping=5e-4, step=0.25, max_iter=3000, tol=5e-3,
+            damping=5e-4, step=0.25, max_iter=300, tol=5e-3,
         )
         target_positions_isaac = np.stack([targets_mjc[name] for name in FINGERTIP_BODIES], axis=0).astype(np.float32)
         pose_sequence.append((qpos.copy(), target_positions_isaac, max_err))

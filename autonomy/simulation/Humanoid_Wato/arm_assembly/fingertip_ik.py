@@ -255,62 +255,10 @@ def main():
     print_joint_limits_urdf(model)
     print()
 
-    # --- Diagnose at qpos = 0 ---
     data.qpos[:] = 0.0
-    print("========== DIAGNOSE at qpos=0 ==========")
-    diagnose_jacobian_joint0(model, data)
-    print()
-
-    default_positions = get_fingertip_positions(model, data)
-    if len(default_positions) != 5:
-        raise RuntimeError("Could not get all 5 fingertip positions from model.")
-
-    # Test 1: small reach (X+Z offset)
-    targets_small = {
-        name: pos + np.array([0.02, 0.0, 0.02])
-        for name, pos in default_positions.items()
-    }
-    # Test 2: large Y offset to reproduce "huge Y error" case (joint 0 can help in Y)
-    targets_large_y = {
-        name: pos + np.array([0.0, 0.1, 0.0])
-        for name, pos in default_positions.items()
-    }
-
-    for label, targets in [("small reach (0.02,0,0.02)", targets_small), ("large Y offset +0.1", targets_large_y)]:
-        data.qpos[:] = 0.0
-        print("========== IK test:", label, "==========")
-        qpos, converged, max_err = solve_fingertip_ik(
-            model, data, targets,
-            damping=5e-4,
-            step=0.25,
-            max_iter=3000,
-            tol=5e-3,
-        )
-        print("Converged:", converged, "  max_err (m):", max_err, "  qpos[0] (joint 0):", data.qpos[0])
-
-        # Build current task error and diagnose at this pose
-        tip_names = [b for b in FINGERTIP_BODIES if b in targets]
-        err_list = []
-        for name in tip_names:
-            bid = body_name_to_id(model, name)
-            err_list.append(targets[name] - data.xpos[bid])
-        err = np.concatenate(err_list)
-        print("--- DIAGNOSE at final pose (with current error) ---")
-        diagnose_jacobian_joint0(model, data, err=err)
-        print()
-
-    # Final summary: achieved vs target for last test
     mujoco.mj_forward(model, data)
-    print("Achieved vs target (last test):")
-    for name in FINGERTIP_BODIES:
-        try:
-            bid = body_name_to_id(model, name)
-            achieved = data.xpos[bid]
-            desired = targets_large_y.get(name, np.full(3, np.nan))
-            e = desired - achieved
-            print(f"  {name}: err = ({e[0]:.4f}, {e[1]:.4f}, {e[2]:.4f}) m")
-        except KeyError:
-            pass
+    default_positions = get_fingertip_positions(model, data)
+    print(f"[sanity] found {len(default_positions)}/5 fingertip bodies in MuJoCo model")
 
 
 if __name__ == "__main__":
