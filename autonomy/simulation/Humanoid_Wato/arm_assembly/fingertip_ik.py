@@ -2,6 +2,12 @@
 Standalone gradient-based IK for arm_assembly (6-DOF arm + 15-DOF hand).
 Solves for joint angles so that 5 fingertips reach desired world positions
 using damped least-squares (no dependencies on other scripts in this repo).
+
+Joint 0 (shoulder_flexion_extension) issue:
+  MuJoCo's URDF importer can set continuous joints to range [0,0], which would
+  lock joint 0 at zero. We bypass that in clip_qpos_to_limits(): when
+  lower == upper we skip clipping so the IK can move that joint. See
+  diagnose_jacobian_joint0() and print_joint_limits_urdf() to inspect.
 """
 import os
 import mujoco
