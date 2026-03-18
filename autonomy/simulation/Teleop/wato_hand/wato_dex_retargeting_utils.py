@@ -5,6 +5,8 @@
 
 import logging
 import os
+import re
+import tempfile
 
 import numpy as np
 import torch
@@ -52,6 +54,32 @@ _WATO_HAND_JOINT_NAMES = [
 _LEFT_HAND_JOINT_NAMES = _WATO_HAND_JOINT_NAMES
 _RIGHT_HAND_JOINT_NAMES = _WATO_HAND_JOINT_NAMES
 
+# dex_retargeting's RobotWrapper requires model.nq == model.nv. Pinocchio models
+# continuous joints as nq=2, nv=1, so we pass a URDF with continuous -> revolute + limits.
+_DEX_LIMIT_LINE = '    <limit effort="100" lower="-3.14159" upper="3.14159" velocity="100"/>'
+
+
+def _urdf_continuous_to_revolute_for_dex(source_urdf_path: str) -> str:
+    """Write a temp URDF with continuous joints replaced by revolute + limits so nq==nv."""
+    with open(source_urdf_path) as f:
+        content = f.read()
+    content = re.sub(r'\btype="continuous"', 'type="revolute"', content)
+    # Add limit for joints that had no limit (the two former continuous ones)
+    for joint_name in ("shoulder_flexion_extension", "shoulder_rotation"):
+        pattern = (
+            r'(<joint name="' + re.escape(joint_name) + r'"[^>]*>.*?<axis xyz="[^"]+"/>)'
+            r'\s*(</joint>)'
+        )
+        content = re.sub(pattern, r'\1\n' + _DEX_LIMIT_LINE + r'\n  \2', content, count=1, flags=re.DOTALL)
+    fd, path = tempfile.mkstemp(suffix=".urdf", prefix="wato_dex_")
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(content)
+    except Exception:
+        os.unlink(path)
+        raise
+    return path
+
 
 class WatoHandDexRetargeting:
     """Hand retargeting for Wato arm_assembly hand.
@@ -83,11 +111,16 @@ class WatoHandDexRetargeting:
         local_left_urdf_path = left_hand_urdf_path if left_hand_urdf_path else default_urdf
         local_right_urdf_path = right_hand_urdf_path if right_hand_urdf_path else default_urdf
 
+        # dex_retargeting RobotWrapper requires nq==nv; Pinocchio gives nq!=nv for continuous joints.
+        # Use a temp URDF with continuous -> revolute + limits.
+        self._dex_left_urdf_path = _urdf_continuous_to_revolute_for_dex(local_left_urdf_path)
+        self._dex_right_urdf_path = _urdf_continuous_to_revolute_for_dex(local_right_urdf_path)
+
         left_config_path = os.path.join(config_dir, left_hand_config_filename)
         right_config_path = os.path.join(config_dir, right_hand_config_filename)
 
-        self._update_yaml_with_urdf_path(left_config_path, local_left_urdf_path)
-        self._update_yaml_with_urdf_path(right_config_path, local_right_urdf_path)
+        self._update_yaml_with_urdf_path(left_config_path, self._dex_left_urdf_path)
+        self._update_yaml_with_urdf_path(right_config_path, self._dex_right_urdf_path)
 
         self._dex_left_hand = RetargetingConfig.load_from_file(left_config_path).build()
         self._dex_right_hand = RetargetingConfig.load_from_file(right_config_path).build()
@@ -187,12 +220,15 @@ class WatoHandDexRetargeting:
             indices=retargeting.optimizer.target_link_human_indices,
             retargeting_type=retargeting.optimizer.retargeting_type,
         )
+        # Arm joints (non-hand) are fixed during hand retargeting; use robot neutral for them.
+        robot = retargeting.optimizer.robot
+        fixed_qpos = np.array(robot.q0[retargeting.optimizer.idx_pin2fixed], dtype=np.float64)
         # Enable gradient calculation and inference mode in case some other script has disabled it
         # This is necessary for the retargeting to work since it uses gradient features that
         # are not available in inference mode
         with torch.enable_grad():
             with torch.inference_mode(False):
-                return retargeting.retarget(ref_value)
+                return retargeting.retarget(ref_value, fixed_qpos=fixed_qpos)
 
     def get_joint_names(self) -> list[str]:
         """Returns list of all joint names."""
