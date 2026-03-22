@@ -49,12 +49,12 @@ def mediapipe_to_openxr(landmarks):
     hand_poses[25] = mp[20].copy()  # pinky tip
 
     # Wrist quaternion (identity since MediaPipe is already wrist-relative)
-    wrist_xyz = mp[0]
+    # Ensure numeric keys are ordered 0-25, wrist key last
+    hand_poses = dict(sorted({k: v for k, v in hand_poses.items() if isinstance(k, int)}.items()))
     hand_poses["wrist"] = np.array(
-        [wrist_xyz[0], wrist_xyz[1], wrist_xyz[2], 1.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
         dtype=np.float64
     )
-
 
     return hand_poses
 
