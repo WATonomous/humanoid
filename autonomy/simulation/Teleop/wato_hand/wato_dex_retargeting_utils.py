@@ -217,14 +217,14 @@ class WatoHandDexRetargeting:
         joint_pos = self.convert_hand_joints(hand_joints, operator2mano)
         print(f"DEBUG joint_pos index MCP (row 5): {joint_pos[5]}")  # ADD THIS
         print(f"DEBUG joint_pos middle MCP (row 9): {joint_pos[9]}")  # ADD THIS
-        print(f"DEBUG ref_value shape: {ref_value.shape}")
-        print(f"DEBUG ref_value: {ref_value}")
-        print(f"DEBUG target_link_indices: {retargeting.optimizer.target_link_human_indices}")
         ref_value = self.compute_ref_value(
             joint_pos,
             indices=retargeting.optimizer.target_link_human_indices,
             retargeting_type=retargeting.optimizer.retargeting_type,
         )
+        print(f"DEBUG ref_value shape: {ref_value.shape}")
+        print(f"DEBUG ref_value: {ref_value}")
+        print(f"DEBUG target_link_indices: {retargeting.optimizer.target_link_human_indices}")
         # Arm joints (non-hand) are fixed during hand retargeting; use robot neutral for them.
         robot = retargeting.optimizer.robot
         fixed_qpos = np.array(robot.q0[retargeting.optimizer.idx_pin2fixed], dtype=np.float64)
