@@ -55,8 +55,8 @@ def mediapipe_to_openxr(landmarks):
         dtype=np.float64
     )
 
-    return hand_poses
 
+    return hand_poses
 
 class WatoHandNode(Node):
     def __init__(self):
