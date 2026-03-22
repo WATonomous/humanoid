@@ -215,6 +215,8 @@ class WatoHandDexRetargeting:
             Retargeted joint angles
         """
         joint_pos = self.convert_hand_joints(hand_joints, operator2mano)
+        print(f"DEBUG joint_pos index MCP (row 5): {joint_pos[5]}")  # ADD THIS
+        print(f"DEBUG joint_pos middle MCP (row 9): {joint_pos[9]}")  # ADD THIS
         ref_value = self.compute_ref_value(
             joint_pos,
             indices=retargeting.optimizer.target_link_human_indices,
