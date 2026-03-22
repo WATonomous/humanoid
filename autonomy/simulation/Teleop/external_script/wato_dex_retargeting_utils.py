@@ -30,9 +30,9 @@ _OPENXR_HAND_JOINT_INDICES = [1, 2, 3, 4, 5, 7, 8, 9,
 # The transformation matrices to convert hand pose to canonical view.
 _OPERATOR2MANO_RIGHT = np.array(
     [
-        [0, 0, 1],
-        [1, 0, 0],
-        [0, 1, 0],
+        [0, -1, 0],
+        [0,  0, 1],
+        [-1, 0, 0],
     ]
 )
 
