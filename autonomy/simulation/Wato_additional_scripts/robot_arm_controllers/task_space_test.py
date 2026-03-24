@@ -1,4 +1,19 @@
-from isaaclab_assets import UR10_CFG, FRANKA_PANDA_HIGH_PD_CFG
+import torch
+import argparse
+import sys
+import os
+
+from isaaclab.app import AppLauncher
+
+parser = argparse.ArgumentParser(description="Robot Arm with Task Space IK Control")
+parser.add_argument("--robot", type=str, default="ur10", help="Name of the robot.")
+AppLauncher.add_app_launcher_args(parser)
+args_cli = parser.parse_args()
+
+app_launcher = AppLauncher(args_cli)
+simulation_app = app_launcher.app
+
+# ALL imports go AFTER this line
 from isaaclab.utils.math import subtract_frame_transforms
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.utils import configclass
@@ -9,23 +24,10 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.controllers import DifferentialIKController, DifferentialIKControllerCfg
 from isaaclab.assets import AssetBaseCfg
 import isaaclab.sim as sim_utils
-import torch
-import argparse
-from isaaclab.app import AppLauncher
 
-parser = argparse.ArgumentParser(
-    description="Robot Arm with Task Space IK Control")
-parser.add_argument(
-    "--robot",
-    type=str,
-    default="franka_panda",
-    help="Name of the robot.")
-AppLauncher.add_app_launcher_args(parser)
-args_cli = parser.parse_args()
-
-app_launcher = AppLauncher(args_cli)
-simulation_app = app_launcher.app
-
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 
+    "../../Humanoid_Wato/HumanoidRL/HumanoidRLPackage/HumanoidRLSetup/modelCfg")))
+from humanoid_arm_only import ARM_CFG
 
 ##
 # Pre-defined configs
@@ -54,15 +56,15 @@ class TableTopSceneCfg(InteractiveSceneCfg):
                 0.75)))
 
     # mount
-    table = AssetBaseCfg(
-        prim_path="{ENV_REGEX_NS}/Table",
-        spawn=sim_utils.UsdFileCfg(
-            usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/Stand/stand_instanceable.usd",
-            scale=(
-                2.0,
-                2.0,
-                2.0)),
-    )
+    # table = AssetBaseCfg(
+    #     prim_path="{ENV_REGEX_NS}/Table",
+    #     spawn=sim_utils.UsdFileCfg(
+    #         usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/Stand/stand_instanceable.usd",
+    #         scale=(
+    #             2.0,
+    #             2.0,
+    #             2.0)),
+    # )
 
     # Cube
     cube = AssetBaseCfg(
@@ -70,20 +72,14 @@ class TableTopSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.CuboidCfg(
             size=[0.1, 0.1, 0.1]
         ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.5, 0.0, 0.5)),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(-0.3, 0.0, 0.3)),
     )
 
     # articulation
-    if args_cli.robot == "franka_panda":
-        robot = FRANKA_PANDA_HIGH_PD_CFG.replace(
-            prim_path="{ENV_REGEX_NS}/Robot")
-    elif args_cli.robot == "ur10":
-        robot = UR10_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-    else:
-        raise ValueError(
-            f"Robot {args_cli.robot} is not supported. Valid: franka_panda, ur10")
-    # robot = UR10_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-
+    robot = ARM_CFG.replace(
+        prim_path="{ENV_REGEX_NS}/Robot",
+        
+    )
 
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
@@ -106,18 +102,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             prim_path="/Visuals/ee_goal"))
 
     # Specify robot-specific parameters
-    if args_cli.robot == "franka_panda":
-        robot_entity_cfg = SceneEntityCfg(
-            "robot",
-            joint_names=["panda_joint.*"],
-            body_names=["panda_hand"])
-    elif args_cli.robot == "ur10":
-        robot_entity_cfg = SceneEntityCfg(
-            "robot", joint_names=[".*"], body_names=["ee_link"])
-    else:
-        raise ValueError(
-            f"Robot {args_cli.robot} is not supported. Valid: franka_panda, ur10")
-    # robot_entity_cfg = SceneEntityCfg("robot", joint_names=[".*"], body_names=["ee_link"])
+    robot_entity_cfg = SceneEntityCfg(
+    "robot",
+    joint_names=["shoulder_flexion_extension", "shoulder_abduction_adduction",
+                 "shoulder_rotation", "elbow_flexion_extension",
+                 "forearm_rotation", "wrist_extension"],
+    body_names=["PALM_GAVIN_1DoF_Hinge_v2_1"])
 
     # Resolving the scene entities
     robot_entity_cfg.resolve(scene)
@@ -134,22 +124,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     sim_dt = sim.get_physics_dt()
 
     # May have to set initial position first
-    if args_cli.robot == "franka_panda":
-        joint_position = robot.data.default_joint_pos.clone()
-        joint_vel = robot.data.default_joint_vel.clone()
-        robot.write_joint_state_to_sim(joint_position, joint_vel)
-    else:
-        joint_position_index = 0
-        joint_position_list = [
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        ]
-        joint_position = torch.tensor(
-            joint_position_list[joint_position_index],
-            device=sim.device)
-        joint_vel = robot.data.default_joint_vel.clone()
-        joint_pos_des = joint_position.unsqueeze(
-            0)[:, robot_entity_cfg.joint_ids].clone()
-        robot.write_joint_state_to_sim(joint_pos_des, joint_vel)
+    joint_position = robot.data.default_joint_pos.clone()
+    joint_vel = robot.data.default_joint_vel.clone()
+    robot.write_joint_state_to_sim(joint_position, joint_vel)
 
     while simulation_app.is_running():
         # Get cube/target_point coordinates
