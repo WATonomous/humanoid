@@ -55,17 +55,6 @@ class TableTopSceneCfg(InteractiveSceneCfg):
                 0.75,
                 0.75)))
 
-    # mount
-    # table = AssetBaseCfg(
-    #     prim_path="{ENV_REGEX_NS}/Table",
-    #     spawn=sim_utils.UsdFileCfg(
-    #         usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/Stand/stand_instanceable.usd",
-    #         scale=(
-    #             2.0,
-    #             2.0,
-    #             2.0)),
-    # )
-
     # Cube
     cube = AssetBaseCfg(
         prim_path="/World/cube",
@@ -73,6 +62,8 @@ class TableTopSceneCfg(InteractiveSceneCfg):
             size=[0.1, 0.1, 0.1]
         ),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(-0.3, 0.0, 0.3)),
+        # Making this the initial state is important because at certain initial states,
+        # mainly on the positive x-axis, the IK breaks and the simulation bugs out a lot
     )
 
     # articulation
