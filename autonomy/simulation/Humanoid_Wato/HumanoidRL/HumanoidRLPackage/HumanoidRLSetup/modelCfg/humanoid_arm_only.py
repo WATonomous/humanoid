@@ -1,3 +1,5 @@
+"""This cfg is only used by the task_space_test.py script and 
+the humanoid arm is only exposing the 6 DOF Arm for control"""
 import os
 
 import isaaclab.sim as sim_utils
@@ -8,44 +10,6 @@ _HUMANOID_WATO_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
 )
 _MODEL_ASSETS = os.path.join(_HUMANOID_WATO_ROOT, "ModelAssets")
-
-HAND_CFG = ArticulationCfg(
-    spawn=sim_utils.UsdFileCfg(
-        usd_path=os.path.join(_MODEL_ASSETS, "hand.usd"),
-        rigid_props=sim_utils.RigidBodyPropertiesCfg(
-            disable_gravity=False,
-            max_depenetration_velocity=5.0,
-        ),
-        activate_contact_sensors=False,
-    ),
-    init_state = ArticulationCfg.InitialStateCfg(
-        joint_pos={
-            "Revolute_1": 0.0,
-            "Revolute_2": 0.0,
-            "Revolute_3": 0.0,
-            "Revolute_4": 0.0,
-            "Revolute_5": 0.0,
-            "Revolute_6": 0.0,
-            "Revolute_7": 0.0,
-            "Revolute_8": 0.0,
-            "Revolute_9": 0.0,
-            "Revolute_10": 0.0,
-            "Revolute_11": 0.0,
-            "Revolute_12": 0.0,
-            "Revolute_13": 0.0,
-            "Revolute_14": 0.0,
-            "Revolute_15": 0.0,
-        }
-    ),
-    actuators={
-        "arm": ImplicitActuatorCfg(
-            joint_names_expr=[".*"],
-            stiffness=0.5,
-            damping=0.5,
-            velocity_limit_sim=3.0,
-        ),
-    },
-)
 
 # Hand Arm
 _ARM_USD_PATH = os.path.join(_MODEL_ASSETS, "arm.usd")
