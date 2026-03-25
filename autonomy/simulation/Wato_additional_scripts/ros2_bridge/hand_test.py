@@ -17,7 +17,7 @@ from isaaclab.assets import AssetBaseCfg
 import isaaclab.sim as sim_utils
 from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import HAND_CFG
 from test_subscriber import HandPoseSubscriber
-from test_publisher import TestFloatPublisher
+from test_publisher import TestVRHandPublisher
 
 
 @configclass
@@ -97,7 +97,7 @@ def main():
     # Initialize ROS2
     rclpy.init()
     node = HandPoseSubscriber()
-    test_node = TestFloatPublisher()
+    test_node = TestVRHandPublisher()
 
     # Initialize simulation
     sim_cfg = sim_utils.SimulationCfg(dt=0.01, device=args_cli.device)
