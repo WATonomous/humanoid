@@ -1,3 +1,4 @@
+"""21 DOF Humanoid Arm reaching 5 different 5 EE fingertip target positions"""
 import argparse
 from isaaclab.app import AppLauncher
 
@@ -40,30 +41,6 @@ class FingertipIKSceneCfg(InteractiveSceneCfg):
     robot = ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
 
-def print_joint_limits_from_usd(robot):
-    """Print joint position limits from the USD-loaded articulation (Isaac Sim).
-    Use this to check if joint 0 (shoulder_flexion_extension) has limits that could block motion.
-    """
-    names = getattr(robot.data, "joint_names", None)
-    limits = getattr(robot.data, "default_joint_pos_limits", None) or getattr(robot.data, "joint_pos_limits", None)
-    if names is None or limits is None:
-        print("[joint limits] joint_names or (default_)joint_pos_limits not found on robot.data")
-        return
-    # limits shape: (num_instances, num_joints, 2) or (num_joints, 2) -> [lower, upper]
-    lim = limits.cpu().numpy()
-    if lim.ndim == 3:
-        lim = lim[0]
-    low, high = lim[:, 0], lim[:, 1]
-    print("[joint limits] From USD (robot.data.default_joint_pos_limits or joint_pos_limits):")
-    for i, name in enumerate(names):
-        marker = "  <-- joint 0 (shoulder_flexion)" if i == 0 else ""
-        print(f"  [{i}] {name}: lower={low[i]:.4f}, upper={high[i]:.4f}{marker}")
-    if hasattr(robot.data, "soft_joint_pos_limits") and robot.data.soft_joint_pos_limits is not None:
-        soft = robot.data.soft_joint_pos_limits[0].cpu().numpy()
-        if soft.ndim == 2:
-            print("[joint limits] soft_joint_pos_limits (first 6):", soft[:6])
-
-
 def run_simulator(
     sim: sim_utils.SimulationContext,
     scene: InteractiveScene,
@@ -102,8 +79,7 @@ def run_simulator(
     )
     current_markers = VisualizationMarkers(current_marker_cfg)
 
-    # Map fingertip body names (from URDF) to Isaac body indices once.
-    fingertip_body_ids: list[int | None] = []
+    fingertip_body_ids = []
     for name in FINGERTIP_BODIES:
         ids, _ = robot.find_bodies(name, preserve_order=True)
         fingertip_body_ids.append(ids[0] if ids else None)
@@ -114,14 +90,13 @@ def run_simulator(
     print(f"pose 1/{n_poses}: IK err {pose_sequence[0][2]:.4f} m")
 
     while simulation_app.is_running():
-        # Advance to next pose when we've held long enough
         if step_count >= steps_per_pose:
             step_count = 0
             pose_idx = (pose_idx + 1) % n_poses
             ik_err = pose_sequence[pose_idx][2]
             print(f"pose {pose_idx + 1}/{n_poses}: IK err {ik_err:.4f} m")
 
-        # Interpolate between current and next pose so motion is smooth (no snap/reset)
+        # Interpolate between current and next pose so motion is smooth
         next_idx = (pose_idx + 1) % n_poses
         alpha = step_count / steps_per_pose if steps_per_pose > 0 else 1.0
         alpha = min(alpha, 1.0)
@@ -131,24 +106,17 @@ def run_simulator(
         qpos_interp = (1.0 - alpha) * qpos_cur + alpha * qpos_next
         targets_interp = (1.0 - alpha) * targets_cur + alpha * targets_next
 
-        # Write interpolated state every frame so robot and markers stay in sync (no PD lag)
         joint_pos_tensor = torch.tensor(qpos_interp, dtype=torch.float32, device=sim.device)
         robot.write_joint_state_to_sim(joint_pos_tensor, joint_vel)
         targets_world = torch.tensor(targets_interp, dtype=torch.float32, device=sim.device) + scene.env_origins[0]
         target_markers.visualize(translations=targets_world)
 
-        # Visualize current fingertip locations (world frame) next to targets
+        # Visualize current fingertip locations
         current_positions = []
         for body_id in fingertip_body_ids:
-            if body_id is None:
-                current_positions.append([0.0, 0.0, 0.0])
-            else:
-                pos_w = robot.data.body_pos_w[0, body_id, :]  # world frame
-                current_positions.append(pos_w)
-        current_positions_tensor = torch.stack(
-            [p if torch.is_tensor(p) else torch.tensor(p, device=sim.device) for p in current_positions],
-            dim=0,
-        ).to(device=sim.device, dtype=torch.float32)
+            pos_w = robot.data.body_pos_w[0, body_id, :]  # world frame
+            current_positions.append(pos_w)
+        current_positions_tensor = torch.stack([p for p in current_positions], dim=0,).to(device=sim.device, dtype=torch.float32)
         current_markers.visualize(translations=current_positions_tensor)
 
         scene.write_data_to_sim()
@@ -156,15 +124,12 @@ def run_simulator(
         scene.update(sim_dt)
         step_count += 1
 
-        # After the first sim step of each pose, print per-finger errors in Isaac world frame.
+        # Log
         if step_count == 1:
             targets_np = targets_world.cpu().numpy()
             max_finger_err = 0.0
             print("[Isaac] Per-finger position error at current pose (m):")
             for j, (name, body_id) in enumerate(zip(FINGERTIP_BODIES, fingertip_body_ids)):
-                if body_id is None:
-                    print(f"  {name}: (body not found)")
-                    continue
                 tip_pos = robot.data.body_pos_w[0, body_id, :].cpu().numpy()
                 target_pos = targets_np[j]
                 err_vec = tip_pos - target_pos
@@ -177,46 +142,37 @@ def run_simulator(
 def main():
     import mujoco
 
-    # ---- Run IK for several 5-point target sets ----
     model = load_model()
     data = mujoco.MjData(model)
     data.qpos[:] = 0.0
     default_positions = get_fingertip_positions(model, data)
-    if len(default_positions) != 5:
-        raise RuntimeError("Could not get all 5 fingertip positions from model.")
 
-    # Build a list of (dx, dy, dz) offsets in meters; each motion goes there and back.
+    # ---- Define Target Motion ----
     n = 10  # steps per half (out or back)
     range_m = 0.14  # motion amplitude
 
-    def lin_there_back(start, end):
+    def linear_out_and_back(start, end):
         out = np.linspace(start, end, n, dtype=np.float64)
         back = np.linspace(end, start, n, dtype=np.float64)
         return np.concatenate([out, back[1:]])
 
-    # 1. Vertical: Z down then up
-    z_off = lin_there_back(0.0, -range_m)
-    offsets_vertical = np.column_stack([np.zeros_like(z_off), np.zeros_like(z_off), z_off])
+    def offsets_to_endpoint(end_xyz):
+        s = linear_out_and_back(0.0, 1.0)
+        return np.outer(s, np.asarray(end_xyz, dtype=np.float64))
 
-    # 2. Horizontal X: move in X then back
-    x_off = lin_there_back(0.0, -range_m)
-    offsets_x = np.column_stack([x_off, np.zeros_like(x_off), np.zeros_like(x_off)])
+    motion_ends = [
+        (0.0, 0.0, -range_m),  # Z
+        (-range_m, 0.0, 0.0),  # X
+        (0.0, range_m, 0.0),  # Y
+        (-range_m * 0.8, 0.0, -range_m * 0.8),  # XZ diagonal
+    ]
+    all_offsets = np.vstack([offsets_to_endpoint(e) for e in motion_ends])
 
-    # 3. Horizontal Y: move in Y then back
-    y_off = lin_there_back(0.0, range_m)
-    offsets_y = np.column_stack([np.zeros_like(y_off), y_off, np.zeros_like(y_off)])
-
-    # 4. Diagonal: X and Z together
-    d_off = lin_there_back(0.0, -range_m * 0.8)
-    offsets_diag = np.column_stack([d_off, np.zeros_like(d_off), d_off])
-
-    all_offsets = np.vstack([offsets_vertical, offsets_x, offsets_y, offsets_diag])
-
+    # ---- Precompute Pose with IK ----
     pose_sequence = []
     n_poses = len(all_offsets)
     for i, offset in enumerate(all_offsets):
         targets_mjc = {name: pos + offset for name, pos in default_positions.items()}
-        data.qpos[:] = 0.0
         qpos, converged, max_err = solve_fingertip_ik(
             model, data, targets_mjc,
             damping=5e-4, step=0.25, max_iter=300, tol=5e-3,
@@ -233,8 +189,6 @@ def main():
     scene_cfg = FingertipIKSceneCfg(num_envs=1, env_spacing=2.0)
     scene = InteractiveScene(scene_cfg)
     sim.reset()
-    print("[INFO] Isaac Sim ready. Press Play: targets move vertical, then X, then Y, then diagonal; fingers should follow.")
-    print(f"[INFO] env_origins[0] (marker offset) = {scene.env_origins[0].cpu().numpy()}")
 
     run_simulator(sim, scene, pose_sequence, hold_seconds=0.08)
 
