@@ -1,3 +1,8 @@
+"""
+Task space controller on only the 6 DOF of the humanoid arm, there is a cube which represent the target arm ee position, 
+user can move the cube's position and see the arm's IK controller react to it and follow the cube around
+"""
+
 import torch
 import argparse
 import sys
@@ -13,9 +18,7 @@ args_cli = parser.parse_args()
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
-# ALL imports go AFTER this line
 from isaaclab.utils.math import subtract_frame_transforms
-from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.utils import configclass
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.markers.config import FRAME_MARKER_CFG
@@ -29,23 +32,15 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
     "../../Humanoid_Wato/HumanoidRL/HumanoidRLPackage/HumanoidRLSetup/modelCfg")))
 from humanoid_arm_only import ARM_CFG
 
-##
-# Pre-defined configs
-##
-
 
 @configclass
 class TableTopSceneCfg(InteractiveSceneCfg):
-    """Configuration for a cart-pole scene."""
-
-    # ground plane
     ground = AssetBaseCfg(
         prim_path="/World/defaultGroundPlane",
         spawn=sim_utils.GroundPlaneCfg(),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, -1.05)),
     )
 
-    # lights
     dome_light = AssetBaseCfg(
         prim_path="/World/Light",
         spawn=sim_utils.DomeLightCfg(
@@ -55,52 +50,46 @@ class TableTopSceneCfg(InteractiveSceneCfg):
                 0.75,
                 0.75)))
 
-    # Cube
+    # Setting the initial state here is important because at certain initial states,
+    # mainly on the positive x-axis, the IK breaks and the simulation bugs out a lot
     cube = AssetBaseCfg(
         prim_path="/World/cube",
         spawn=sim_utils.CuboidCfg(
             size=[0.1, 0.1, 0.1]
         ),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(-0.3, 0.0, 0.3)),
-        # Making this the initial state is important because at certain initial states,
-        # mainly on the positive x-axis, the IK breaks and the simulation bugs out a lot
     )
 
-    # articulation
     robot = ARM_CFG.replace(
-        prim_path="{ENV_REGEX_NS}/Robot",
-        
+        prim_path="{ENV_REGEX_NS}/Robot"
     )
 
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     robot = scene["robot"]
 
-    # Create controller
     diff_ik_cfg = DifferentialIKControllerCfg(
         command_type="pose", use_relative_mode=False, ik_method="dls")
     diff_ik_controller = DifferentialIKController(
         diff_ik_cfg, num_envs=scene.num_envs, device=sim.device)
 
-    # Markers
     frame_marker_cfg = FRAME_MARKER_CFG.copy()
     frame_marker_cfg.markers["frame"].scale = (0.1, 0.1, 0.1)
     ee_marker = VisualizationMarkers(
-        frame_marker_cfg.replace(
-            prim_path="/Visuals/ee_current"))
+        frame_marker_cfg.replace(prim_path="/Visuals/ee_current")
+    )
     goal_marker = VisualizationMarkers(
-        frame_marker_cfg.replace(
-            prim_path="/Visuals/ee_goal"))
+        frame_marker_cfg.replace(prim_path="/Visuals/ee_goal")
+    )
 
-    # Specify robot-specific parameters
     robot_entity_cfg = SceneEntityCfg(
-    "robot",
-    joint_names=["shoulder_flexion_extension", "shoulder_abduction_adduction",
-                 "shoulder_rotation", "elbow_flexion_extension",
-                 "forearm_rotation", "wrist_extension"],
-    body_names=["PALM_GAVIN_1DoF_Hinge_v2_1"])
+        "robot",
+        joint_names=["shoulder_flexion_extension", "shoulder_abduction_adduction",
+                    "shoulder_rotation", "elbow_flexion_extension",
+                    "forearm_rotation", "wrist_extension"],
+        body_names=["PALM_GAVIN_1DoF_Hinge_v2_1"]
+    )
 
-    # Resolving the scene entities
     robot_entity_cfg.resolve(scene)
 
     # Obtain the frame index of the end-effector ; For a fixed base robot, the
@@ -111,23 +100,18 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     else:
         ee_jacobi_idx = robot_entity_cfg.body_ids[0]
 
-    # Define simulation stepping
     sim_dt = sim.get_physics_dt()
 
-    # May have to set initial position first
     joint_position = robot.data.default_joint_pos.clone()
     joint_vel = robot.data.default_joint_vel.clone()
     robot.write_joint_state_to_sim(joint_position, joint_vel)
 
     while simulation_app.is_running():
-        # Get cube/target_point coordinates
         position, quaternion = scene["cube"].get_world_poses()
-        # Quaternion is in (w, x, y, z)
         ik_commands = torch.cat([position, quaternion], dim=1)
 
         diff_ik_controller.set_command(ik_commands)
 
-        # obtain quantities from simulation
         jacobian = robot.root_physx_view.get_jacobians()[
             :, ee_jacobi_idx, :, robot_entity_cfg.joint_ids]
         ee_pose_w = robot.data.body_state_w[:,
@@ -135,12 +119,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         root_pose_w = robot.data.root_state_w[:, 0:7]
         joint_pos = robot.data.joint_pos[:, robot_entity_cfg.joint_ids]
 
-        # compute frame in root frame
         ee_pos_b, ee_quat_b = subtract_frame_transforms(
             root_pose_w[:, 0:3], root_pose_w[:, 3:7], ee_pose_w[:, 0:3], ee_pose_w[:, 3:7]
         )
 
-        # compute the joint commands
         joint_pos_des = diff_ik_controller.compute(
             ee_pos_b, ee_quat_b, jacobian, joint_pos)
 
@@ -149,40 +131,30 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             joint_pos_des, joint_ids=robot_entity_cfg.joint_ids)
         scene.write_data_to_sim()
 
-        # perform step
         sim.step()
 
-        # update buffers
         scene.update(sim_dt)
 
-        # obtain quantities from simulation
-        ee_pose_w = robot.data.body_state_w[:,
-                                            robot_entity_cfg.body_ids[0], 0:7]
+        ee_pose_w = robot.data.body_state_w[:, robot_entity_cfg.body_ids[0], 0:7]
 
-        # update marker positions
         ee_marker.visualize(ee_pose_w[:, 0:3], ee_pose_w[:, 3:7])
         goal_marker.visualize(
             ik_commands[:, 0:3] + scene.env_origins, ik_commands[:, 3:7])
 
 
 def main():
-    # Load kit helper
     sim_cfg = sim_utils.SimulationCfg(dt=0.01, device=args_cli.device)
     sim = sim_utils.SimulationContext(sim_cfg)
 
-    # Set main camera
     sim.set_camera_view([2.5, 2.5, 2.5], [0.0, 0.0, 0.0])
 
-    # Design scene
     scene_cfg = TableTopSceneCfg(num_envs=1, env_spacing=2.0)
     scene = InteractiveScene(scene_cfg)
 
-    # Play the simulator
     sim.reset()
 
     print("[INFO]: Setup complete...")
 
-    # Run the simulator
     run_simulator(sim, scene)
 
 
