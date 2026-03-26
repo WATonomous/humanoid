@@ -4,6 +4,8 @@ from std_msgs.msg import String
 import json
 import math
 
+JOINT_FILE = "/tmp/wato_joints.json"
+
 def finger_curl(landmarks, tip_idx, mcp_idx):
     tip = landmarks[tip_idx]
     mcp = landmarks[mcp_idx]
@@ -56,6 +58,9 @@ class WatoHandNode(Node):
             out_msg = String()
             out_msg.data = json.dumps(joint_dict)
             self.joint_pub.publish(out_msg)
+            # Write to shared file so Isaac Lab can read it without rclpy
+            with open(JOINT_FILE, "w") as f:
+                json.dump(joint_dict, f)
         except Exception as e:
             self.get_logger().error(f"Error: {e}")
 
