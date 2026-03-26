@@ -3,8 +3,10 @@ IK for the 21 DOF humanoid arm-hand, with iterative jacobian least damped square
 
 Details in IK.md
 """
+import time
 import os
 import mujoco
+import mujoco.viewer
 import numpy as np
 from pathlib import Path
 
@@ -12,12 +14,20 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 URDF_PATH = _SCRIPT_DIR / "arm_assembly.urdf"
 
 FINGERTIP_BODIES = [
-    "IP_THUMB_v1_1",   # thumb
-    "DIP_INDEX_v1_1",  # index
-    "DIP_MIDDLE_v1_1", # middle
-    "DIP_RING_v1_1",   # ring
-    "DIP_PINKY_v1_1",  # pinky
+    "IP_THUMB_v1_1",   
+    "DIP_INDEX_v1_1",
+    "DIP_MIDDLE_v1_1",
+    "DIP_RING_v1_1",   
+    "DIP_PINKY_v1_1",  
 ]
+
+FINGERTIP_OFFSETS = {
+    "IP_THUMB_v1_1":   np.array([-0.008, 0.005, 0.018]),
+    "DIP_INDEX_v1_1":  np.array([0.006, 0.002, 0.02]),
+    "DIP_MIDDLE_v1_1": np.array([0.005, -0.018, 0.0]),
+    "DIP_RING_v1_1":   np.array([-0.005, 0.0, 0.02]),
+    "DIP_PINKY_v1_1":  np.array([0.004, -0.019, 0.004]),
+}
 
 
 def load_model(urdf_path=None):
@@ -58,6 +68,10 @@ def clip_to_joint_limits(model: mujoco.MjModel, data: mujoco.MjData) -> None:
         if np.isfinite(lo) or np.isfinite(hi):
             data.qpos[pos_idx] = np.clip(data.qpos[pos_idx], lo, hi)
 
+def fingertip_world_pos(data, body_id, local_offset):
+    R = data.xmat[body_id].reshape(3, 3)
+    return data.xpos[body_id] + R @ local_offset
+
 
 def solve_fingertip_ik(
     model: mujoco.MjModel,
@@ -84,11 +98,12 @@ def solve_fingertip_ik(
 
         for body_name, target in zip(tip_names, target_list):
             body_id = model.body(body_name).id
-            pos = data.xpos[body_id].copy()
+            local_offset = FINGERTIP_OFFSETS[body_name]
+            pos = fingertip_world_pos(data, body_id, local_offset)
             err = target - pos
             jacp = np.zeros((3, nv))
             jacr = np.zeros((3, nv))
-            mujoco.mj_jacBody(model, data, jacp, jacr, body_id)
+            mujoco.mj_jac(model, data, jacp, jacr, pos, body_id)
             J_list.append(jacp)
             err_list.append(err)
 
@@ -116,18 +131,48 @@ def get_fingertip_positions(model: mujoco.MjModel, data: mujoco.MjData) -> dict[
     out = {}
     for name in FINGERTIP_BODIES:
         id = model.body(name).id
-        out[name] = data.xpos[id].copy()
+        out[name] = fingertip_world_pos(data, id, FINGERTIP_OFFSETS[name]).copy()
     return out
 
 
 def main():
     model = load_model()
+    model.opt.gravity[:] = 0.0
     data = mujoco.MjData(model)
-    
     data.qpos[:] = 0.0
     mujoco.mj_forward(model, data)
-    default_positions = get_fingertip_positions(model, data)
-    print(f"[sanity] found {len(default_positions)}/5 fingertip bodies in MuJoCo model")
+
+    def add_sphere(scene, pos, rgba, radius=0.008):
+        g = scene.geoms[scene.ngeom]
+        scene.ngeom += 1
+        mujoco.mjv_initGeom(
+            g,
+            type=mujoco.mjtGeom.mjGEOM_SPHERE,
+            size=np.array([radius, radius, radius]),
+            pos=np.array(pos),
+            mat=np.eye(3).reshape(-1),
+            rgba=np.array(rgba),
+        )
+    
+    with mujoco.viewer.launch_passive(model, data) as viewer:
+        while viewer.is_running():
+            mujoco.mj_forward(model, data)
+            viewer.user_scn.ngeom = 0
+
+            for name in FINGERTIP_BODIES:
+                body_id = model.body(name).id
+                body_pos = data.xpos[body_id].copy()
+                pos = data.xpos[body_id].copy()
+                tip_pos = fingertip_world_pos(data, body_id, FINGERTIP_OFFSETS[name])
+                add_sphere(viewer.user_scn, tip_pos, [1, 0, 0, 1])
+
+            viewer.sync()
+            time.sleep(0.01) 
+
+    # default_positions = get_fingertip_positions(model, data)
+    # print(f"default is {default_positions}")
+    # print(f"[sanity] found {len(default_positions)}/5 fingertip bodies in MuJoCo model")
+
 
 
 if __name__ == "__main__":
