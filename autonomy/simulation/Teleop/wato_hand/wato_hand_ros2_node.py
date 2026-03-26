@@ -134,26 +134,6 @@ def landmarks_to_joints(landmarks):
         "ip_thumb":    1.57 * thumb_curl,
     }
 
-    """def landmarks_callback(self, msg):
-        try:
-            landmarks = json.loads(msg.data)
-            if len(landmarks) != 21:
-                return
-
-            hand_poses = mediapipe_to_openxr(landmarks)
-            right_q = self.dex.compute_right(hand_poses)
-
-            joint_dict = dict(zip(WATO_HAND_JOINT_NAMES, right_q.tolist()))
-
-            self.get_logger().info(f"Joint angles: {joint_dict}")
-
-            # Publish joint angles
-            out_msg = String()
-            out_msg.data = json.dumps(joint_dict)
-            self.joint_pub.publish(out_msg)
-
-        except Exception as e:
-            self.get_logger().error(f"Error: {e}")"""
     def landmarks_callback(self, msg):
         try:
             landmarks = json.loads(msg.data)
