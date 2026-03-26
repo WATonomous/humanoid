@@ -28,7 +28,7 @@ def landmarks_to_joints(landmarks):
         "pip_index":   1.57 * index_curl,
         "dip_index":  -1.57 * index_curl,
         "mcp_middle": -1.57 * middle_curl,
-        "pip_middle": -1.57 * middle_curl,
+        "pip_middle":  1.57 * middle_curl,   # URDF limit [0.0, 1.57] — must be positive
         "dip_middle":  1.57 * middle_curl,
         "mcp_ring":    1.57 * ring_curl,
         "pip_ring":   -1.57 * ring_curl,
