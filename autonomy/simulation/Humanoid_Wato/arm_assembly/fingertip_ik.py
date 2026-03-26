@@ -169,9 +169,9 @@ def main():
             viewer.sync()
             time.sleep(0.01) 
 
-    # default_positions = get_fingertip_positions(model, data)
-    # print(f"default is {default_positions}")
-    # print(f"[sanity] found {len(default_positions)}/5 fingertip bodies in MuJoCo model")
+    default_positions = get_fingertip_positions(model, data)
+    print(f"default is {default_positions}")
+    print(f"[sanity] found {len(default_positions)}/5 fingertip bodies in MuJoCo model")
 
 
 
