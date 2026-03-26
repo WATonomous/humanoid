@@ -1,12 +1,7 @@
 """
-Standalone gradient-based IK for arm_assembly (6-DOF arm + 15-DOF hand).
-Solves for joint angles so that 5 fingertips reach desired world positions
-using damped least-squares
+IK for the 21 DOF humanoid arm-hand, with iterative jacobian least damped square method
 
-Joint 0 (shoulder_flexion_extension) issue:
-  Here we found that MuJoCo's URDF importer can set continuous joints to range [0,0], which would
-  lock joint 0 at zero. We bypass that in clip_to_joint_limits(): when
-  lower == upper we skip clipping so the IK can move that joint.
+Details in IK.md
 """
 import os
 import mujoco
@@ -45,22 +40,21 @@ def load_model(urdf_path=None):
 
 
 def clip_to_joint_limits(model: mujoco.MjModel, data: mujoco.MjData) -> None:
-    """Clamp each hinge/slide joint's scalar position to ``model.jnt_range``.
+    """Clamp joint value to be within joint limit
 
-    Bypass: if lower == upper (e.g. MuJoCo imported continuous as [0,0]), skip clipping
-    so the IK can move that joint instead of locking it.
+    MuJoCo's URDF importer can set continuous joints to range [0,0] which would
+    lock joint 0 at zero, here we bypass that by making if lower == upper,
+    it doesn't enforce clipping
     """
     for i in range(model.njnt):
         jnt_type = model.jnt_type[i]
         if jnt_type not in (mujoco.mjtJoint.mjJNT_HINGE, mujoco.mjtJoint.mjJNT_SLIDE):
             continue
         pos_idx = model.jnt_qposadr[i]
-        if pos_idx < 0:
-            continue
         lo = model.jnt_range[i, 0]
         hi = model.jnt_range[i, 1]
         if lo == hi:
-            continue  # bypass: treat as unlimited revolute joint
+            continue
         if np.isfinite(lo) or np.isfinite(hi):
             data.qpos[pos_idx] = np.clip(data.qpos[pos_idx], lo, hi)
 
@@ -76,32 +70,24 @@ def solve_fingertip_ik(
     tol: float = 1e-4,
     clip_limits: bool = True,
 ) -> tuple[np.ndarray, bool, float]:
-    """
-    Run damped least-squares IK so that each fingertip reaches its target.
-
-    targets: dict mapping body name -> (3,) world position.
-    Returns: (generalized_positions, converged, final_max_error) — a copy of ``data.qpos``.
-    """
-    # Build list of (body_name, target_pos) in consistent order
     tip_names = [b for b in FINGERTIP_BODIES if b in targets]
     if not tip_names:
         raise ValueError("targets must contain at least one of %s" % FINGERTIP_BODIES)
     target_list = [targets[b] for b in tip_names]
-
-    nv = model.nv
 
     for _ in range(max_iter):
         mujoco.mj_forward(model, data)
 
         J_list = []
         err_list = []
+        nv = model.nv
 
         for body_name, target in zip(tip_names, target_list):
             body_id = model.body(body_name).id
             pos = data.xpos[body_id].copy()
             err = target - pos
-            jacp = np.zeros((3, model.nv))
-            jacr = np.zeros((3, model.nv))
+            jacp = np.zeros((3, nv))
+            jacr = np.zeros((3, nv))
             mujoco.mj_jacBody(model, data, jacp, jacr, body_id)
             J_list.append(jacp)
             err_list.append(err)
@@ -117,7 +103,6 @@ def solve_fingertip_ik(
         rhs = J.T @ err
         dq = np.linalg.solve(A, rhs)
 
-        # All joints in this model are 1-DOF; qpos layout matches dofs.
         data.qpos[:nv] += step * dq
 
         if clip_limits:
