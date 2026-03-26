@@ -6,8 +6,8 @@ from typing import Any
 
 OPERATOR2MANO_RIGHT = np.array(
     [
-        [0, 0, -1],
-        [-1, 0, 0],
+        [0, 0, 1],
+        [1, 0, 0],
         [0, 1, 0],
     ]
 )
