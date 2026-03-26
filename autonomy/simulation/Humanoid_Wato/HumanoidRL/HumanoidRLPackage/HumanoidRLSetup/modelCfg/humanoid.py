@@ -132,43 +132,43 @@ ARM_CFG = ArticulationCfg(
         # J≈0.0012 kg·m², f=8.0 Hz, ζ=1.0 → k=3.0, d=0.12
         "finger_mcp": ImplicitActuatorCfg(
             joint_names_expr=["mcp_index", "mcp_middle", "mcp_ring", "mcp_pinky"],
-            stiffness=3.0,
-            damping=0.12,
+            stiffness=50.0,
+            damping=2.0,
             velocity_limit_sim=3.0,
         ),
         # J≈0.0006 kg·m², f=8.0 Hz, ζ=1.0 → k=1.5, d=0.06
         "finger_pip": ImplicitActuatorCfg(
             joint_names_expr=["pip_index", "pip_middle", "pip_ring", "pip_pinky"],
-            stiffness=1.5,
-            damping=0.06,
+            stiffness=30.0,
+            damping=1.5,
             velocity_limit_sim=3.0,
         ),
         # J≈0.0002 kg·m², f=8.0 Hz, ζ=1.0 → k=0.5, d=0.02
         "finger_dip": ImplicitActuatorCfg(
             joint_names_expr=["dip_index", "dip_middle", "dip_ring", "dip_pinky"],
-            stiffness=0.5,
-            damping=0.02,
+            stiffness=10.0,
+            damping=0.8,
             velocity_limit_sim=3.0,
         ),
         # J≈0.003 kg·m², f=8.0 Hz, ζ=1.0 → k=7.6, d=0.30
         "thumb_cmc": ImplicitActuatorCfg(
             joint_names_expr=["cmc_thumb"],
-            stiffness=7.6,
-            damping=0.30,
+            stiffness=50.0,
+            damping=2.0,
             velocity_limit_sim=3.0,
         ),
         # J≈0.001 kg·m², f=8.0 Hz, ζ=1.0 → k=2.5, d=0.10
         "thumb_mcp": ImplicitActuatorCfg(
             joint_names_expr=["mcp_thumb"],
-            stiffness=2.5,
-            damping=0.10,
+            stiffness=30.0,
+            damping=1.5,
             velocity_limit_sim=3.0,
         ),
         # J≈0.0002 kg·m², f=8.0 Hz, ζ=1.0 → k=0.5, d=0.02
         "thumb_ip": ImplicitActuatorCfg(
             joint_names_expr=["ip_thumb"],
-            stiffness=0.5,
-            damping=0.02,
+            stiffness=10.0,
+            damping=0.8,
             velocity_limit_sim=3.0,
         ),
     },
