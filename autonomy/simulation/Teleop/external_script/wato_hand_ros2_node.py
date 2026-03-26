@@ -4,7 +4,7 @@ from std_msgs.msg import String
 import json
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-
+import math
 from wato_dex_retargeting_utils import WatoHandDexRetargeting
 
 WATO_HAND_JOINT_NAMES = [
@@ -78,7 +78,63 @@ class WatoHandNode(Node):
             10
         )
 
-    def landmarks_callback(self, msg):
+    def finger_curl(landmarks, tip_idx, mcp_idx):
+    """Returns 0.0 (open) to 1.0 (fully curled) for a finger."""
+    tip = landmarks[tip_idx]
+    mcp = landmarks[mcp_idx]
+    wrist = landmarks[0]
+    # Distance tip->wrist vs mcp->wrist
+    tip_dist = math.sqrt((tip["x"]-wrist["x"])**2 + (tip["y"]-wrist["y"])**2 + (tip["z"]-wrist["z"])**2)
+    mcp_dist = math.sqrt((mcp["x"]-wrist["x"])**2 + (mcp["y"]-wrist["y"])**2 + (mcp["z"]-wrist["z"])**2)
+    curl = 1.0 - min(max(tip_dist / (mcp_dist * 2.2), 0.0), 1.0)
+    return curl
+
+def landmarks_to_joints(landmarks):
+    """Map MediaPipe 21 landmarks directly to 15 robot joint angles."""
+    import math
+
+    # Finger curl values 0=open, 1=closed
+    # MediaPipe indices: thumb=4,mcp=2 | index=8,mcp=5 | middle=12,mcp=9 | ring=16,mcp=13 | pinky=20,mcp=17
+    index_curl  = finger_curl(landmarks, tip_idx=8,  mcp_idx=5)
+    middle_curl = finger_curl(landmarks, tip_idx=12, mcp_idx=9)
+    ring_curl   = finger_curl(landmarks, tip_idx=16, mcp_idx=13)
+    pinky_curl  = finger_curl(landmarks, tip_idx=20, mcp_idx=17)
+    thumb_curl  = finger_curl(landmarks, tip_idx=4,  mcp_idx=2)
+
+    # Map curl to joint angles within URDF limits:
+    # mcp_index:  lower=-1.57, upper=0.0  → curl maps to -1.57*curl
+    # pip_index:  lower=0.0,   upper=1.57 → curl maps to 1.57*curl  (opposite direction)
+    # dip_index:  lower=-1.57, upper=0.0  → curl maps to -1.57*curl
+    # same pattern for middle
+    # mcp_ring:   lower=0.0,   upper=1.57 → curl maps to 1.57*curl
+    # pip_ring:   lower=-1.57, upper=0.0
+    # dip_ring:   lower=-1.57, upper=0.0
+    # mcp_pinky:  lower=0.0,   upper=1.57
+    # pip_pinky:  lower=-1.57, upper=0.0
+    # dip_pinky:  lower=0.0,   upper=1.57
+    # cmc_thumb:  lower=-0.35, upper=2.09
+    # mcp_thumb:  lower=0.785, upper=2.53
+    # ip_thumb:   lower=0.0,   upper=1.57
+
+    return {
+        "mcp_index":  -1.57 * index_curl,
+        "pip_index":   1.57 * index_curl,
+        "dip_index":  -1.57 * index_curl,
+        "mcp_middle": -1.57 * middle_curl,
+        "pip_middle": -1.57 * middle_curl,
+        "dip_middle":  1.57 * middle_curl,
+        "mcp_ring":    1.57 * ring_curl,
+        "pip_ring":   -1.57 * ring_curl,
+        "dip_ring":   -1.57 * ring_curl,
+        "mcp_pinky":   1.57 * pinky_curl,
+        "pip_pinky":  -1.57 * pinky_curl,
+        "dip_pinky":   1.57 * pinky_curl,
+        "cmc_thumb":  -0.35 + 2.44 * thumb_curl,
+        "mcp_thumb":   0.785 + 1.745 * thumb_curl,
+        "ip_thumb":    1.57 * thumb_curl,
+    }
+
+    """def landmarks_callback(self, msg):
         try:
             landmarks = json.loads(msg.data)
             if len(landmarks) != 21:
@@ -92,6 +148,21 @@ class WatoHandNode(Node):
             self.get_logger().info(f"Joint angles: {joint_dict}")
 
             # Publish joint angles
+            out_msg = String()
+            out_msg.data = json.dumps(joint_dict)
+            self.joint_pub.publish(out_msg)
+
+        except Exception as e:
+            self.get_logger().error(f"Error: {e}")"""
+    def landmarks_callback(self, msg):
+        try:
+            landmarks = json.loads(msg.data)
+            if len(landmarks) != 21:
+                return
+
+            joint_dict = landmarks_to_joints(landmarks)
+            self.get_logger().info(f"Joint angles: {joint_dict}")
+
             out_msg = String()
             out_msg.data = json.dumps(joint_dict)
             self.joint_pub.publish(out_msg)
