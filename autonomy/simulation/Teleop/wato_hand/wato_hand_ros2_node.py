@@ -6,6 +6,13 @@ import math
 
 JOINT_FILE = "/tmp/wato_joints.json"
 
+# Calibration constants for finger curl:
+#   OPEN_RATIO  — tip_dist/mcp_dist when finger is fully extended (~2.2)
+#   CLOSE_RATIO — tip_dist/mcp_dist when finger is in a tight fist  (~0.8)
+# Curl=0 at OPEN_RATIO, curl=1 at CLOSE_RATIO, clamped to [0,1].
+OPEN_RATIO  = 2.2
+CLOSE_RATIO = 0.8
+
 def finger_curl(landmarks, tip_idx, mcp_idx):
     tip = landmarks[tip_idx]
     mcp = landmarks[mcp_idx]
@@ -14,7 +21,8 @@ def finger_curl(landmarks, tip_idx, mcp_idx):
     mcp_dist = math.sqrt((mcp["x"]-wrist["x"])**2 + (mcp["y"]-wrist["y"])**2 + (mcp["z"]-wrist["z"])**2)
     if mcp_dist == 0:
         return 0.0
-    curl = 1.0 - min(max(tip_dist / (mcp_dist * 2.2), 0.0), 1.0)
+    ratio = tip_dist / mcp_dist
+    curl = 1.0 - min(max((ratio - CLOSE_RATIO) / (OPEN_RATIO - CLOSE_RATIO), 0.0), 1.0)
     return curl
 
 def landmarks_to_joints(landmarks):
