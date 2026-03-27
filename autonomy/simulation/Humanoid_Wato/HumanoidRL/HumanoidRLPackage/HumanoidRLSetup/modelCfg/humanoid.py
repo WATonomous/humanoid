@@ -61,7 +61,7 @@ ARM_CFG = ArticulationCfg(
         ),
         activate_contact_sensors=False,
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
-            enabled_self_collisions=False
+            enabled_self_collisions=True
         ),
     ),
     init_state=ArticulationCfg.InitialStateCfg(
