@@ -41,6 +41,17 @@ def landmarks_to_joints(landmarks):
     dz = mid_mcp["z"] - wrist["z"]
     wrist_ext = math.atan2(-dy, math.sqrt(dx**2 + dz**2))
     wrist_ext = max(-0.96, min(0.96, wrist_ext))  # clamp to URDF limits
+
+    # Forearm rotation (pronation/supination): roll of hand around its pointing axis
+    # Estimated from tilt of the index-MCP → pinky-MCP knuckle line.
+    # URDF forearm_rotation limits: [0.0, 3.14] rad
+    idx_mcp = landmarks[5]
+    pnk_mcp = landmarks[17]
+    kvec_x = pnk_mcp["x"] - idx_mcp["x"]
+    kvec_y = pnk_mcp["y"] - idx_mcp["y"]  # y increases downward
+    hand_roll = math.atan2(-kvec_y, kvec_x)  # range [-pi, pi]
+    forearm_rot = hand_roll % math.pi          # fold into [0, pi]
+    forearm_rot = max(0.0, min(3.14, forearm_rot))
     return {
         "mcp_index":  -1.57 * index_curl,
         "pip_index":   1.57 * index_curl,
@@ -58,6 +69,7 @@ def landmarks_to_joints(landmarks):
         "mcp_thumb":   0.785 + 1.745 * thumb_curl,
         "ip_thumb":    1.57 * thumb_curl,
         "wrist_extension": wrist_ext,
+        "forearm_rotation": forearm_rot,
     }
 
 class WatoHandNode(Node):
