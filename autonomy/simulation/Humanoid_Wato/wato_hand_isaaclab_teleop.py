@@ -18,6 +18,7 @@ Usage (in the Docker container):
 import argparse
 import json
 import os
+import time
 
 from isaaclab.app import AppLauncher
 
@@ -42,15 +43,24 @@ from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_C
 
 # ── Shared file written by wato_hand_ros2_node.py ────────────────────────────
 JOINT_FILE = "/tmp/wato_joints.json"
+HAND_TIMEOUT = 0.5  # seconds before hand is considered lost
 
 
 def read_joint_file() -> dict[str, float]:
-    """Read the latest joint angles from the shared file. Returns {} if not ready."""
+    """Read the latest joint angles. Returns {} if file missing/corrupt."""
     try:
         with open(JOINT_FILE, "r") as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
+
+
+def is_hand_visible(hand_dict: dict) -> bool:
+    """True if the dict is non-empty and its timestamp is fresh."""
+    if not hand_dict:
+        return False
+    ts = hand_dict.get("timestamp", 0.0)
+    return (time.time() - ts) < HAND_TIMEOUT
 
 
 # ── Scene ────────────────────────────────────────────────────────────────────
@@ -85,21 +95,58 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     sim_joint_names: list[str] = list(robot.data.joint_names)
     name_to_sim_idx: dict[str, int] = {name: i for i, name in enumerate(sim_joint_names)}
 
-    # Persistent position target (1 env × 21 DOF), starts at default
-    joint_pos_target = robot.data.default_joint_pos.clone()
+    # ── Wait for first valid camera frame and snap robot to that pose ───────────
+    print("[INFO]: Waiting for first hand frame from camera to set start pose...")
+    while True:
+        hand_dict = read_joint_file()
+        if hand_dict:
+            break
+        # Tick the sim while waiting so it stays alive
+        sim.step()
+        scene.update(sim_dt)
 
-    print("[INFO]: Setup complete — reading hand data from", JOINT_FILE)
-    print("[INFO]: Make sure wato_hand_ros2_node.py is running in another terminal.")
+    # Build initial joint target from the first observed frame
+    joint_pos_target = robot.data.default_joint_pos.clone()
+    for joint_name, angle in hand_dict.items():
+        if joint_name in name_to_sim_idx:
+            joint_pos_target[0, name_to_sim_idx[joint_name]] = float(angle)
+
+    # Teleport the robot directly to the start pose (no physics convergence delay)
+    robot.write_joint_state_to_sim(joint_pos_target, robot.data.default_joint_vel.clone())
+    print(f"[INFO]: Start pose set from camera. forearm_rotation = "
+          f"{hand_dict.get('forearm_rotation', 0.0):.3f} rad, "
+          f"wrist_extension = {hand_dict.get('wrist_extension', 0.0):.3f} rad")
+
+    hand_visible_prev = True
 
     while simulation_app.is_running():
-        # -- Read latest joint angles from shared file --
         hand_dict = read_joint_file()
+        hand_visible = is_hand_visible(hand_dict)
 
-        if hand_dict:
+        # -- Hand just reappeared: snap to newly observed pose --
+        if hand_visible and not hand_visible_prev:
+            print("[INFO]: Hand reappeared — snapping to new pose.")
             for joint_name, angle in hand_dict.items():
+                if joint_name in ("timestamp",):
+                    continue
                 if joint_name in name_to_sim_idx:
-                    col = name_to_sim_idx[joint_name]
-                    joint_pos_target[0, col] = float(angle)
+                    joint_pos_target[0, name_to_sim_idx[joint_name]] = float(angle)
+            robot.write_joint_state_to_sim(joint_pos_target, robot.data.default_joint_vel.clone())
+
+        # -- Hand lost: freeze at last pose, skip target update --
+        elif not hand_visible:
+            if hand_visible_prev:
+                print("[INFO]: Hand lost — holding last pose.")
+
+        # -- Normal tracking: update target from latest data --
+        else:
+            for joint_name, angle in hand_dict.items():
+                if joint_name == "timestamp":
+                    continue
+                if joint_name in name_to_sim_idx:
+                    joint_pos_target[0, name_to_sim_idx[joint_name]] = float(angle)
+
+        hand_visible_prev = hand_visible
 
         # -- Apply to robot --
         robot.reset()
