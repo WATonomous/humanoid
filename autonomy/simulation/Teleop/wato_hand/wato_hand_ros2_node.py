@@ -31,6 +31,16 @@ def landmarks_to_joints(landmarks):
     ring_curl   = 1.0 - finger_curl(landmarks, tip_idx=16, mcp_idx=13)  # inverted
     pinky_curl  = 1.0 - finger_curl(landmarks, tip_idx=20, mcp_idx=17) # inverted
     thumb_curl  = finger_curl(landmarks, tip_idx=4,  mcp_idx=2)
+
+    # Wrist flexion/extension: elevation angle of wrist→middle-MCP vector
+    # Hand tilted up = extension (+), hand tilted down = flexion (-)
+    wrist  = landmarks[0]
+    mid_mcp = landmarks[9]
+    dx = mid_mcp["x"] - wrist["x"]
+    dy = mid_mcp["y"] - wrist["y"]  # y increases downward in image
+    dz = mid_mcp["z"] - wrist["z"]
+    wrist_ext = math.atan2(-dy, math.sqrt(dx**2 + dz**2))
+    wrist_ext = max(-0.96, min(0.96, wrist_ext))  # clamp to URDF limits
     return {
         "mcp_index":  -1.57 * index_curl,
         "pip_index":   1.57 * index_curl,
@@ -47,6 +57,7 @@ def landmarks_to_joints(landmarks):
         "cmc_thumb":  -0.35 + 2.44 * thumb_curl,
         "mcp_thumb":   0.785 + 1.745 * thumb_curl,
         "ip_thumb":    1.57 * thumb_curl,
+        "wrist_extension": wrist_ext,
     }
 
 class WatoHandNode(Node):
