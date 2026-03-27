@@ -79,15 +79,19 @@ with HandLandmarker.create_from_options(options) as landmarker:
                 # Fist detection
                 fist, curled = is_fist(hand)
 
-                # Build landmark payload
+                # Build landmark payload — both image (normalised) and world (metric, wrist-centred)
                 landmarks_data = [
                     {"x": lm.x, "y": lm.y, "z": lm.z}
                     for lm in hand
                 ]
+                world_data = (
+                    [{"x": lm.x, "y": lm.y, "z": lm.z} for lm in result.hand_world_landmarks[0]]
+                    if result.hand_world_landmarks else landmarks_data
+                )
 
                 # Publish landmarks to container
                 landmark_pub.publish(roslibpy.Message({
-                    "data": json.dumps(landmarks_data)
+                    "data": json.dumps({"landmarks": landmarks_data, "world": world_data})
                 }))
 
                 # Publish fist state to container
