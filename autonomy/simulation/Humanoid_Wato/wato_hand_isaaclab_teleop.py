@@ -85,6 +85,30 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     sim_joint_names: list[str] = list(robot.data.joint_names)
     name_to_sim_idx: dict[str, int] = {name: i for i, name in enumerate(sim_joint_names)}
 
+    # ── Override finger joint limits to allow deeper curl (120° instead of 90°) ──
+    # URDF caps at ±1.57 rad (90°). We widen PIP/DIP to 2.09 rad (120°) in sim only.
+    WIDER_LIMITS: dict[str, tuple[float, float]] = {
+        "pip_index":  (0.0,   2.09),
+        "dip_index":  (-2.09, 0.0),
+        "pip_middle": (0.0,   2.09),
+        "dip_middle": (0.0,   2.09),
+        "pip_ring":   (-2.09, 0.0),
+        "dip_ring":   (-2.09, 0.0),
+        "pip_pinky":  (-2.09, 0.0),
+        "dip_pinky":  (0.0,   2.09),
+    }
+    try:
+        limits = robot.data.joint_pos_limits.clone()  # [num_envs, num_joints, 2]
+        for joint_name, (lo, hi) in WIDER_LIMITS.items():
+            if joint_name in name_to_sim_idx:
+                idx = name_to_sim_idx[joint_name]
+                limits[:, idx, 0] = lo
+                limits[:, idx, 1] = hi
+        robot.write_joint_pos_limits_to_sim(limits)
+        print("[INFO]: Finger joint limits widened to ±2.09 rad (120°) for PIP/DIP joints.")
+    except Exception as e:
+        print(f"[WARN]: Could not override joint limits: {e} — using URDF defaults.")
+
     # Persistent position target (1 env × 21 DOF), starts at default
     joint_pos_target = robot.data.default_joint_pos.clone()
 

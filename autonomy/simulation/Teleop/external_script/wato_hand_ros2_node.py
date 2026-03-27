@@ -33,17 +33,17 @@ def landmarks_to_joints(landmarks):
     thumb_curl  = finger_curl(landmarks, tip_idx=4,  mcp_idx=2)
     return {
         "mcp_index":  -1.57 * index_curl,
-        "pip_index":   1.57 * index_curl,
-        "dip_index":  -1.57 * index_curl,
+        "pip_index":   2.09 * index_curl,   # widened to 120°
+        "dip_index":  -2.09 * index_curl,   # widened to 120°
         "mcp_middle": -1.57 * middle_curl,
-        "pip_middle":  1.57 * middle_curl,   # URDF limit [0.0, 1.57] — must be positive
-        "dip_middle":  1.57 * middle_curl,
+        "pip_middle":  2.09 * middle_curl,  # widened to 120°
+        "dip_middle":  2.09 * middle_curl,  # widened to 120°
         "mcp_ring":    1.57 * ring_curl,
-        "pip_ring":   -1.57 * ring_curl,
-        "dip_ring":   -1.57 * ring_curl,
+        "pip_ring":   -2.09 * ring_curl,    # widened to 120°
+        "dip_ring":   -2.09 * ring_curl,    # widened to 120°
         "mcp_pinky":   1.57 * pinky_curl,
-        "pip_pinky":  -1.57 * pinky_curl,
-        "dip_pinky":   1.57 * pinky_curl,
+        "pip_pinky":  -2.09 * pinky_curl,   # widened to 120°
+        "dip_pinky":   2.09 * pinky_curl,   # widened to 120°
         "cmc_thumb":  -0.35 + 2.44 * thumb_curl,
         "mcp_thumb":   0.785 + 1.745 * thumb_curl,
         "ip_thumb":    1.57 * thumb_curl,
