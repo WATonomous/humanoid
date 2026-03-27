@@ -28,8 +28,8 @@ def finger_curl(landmarks, tip_idx, mcp_idx):
 def landmarks_to_joints(landmarks):
     index_curl  = finger_curl(landmarks, tip_idx=8,  mcp_idx=5)
     middle_curl = finger_curl(landmarks, tip_idx=12, mcp_idx=9)
-    ring_curl   = finger_curl(landmarks, tip_idx=16, mcp_idx=13)
-    pinky_curl  = finger_curl(landmarks, tip_idx=20, mcp_idx=17)
+    ring_curl   = 1.0 - finger_curl(landmarks, tip_idx=16, mcp_idx=13)  # inverted
+    pinky_curl  = 1.0 - finger_curl(landmarks, tip_idx=20, mcp_idx=17) # inverted
     thumb_curl  = finger_curl(landmarks, tip_idx=4,  mcp_idx=2)
     return {
         "mcp_index":  -1.57 * index_curl,
