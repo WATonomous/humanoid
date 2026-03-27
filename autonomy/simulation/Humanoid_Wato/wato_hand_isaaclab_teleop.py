@@ -105,8 +105,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                 limits[:, idx, 0] = lo
                 limits[:, idx, 1] = hi
         # Isaac Lab 0.36 uses the underlying PhysX view to set DOF limits
-        env_ids = torch.tensor([0], dtype=torch.int32, device=sim.device)
-        robot._root_physx_view.set_dof_limits(limits, env_ids)
+        # PhysX requires CPU tensors (device -1)
+        env_ids = torch.tensor([0], dtype=torch.int32)
+        robot._root_physx_view.set_dof_limits(limits.cpu(), env_ids)
         print("[INFO]: Finger joint limits widened to ±2.09 rad (120°) for PIP/DIP joints.")
     except Exception as e:
         print(f"[WARN]: Could not override joint limits: {e} — using URDF defaults.")
