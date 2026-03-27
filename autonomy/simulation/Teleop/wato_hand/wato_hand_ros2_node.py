@@ -45,12 +45,17 @@ def landmarks_to_joints(landmarks):
     # Forearm rotation (pronation/supination): roll of hand around its pointing axis
     # Estimated from tilt of the index-MCP → pinky-MCP knuckle line.
     # URDF forearm_rotation limits: [0.0, 3.14] rad
+    #
+    # Key fix: use the FULL atan2 range [-π, +π] and map linearly to [0, π].
+    # Palm-up and palm-down produce knuckle vectors 180° apart,
+    # so they stay distinct — unlike the old (% math.pi) fold that collapsed them.
     idx_mcp = landmarks[5]
     pnk_mcp = landmarks[17]
     kvec_x = pnk_mcp["x"] - idx_mcp["x"]
     kvec_y = pnk_mcp["y"] - idx_mcp["y"]  # y increases downward
-    hand_roll = math.atan2(-kvec_y, kvec_x)  # range [-pi, pi]
-    forearm_rot = hand_roll % math.pi          # fold into [0, pi]
+    hand_roll = math.atan2(-kvec_y, kvec_x)  # [-π, +π]
+    # Linear map: -π → 0, 0 → π/2, +π → π  (preserves full-circle distinction)
+    forearm_rot = (hand_roll + math.pi) / 2.0
     forearm_rot = max(0.0, min(3.14, forearm_rot))
     return {
         "mcp_index":  -1.57 * index_curl,
