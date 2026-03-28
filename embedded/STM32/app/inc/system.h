@@ -7,6 +7,8 @@
 #define SYSTICK_FREQ (1000)
 
 void system_setup(void);
+void echo_task( void *pvParameters );
+
 uint64_t system_get_ticks(void);
 
 #endif

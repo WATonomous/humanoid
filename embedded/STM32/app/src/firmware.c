@@ -35,7 +35,17 @@ int main() {
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   // create blinking led task
-  xTaskCreate(blink_led, "BLINK_LED", 128, NULL, 1, NULL);
+  xTaskCreate(blink_led, "BLINK_LED", 128, NULL, 2, NULL);
+
+  /*
+  function,
+  debug string name,
+  stack size (bytes * 4 since its in "words", and each word is 4 bytes),
+  pvParameters passed into the task function if needed (ex. we can pass and dereference the huart),
+  priority (lower number = higher),
+  variable of type TaskHandle_t to use with suspending, reenabling, and stopping this specific task
+  */
+  xTaskCreate(echo_task, "echo_task", 128, NULL, 1, NULL);
 
   // start FreeRTOS Scheduler
   vTaskStartScheduler();
