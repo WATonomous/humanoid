@@ -29,6 +29,10 @@ ELBOW_FE_LIMITS     = (-0.349, 3.491)
 _arm_ref    = None
 CALIB_FRAMES = 15
 
+# EMA smoothing state
+_smoothed_joints = {}
+SMOOTH_ALPHA = 0.35  # lower = smoother but more lag (0 to 1)
+
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
 
@@ -145,22 +149,22 @@ def landmarks_to_joints(landmarks, world):
     arm = arm_joints_from_world(world)
 
     joint_dict = {
-        # Index
+        # Index (DIP multiplier restored to 0.5 to prevent mesh clipping/buckling)
         "mcp_index":  -1.57 * index_curl,
-        "pip_index":  -1.57 * index_curl,
-        "dip_index":  -1.57 * index_curl,
+        "pip_index":  -1.57 * index_curl * 0.90,
+        "dip_index":  -1.57 * index_curl * 0.50,
         # Middle
         "mcp_middle": -1.57 * middle_curl,
-        "pip_middle": -1.57 * middle_curl,
-        "dip_middle": -1.57 * middle_curl,
+        "pip_middle": -1.57 * middle_curl * 0.90,
+        "dip_middle": -1.57 * middle_curl * 0.50,
         # Ring — URDF axis inverted: 0=closed, 1.57=open
         "mcp_ring":    1.57 * (1.0 - ring_curl),
-        "pip_ring":   -1.57 * (1.0 - ring_curl),
-        "dip_ring":   -1.57 * (1.0 - ring_curl),
-        # Pinky — same inverted axis
+        "pip_ring":   -1.57 * (1.0 - ring_curl) * 0.90,
+        "dip_ring":   -1.57 * (1.0 - ring_curl) * 0.50,
+        # Pinky
         "mcp_pinky":   1.57 * (1.0 - pinky_curl),
-        "pip_pinky":  -1.57 * (1.0 - pinky_curl),
-        "dip_pinky":   1.57 * (1.0 - pinky_curl),
+        "pip_pinky":  -1.57 * (1.0 - pinky_curl) * 0.90,
+        "dip_pinky":   1.57 * (1.0 - pinky_curl) * 0.50,
         # Thumb
         "cmc_thumb":  -0.35 + 2.44 * thumb_curl,
         "mcp_thumb":   0.785 + 1.745 * thumb_curl,
@@ -177,7 +181,15 @@ def landmarks_to_joints(landmarks, world):
     if arm is not None:
         joint_dict.update(arm)
 
-    return joint_dict
+    # Apply Exponential Moving Average (EMA) smoothing
+    global _smoothed_joints
+    for k, v in joint_dict.items():
+        if k not in _smoothed_joints:
+            _smoothed_joints[k] = v
+        else:
+            _smoothed_joints[k] = SMOOTH_ALPHA * v + (1.0 - SMOOTH_ALPHA) * _smoothed_joints[k]
+
+    return _smoothed_joints
 
 
 class WatoHandNode(Node):
