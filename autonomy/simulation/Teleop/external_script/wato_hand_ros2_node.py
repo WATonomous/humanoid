@@ -211,13 +211,14 @@ def landmarks_to_joints(landmarks, world):
         "pip_middle":  1.57 * mid_pip_c,
         "dip_middle":  1.57 * mid_dip_c,
         # Ring (axis inverted in URDF)
-        "mcp_ring":    1.57 * rng_mcp_c,
-        "pip_ring":   -1.57 * rng_pip_c,
-        "dip_ring":   -1.57 * rng_dip_c,
-        # Pinky (axis inverted in URDF)
-        "mcp_pinky":   1.57 * pnk_mcp_c,
-        "pip_pinky":  -1.57 * pnk_pip_c,
-        "dip_pinky":   1.57 * pnk_dip_c,
+        # Ring — URDF axis inverted: 0 = closed, 1.57 = open → must flip curl
+        "mcp_ring":    1.57 * (1.0 - rng_mcp_c),
+        "pip_ring":   -1.57 * (1.0 - rng_pip_c),
+        "dip_ring":   -1.57 * (1.0 - rng_dip_c),
+        # Pinky — same inverted axis
+        "mcp_pinky":   1.57 * (1.0 - pnk_mcp_c),
+        "pip_pinky":  -1.57 * (1.0 - pnk_pip_c),
+        "dip_pinky":   1.57 * (1.0 - pnk_dip_c),
         # Thumb
         "cmc_thumb":  -0.35 + 2.44 * thumb_curl,
         "mcp_thumb":   0.785 + 1.745 * thumb_curl,
