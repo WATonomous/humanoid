@@ -158,11 +158,11 @@ def landmarks_to_joints(landmarks, world):
         "pip_middle": -1.57 * middle_curl * 0.90,
         "dip_middle": -1.57 * middle_curl * 0.50,
         # Ring
-        "mcp_ring":   -1.57 * ring_curl,
+        "mcp_ring":   1.57 * (1.0 - ring_curl),
         "pip_ring":   -1.57 * ring_curl * 0.90,
         "dip_ring":   -1.57 * ring_curl * 0.50,
         # Pinky
-        "mcp_pinky":  -1.57 * pinky_curl,
+        "mcp_pinky":  1.57 * (1.0 - pinky_curl),
         "pip_pinky":  -1.57 * pinky_curl * 0.90,
         "dip_pinky":  -1.57 * pinky_curl * 0.50,
         # Thumb
