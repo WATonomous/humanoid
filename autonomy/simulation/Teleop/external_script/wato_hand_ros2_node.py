@@ -145,22 +145,22 @@ def landmarks_to_joints(landmarks, world):
     arm = arm_joints_from_world(world)
 
     joint_dict = {
-        # Index: distance-based curl → cascade to PIP/DIP
+        # Index
         "mcp_index":  -1.57 * index_curl,
-        "pip_index":   1.57 * index_curl * 0.75,
-        "dip_index":  -1.57 * index_curl * 0.50,
+        "pip_index":  -1.57 * index_curl,
+        "dip_index":  -1.57 * index_curl,
         # Middle
         "mcp_middle": -1.57 * middle_curl,
-        "pip_middle":  1.57 * middle_curl * 0.75,
-        "dip_middle":  1.57 * middle_curl * 0.50,
-        # Ring — URDF axis inverted: 0=closed, 1.57=open → flip curl
+        "pip_middle": -1.57 * middle_curl,
+        "dip_middle": -1.57 * middle_curl,
+        # Ring — URDF axis inverted: 0=closed, 1.57=open
         "mcp_ring":    1.57 * (1.0 - ring_curl),
-        "pip_ring":   -1.57 * (1.0 - ring_curl) * 0.75,
-        "dip_ring":   -1.57 * (1.0 - ring_curl) * 0.50,
+        "pip_ring":   -1.57 * (1.0 - ring_curl),
+        "dip_ring":   -1.57 * (1.0 - ring_curl),
         # Pinky — same inverted axis
         "mcp_pinky":   1.57 * (1.0 - pinky_curl),
-        "pip_pinky":  -1.57 * (1.0 - pinky_curl) * 0.75,
-        "dip_pinky":   1.57 * (1.0 - pinky_curl) * 0.50,
+        "pip_pinky":  -1.57 * (1.0 - pinky_curl),
+        "dip_pinky":   1.57 * (1.0 - pinky_curl),
         # Thumb
         "cmc_thumb":  -0.35 + 2.44 * thumb_curl,
         "mcp_thumb":   0.785 + 1.745 * thumb_curl,
