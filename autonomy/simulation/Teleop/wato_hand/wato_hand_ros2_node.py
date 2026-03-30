@@ -8,9 +8,9 @@ import time
 JOINT_FILE = "/tmp/wato_joints.json"
 
 # ── Finger curl calibration ───────────────────────────────────────────────────
-# OPEN_RATIO  — tip/mcp distance ratio when finger is fully extended (~2.2)
-# CLOSE_RATIO — tip/mcp distance ratio when finger is in a tight fist  (~0.8)
-OPEN_RATIO  = 2.2
+# OPEN_RATIO  — tip/mcp distance ratio when finger is fully extended
+# CLOSE_RATIO — tip/mcp distance ratio when finger is in a tight fist
+OPEN_RATIO  = 1.85
 CLOSE_RATIO = 0.8
 
 # ── Arm position calibration ──────────────────────────────────────────────────
@@ -71,47 +71,32 @@ def palm_normal(world):
     return {"nx": nx/mag, "ny": ny/mag, "nz": nz/mag}
 
 
-def arm_joints_from_world(world):
+def arm_joints_from_camera(landmarks):
     """
-    Map 3D wrist position (world landmarks, wrist-centred relative to calibrated neutral)
-    to shoulder and elbow joint angles.
-
-    world[0] is always the wrist — its position in world coords is always (0,0,0)
-    because world landmarks ARE wrist-centred.
-
-    Instead, we use the middle-MCP (world[9]) as our hand-frame reference point,
-    and track how the hand tilts relative to the calibrated neutral.
-
-    For absolute position tracking we use the image-space position of the wrist
-    combined with world Z depth to estimate camera-frame 3D displacement.
+    Map absolute 2D image position of the wrist directly to shoulder joints.
+    This prevents the arm from jerking/sliding forwards when closing a fist changes the MediaPipe 3D Z-scale.
     """
     global _arm_ref
-
-    # Use wrist→middle-MCP vector in world frame as orientation proxy
-    mid_mcp = world[9]
-    # In world frame, wrist is at origin — mid_mcp gives hand pointing direction
-    hx, hy, hz = mid_mcp["x"], mid_mcp["y"], mid_mcp["z"]
+    wrist = landmarks[0]
+    hx, hy = wrist["x"], wrist["y"]
 
     if _arm_ref is None:
-        _arm_ref = {"hx": hx, "hy": hy, "hz": hz, "count": 1}
+        _arm_ref = {"hx": hx, "hy": hy, "count": 1}
         return None   # still calibrating
     elif _arm_ref["count"] < CALIB_FRAMES:
-        # Running average during calibration
         n = _arm_ref["count"]
         _arm_ref["hx"] = (_arm_ref["hx"] * n + hx) / (n + 1)
         _arm_ref["hy"] = (_arm_ref["hy"] * n + hy) / (n + 1)
-        _arm_ref["hz"] = (_arm_ref["hz"] * n + hz) / (n + 1)
         _arm_ref["count"] += 1
         return None   # still calibrating
 
-    # Delta from neutral
     dx = hx - _arm_ref["hx"]   # left/right
-    dy = hy - _arm_ref["hy"]   # up/down  (world y: up=negative in MediaPipe)
-    dz = hz - _arm_ref["hz"]   # depth
+    dy = hy - _arm_ref["hy"]   # up/down
 
-    shoulder_fe  = clamp(SHOULDER_FE_SCALE  * (-dy), *SHOULDER_FE_LIMITS)
-    shoulder_aa  = clamp(SHOULDER_AA_SCALE  * (-dx), *SHOULDER_AA_LIMITS)
-    elbow_fe     = clamp(ELBOW_FE_SCALE     *   dz,  *ELBOW_FE_LIMITS)
+    # Scale 2D [0.0 - 1.0] window coordinates to radians heavily since movement domain is 1.0
+    shoulder_fe  = clamp(10.0  * (-dy), *SHOULDER_FE_LIMITS)
+    shoulder_aa  = clamp(10.0  * (-dx), *SHOULDER_AA_LIMITS)
+    elbow_fe     = 0.0 # Disabled because Z-scale shrinking on fist causes violent jerks
 
     return {
         "shoulder_flexion_extension":    shoulder_fe,
@@ -131,22 +116,21 @@ def landmarks_to_joints(landmarks, world):
     # Thumb uses legacy distance-based curl
     thumb_curl = finger_curl(landmarks, tip_idx=4, mcp_idx=2)
 
-    # Wrist flexion/extension
-    wrist   = landmarks[0]; mid_mcp = landmarks[9]
-    dx = mid_mcp["x"] - wrist["x"]; dy = mid_mcp["y"] - wrist["y"]; dz = mid_mcp["z"] - wrist["z"]
+    # Wrist flexion/extension & Forearm rotation using 3D world coordinates (invariant to 2D perspective scaling jumps when clenching)
+    w_wrist = world[0]
+    w_mid = world[9]
+    w_idx = world[5]
+    w_pnk = world[17]
+
+    dx = w_mid["x"] - w_wrist["x"]; dy = w_mid["y"] - w_wrist["y"]; dz = w_mid["z"] - w_wrist["z"]
     wrist_ext = clamp(math.atan2(-dy, math.sqrt(dx**2 + dz**2)), -0.96, 0.96)
 
-    # Forearm rotation (full [-π,+π] linear map to [0, π])
-    idx_mcp = landmarks[5]; pnk_mcp = landmarks[17]
-    kvec_x  = pnk_mcp["x"] - idx_mcp["x"]; kvec_y = pnk_mcp["y"] - idx_mcp["y"]
-    hand_roll   = math.atan2(-kvec_y, kvec_x)
+    kvec_x = w_pnk["x"] - w_idx["x"]; kvec_y = w_pnk["y"] - w_idx["y"]
+    hand_roll = math.atan2(-kvec_y, kvec_x)
     forearm_rot = clamp((hand_roll + math.pi) / 2.0, 0.0, 3.14)
 
-    # Palm normal from world landmarks
-    pn = palm_normal(world)
-
-    # Arm joints from world position
-    arm = arm_joints_from_world(world)
+    # Arm joints from absolute screen position to prevent it jerking when fist bounding box changes
+    arm = arm_joints_from_camera(landmarks)
 
     joint_dict = {
         # Index (DIP multiplier restored to 0.5 to prevent mesh clipping/buckling)
