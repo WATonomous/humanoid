@@ -27,52 +27,12 @@ ELBOW_FE_LIMITS     = (-0.349, 3.491)
 
 # Calibration state (filled during 15-frame startup hold)
 _arm_ref    = None
-_finger_ref = None   # per-joint open-hand baseline — set dynamically
 CALIB_FRAMES = 15
-
-# Gain applied to raw joint angles to compensate for 2D camera projection
-# underestimating the true 3D bend angle. 1.5 means a 60° apparent bend
-# maps to full curl (1.0). Increase if fingers don't close fully.
-CURL_GAIN = 1.5
-
-
 
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
 
 
-def vec(a, b):
-    """Vector from landmark a to landmark b."""
-    return (b["x"]-a["x"], b["y"]-a["y"], b["z"]-a["z"])
-
-
-def dot(u, v):
-    return u[0]*v[0] + u[1]*v[1] + u[2]*v[2]
-
-
-def mag(u):
-    return math.sqrt(u[0]**2 + u[1]**2 + u[2]**2) or 1e-9
-
-
-def joint_angle_curl_raw(landmarks, a_idx, b_idx, c_idx):
-    """Raw bend angle at joint b (chain a→b→c).
-    Normalized so 90° (π/2 rad) → 1.0 — matches real finger flex range.
-    CURL_GAIN amplifies to compensate for 2D projection foreshortening."""
-    ab = vec(landmarks[a_idx], landmarks[b_idx])
-    bc = vec(landmarks[b_idx], landmarks[c_idx])
-    cos_angle = clamp(dot(ab, bc) / (mag(ab) * mag(bc)), -1.0, 1.0)
-    # Divide by π/2 so 90° = 1.0 (physiological max) rather than π (180°)
-    return clamp(CURL_GAIN * math.acos(cos_angle) / (math.pi / 2), 0.0, 1.0)
-
-
-def apply_finger_baseline(raw, key):
-    """Subtract the calibrated open-hand baseline for this joint, clamp to [0,1]."""
-    if _finger_ref is None or key not in _finger_ref:
-        return clamp(raw, 0.0, 1.0)
-    baseline = _finger_ref[key]
-    if isinstance(baseline, dict):   # still accumulating during calibration
-        return clamp(raw, 0.0, 1.0)
-    return clamp((raw - baseline) / max(1.0 - baseline, 0.01), 0.0, 1.0)
 
 
 def finger_curl(landmarks, tip_idx, mcp_idx):
@@ -157,39 +117,14 @@ def arm_joints_from_world(world):
 
 
 def landmarks_to_joints(landmarks, world):
-    # ── FINGER JOINTS: collect raw angles, build calibration, then apply baseline ──
-    # Joint chains: (a→b→c) — raw values measured every frame
-    CHAINS = {
-        "mcp_index":  (0, 5,  6),  "pip_index":  (5,  6,  7),  "dip_index":  (6,  7,  8),
-        "mcp_middle": (0, 9,  10), "pip_middle": (9,  10, 11), "dip_middle": (10, 11, 12),
-        "mcp_ring":   (0, 13, 14), "pip_ring":   (13, 14, 15), "dip_ring":   (14, 15, 16),
-        "mcp_pinky":  (0, 17, 18), "pip_pinky":  (17, 18, 19), "dip_pinky":  (18, 19, 20),
-    }
-    global _finger_ref
-    raw_curls = {k: joint_angle_curl_raw(landmarks, *v) for k, v in CHAINS.items()}
+    # ── Primary curl signal: distance-based (robust to camera angle/occlusion) ──
+    # Distance ratio (tip/wrist vs mcp/wrist) works from any viewing angle.
+    index_curl  = finger_curl(landmarks, tip_idx=8,  mcp_idx=5)
+    middle_curl = finger_curl(landmarks, tip_idx=12, mcp_idx=9)
+    ring_curl   = finger_curl(landmarks, tip_idx=16, mcp_idx=13)
+    pinky_curl  = finger_curl(landmarks, tip_idx=20, mcp_idx=17)
 
-    # Accumulate calibration during startup hold (runs in parallel with arm calib)
-    if _finger_ref is None:
-        _finger_ref = {k: {"sum": v, "count": 1} for k, v in raw_curls.items()}
-    elif isinstance(next(iter(_finger_ref.values())), dict):  # still accumulating
-        n = next(iter(_finger_ref.values()))["count"]
-        if n < CALIB_FRAMES:
-            for k, v in raw_curls.items():
-                _finger_ref[k]["sum"]   += v
-                _finger_ref[k]["count"] += 1
-        else:
-            # Finalise: replace dicts with scalar averages
-            _finger_ref = {k: d["sum"] / d["count"] for k, d in _finger_ref.items()}
-
-    # Apply per-joint calibrated baseline
-    fc = {k: apply_finger_baseline(raw_curls[k], k) for k in CHAINS}
-
-    idx_mcp_c, idx_pip_c, idx_dip_c = fc["mcp_index"],  fc["pip_index"],  fc["dip_index"]
-    mid_mcp_c, mid_pip_c, mid_dip_c = fc["mcp_middle"], fc["pip_middle"], fc["dip_middle"]
-    rng_mcp_c, rng_pip_c, rng_dip_c = fc["mcp_ring"],   fc["pip_ring"],   fc["dip_ring"]
-    pnk_mcp_c, pnk_pip_c, pnk_dip_c = fc["mcp_pinky"],  fc["pip_pinky"],  fc["dip_pinky"]
-
-    # Thumb uses legacy distance-based curl (geometry is different)
+    # Thumb uses legacy distance-based curl
     thumb_curl = finger_curl(landmarks, tip_idx=4, mcp_idx=2)
 
     # Wrist flexion/extension
@@ -210,23 +145,22 @@ def landmarks_to_joints(landmarks, world):
     arm = arm_joints_from_world(world)
 
     joint_dict = {
-        # Index — independent per-joint angles
-        "mcp_index":  -1.57 * idx_mcp_c,
-        "pip_index":   1.57 * idx_pip_c,
-        "dip_index":  -1.57 * idx_dip_c,
+        # Index: distance-based curl → cascade to PIP/DIP
+        "mcp_index":  -1.57 * index_curl,
+        "pip_index":   1.57 * index_curl * 0.75,
+        "dip_index":  -1.57 * index_curl * 0.50,
         # Middle
-        "mcp_middle": -1.57 * mid_mcp_c,
-        "pip_middle":  1.57 * mid_pip_c,
-        "dip_middle":  1.57 * mid_dip_c,
-        # Ring (axis inverted in URDF)
-        # Ring — URDF axis inverted: 0 = closed, 1.57 = open → must flip curl
-        "mcp_ring":    1.57 * (1.0 - rng_mcp_c),
-        "pip_ring":   -1.57 * (1.0 - rng_pip_c),
-        "dip_ring":   -1.57 * (1.0 - rng_dip_c),
+        "mcp_middle": -1.57 * middle_curl,
+        "pip_middle":  1.57 * middle_curl * 0.75,
+        "dip_middle":  1.57 * middle_curl * 0.50,
+        # Ring — URDF axis inverted: 0=closed, 1.57=open → flip curl
+        "mcp_ring":    1.57 * (1.0 - ring_curl),
+        "pip_ring":   -1.57 * (1.0 - ring_curl) * 0.75,
+        "dip_ring":   -1.57 * (1.0 - ring_curl) * 0.50,
         # Pinky — same inverted axis
-        "mcp_pinky":   1.57 * (1.0 - pnk_mcp_c),
-        "pip_pinky":  -1.57 * (1.0 - pnk_pip_c),
-        "dip_pinky":   1.57 * (1.0 - pnk_dip_c),
+        "mcp_pinky":   1.57 * (1.0 - pinky_curl),
+        "pip_pinky":  -1.57 * (1.0 - pinky_curl) * 0.75,
+        "dip_pinky":   1.57 * (1.0 - pinky_curl) * 0.50,
         # Thumb
         "cmc_thumb":  -0.35 + 2.44 * thumb_curl,
         "mcp_thumb":   0.785 + 1.745 * thumb_curl,
