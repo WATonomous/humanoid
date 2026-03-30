@@ -50,11 +50,13 @@ def mag(u):
 
 
 def joint_angle_curl_raw(landmarks, a_idx, b_idx, c_idx):
-    """Raw bend angle at joint b (chain a→b→c), returned as [0,1] fraction of π."""
+    """Raw bend angle at joint b (chain a→b→c).
+    Normalized so 90° (π/2 rad) → 1.0 — matches real finger flex range."""
     ab = vec(landmarks[a_idx], landmarks[b_idx])
     bc = vec(landmarks[b_idx], landmarks[c_idx])
     cos_angle = clamp(dot(ab, bc) / (mag(ab) * mag(bc)), -1.0, 1.0)
-    return math.acos(cos_angle) / math.pi
+    # Divide by π/2 so 90° = 1.0 (physiological max) rather than π (180°)
+    return clamp(math.acos(cos_angle) / (math.pi / 2), 0.0, 1.0)
 
 
 def apply_finger_baseline(raw, key):
