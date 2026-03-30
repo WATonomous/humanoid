@@ -8,9 +8,14 @@ import time
 JOINT_FILE = "/tmp/wato_joints.json"
 
 # ── Finger curl calibration ───────────────────────────────────────────────────
-# OPEN_RATIO  — tip/mcp distance ratio when finger is fully extended
+# OPEN_RATIOS — tip/mcp distance ratio when finger is fully extended
 # CLOSE_RATIO — tip/mcp distance ratio when finger is in a tight fist
-OPEN_RATIO  = 1.85
+OPEN_RATIOS = {
+    5: 2.0,   # Index (long)
+    9: 2.0,   # Middle (long)
+    13: 1.7,  # Ring (shorter)
+    17: 1.6,  # Pinky (shortest)
+}
 CLOSE_RATIO = 0.8
 
 # ── Arm position calibration ──────────────────────────────────────────────────
@@ -49,7 +54,8 @@ def finger_curl(landmarks, tip_idx, mcp_idx):
     if mcp_dist == 0:
         return 0.0
     ratio = tip_dist / mcp_dist
-    curl  = 1.0 - clamp((ratio - CLOSE_RATIO) / (OPEN_RATIO - CLOSE_RATIO), 0.0, 1.0)
+    open_r = OPEN_RATIOS.get(mcp_idx, 1.85)
+    curl  = 1.0 - clamp((ratio - CLOSE_RATIO) / (open_r - CLOSE_RATIO), 0.0, 1.0)
     return curl
 
 
