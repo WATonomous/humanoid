@@ -11,12 +11,12 @@ JOINT_FILE = "/tmp/wato_joints.json"
 # OPEN_RATIOS — tip/mcp distance ratio when finger is fully extended
 # CLOSE_RATIO — tip/mcp distance ratio when finger is in a tight fist
 OPEN_RATIOS = {
-    5: 1.9,   # Index
-    9: 1.9,   # Middle
-    13: 1.7,  # Ring
-    17: 1.5,  # Pinky
+    5: 1.3,   # Index
+    9: 1.3,   # Middle
+    13: 1.2,  # Ring
+    17: 1.2,  # Pinky
 }
-CLOSE_RATIO = 1.0
+CLOSE_RATIO = 0.8
 
 # ── Arm position calibration ──────────────────────────────────────────────────
 # Scale factors: metres of hand movement → radians of joint movement
