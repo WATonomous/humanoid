@@ -31,7 +31,7 @@ CALIB_FRAMES = 15
 
 # EMA smoothing state
 _smoothed_joints = {}
-SMOOTH_ALPHA = 0.35  # lower = smoother but more lag (0 to 1)
+SMOOTH_ALPHA = 0.85  # Increased from 0.35 to 0.85 to remove slow lag
 
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
