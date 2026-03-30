@@ -141,22 +141,22 @@ def landmarks_to_joints(landmarks, world):
     arm = arm_joints_from_camera(landmarks)
 
     joint_dict = {
-        # Index (DIP multiplier restored to 0.5 to prevent mesh clipping/buckling)
+        # Index (DIP starts at 1.57 to undo baked-in 90deg base hook, interpolates to 0.0 when closed)
         "mcp_index":  -1.57 * index_curl,
         "pip_index":  -1.57 * index_curl * 0.90,
-        "dip_index":  -1.57 * index_curl * 0.50,
+        "dip_index":   1.57 * (1.0 - index_curl),
         # Middle
         "mcp_middle": -1.57 * middle_curl,
         "pip_middle": -1.57 * middle_curl * 0.90,
-        "dip_middle": -1.57 * middle_curl * 0.50,
-        # Ring
+        "dip_middle":  1.57 * (1.0 - middle_curl),
+        # Ring (mcp and dip both start hooked inwards randomly in URDF!)
         "mcp_ring":   1.57 * (1.0 - ring_curl),
         "pip_ring":   -1.57 * ring_curl * 0.90,
-        "dip_ring":   -1.57 * ring_curl * 0.50,
+        "dip_ring":    1.57 * (1.0 - ring_curl),
         # Pinky
         "mcp_pinky":  1.57 * (1.0 - pinky_curl),
         "pip_pinky":  -1.57 * pinky_curl * 0.90,
-        "dip_pinky":  -1.57 * pinky_curl * 0.50,
+        "dip_pinky":   1.57 * (1.0 - pinky_curl),
         # Thumb
         "cmc_thumb":  -0.35 + 2.44 * thumb_curl,
         "mcp_thumb":   0.785 + 1.745 * thumb_curl,
