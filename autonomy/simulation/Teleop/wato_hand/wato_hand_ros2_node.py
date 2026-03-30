@@ -155,16 +155,16 @@ def landmarks_to_joints(landmarks, world):
         "dip_index":  -1.57 * index_curl * 0.50,
         # Middle
         "mcp_middle": -1.57 * middle_curl,
-        "pip_middle": -1.57 * middle_curl * 0.90,
-        "dip_middle": -1.57 * middle_curl * 0.50,
+        "pip_middle":  1.57 * middle_curl * 0.90,
+        "dip_middle":  1.57 * middle_curl * 0.50,
         # Ring — URDF axis inverted: 0=closed, 1.57=open
         "mcp_ring":    1.57 * (1.0 - ring_curl),
         "pip_ring":   -1.57 * (1.0 - ring_curl) * 0.90,
         "dip_ring":   -1.57 * (1.0 - ring_curl) * 0.50,
         # Pinky
         "mcp_pinky":   1.57 * (1.0 - pinky_curl),
-        "pip_pinky":  -1.57 * (1.0 - pinky_curl) * 0.90,
-        "dip_pinky":   1.57 * (1.0 - pinky_curl) * 0.50,
+        "pip_pinky":   1.57 * (1.0 - pinky_curl) * 0.90,
+        "dip_pinky":  -1.57 * (1.0 - pinky_curl) * 0.50,
         # Thumb
         "cmc_thumb":  -0.35 + 2.44 * thumb_curl,
         "mcp_thumb":   0.785 + 1.745 * thumb_curl,
