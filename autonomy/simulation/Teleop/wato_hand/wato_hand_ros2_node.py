@@ -93,10 +93,10 @@ def arm_joints_from_camera(landmarks):
     dx = hx - _arm_ref["hx"]   # left/right
     dy = hy - _arm_ref["hy"]   # up/down
 
-    # Scale 2D [0.0 - 1.0] window coordinates to radians heavily since movement domain is 1.0
-    shoulder_fe  = clamp(10.0  * (-dy), *SHOULDER_FE_LIMITS)
-    shoulder_aa  = clamp(10.0  * (-dx), *SHOULDER_AA_LIMITS)
-    elbow_fe     = 0.0 # Disabled because Z-scale shrinking on fist causes violent jerks
+    # Disable shoulder and elbow motions per user request, keep them locked at neutral (0.0)
+    shoulder_fe  = 0.0
+    shoulder_aa  = 0.0
+    elbow_fe     = 0.0
 
     return {
         "shoulder_flexion_extension":    shoulder_fe,
