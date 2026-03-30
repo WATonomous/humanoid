@@ -43,7 +43,7 @@ from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_C
 
 # ── Shared file written by wato_hand_ros2_node.py ────────────────────────────
 JOINT_FILE = "/tmp/wato_joints.json"
-HAND_TIMEOUT = 0.5  # seconds before hand is considered lost
+HAND_TIMEOUT = 2.0  # seconds before hand is considered lost
 
 
 def read_joint_file() -> dict[str, float]:
@@ -123,15 +123,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         hand_dict = read_joint_file()
         hand_visible = is_hand_visible(hand_dict)
 
-        # -- Hand just reappeared: snap to newly observed pose --
+        # -- Hand just reappeared: resume normal targets (no physics teleporting) --
         if hand_visible and not hand_visible_prev:
-            print("[INFO]: Hand reappeared — snapping to new pose.")
+            print("[INFO]: Hand reappeared — resuming smooth tracking.")
             for joint_name, angle in hand_dict.items():
                 if joint_name in ("timestamp",):
                     continue
                 if joint_name in name_to_sim_idx:
                     joint_pos_target[0, name_to_sim_idx[joint_name]] = float(angle)
-            robot.write_joint_state_to_sim(joint_pos_target, robot.data.default_joint_vel.clone())
 
         # -- Hand lost: freeze at last pose, skip target update --
         elif not hand_visible:
@@ -149,7 +148,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         hand_visible_prev = hand_visible
 
         # -- Apply to robot --
-        robot.reset()
         joint_pos_des = joint_pos_target[:, robot_entity_cfg.joint_ids].clone()
         robot.set_joint_position_target(joint_pos_des, joint_ids=robot_entity_cfg.joint_ids)
         scene.write_data_to_sim()
