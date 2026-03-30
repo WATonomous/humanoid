@@ -29,6 +29,13 @@ ELBOW_FE_LIMITS     = (-0.349, 3.491)
 _arm_ref = None
 CALIB_FRAMES = 15   # average this many frames for the neutral reference
 
+# ── Joint angle dead-zone baselines ──────────────────────────────────────────
+# MediaPipe image landmarks project 3D geometry onto 2D, creating small
+# spurious bend angles even in a flat, open hand.  These offsets subtract
+# that baseline so curl=0 for a genuinely open finger.
+JOINT_BASELINE = 0.12   # PIP / DIP joints
+MCP_BASELINE   = 0.18   # MCP joints (wrist→MCP→PIP has more projection error)
+
 
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
@@ -47,19 +54,23 @@ def mag(u):
     return math.sqrt(u[0]**2 + u[1]**2 + u[2]**2) or 1e-9
 
 
-def joint_angle_curl(landmarks, a_idx, b_idx, c_idx):
+def joint_angle_curl(landmarks, a_idx, b_idx, c_idx, baseline=None):
     """
     Compute how much the joint at b is bent, given the chain a→b→c.
     Returns a curl scalar in [0, 1]:
-      0 = fully straight (180° between segments)
-      1 = fully bent (~0° between segments / full curl)
+      0 = fully straight (after subtracting open-hand baseline)
+      1 = fully bent
     """
+    if baseline is None:
+        baseline = JOINT_BASELINE
     ab = vec(landmarks[a_idx], landmarks[b_idx])
     bc = vec(landmarks[b_idx], landmarks[c_idx])
     cos_angle = clamp(dot(ab, bc) / (mag(ab) * mag(bc)), -1.0, 1.0)
-    angle_rad = math.acos(cos_angle)   # 0 = straight, π = fully bent back
-    # Normalize: straight (0 rad) → curl=0, fully bent (π rad) → curl=1
-    return clamp(angle_rad / math.pi, 0.0, 1.0)
+    angle_rad = math.acos(cos_angle)          # 0 = straight, π = fully bent
+    raw_curl  = angle_rad / math.pi           # [0, 1]
+    # Subtract open-hand baseline then re-normalise to [0, 1]
+    curl = clamp((raw_curl - baseline) / (1.0 - baseline), 0.0, 1.0)
+    return curl
 
 
 def finger_curl(landmarks, tip_idx, mcp_idx):
@@ -147,22 +158,22 @@ def landmarks_to_joints(landmarks, world):
     # ── Per-joint angles for each finger (MCP, PIP, DIP independently) ────────
     # Each uses the bend angle at that specific joint between its two bone vectors.
     # Index:  wrist(0)→MCP(5)→PIP(6)→DIP(7)→TIP(8)
-    idx_mcp_c = joint_angle_curl(landmarks, 0,  5,  6)   # wrist→MCP→PIP
-    idx_pip_c = joint_angle_curl(landmarks, 5,  6,  7)   # MCP→PIP→DIP
-    idx_dip_c = joint_angle_curl(landmarks, 6,  7,  8)   # PIP→DIP→TIP
+    idx_mcp_c = joint_angle_curl(landmarks, 0,  5,  6,  MCP_BASELINE)
+    idx_pip_c = joint_angle_curl(landmarks, 5,  6,  7)
+    idx_dip_c = joint_angle_curl(landmarks, 6,  7,  8)
 
     # Middle: wrist(0)→MCP(9)→PIP(10)→DIP(11)→TIP(12)
-    mid_mcp_c = joint_angle_curl(landmarks, 0,  9,  10)
+    mid_mcp_c = joint_angle_curl(landmarks, 0,  9,  10, MCP_BASELINE)
     mid_pip_c = joint_angle_curl(landmarks, 9,  10, 11)
     mid_dip_c = joint_angle_curl(landmarks, 10, 11, 12)
 
-    # Ring:   wrist(0)→MCP(13)→PIP(14)→DIP(15)→TIP(16)  (inverted axis)
-    rng_mcp_c = joint_angle_curl(landmarks, 0,  13, 14)
+    # Ring:   wrist(0)→MCP(13)→PIP(14)→DIP(15)→TIP(16)
+    rng_mcp_c = joint_angle_curl(landmarks, 0,  13, 14, MCP_BASELINE)
     rng_pip_c = joint_angle_curl(landmarks, 13, 14, 15)
     rng_dip_c = joint_angle_curl(landmarks, 14, 15, 16)
 
-    # Pinky:  wrist(0)→MCP(17)→PIP(18)→DIP(19)→TIP(20)  (inverted axis)
-    pnk_mcp_c = joint_angle_curl(landmarks, 0,  17, 18)
+    # Pinky:  wrist(0)→MCP(17)→PIP(18)→DIP(19)→TIP(20)
+    pnk_mcp_c = joint_angle_curl(landmarks, 0,  17, 18, MCP_BASELINE)
     pnk_pip_c = joint_angle_curl(landmarks, 17, 18, 19)
     pnk_dip_c = joint_angle_curl(landmarks, 18, 19, 20)
 
