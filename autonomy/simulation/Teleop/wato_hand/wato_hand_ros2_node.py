@@ -30,6 +30,11 @@ _arm_ref    = None
 _finger_ref = None   # per-joint open-hand baseline — set dynamically
 CALIB_FRAMES = 15
 
+# Gain applied to raw joint angles to compensate for 2D camera projection
+# underestimating the true 3D bend angle. 1.5 means a 60° apparent bend
+# maps to full curl (1.0). Increase if fingers don't close fully.
+CURL_GAIN = 1.5
+
 
 
 def clamp(v, lo, hi):
@@ -51,12 +56,13 @@ def mag(u):
 
 def joint_angle_curl_raw(landmarks, a_idx, b_idx, c_idx):
     """Raw bend angle at joint b (chain a→b→c).
-    Normalized so 90° (π/2 rad) → 1.0 — matches real finger flex range."""
+    Normalized so 90° (π/2 rad) → 1.0 — matches real finger flex range.
+    CURL_GAIN amplifies to compensate for 2D projection foreshortening."""
     ab = vec(landmarks[a_idx], landmarks[b_idx])
     bc = vec(landmarks[b_idx], landmarks[c_idx])
     cos_angle = clamp(dot(ab, bc) / (mag(ab) * mag(bc)), -1.0, 1.0)
     # Divide by π/2 so 90° = 1.0 (physiological max) rather than π (180°)
-    return clamp(math.acos(cos_angle) / (math.pi / 2), 0.0, 1.0)
+    return clamp(CURL_GAIN * math.acos(cos_angle) / (math.pi / 2), 0.0, 1.0)
 
 
 def apply_finger_baseline(raw, key):
