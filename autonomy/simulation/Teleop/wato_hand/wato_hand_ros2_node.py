@@ -11,12 +11,12 @@ JOINT_FILE = "/tmp/wato_joints.json"
 # OPEN_RATIOS — tip/mcp distance ratio when finger is fully extended
 # CLOSE_RATIO — tip/mcp distance ratio when finger is in a tight fist
 OPEN_RATIOS = {
-    5: 2.0,   # Index (long)
-    9: 2.0,   # Middle (long)
-    13: 1.7,  # Ring (shorter)
-    17: 1.6,  # Pinky (shortest)
+    5: 1.9,   # Index
+    9: 1.9,   # Middle
+    13: 1.7,  # Ring
+    17: 1.5,  # Pinky
 }
-CLOSE_RATIO = 0.8
+CLOSE_RATIO = 1.0
 
 # ── Arm position calibration ──────────────────────────────────────────────────
 # Scale factors: metres of hand movement → radians of joint movement
@@ -112,15 +112,14 @@ def arm_joints_from_camera(landmarks):
 
 
 def landmarks_to_joints(landmarks, world):
-    # ── Primary curl signal: distance-based (robust to camera angle/occlusion) ──
-    # Distance ratio (tip/wrist vs mcp/wrist) works from any viewing angle.
-    index_curl  = finger_curl(landmarks, tip_idx=8,  mcp_idx=5)
-    middle_curl = finger_curl(landmarks, tip_idx=12, mcp_idx=9)
-    ring_curl   = finger_curl(landmarks, tip_idx=16, mcp_idx=13)
-    pinky_curl  = finger_curl(landmarks, tip_idx=20, mcp_idx=17)
+    # ── Primary curl signal: true 3D distance-based (immune to camera angle) ──
+    # Using 'world' instead of 'landmarks' provides metric 3D vectors immune to 2D foreshortening
+    index_curl  = finger_curl(world, tip_idx=8,  mcp_idx=5)
+    middle_curl = finger_curl(world, tip_idx=12, mcp_idx=9)
+    ring_curl   = finger_curl(world, tip_idx=16, mcp_idx=13)
+    pinky_curl  = finger_curl(world, tip_idx=20, mcp_idx=17)
 
-    # Thumb uses legacy distance-based curl
-    thumb_curl = finger_curl(landmarks, tip_idx=4, mcp_idx=2)
+    thumb_curl = finger_curl(world, tip_idx=4, mcp_idx=2)
 
     # Wrist flexion/extension & Forearm rotation using 3D world coordinates (invariant to 2D perspective scaling jumps when clenching)
     w_wrist = world[0]
