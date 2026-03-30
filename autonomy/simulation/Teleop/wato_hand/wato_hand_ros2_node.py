@@ -62,6 +62,8 @@ def apply_finger_baseline(raw, key):
     if _finger_ref is None or key not in _finger_ref:
         return clamp(raw, 0.0, 1.0)
     baseline = _finger_ref[key]
+    if isinstance(baseline, dict):   # still accumulating during calibration
+        return clamp(raw, 0.0, 1.0)
     return clamp((raw - baseline) / max(1.0 - baseline, 0.01), 0.0, 1.0)
 
 
