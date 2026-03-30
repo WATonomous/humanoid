@@ -129,6 +129,9 @@ def landmarks_to_joints(landmarks, world):
     hand_roll = math.atan2(-kvec_y, kvec_x)
     forearm_rot = clamp((hand_roll + math.pi) / 2.0, 0.0, 3.14)
 
+    # Palm normal from world landmarks
+    pn = palm_normal(world)
+
     # Arm joints from absolute screen position to prevent it jerking when fist bounding box changes
     arm = arm_joints_from_camera(landmarks)
 
