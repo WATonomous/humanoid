@@ -123,24 +123,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         hand_dict = read_joint_file()
         hand_visible = is_hand_visible(hand_dict)
 
-        # -- Hand just reappeared: resume normal targets (no physics teleporting) --
-        if hand_visible and not hand_visible_prev:
-            print("[INFO]: Hand reappeared — resuming smooth tracking.")
+        # -- Normal tracking: update target from latest data --
+        if hand_visible:
             for joint_name, angle in hand_dict.items():
                 if joint_name in ("timestamp",):
-                    continue
-                if joint_name in name_to_sim_idx:
-                    joint_pos_target[0, name_to_sim_idx[joint_name]] = float(angle)
-
-        # -- Hand lost: freeze at last pose, skip target update --
-        elif not hand_visible:
-            if hand_visible_prev:
-                print("[INFO]: Hand lost — holding last pose.")
-
-        # -- Normal tracking: update target from latest data --
-        else:
-            for joint_name, angle in hand_dict.items():
-                if joint_name == "timestamp":
                     continue
                 if joint_name in name_to_sim_idx:
                     joint_pos_target[0, name_to_sim_idx[joint_name]] = float(angle)
