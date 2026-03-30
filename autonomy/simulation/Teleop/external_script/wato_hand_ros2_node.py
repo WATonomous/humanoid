@@ -34,7 +34,36 @@ def clamp(v, lo, hi):
     return max(lo, min(hi, v))
 
 
+def vec(a, b):
+    """Vector from landmark a to landmark b."""
+    return (b["x"]-a["x"], b["y"]-a["y"], b["z"]-a["z"])
+
+
+def dot(u, v):
+    return u[0]*v[0] + u[1]*v[1] + u[2]*v[2]
+
+
+def mag(u):
+    return math.sqrt(u[0]**2 + u[1]**2 + u[2]**2) or 1e-9
+
+
+def joint_angle_curl(landmarks, a_idx, b_idx, c_idx):
+    """
+    Compute how much the joint at b is bent, given the chain a→b→c.
+    Returns a curl scalar in [0, 1]:
+      0 = fully straight (180° between segments)
+      1 = fully bent (~0° between segments / full curl)
+    """
+    ab = vec(landmarks[a_idx], landmarks[b_idx])
+    bc = vec(landmarks[b_idx], landmarks[c_idx])
+    cos_angle = clamp(dot(ab, bc) / (mag(ab) * mag(bc)), -1.0, 1.0)
+    angle_rad = math.acos(cos_angle)   # 0 = straight, π = fully bent back
+    # Normalize: straight (0 rad) → curl=0, fully bent (π rad) → curl=1
+    return clamp(angle_rad / math.pi, 0.0, 1.0)
+
+
 def finger_curl(landmarks, tip_idx, mcp_idx):
+    """Legacy single-scalar curl (still used for thumb)."""
     tip   = landmarks[tip_idx]
     mcp   = landmarks[mcp_idx]
     wrist = landmarks[0]
@@ -115,11 +144,30 @@ def arm_joints_from_world(world):
 
 
 def landmarks_to_joints(landmarks, world):
-    index_curl  = finger_curl(landmarks, tip_idx=8,  mcp_idx=5)
-    middle_curl = finger_curl(landmarks, tip_idx=12, mcp_idx=9)
-    ring_curl   = 1.0 - finger_curl(landmarks, tip_idx=16, mcp_idx=13)  # inverted
-    pinky_curl  = 1.0 - finger_curl(landmarks, tip_idx=20, mcp_idx=17)  # inverted
-    thumb_curl  = finger_curl(landmarks, tip_idx=4,  mcp_idx=2)
+    # ── Per-joint angles for each finger (MCP, PIP, DIP independently) ────────
+    # Each uses the bend angle at that specific joint between its two bone vectors.
+    # Index:  wrist(0)→MCP(5)→PIP(6)→DIP(7)→TIP(8)
+    idx_mcp_c = joint_angle_curl(landmarks, 0,  5,  6)   # wrist→MCP→PIP
+    idx_pip_c = joint_angle_curl(landmarks, 5,  6,  7)   # MCP→PIP→DIP
+    idx_dip_c = joint_angle_curl(landmarks, 6,  7,  8)   # PIP→DIP→TIP
+
+    # Middle: wrist(0)→MCP(9)→PIP(10)→DIP(11)→TIP(12)
+    mid_mcp_c = joint_angle_curl(landmarks, 0,  9,  10)
+    mid_pip_c = joint_angle_curl(landmarks, 9,  10, 11)
+    mid_dip_c = joint_angle_curl(landmarks, 10, 11, 12)
+
+    # Ring:   wrist(0)→MCP(13)→PIP(14)→DIP(15)→TIP(16)  (inverted axis)
+    rng_mcp_c = joint_angle_curl(landmarks, 0,  13, 14)
+    rng_pip_c = joint_angle_curl(landmarks, 13, 14, 15)
+    rng_dip_c = joint_angle_curl(landmarks, 14, 15, 16)
+
+    # Pinky:  wrist(0)→MCP(17)→PIP(18)→DIP(19)→TIP(20)  (inverted axis)
+    pnk_mcp_c = joint_angle_curl(landmarks, 0,  17, 18)
+    pnk_pip_c = joint_angle_curl(landmarks, 17, 18, 19)
+    pnk_dip_c = joint_angle_curl(landmarks, 18, 19, 20)
+
+    # Thumb uses legacy distance-based curl (geometry is different)
+    thumb_curl = finger_curl(landmarks, tip_idx=4, mcp_idx=2)
 
     # Wrist flexion/extension
     wrist   = landmarks[0]; mid_mcp = landmarks[9]
@@ -139,24 +187,29 @@ def landmarks_to_joints(landmarks, world):
     arm = arm_joints_from_world(world)
 
     joint_dict = {
-        "mcp_index":  -1.57 * index_curl,
-        "pip_index":   1.57 * index_curl,
-        "dip_index":  -1.57 * index_curl,
-        "mcp_middle": -1.57 * middle_curl,
-        "pip_middle":  1.57 * middle_curl,
-        "dip_middle":  1.57 * middle_curl,
-        "mcp_ring":    1.57 * ring_curl,
-        "pip_ring":   -1.57 * ring_curl,
-        "dip_ring":   -1.57 * ring_curl,
-        "mcp_pinky":   1.57 * pinky_curl,
-        "pip_pinky":  -1.57 * pinky_curl,
-        "dip_pinky":   1.57 * pinky_curl,
+        # Index — independent per-joint angles
+        "mcp_index":  -1.57 * idx_mcp_c,
+        "pip_index":   1.57 * idx_pip_c,
+        "dip_index":  -1.57 * idx_dip_c,
+        # Middle
+        "mcp_middle": -1.57 * mid_mcp_c,
+        "pip_middle":  1.57 * mid_pip_c,
+        "dip_middle":  1.57 * mid_dip_c,
+        # Ring (axis inverted in URDF)
+        "mcp_ring":    1.57 * rng_mcp_c,
+        "pip_ring":   -1.57 * rng_pip_c,
+        "dip_ring":   -1.57 * rng_dip_c,
+        # Pinky (axis inverted in URDF)
+        "mcp_pinky":   1.57 * pnk_mcp_c,
+        "pip_pinky":  -1.57 * pnk_pip_c,
+        "dip_pinky":   1.57 * pnk_dip_c,
+        # Thumb
         "cmc_thumb":  -0.35 + 2.44 * thumb_curl,
         "mcp_thumb":   0.785 + 1.745 * thumb_curl,
         "ip_thumb":    1.57 * thumb_curl,
         "wrist_extension":  wrist_ext,
         "forearm_rotation": forearm_rot,
-        # Palm direction (informational — not a robot joint)
+        # Palm direction (informational)
         "palm_normal_x": pn["nx"],
         "palm_normal_y": pn["ny"],
         "palm_normal_z": pn["nz"],
@@ -175,6 +228,8 @@ class WatoHandNode(Node):
         self.get_logger().info("WatoHandNode started, waiting for landmarks...")
         self.sub = self.create_subscription(String, "/wato/hand_landmarks", self.landmarks_callback, 10)
         self.joint_pub = self.create_publisher(String, "/wato/hand_joint_angles", 10)
+        self._calib_announced = False
+        self._frame_count = 0
 
     def landmarks_callback(self, msg):
         try:
@@ -191,13 +246,32 @@ class WatoHandNode(Node):
             if len(landmarks) != 21:
                 return
 
-            # First-frame calibration notice
+            # Calibration status
             calib_done = _arm_ref is not None and _arm_ref["count"] >= CALIB_FRAMES
             if not calib_done:
                 frames_left = 0 if _arm_ref is None else CALIB_FRAMES - _arm_ref["count"]
                 self.get_logger().info(f"[CALIB] Hold neutral pose... {frames_left} frames remaining")
 
             joint_dict = landmarks_to_joints(landmarks, world)
+
+            # Announce once when calibration completes
+            if calib_done and not self._calib_announced:
+                self.get_logger().info("✅ Calibration complete! Arm tracking active.")
+                self._calib_announced = True
+
+            # Periodic arm + palm status log (every 30 frames)
+            self._frame_count += 1
+            if calib_done and self._frame_count % 30 == 0:
+                sfe  = joint_dict.get("shoulder_flexion_extension", 0.0)
+                saa  = joint_dict.get("shoulder_abduction_adduction", 0.0)
+                efe  = joint_dict.get("elbow_flexion_extension", 0.0)
+                pnx  = joint_dict.get("palm_normal_x", 0.0)
+                pny  = joint_dict.get("palm_normal_y", 0.0)
+                pnz  = joint_dict.get("palm_normal_z", 0.0)
+                self.get_logger().info(
+                    f"arm: sfe={sfe:.2f} saa={saa:.2f} efe={efe:.2f} | "
+                    f"palm_normal=({pnx:.2f},{pny:.2f},{pnz:.2f})"
+                )
 
             out_msg = String()
             out_msg.data = json.dumps(joint_dict)
