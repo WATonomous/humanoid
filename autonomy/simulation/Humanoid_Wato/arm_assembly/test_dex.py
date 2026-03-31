@@ -15,7 +15,8 @@ config_dict = {
         "DIP_MIDDLE_v1_1", 
         "DIP_RING_v1_1", 
         "DIP_PINKY_v1_1"
-    ]
+    ],
+    "target_link_human_indices": __import__('numpy').array([4, 8, 12, 16, 20])
 }
 
 print(f"Building Kinematic IK Tree from {urdf_path}...")
