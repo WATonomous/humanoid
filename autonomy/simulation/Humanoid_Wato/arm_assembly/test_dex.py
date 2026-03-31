@@ -25,4 +25,6 @@ try:
     print(f"Number of controllable joints found: {len(retargeter.joint_names)}")
     print(f"Joints: {retargeter.joint_names}")
 except Exception as e:
+    import traceback
+    traceback.print_exc()
     print(f"FAILURE: {e}")
