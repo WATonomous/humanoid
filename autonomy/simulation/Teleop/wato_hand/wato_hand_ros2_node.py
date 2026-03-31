@@ -248,7 +248,11 @@ class WatoHandNode(Node):
             self.joint_pub.publish(out_msg)
 
             with open(JOINT_FILE, "w") as f:
-                json.dump({**joint_dict, "timestamp": time.time()}, f)
+                json.dump({
+                    "joints": joint_dict, 
+                    "world": world, 
+                    "timestamp": time.time()
+                }, f)
 
         except Exception as e:
             self.get_logger().error(f"Error: {e}")
