@@ -107,7 +107,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     # Build initial joint target from the first observed frame
     joint_pos_target = robot.data.default_joint_pos.clone()
-    for joint_name, angle in hand_dict.items():
+    for joint_name, angle in hand_dict.get("joints", {}).items():
         if joint_name in name_to_sim_idx:
             joint_pos_target[0, name_to_sim_idx[joint_name]] = float(angle)
 
@@ -118,9 +118,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     # Teleport the robot directly to the start pose (no physics convergence delay)
     robot.write_joint_state_to_sim(joint_pos_target, robot.data.default_joint_vel.clone())
+    jd = hand_dict.get("joints", {})
     print(f"[INFO]: Start pose set from camera. forearm_rotation = "
-          f"{hand_dict.get('forearm_rotation', 0.0):.3f} rad, "
-          f"wrist_extension = {hand_dict.get('wrist_extension', 0.0):.3f} rad")
+          f"{jd.get('forearm_rotation', 0.0):.3f} rad, "
+          f"wrist_extension = {jd.get('wrist_extension', 0.0):.3f} rad")
 
     hand_visible_prev = True
 
@@ -130,9 +131,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
         # -- Normal tracking: update target from latest data --
         if hand_visible:
-            for joint_name, angle in hand_dict.items():
-                if joint_name in ("timestamp",):
-                    continue
+            for joint_name, angle in hand_dict.get("joints", {}).items():
                 if joint_name in name_to_sim_idx:
                     joint_pos_target[0, name_to_sim_idx[joint_name]] = float(angle)
 
