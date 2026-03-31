@@ -141,19 +141,19 @@ def landmarks_to_joints(landmarks, world):
     arm = arm_joints_from_camera(landmarks)
 
     joint_dict = {
-        # Index (DIP starts at -1.57 to unhook, interpolates to 0.0 when closed)
+        # Index (All joints start at 0.0 natively, bend to -1.57)
         "mcp_index":  -1.57 * index_curl,
         "pip_index":  -1.57 * index_curl * 0.90,
-        "dip_index":  -1.57 * (1.0 - index_curl),
-        # Middle
+        "dip_index":  -1.57 * index_curl * 0.50,
+        # Middle (DIP URDF limits are [0.0, 1.57], so 1.57 is straight)
         "mcp_middle": -1.57 * middle_curl,
         "pip_middle": -1.57 * middle_curl * 0.90,
-        "dip_middle": -1.57 * (1.0 - middle_curl),
-        # Ring (mcp and dip both start hooked inwards randomly in URDF!)
+        "dip_middle":  1.57 * (1.0 - middle_curl),
+        # Ring (MCP URDF limits are inverse, PIP/DIP are standard)
         "mcp_ring":   1.57 * (1.0 - ring_curl),
         "pip_ring":   -1.57 * ring_curl * 0.90,
-        "dip_ring":    1.57 * (1.0 - ring_curl),
-        # Pinky
+        "dip_ring":   -1.57 * ring_curl * 0.50,
+        # Pinky (MCP and DIP URDF limits are both inverse [0, 1.57])
         "mcp_pinky":  1.57 * (1.0 - pinky_curl),
         "pip_pinky":  -1.57 * pinky_curl * 0.90,
         "dip_pinky":   1.57 * (1.0 - pinky_curl),
