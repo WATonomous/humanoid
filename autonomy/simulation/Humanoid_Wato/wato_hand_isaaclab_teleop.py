@@ -101,11 +101,13 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         from dex_retargeting.retargeting_config import RetargetingConfig
         import numpy as np
         ik_config = {
-            "type": "position",
+            "type": "vector",
             "urdf_path": "/workspace/isaaclab/humanoid/autonomy/simulation/Humanoid_Wato/arm_assembly/arm_assembly_fixed.urdf",
             "wrist_link_name": "PALM_GAVIN_1DoF_Hinge_v2_1",
             "target_link_names": ["IP_THUMB_v1_1", "DIP_INDEX_v1_1", "DIP_MIDDLE_v1_1", "DIP_RING_v1_1", "DIP_PINKY_v1_1"],
-            "target_link_human_indices": np.array([4, 8, 12, 16, 20])
+            "target_link_human_indices": np.array([4, 8, 12, 16, 20]),
+            "origin_link_names": ["CMC_THUMB_v1_1", "MCP_INDEX_v1_1", "MCP_MIDDLE_v1_1", "MCP_RING_v1_1", "MCP_PINKY_v1_1"],
+            "origin_link_human_indices": np.array([1, 5, 9, 13, 17])
         }
         retargeter = RetargetingConfig.from_dict(ik_config).build()
         print(f"[INFO] Dex-Retargeting IK Solver active with {len(retargeter.joint_names)} joints.")
@@ -162,11 +164,46 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                 else:
                     world_np = np.array(world_data, dtype=np.float32)
                 
-                # MediaPipe points are typically scaled in meters, let the solver compute
                 try:
-                    # retarget expects exactly the 5 target positions, corresponding to our 5 target_link_names
+                    # ── DYNAMIC FRAME ALIGNMENT ─────────────────────────────────────
+                    # MediaPipe gives us coordinates relative to the camera's orientation.
+                    # We MUST normalize the hand so the Palm always faces DOWN (Z) and Forward (Y).
+                    wrist = world_np[0]
+                    mid_mcp = world_np[9]
+                    idx_mcp = world_np[5]
+                    pnk_mcp = world_np[17]
+
+                    # 1. Forward basis (Y): Wrist to Middle MCP
+                    Y_h = mid_mcp - wrist
+                    Y_h = Y_h / (np.linalg.norm(Y_h) + 1e-6)
+
+                    # 2. Right basis (X): Cross logic. Right hand means Index is "Right" of Pinky
+                    vec_pinky_idx = idx_mcp - pnk_mcp
+                    Z_h = np.cross(vec_pinky_idx, Y_h) # Up/Back-of-hand vector
+                    Z_h = Z_h / (np.linalg.norm(Z_h) + 1e-6)
+
+                    X_h = np.cross(Y_h, Z_h)  # Right vector
+
+                    # Transformation matrix (3x3). Columns are the orthogonal axes.
+                    R_cam_to_hand = np.column_stack((X_h, Y_h, Z_h))
+
+                    # Rotate all points into tracking-independent local basis
+                    world_local = (world_np - wrist) @ R_cam_to_hand
+
+                    # Align the target subset as angular direction vectors for the VectorOptimizer
                     target_indices = [4, 8, 12, 16, 20]
-                    action = retargeter.retarget(world_np[target_indices])
+                    origin_indices = [1, 5, 9, 13, 17]
+                    
+                    target_points = world_local[target_indices]
+                    origin_points = world_local[origin_indices]
+                    
+                    # Compute directional vectors and normalize them uniformly
+                    target_vectors = target_points - origin_points
+                    norms = np.linalg.norm(target_vectors, axis=1, keepdims=True)
+                    target_vectors = target_vectors / (norms + 1e-6)
+
+                    # VectorOptimizer takes the 5x3 direction array mapped natively 1:1
+                    action = retargeter.retarget(target_vectors)
                     
                     # The solver spits out a 1D array perfectly ordered to retargeter.joint_names
                     for i, j_name in enumerate(retargeter.joint_names):
