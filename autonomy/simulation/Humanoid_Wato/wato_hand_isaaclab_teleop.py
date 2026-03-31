@@ -104,10 +104,22 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             "type": "vector",
             "urdf_path": "/workspace/isaaclab/humanoid/autonomy/simulation/Humanoid_Wato/arm_assembly/arm_assembly_fixed.urdf",
             "wrist_link_name": "PALM_GAVIN_1DoF_Hinge_v2_1",
-            "target_link_names": ["IP_THUMB_v1_1", "DIP_INDEX_v1_1", "DIP_MIDDLE_v1_1", "DIP_RING_v1_1", "DIP_PINKY_v1_1"],
-            "target_link_human_indices": np.array([4, 8, 12, 16, 20]),
-            "origin_link_names": ["CMC_THUMB_v1_1", "MCP_INDEX_v1_1", "MCP_MIDDLE_v1_1", "MCP_RING_v1_1", "MCP_PINKY_v1_1"],
-            "origin_link_human_indices": np.array([1, 5, 9, 13, 17])
+            "target_link_names": [
+                "MCP_THUMB_v1_1", "IP_THUMB_v1_1",
+                "PIP_INDEX_v1_1", "DIP_INDEX_v1_1",
+                "PIP_MIDDLE_v1_1", "DIP_MIDDLE_v1_1",
+                "PIP_RING_v1_1", "DIP_RING_v1_1",
+                "PIP_PINKY_v1_1", "DIP_PINKY_v1_1"
+            ],
+            "target_link_human_indices": np.array([2, 3, 6, 7, 10, 11, 14, 15, 18, 19]),
+            "origin_link_names": [
+                "CMC_THUMB_v1_1", "MCP_THUMB_v1_1",
+                "MCP_INDEX_v1_1", "PIP_INDEX_v1_1",
+                "MCP_MIDDLE_v1_1", "PIP_MIDDLE_v1_1",
+                "MCP_RING_v1_1", "PIP_RING_v1_1",
+                "MCP_PINKY_v1_1", "PIP_PINKY_v1_1"
+            ],
+            "origin_link_human_indices": np.array([1, 2, 5, 6, 9, 10, 13, 14, 17, 18])
         }
         retargeter = RetargetingConfig.from_dict(ik_config).build()
         print(f"[INFO] Dex-Retargeting IK Solver active with {len(retargeter.joint_names)} joints.")
@@ -191,8 +203,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     world_local = (world_np - wrist) @ R_cam_to_hand
 
                     # Align the target subset as angular direction vectors for the VectorOptimizer
-                    target_indices = [4, 8, 12, 16, 20]
-                    origin_indices = [1, 5, 9, 13, 17]
+                    # We pair 2 vectors per finger: Proximal phalanx (MCP to PIP) and Middle phalanx (PIP to DIP)
+                    target_indices = [2, 3, 6, 7, 10, 11, 14, 15, 18, 19]
+                    origin_indices = [1, 2, 5, 6, 9, 10, 13, 14, 17, 18]
                     
                     target_points = world_local[target_indices]
                     origin_points = world_local[origin_indices]
