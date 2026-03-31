@@ -2,7 +2,7 @@ import torch
 print("Loading DexRetargeting...")
 from dex_retargeting.retargeting_config import RetargetingConfig
 
-urdf_path = "/workspace/isaaclab/humanoid/autonomy/simulation/Humanoid_Wato/arm_assembly/arm_assembly.urdf"
+urdf_path = "/workspace/isaaclab/humanoid/autonomy/simulation/Humanoid_Wato/arm_assembly/arm_assembly_fixed.urdf"
 
 # The Cartesian fingertip configuration we extracted from your URDF
 config_dict = {
