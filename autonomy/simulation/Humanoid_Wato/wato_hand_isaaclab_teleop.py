@@ -211,17 +211,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                         if any(finger in j_name for finger in ["thumb", "index", "middle", "ring", "pinky"]):
                             if j_name in name_to_sim_idx:
                                 raw_angle = float(action[i])
-                                
-                                # ── KINEMATIC DISPLACEMENT FIX ─────────────────────────
-                                # The USD mesh defines '0.0' as BENT for Index/Middle, 
-                                # whereas the URDF solver sees '0.0' as STRAIGHT.
-                                # Let's logically mirror the angles for these inverted chains.
-                                if "index" in j_name or "middle" in j_name:
-                                    if "mcp" in j_name:
-                                        raw_angle = -raw_angle - 1.57
-                                    elif "dip" in j_name:
-                                        raw_angle = raw_angle - 1.57
-                                
                                 joint_pos_target[0, name_to_sim_idx[j_name]] = raw_angle
                 except Exception as e:
                     print(f"IK Solver Error: {e}")
