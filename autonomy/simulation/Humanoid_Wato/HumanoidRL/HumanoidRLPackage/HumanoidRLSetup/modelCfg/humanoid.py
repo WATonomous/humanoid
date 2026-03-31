@@ -71,7 +71,7 @@ ARM_CFG = ArticulationCfg(
             "wrist_extension": 0.0,
             "mcp_index": 0.0,
             "pip_index": 0.0,
-            "dip_index": 0.0,
+            "dip_index": -1.57,
             "mcp_middle": 0.0,
             "pip_middle": 0.0,
             "dip_middle": 1.57,
@@ -80,7 +80,7 @@ ARM_CFG = ArticulationCfg(
             "dip_ring": 0.0,
             "mcp_pinky": 1.57,
             "pip_pinky": 0.0,
-            "dip_pinky": 1.57,
+            "dip_pinky": 0.0,
             "cmc_thumb": 0.0,
             "mcp_thumb": 0.79,  # within limits [0.785, 2.531]
             "ip_thumb": 0.0,
