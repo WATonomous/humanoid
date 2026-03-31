@@ -121,6 +121,14 @@ def landmarks_to_joints(landmarks, world):
 
     thumb_curl = finger_curl(world, tip_idx=4, mcp_idx=2)
 
+    # DEBUG: dump raw ratios to see what MediaPipe actually outputs for metric 3D fingers!
+    with open("/tmp/curl_debug.txt", "w") as f:
+        def get_ratio(w, t, m):
+            td = math.sqrt((w[t]["x"]-w[0]["x"])**2 + (w[t]["y"]-w[0]["y"])**2 + (w[t]["z"]-w[0]["z"])**2)
+            md = math.sqrt((w[m]["x"]-w[0]["x"])**2 + (w[m]["y"]-w[0]["y"])**2 + (w[m]["z"]-w[0]["z"])**2)
+            return td/md if md > 0 else 0
+        f.write(f"Ratios: idx={get_ratio(world,8,5):.2f}, mid={get_ratio(world,12,9):.2f}, rng={get_ratio(world,16,13):.2f}, pnk={get_ratio(world,20,17):.2f}\n")
+
     # Wrist flexion/extension & Forearm rotation using 3D world coordinates (invariant to 2D perspective scaling jumps when clenching)
     w_wrist = world[0]
     w_mid = world[9]
@@ -141,22 +149,22 @@ def landmarks_to_joints(landmarks, world):
     arm = arm_joints_from_camera(landmarks)
 
     joint_dict = {
-        # Index (All joints start at 0.0 natively, bend to -1.57)
+        # Index
         "mcp_index":  -1.57 * index_curl,
         "pip_index":  -1.57 * index_curl * 0.90,
-        "dip_index":  -1.57 * index_curl * 0.50,
-        # Middle (DIP URDF limits are [0.0, 1.57], so 1.57 is straight)
+        "dip_index":  -1.57 * (1.0 - index_curl),
+        # Middle
         "mcp_middle": -1.57 * middle_curl,
-        "pip_middle": -1.57 * middle_curl * 0.90,
+        "pip_middle":  1.57 * middle_curl * 0.90,
         "dip_middle":  1.57 * (1.0 - middle_curl),
-        # Ring (MCP URDF limits are inverse, PIP/DIP are standard)
+        # Ring
         "mcp_ring":   1.57 * (1.0 - ring_curl),
         "pip_ring":   -1.57 * ring_curl * 0.90,
         "dip_ring":   -1.57 * ring_curl * 0.50,
-        # Pinky (MCP and DIP URDF limits are both inverse [0, 1.57])
+        # Pinky
         "mcp_pinky":  1.57 * (1.0 - pinky_curl),
-        "pip_pinky":  -1.57 * pinky_curl * 0.90,
-        "dip_pinky":   1.57 * (1.0 - pinky_curl),
+        "pip_pinky":   1.57 * pinky_curl * 0.90,
+        "dip_pinky":   1.57 * pinky_curl * 0.50,
         # Thumb
         "cmc_thumb":  -0.35 + 2.44 * thumb_curl,
         "mcp_thumb":   0.785 + 1.745 * thumb_curl,
