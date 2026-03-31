@@ -149,22 +149,22 @@ def landmarks_to_joints(landmarks, world):
     arm = arm_joints_from_camera(landmarks)
 
     joint_dict = {
-        # Index
+        # Index (Straight = 0.0) limits: MCP [-1.57, 0], PIP [0, 1.57], DIP [-1.57, 0]
         "mcp_index":  -1.57 * index_curl,
-        "pip_index":  -1.57 * index_curl * 0.90,
+        "pip_index":   1.57 * index_curl * 0.90,
         "dip_index":  -1.57 * index_curl * 0.50,
-        # Middle
+        # Middle (Straight = 0.0) limits: MCP [-1.57, 0], PIP [0, 1.57], DIP [0, 1.57]
         "mcp_middle": -1.57 * middle_curl,
-        "pip_middle": -1.57 * middle_curl * 0.90,
-        "dip_middle":  1.57 * (1.0 - middle_curl),
-        # Ring
+        "pip_middle":  1.57 * middle_curl * 0.90,
+        "dip_middle":  1.57 * middle_curl * 0.50,
+        # Ring (Straight = MCP 1.57, others 0.0) limits: MCP [0, 1.57], PIP [-1.57, 0], DIP [-1.57, 0]
         "mcp_ring":   1.57 * (1.0 - ring_curl),
         "pip_ring":   -1.57 * ring_curl * 0.90,
         "dip_ring":   -1.57 * ring_curl * 0.50,
-        # Pinky
+        # Pinky (Straight = MCP 1.57, others 0.0) limits: MCP [0, 1.57], PIP [-1.57, 0], DIP [0, 1.57]
         "mcp_pinky":  1.57 * (1.0 - pinky_curl),
         "pip_pinky":  -1.57 * pinky_curl * 0.90,
-        "dip_pinky":   1.57 * (1.0 - pinky_curl),
+        "dip_pinky":   1.57 * pinky_curl * 0.50,
         # Thumb
         "cmc_thumb":  -0.35 + 2.44 * thumb_curl,
         "mcp_thumb":   0.785 + 1.745 * thumb_curl,
