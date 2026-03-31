@@ -111,6 +111,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         if joint_name in name_to_sim_idx:
             joint_pos_target[0, name_to_sim_idx[joint_name]] = float(angle)
 
+    import json
+    with open("/tmp/joint_limits.json", "w") as f:
+        l = robot.data.soft_joint_pos_limits[0].cpu().numpy().tolist()
+        json.dump({"names": robot.data.joint_names, "limits": l}, f)
+
     # Teleport the robot directly to the start pose (no physics convergence delay)
     robot.write_joint_state_to_sim(joint_pos_target, robot.data.default_joint_vel.clone())
     print(f"[INFO]: Start pose set from camera. forearm_rotation = "
