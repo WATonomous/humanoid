@@ -95,6 +95,23 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     sim_joint_names: list[str] = list(robot.data.joint_names)
     name_to_sim_idx: dict[str, int] = {name: i for i, name in enumerate(sim_joint_names)}
 
+    # Initialize IK DexRetargeting Solver
+    retargeter = None
+    try:
+        from dex_retargeting.retargeting_config import RetargetingConfig
+        import numpy as np
+        ik_config = {
+            "type": "position",
+            "urdf_path": "/workspace/isaaclab/humanoid/autonomy/simulation/Humanoid_Wato/arm_assembly/arm_assembly_fixed.urdf",
+            "wrist_link_name": "PALM_GAVIN_1DoF_Hinge_v2_1",
+            "target_link_names": ["IP_THUMB_v1_1", "DIP_INDEX_v1_1", "DIP_MIDDLE_v1_1", "DIP_RING_v1_1", "DIP_PINKY_v1_1"],
+            "target_link_human_indices": np.array([4, 8, 12, 16, 20])
+        }
+        retargeter = RetargetingConfig.from_dict(ik_config).build()
+        print(f"[INFO] Dex-Retargeting IK Solver active with {len(retargeter.joint_names)} joints.")
+    except Exception as e:
+        print(f"[WARNING] Could not load DexRetargeting IK Solver: {e}. Falling back to 1D joint mapping.")
+
     # ── Wait for first valid camera frame and snap robot to that pose ───────────
     print("[INFO]: Waiting for first hand frame from camera to set start pose...")
     while True:
@@ -131,9 +148,27 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
         # -- Normal tracking: update target from latest data --
         if hand_visible:
+            # 1) Directly map arm joints / safe joints
             for joint_name, angle in hand_dict.get("joints", {}).items():
                 if joint_name in name_to_sim_idx:
                     joint_pos_target[0, name_to_sim_idx[joint_name]] = float(angle)
+
+            # 2) Override fingers with real-time Cartesian IK if world data exists
+            world_data = hand_dict.get("world", None)
+            if world_data is not None and len(world_data) == 21 and retargeter is not None:
+                import numpy as np
+                world_np = np.array(world_data)
+                # MediaPipe points are typically scaled in meters, let the solver compute
+                try:
+                    action = retargeter.retarget(world_np)
+                    # The solver spits out a 1D array perfectly ordered to retargeter.joint_names
+                    for i, j_name in enumerate(retargeter.joint_names):
+                        # Only override if it's a hand joint (we let arm tracking stay manual)
+                        if "thumb" in j_name or "index" in j_name or "middle" in j_name or "ring" in j_name or "pinky" in j_name:
+                            if j_name in name_to_sim_idx:
+                                joint_pos_target[0, name_to_sim_idx[j_name]] = float(action[i])
+                except Exception as e:
+                    print(f"IK Solver Error: {e}")
 
         hand_visible_prev = hand_visible
 
