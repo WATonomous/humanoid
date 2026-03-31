@@ -164,9 +164,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                 
                 # MediaPipe points are typically scaled in meters, let the solver compute
                 try:
-                    # retarget expects exactly the 5 target positions, or it expects the sequence if properly configured.
-                    # We pass the full 21x3 array, dex_retargeting slices it internally via target_link_human_indices
-                    action = retargeter.retarget(world_np)
+                    # retarget expects exactly the 5 target positions, corresponding to our 5 target_link_names
+                    target_indices = [4, 8, 12, 16, 20]
+                    action = retargeter.retarget(world_np[target_indices])
+                    
                     # The solver spits out a 1D array perfectly ordered to retargeter.joint_names
                     for i, j_name in enumerate(retargeter.joint_names):
                         # Only override if it's a hand joint (we let arm tracking stay manual)
