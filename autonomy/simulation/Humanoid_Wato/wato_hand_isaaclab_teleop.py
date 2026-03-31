@@ -157,14 +157,20 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             world_data = hand_dict.get("world", None)
             if world_data is not None and len(world_data) == 21 and retargeter is not None:
                 import numpy as np
-                world_np = np.array(world_data)
+                if isinstance(world_data[0], dict):
+                    world_np = np.array([[lm["x"], lm["y"], lm["z"]] for lm in world_data], dtype=np.float32)
+                else:
+                    world_np = np.array(world_data, dtype=np.float32)
+                
                 # MediaPipe points are typically scaled in meters, let the solver compute
                 try:
+                    # retarget expects exactly the 5 target positions, or it expects the sequence if properly configured.
+                    # We pass the full 21x3 array, dex_retargeting slices it internally via target_link_human_indices
                     action = retargeter.retarget(world_np)
                     # The solver spits out a 1D array perfectly ordered to retargeter.joint_names
                     for i, j_name in enumerate(retargeter.joint_names):
                         # Only override if it's a hand joint (we let arm tracking stay manual)
-                        if "thumb" in j_name or "index" in j_name or "middle" in j_name or "ring" in j_name or "pinky" in j_name:
+                        if any(finger in j_name for finger in ["thumb", "index", "middle", "ring", "pinky"]):
                             if j_name in name_to_sim_idx:
                                 joint_pos_target[0, name_to_sim_idx[j_name]] = float(action[i])
                 except Exception as e:
