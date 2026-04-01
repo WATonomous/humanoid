@@ -6,6 +6,8 @@
 
 UART_HandleTypeDef hlpuart1;
 
+extern void xPortSysTickHandler(void);
+
 void MX_LPUART1_UART_Init(void) {
   hlpuart1.Instance = LPUART1; // type
   hlpuart1.Init.BaudRate = 115200;
@@ -40,39 +42,31 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart) {
 void SysTick_Handler(void) {
   // increment hal global counter to use hal_delay()
   HAL_IncTick();
-
-  // call rtos tick handler for os time functions
-  xPortSysTickHandler();
+  if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED) {
+    xPortSysTickHandler();
+  }
 }
 
 void system_setup(void) {
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
-  RCC_OscInitTypeDef RCC_OscInitStruct;
-  RCC_ClkInitTypeDef RCC_ClkInitStruct;
-
-  __PWR_CLK_ENABLE();
-
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE2);
-
+  // Just run on HSI 16MHz, no PLL
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = 16;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 16;
-  RCC_OscInitStruct.PLL.PLLN = 336;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
-  RCC_OscInitStruct.PLL.PLLQ = 7;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
   HAL_RCC_OscConfig(&RCC_OscInitStruct);
 
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
+                                 RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
-  HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2);
+  HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0);
 
-  MX_LPUART1_UART_Init(); // calls everything
+  MX_LPUART1_UART_Init();
 }
 
 void echo_task( void *pvParameters ) {
@@ -80,9 +74,13 @@ void echo_task( void *pvParameters ) {
   // the storage location in byte type, passed by reference to the functions in order to read/modify
   uint8_t byte;
 
+  vTaskDelay(pdMS_TO_TICKS(10000));
+  HAL_UART_Transmit( &hlpuart1, (uint8_t *)"Echo Task: Enabled\r\n", 20, HAL_MAX_DELAY );
+
   // infinitely check serial monitor and then echo the character
   while( true ) {
     HAL_UART_Receive( &hlpuart1, &byte, 1, HAL_MAX_DELAY );
+    byte++;
     HAL_UART_Transmit( &hlpuart1, &byte, 1, HAL_MAX_DELAY );
   }
 }

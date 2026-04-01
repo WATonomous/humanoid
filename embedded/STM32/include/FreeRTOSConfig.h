@@ -22,6 +22,7 @@
 #define INCLUDE_vTaskDelay 1
 #define INCLUDE_vTaskStartScheduler 1
 #define INCLUDE_vTaskPrioritySet 1
+#define INCLUDE_xTaskGetSchedulerState 1
 
 // Map FreeRTOS port interrupt handlers to STM32 ISRs
 #define xPortPendSVHandler PendSV_Handler

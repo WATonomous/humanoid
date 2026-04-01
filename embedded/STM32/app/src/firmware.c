@@ -34,9 +34,6 @@ int main() {
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  // create blinking led task
-  xTaskCreate(blink_led, "BLINK_LED", 128, NULL, 2, NULL);
-
   /*
   function,
   debug string name,
@@ -46,6 +43,8 @@ int main() {
   variable of type TaskHandle_t to use with suspending, reenabling, and stopping this specific task
   */
   xTaskCreate(echo_task, "echo_task", 128, NULL, 1, NULL);
+  // create blinking led task
+  xTaskCreate(blink_led, "BLINK_LED", 128, NULL, 1, NULL);
 
   // start FreeRTOS Scheduler
   vTaskStartScheduler();
