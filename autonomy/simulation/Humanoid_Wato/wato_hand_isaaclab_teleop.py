@@ -215,6 +215,18 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     norms = np.linalg.norm(target_vectors, axis=1, keepdims=True)
                     target_vectors = target_vectors / (norms + 1e-6)
 
+                    # --- REST POSE ALIGNMENT FIX ---
+                    # The URDF has Index/Middle PIP->DIP, and ALL Ring/Pinky segments 
+                    # pointing downwards (+Z) in the rest pose instead of forwards (+Y).
+                    # We rotate the human targets for these segments by 90 degrees around X 
+                    # so they match the expected baseline vectors in the robot's IK tree.
+                    rx_90 = np.array([[1.0, 0.0, 0.0], 
+                                      [0.0, 0.0, -1.0], 
+                                      [0.0, 1.0, 0.0]], dtype=np.float32)
+                    for idx in [3, 5, 6, 7, 8, 9]:
+                        target_vectors[idx] = target_vectors[idx] @ rx_90.T
+                    # -------------------------------
+
                     # VectorOptimizer takes the 5x3 direction array mapped natively 1:1
                     action = retargeter.retarget(target_vectors)
                     
@@ -224,18 +236,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                         if any(finger in j_name for finger in ["thumb", "index", "middle", "ring", "pinky"]):
                             if j_name in name_to_sim_idx:
                                 raw_angle = float(action[i])
-                                
-                                # ── KINEMATIC DISPLACEMENT FIX ─────────────────────────
-                                # The USD mesh defines '0.0' as BENT 90-deg for Index/Middle, 
-                                # whereas the URDF solver sees '0.0' as STRAIGHT.
-                                if "index" in j_name or "middle" in j_name:
-                                    # URDF joints with negative limits [-1.57, 0]
-                                    if j_name in ["mcp_index", "mcp_middle", "dip_index"]:
-                                        raw_angle = -raw_angle - 1.57
-                                    # URDF joints with positive limits [0, 1.57]
-                                    elif j_name in ["pip_index", "pip_middle", "dip_middle"]:
-                                        raw_angle = raw_angle - 1.57
-                                
                                 joint_pos_target[0, name_to_sim_idx[j_name]] = raw_angle
                 except Exception as e:
                     print(f"IK Solver Error: {e}")
