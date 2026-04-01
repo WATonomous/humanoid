@@ -32,9 +32,7 @@ retargeter = RetargetingConfig.from_dict(config_dict).build()
 
 # Get the rest pose directions mathematically determined by Pinocchio
 print("--- ROBOT REST POSE VECTORS IN URDF ---")
-for i, name in enumerate(config_dict["target_task_link_names"]):
-    vec = retargeter.optimizer.target_link_rest_vecs[i]
-    print(f"Index {i} ({name} relative to origin): {vec}")
+print("DexRetargeting Booted Successfully!")
 
 print("\n--- TEST: HAND FLAT (+Y FOR ALL FINGERS) ---")
 target_vectors_flat = np.zeros((10, 3))
