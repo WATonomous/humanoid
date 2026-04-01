@@ -8,7 +8,14 @@ config_dict = {
     "type": "vector",
     "urdf_path": urdf_path,
     "wrist_link_name": "PALM_GAVIN_1DoF_Hinge_v2_1",
-    "target_link_names": [
+    "target_origin_link_names": [
+        "CMC_THUMB_v1_1", "MCP_THUMB_v1_1",
+        "MCP_INDEX_v1_1", "PIP_INDEX_v1_1",
+        "MCP_MIDDLE_v1_1", "PIP_MIDDLE_v1_1",
+        "MCP_RING_v1_1", "PIP_RING_v1_1",
+        "MCP_PINKY_v1_1", "PIP_PINKY_v1_1"
+    ],
+    "target_task_link_names": [
         "MCP_THUMB_v1_1", "IP_THUMB_v1_1",
         "PIP_INDEX_v1_1", "DIP_INDEX_v1_1",
         "PIP_MIDDLE_v1_1", "DIP_MIDDLE_v1_1",
@@ -21,7 +28,7 @@ retargeter = RetargetingConfig.from_dict(config_dict).build()
 
 # Get the rest pose directions mathematically determined by Pinocchio
 print("--- ROBOT REST POSE VECTORS IN URDF ---")
-for i, name in enumerate(config_dict["target_link_names"]):
+for i, name in enumerate(config_dict["target_task_link_names"]):
     vec = retargeter.optimizer.target_link_rest_vecs[i]
     print(f"Index {i} ({name} relative to origin): {vec}")
 

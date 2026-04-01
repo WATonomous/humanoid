@@ -104,7 +104,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             "type": "vector",
             "urdf_path": "/workspace/isaaclab/humanoid/autonomy/simulation/Humanoid_Wato/arm_assembly/arm_assembly_fixed.urdf",
             "wrist_link_name": "PALM_GAVIN_1DoF_Hinge_v2_1",
-            "target_link_names": [
+            "target_origin_link_names": [
+                "CMC_THUMB_v1_1", "MCP_THUMB_v1_1",
+                "MCP_INDEX_v1_1", "PIP_INDEX_v1_1",
+                "MCP_MIDDLE_v1_1", "PIP_MIDDLE_v1_1",
+                "MCP_RING_v1_1", "PIP_RING_v1_1",
+                "MCP_PINKY_v1_1", "PIP_PINKY_v1_1"
+            ],
+            "target_task_link_names": [
                 "MCP_THUMB_v1_1", "IP_THUMB_v1_1",
                 "PIP_INDEX_v1_1", "DIP_INDEX_v1_1",
                 "PIP_MIDDLE_v1_1", "DIP_MIDDLE_v1_1",
