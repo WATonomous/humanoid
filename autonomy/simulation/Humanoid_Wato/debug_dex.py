@@ -42,7 +42,8 @@ for i in range(2, 10):
 target_vectors_flat[0] = [1.0, 0.0, 0.0]
 target_vectors_flat[1] = [1.0, 0.0, 0.0]
 
-action_flat = retargeter.retarget(target_vectors_flat)
+for _ in range(20):
+    action_flat = retargeter.retarget(target_vectors_flat)
 print("ACTION FOR FLAT HAND:")
 for i, j_name in enumerate(retargeter.joint_names):
     if "index" in j_name or "middle" in j_name or "ring" in j_name:
@@ -56,7 +57,8 @@ for i in range(2, 10):
 target_vectors_curled[0] = [1.0, 0.0, 0.0]
 target_vectors_curled[1] = [1.0, 0.0, 0.0]
 
-action_curled = retargeter.retarget(target_vectors_curled)
+for _ in range(20):
+    action_curled = retargeter.retarget(target_vectors_curled)
 print("ACTION FOR CURLED HAND:")
 for i, j_name in enumerate(retargeter.joint_names):
     if "index" in j_name or "middle" in j_name or "ring" in j_name:
