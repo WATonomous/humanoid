@@ -14,13 +14,6 @@ config_dict = {
         "PIP_MIDDLE_v1_1", "DIP_MIDDLE_v1_1",
         "PIP_RING_v1_1", "DIP_RING_v1_1",
         "PIP_PINKY_v1_1", "DIP_PINKY_v1_1"
-    ],
-    "origin_link_names": [
-        "CMC_THUMB_v1_1", "MCP_THUMB_v1_1",
-        "MCP_INDEX_v1_1", "PIP_INDEX_v1_1",
-        "MCP_MIDDLE_v1_1", "PIP_MIDDLE_v1_1",
-        "MCP_RING_v1_1", "PIP_RING_v1_1",
-        "MCP_PINKY_v1_1", "PIP_PINKY_v1_1"
     ]
 }
 
