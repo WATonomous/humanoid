@@ -215,17 +215,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     norms = np.linalg.norm(target_vectors, axis=1, keepdims=True)
                     target_vectors = target_vectors / (norms + 1e-6)
 
-                    # --- REST POSE ALIGNMENT FIX ---
-                    # The URDF has Index/Middle PIP->DIP, and ALL Ring/Pinky segments 
-                    # pointing downwards (+Z) in the rest pose instead of forwards (+Y).
-                    # We rotate the human targets for these segments by 90 degrees around X 
-                    # so they match the expected baseline vectors in the robot's IK tree.
-                    rx_90 = np.array([[1.0, 0.0, 0.0], 
-                                      [0.0, 0.0, -1.0], 
-                                      [0.0, 1.0, 0.0]], dtype=np.float32)
-                    for idx in [3, 5, 6, 7, 8, 9]:
-                        target_vectors[idx] = target_vectors[idx] @ rx_90.T
-                    # -------------------------------
+                    # --- REST POSE KINEMATIC ALIGNMENT (INDEX/MIDDLE PIP) ---
+                    # URDF encodes index and middle PIP->DIP segments as +Z relative to MCP.
+                    # R_x(+90) maps human straight (+Y) -> robot rest (+Z) -> 0 rad output (mesh looks straight).
+                    # R_x(+90) maps human curl (-Z) -> robot target (+Y) -> +1.57 rad output (mesh curls gracefully).
+                    R_x_90 = np.array([
+                        [1.0,  0.0,  0.0],
+                        [0.0,  0.0,  1.0],
+                        [0.0, -1.0,  0.0]
+                    ], dtype=np.float32)
+                    for idx in [3, 5]: # Apply strictly to Index Middle [3] and Middle Middle [5] vectors
+                        target_vectors[idx] = target_vectors[idx] @ R_x_90
+                    # ---------------------------------------------------------
+
 
                     # VectorOptimizer takes the 5x3 direction array mapped natively 1:1
                     action = retargeter.retarget(target_vectors)
