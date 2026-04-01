@@ -111,15 +111,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                 "PIP_RING_v1_1", "DIP_RING_v1_1",
                 "PIP_PINKY_v1_1", "DIP_PINKY_v1_1"
             ],
-            "target_link_human_indices": np.array([2, 3, 6, 7, 10, 11, 14, 15, 18, 19]),
-            "origin_link_names": [
-                "CMC_THUMB_v1_1", "MCP_THUMB_v1_1",
-                "MCP_INDEX_v1_1", "PIP_INDEX_v1_1",
-                "MCP_MIDDLE_v1_1", "PIP_MIDDLE_v1_1",
-                "MCP_RING_v1_1", "PIP_RING_v1_1",
-                "MCP_PINKY_v1_1", "PIP_PINKY_v1_1"
-            ],
-            "origin_link_human_indices": np.array([1, 2, 5, 6, 9, 10, 13, 14, 17, 18])
+            "target_link_human_indices": np.array([2, 3, 6, 7, 10, 11, 14, 15, 18, 19])
         }
         retargeter = RetargetingConfig.from_dict(ik_config).build()
         print(f"[INFO] Dex-Retargeting IK Solver active with {len(retargeter.joint_names)} joints.")
