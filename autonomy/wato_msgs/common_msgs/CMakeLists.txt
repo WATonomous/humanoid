@@ -18,6 +18,9 @@ set(msg_files
     msg/ArmPose.msg
     msg/HandPose.msg
     msg/JointState.msg
+    msg/GripperPose.msg
+    msg/MotorCmd.msg
+    msg/Encoder.msg
     )
 
 rosidl_generate_interfaces(${PROJECT_NAME}

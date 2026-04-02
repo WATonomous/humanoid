@@ -5,14 +5,6 @@
 #include <rclcpp/serialization.hpp>
 #include <thread>
 
-// Messages
-#include <common_msgs/ArmPose.h>
-#include <common_msgs/HandPose.h>
-#include <common_msgs/GripperPose.h>
-#include <common_msgs/JointState.h>
-#include <common_msgs/encoder.h>
-#include <common_msgs/MotorCMD.h>
-
 CanNode::CanNode() : Node("can_node"), can_(this->get_logger()) {
   RCLCPP_INFO(this->get_logger(), "CAN Node has been initialized");
 
@@ -72,47 +64,49 @@ CanNode::CanNode() : Node("can_node"), can_(this->get_logger()) {
 }
 
 void CanNode::createSubscribersPublishers() {
-  _subscribers_.clear();
-  _publishers_.clear();
+  _subscribers.clear();
+  _publishers.clear();
 
   // Create subscribers
-  _subscribers_["/armCMD"] = this->create_generic_subscription<common_msgs::ArmPose>(
+  _subscribers["/armCMD"] = this->create_subscription<common_msgs::msg::ArmPose>(
       "/armCMD", rclcpp::QoS(10),
-      std::bind(&armCMDCallback, this));
+      std::bind(&CanNode::armCMDCallback, this, std::placeholders::_1));
 
-  _subscribers_["/handCMD"] = this->create_generic_subscription<common_msgs::HandPose>(
+  _subscribers["/handCMD"] = this->create_subscription<common_msgs::msg::HandPose>(
       "/handCMD", rclcpp::QoS(10),
-      std::bind(&handCMDCallback, this));
+      std::bind(&CanNode::handCMDCallback, this, std::placeholders::_1));
 
-  _subscribers_["/gripperCMD"] = this->create_generic_subscription<common_msgs::GripperPose>(
+  _subscribers["/gripperCMD"] = this->create_subscription<common_msgs::msg::GripperPose>(
       "/gripperCMD", rclcpp::QoS(10),
-      std::bind(&gripperCMDCallback, this));
+      std::bind(&CanNode::gripperCMDCallback, this, std::placeholders::_1));
 
-  _subscribers_["/motorCMD"] = this->create_generic_subscription<common_msgs::MotorCMD>(
-    "/motorCMD", rclcpp::QoS(10),
-    std::bind(&motorCMDCallback, this));
+  _subscribers["/motorCMD"] = this->create_subscription<common_msgs::msg::MotorCmd>(
+      "/motorCMD", rclcpp::QoS(10),
+      std::bind(&CanNode::motorCMDCallback, this, std::placeholders::_1));
 
   // Create publishers
-  _publishers_["/encoder"] = this->create_publisher<common_msgs::encoder>("/encoder", 10);
+  _publishers["/encoder"] = this->create_publisher<common_msgs::msg::Encoder>("/encoder", 10);
 }
 
-void armCMDCallback(const common_msgs::ArmPose::SharedPtr msg) {
-  RCLCPP_INFO(this->get_logger(), "Received ArmPose command: x=%.2f, y=%.2f, z=%.2f",
-              msg->x, msg->y, msg->z);
+// Subscriber callbacks
+void CanNode::armCMDCallback(const common_msgs::msg::ArmPose::SharedPtr msg) {
+  RCLCPP_INFO(this->get_logger(), "Received ArmPose command");
 }
-void handCMDCallback(const common_msgs::HandPose::SharedPtr msg) {
-  RCLCPP_INFO(this->get_logger(), "Received HandPose command: roll=%.2f, pitch=%.2f, yaw=%.2f",
-              msg->roll, msg->pitch, msg->yaw);
+
+void CanNode::handCMDCallback(common_msgs::msg::HandPose::SharedPtr msg) {
+  RCLCPP_INFO(this->get_logger(), "Received HandPose command");
 }
-void gripperCMDCallback(const common_msgs::GripperPose::SharedPtr msg) {
+
+void CanNode::gripperCMDCallback(const common_msgs::msg::GripperPose::SharedPtr msg) {
   RCLCPP_INFO(this->get_logger(), "Received GripperPose command: position=%.2f",
               msg->position);
 }
 
-void motorCMDCallback(const common_msgs::MotorCMD::SharedPtr msg) {
-  RCLCPP_INFO(this->get_logger(), "Received MotorCMD motor=%d", msg->id);
+void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) {
+  RCLCPP_INFO(this->get_logger(), "Received MotorCMD motor=%d", msg->motor_id);
 }
 
+// Can message handling
 void CanNode::receiveCanMessages() {
   autonomy::CanMessage received_msg;
   // Attempt to receive a message. CanCore::receiveMessage is non-blocking.
