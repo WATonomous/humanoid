@@ -172,7 +172,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     # forearm_rotation is derived from pinky-to-index angle in image space,
     # which shifts during finger curling. A slow filter (alpha=0.04) damps
     # the finger-curl artifact while still tracking genuine wrist rotation.
-    _ARM_SMOOTH_ALPHA = 0.04
+    _ARM_SMOOTH_ALPHA = 0.15  # Moderate filter: responsive to wrist turns, damps finger-curl noise
     _arm_smoothed: dict[str, float] = {}
 
     hand_visible_prev = True
@@ -229,6 +229,21 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
                     # Transformation matrix (3x3). Columns are the orthogonal axes.
                     R_cam_to_hand = np.column_stack((X_h, Y_h, Z_h))
+
+                    # ── FOREARM ROTATION FROM 3D PALM NORMAL ───────────────────────────
+                    # Z_h is the back-of-hand vector in camera space — a full 3D signal
+                    # that captures forearm roll across the complete range, unlike the
+                    # 2D image-space kvec used by the 1D solver (which goes blind when
+                    # the wrist is foreshortened from the camera's viewpoint).
+                    # Roll = atan2 of Z_h projected in camera XZ plane.
+                    forearm_3d = float(np.arctan2(Z_h[0], -Z_h[2]) + np.pi / 2)
+                    forearm_3d = float(np.clip(forearm_3d, 0.0, np.pi))
+                    if "forearm_rotation" in name_to_sim_idx:
+                        prev_fr = _arm_smoothed.get("forearm_rotation", forearm_3d)
+                        smoothed_fr = 0.15 * forearm_3d + 0.85 * prev_fr
+                        _arm_smoothed["forearm_rotation"] = smoothed_fr
+                        joint_pos_target[0, name_to_sim_idx["forearm_rotation"]] = smoothed_fr
+                    # ───────────────────────────────────────────────────────────────────
 
                     # Rotate all points into tracking-independent local basis
                     world_local = (world_np - wrist) @ R_cam_to_hand
