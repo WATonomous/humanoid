@@ -168,6 +168,13 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
           f"{jd.get('forearm_rotation', 0.0):.3f} rad, "
           f"wrist_extension = {jd.get('wrist_extension', 0.0):.3f} rad")
 
+    # Slow EMA for arm joints that are contaminated by finger pose changes.
+    # forearm_rotation is derived from pinky-to-index angle in image space,
+    # which shifts during finger curling. A slow filter (alpha=0.04) damps
+    # the finger-curl artifact while still tracking genuine wrist rotation.
+    _ARM_SMOOTH_ALPHA = 0.04
+    _arm_smoothed: dict[str, float] = {}
+
     hand_visible_prev = True
 
     while simulation_app.is_running():
@@ -176,10 +183,20 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
         # -- Normal tracking: update target from latest data --
         if hand_visible:
-            # 1) Directly map arm joints / safe joints
+            # 1) Directly map arm / finger joints from 1D heuristic solver
+            ARM_SLOW_JOINTS = {"forearm_rotation", "wrist_extension"}
             for joint_name, angle in hand_dict.get("joints", {}).items():
-                if joint_name in name_to_sim_idx:
-                    joint_pos_target[0, name_to_sim_idx[joint_name]] = float(angle)
+                if joint_name not in name_to_sim_idx:
+                    continue
+                raw = float(angle)
+                if joint_name in ARM_SLOW_JOINTS:
+                    # Route through a slow EMA to damp finger-curl contamination
+                    prev = _arm_smoothed.get(joint_name, raw)
+                    smoothed = _ARM_SMOOTH_ALPHA * raw + (1.0 - _ARM_SMOOTH_ALPHA) * prev
+                    _arm_smoothed[joint_name] = smoothed
+                    joint_pos_target[0, name_to_sim_idx[joint_name]] = smoothed
+                else:
+                    joint_pos_target[0, name_to_sim_idx[joint_name]] = raw
 
             # 2) Override fingers with real-time Cartesian IK if world data exists
             world_data = hand_dict.get("world", None)
