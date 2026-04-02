@@ -1,0 +1,147 @@
+left:
+  shoulder:
+    pitch:                  # up/down arm movement
+      can_id: 0x01
+      lower_limit: -90
+      upper_limit: 90
+      direction: 1
+      zero_offset: 0
+    roll:                   # rotation along arm axis
+      can_id: 0x02
+      lower_limit: -90
+      upper_limit: 90
+      direction: 1
+      zero_offset: 0
+    yaw:                    # left/right arm movement
+      can_id: 0x03
+      lower_limit: -90
+      upper_limit: 90
+      direction: 1
+      zero_offset: 0
+
+  elbow:
+    pitch:                  # forearm up/down
+      can_id: 0x04
+      lower_limit: -130
+      upper_limit: 0
+      direction: 1
+      zero_offset: 0
+    roll:                  # forearm rotation
+      can_id: 0x05
+      lower_limit: -130
+      upper_limit: 0
+      direction: 1
+      zero_offset: 0
+
+  wrist:
+    pitch:                  # wrist up/down
+      can_id: 0x06
+      lower_limit: -90
+      upper_limit: 90
+      direction: 1
+      zero_offset: 0
+
+  gripper:
+    open_close:
+      can_id: 0x07
+      lower_limit: 0        # fully closed
+      upper_limit: 100      # fully open (%)
+      direction: 1
+      zero_offset: 0
+
+  # hand:
+  #     pinky:
+  #       mcp:
+  #         can_id: 0x07
+  #         lower_limit: 0
+  #         upper_limit: 90
+  #         direction: 1
+  #         zero_offset: 0
+  #       pip:
+  #         can_id: 0x08
+  #         lower_limit: 0
+  #         upper_limit: 90
+  #         direction: 1
+  #         zero_offset: 0
+  #       dip:
+  #         can_id: 0x09
+  #         lower_limit: 0
+  #         upper_limit: 90
+  #         direction: 1
+  #         zero_offset: 0
+  #     ring:
+  #       mcp:
+  #         can_id: 0x0A
+  #         lower_limit: 0
+  #         upper_limit: 90
+  #         direction: 1
+  #         zero_offset: 0
+  #       pip:
+  #         can_id: 0x0B
+  #         lower_limit: 0
+  #         upper_limit: 90
+  #         direction: 1
+  #         zero_offset: 0
+  #       dip:
+  #         can_id: 0x0C
+  #         lower_limit: 0
+  #         upper_limit: 90
+  #         direction: 1
+  #         zero_offset: 0
+  #     middle:
+  #       mcp:
+  #         can_id: 0x0D
+  #         lower_limit: 0
+  #         upper_limit: 90
+  #         direction: 1
+  #         zero_offset: 0
+  #       pip:
+  #         can_id: 0x0E
+  #         lower_limit: 0
+  #         upper_limit: 90
+  #         direction: 1
+  #         zero_offset: 0
+  #       dip:
+  #         can_id: 0x0F
+  #         lower_limit: 0
+  #         upper_limit: 90
+  #         direction: 1
+  #         zero_offset: 0
+  #     index:
+  #       mcp:
+  #         can_id: 0x10
+  #         lower_limit: 0
+  #         upper_limit: 90
+  #         direction: 1
+  #         zero_offset: 0
+  #       pip:
+  #         can_id: 0x11
+  #         lower_limit: 0
+  #         upper_limit: 90
+  #         direction: 1
+  #         zero_offset: 0
+  #       dip:
+  #         can_id: 0x12
+  #         lower_limit: 0
+  #         upper_limit: 90
+  #         direction: 1
+  #         zero_offset: 0
+  #     thumb:
+  #       cmc:
+  #         can_id: 0x13
+  #         lower_limit: 0
+  #         upper_limit: 60
+  #         direction: 1
+  #         zero_offset: 0
+  #       mcp:
+  #         can_id: 0x14
+  #         lower_limit: 0
+  #         upper_limit: 70
+  #         direction: 1
+  #         zero_offset: 0
+  #       ip:
+  #         can_id: 0x15
+  #         lower_limit: 0
+  #         upper_limit: 80
+  #         direction: 1
+  #         zero_offset: 0

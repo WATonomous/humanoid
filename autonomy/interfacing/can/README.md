@@ -1,6 +1,6 @@
 ## CAN Interfacing Package Documentation
 
-The documentation for the CAN interfacing package follows a standard WATOnomous package level scheme. As shown below:
+The documentation for the CAN interfacing package follows a standard WATonomous package level scheme. As shown below:
 ```
 can/
 ├── CMakeLists.txt
