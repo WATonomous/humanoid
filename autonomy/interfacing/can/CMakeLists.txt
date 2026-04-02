@@ -96,4 +96,9 @@ install(
     DESTINATION share/can/config
 )
 
+install(
+  FILES ../dbc/humanoid.dbc
+  DESTINATION share/can/config
+)
+
 ament_package()
