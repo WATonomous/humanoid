@@ -19,6 +19,8 @@ find_package(Boost REQUIRED) # Boost libraries
 find_package(yaml-cpp REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 
+find_package(common_msgs REQUIRED)
+
 # Compiles source files into a library
 # A library is not executed, instead other executables can link
 # against it to access defined methods and classes.
@@ -41,6 +43,7 @@ ament_target_dependencies(can_lib
   ament_index_cpp
   rclcpp
   std_msgs
+  common_msgs
 )
 
 # Link system libraries for CAN support
