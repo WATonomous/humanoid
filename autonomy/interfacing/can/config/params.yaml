@@ -16,6 +16,7 @@ can_node:
       - "/armCMD"
       - "/handCMD"
       - "/gripperCMD"
+      - "/motorCMD"
 
     # Publisher topics
     publish_topics:

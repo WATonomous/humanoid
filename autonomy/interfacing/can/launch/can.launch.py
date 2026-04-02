@@ -14,17 +14,10 @@ def generate_launch_description():
         'params.yaml'
     )
 
-    # Declare launch arguments
-    can_interface_arg = DeclareLaunchArgument(
-        'can_interface',
-        default_value='can0',
-        description='Name of the CAN interface to use (e.g., can0)'
-    )
-
-    publish_rate_arg = DeclareLaunchArgument(
-        'publish_rate_hz',
-        default_value='50',
-        description='Rate in Hz at which to check for CAN messages'
+    config_file_arg = DeclareLaunchArgument(
+        'config_file',
+        default_value=config_file,
+        description='Path to the CAN node configuration YAML file'
     )
 
     # Create the CAN node
@@ -32,10 +25,7 @@ def generate_launch_description():
         package='can',
         executable='can_node',
         name='can_node',
-        parameters=[config_file, {
-            'can_interface': LaunchConfiguration('can_interface'),
-            'publish_rate_hz': LaunchConfiguration('publish_rate_hz')
-        }],
+        parameters=[LaunchConfiguration('config_file')],
         output='screen'
     )
 
@@ -55,8 +45,7 @@ def generate_launch_description():
 
     # Return the launch description
     return LaunchDescription([
-        can_interface_arg,
-        publish_rate_arg,
+        config_file_arg,
         can_node,
         test_controller_node  # Comment out this line to disable test controller
     ])

@@ -8,12 +8,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-
-struct TopicConfig {
-  // name of the topic, and the message type
-  std::string name;
-  std::string type;
-};
+#include <yaml-cpp/yaml.h>
 
 class CanNode : public rclcpp::Node {
 public:
@@ -21,7 +16,7 @@ public:
 
 private:
   autonomy::CanCore can_;
-
+  YAML::Node hardware_config;
 
   // Subscribers and publishers
   std::unordered_map<std::string, rclcpp::GenericSubscription::SharedPtr>
@@ -37,9 +32,6 @@ private:
   // Methods
   void createSubscribersPublishers();
 
-  void topicCallback(std::shared_ptr<rclcpp::SerializedMessage> msg,
-                     const std::string &topic_name,
-                     const std::string &topic_type);
   void receiveCanMessages(); // Method to be called by the timer
 
   // Helper methods
