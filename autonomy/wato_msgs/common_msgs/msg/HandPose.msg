@@ -2,6 +2,8 @@ std_msgs/Header header
 
 string name
 
+bool is_left
+
 # Thumb
 common_msgs/JointState thumb_cmc
 common_msgs/JointState thumb_mcp

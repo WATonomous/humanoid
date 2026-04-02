@@ -2,18 +2,28 @@
 #define CAN_NODE_HPP
 
 #include "can_core.hpp"
-#include "rclcpp/generic_subscription.hpp"
-#include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/string.hpp"
+
+// Libraries
 #include <memory>
 #include <string>
 #include <vector>
+#include <fstream>
+#include <unordered_map>
+#include <yaml-cpp/yaml.h>
+#include <dbcppp/Network.h>
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
-struct TopicConfig {
-  // name of the topic, and the message type
-  std::string name;
-  std::string type;
-};
+// Messages
+#include "rclcpp/generic_subscription.hpp"
+#include "rclcpp/rclcpp.hpp"
+
+#include "std_msgs/msg/string.hpp"
+#include "common_msgs/msg/arm_pose.hpp"
+#include "common_msgs/msg/hand_pose.hpp"
+#include "common_msgs/msg/gripper_pose.hpp"
+#include "common_msgs/msg/joint_state.hpp"
+#include "common_msgs/msg/encoder.hpp"
+#include "common_msgs/msg/motor_cmd.hpp"
 
 class CanNode : public rclcpp::Node {
 public:
@@ -21,18 +31,34 @@ public:
 
 private:
   autonomy::CanCore can_;
-  std::vector<TopicConfig> topic_configs_;
-  std::vector<std::shared_ptr<rclcpp::GenericSubscription>> subscribers_;
+  YAML::Node hardware_config;
+
+  // Map of CAN message ID to its DBC definition for decoding
+  std::unordered_map<uint64_t, const dbcppp::IMessage*> can_messages;
+  std::unique_ptr<dbcppp::INetwork> dbc_net;
+
+  static constexpr size_t max_payload_per_frame = 8;  // CAN frame max bytes
+  static constexpr size_t data_chunk_size = 8;
+
+  // Subscribers and publishers
+  std::unordered_map<std::string, rclcpp::SubscriptionBase::SharedPtr> 
+      _subscribers;
+
+  std::unordered_map<std::string, rclcpp::PublisherBase::SharedPtr>
+      _publishers; // Map of topic name to its publisher
+
+  // Callbacks
+  void armCMDCallback(const common_msgs::msg::ArmPose::SharedPtr msg);
+  void handCMDCallback(const common_msgs::msg::HandPose::SharedPtr msg);
+  void gripperCMDCallback(const common_msgs::msg::GripperPose::SharedPtr msg);
+  void motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg);
+  
   rclcpp::TimerBase::SharedPtr
       receive_timer_; // Timer to periodically check for CAN messages
 
   // Methods
-  void loadTopicConfigurations();
-  void createSubscribers();
-  std::string discoverTopicType(const std::string &topic_name);
-  void topicCallback(std::shared_ptr<rclcpp::SerializedMessage> msg,
-                     const std::string &topic_name,
-                     const std::string &topic_type);
+  void createSubscribersPublishers();
+
   void receiveCanMessages(); // Method to be called by the timer
 
   // Helper methods

@@ -6,7 +6,7 @@ FROM ${BASE_IMAGE} AS source
 WORKDIR ${AMENT_WS}/src
 
 # Copy source code
-COPY autonomy/interfacing/can can
+# COPY autonomy/interfacing/can can
 COPY autonomy/wato_msgs/sample_msgs sample_msgs
 
 # Install rosdep if not present, update package lists
@@ -31,22 +31,37 @@ RUN rosdep install \
 ################################ Dependencies ################################
 FROM ${BASE_IMAGE} AS dependencies
 
+# Apt dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    build-essential \
+    cmake \
+    libboost-all-dev \
+    libxml2-dev \
+    can-utils \
+    net-tools \
+    iproute2  \
+    $(cat /tmp/colcon_install_list) \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy dependency list from source stage
 COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
 
-# Install dependencies + tools (update must be in same layer)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        $(cat /tmp/colcon_install_list) \
-        can-utils \
-        net-tools \
-        iproute2 && \
-    rm -rf /var/lib/apt/lists/*
+# # CAN dbc parser
+WORKDIR /usr/local
+RUN git clone --recurse-submodules https://github.com/xR3b0rn/dbcppp.git
+
+# Build and install dbcppp
+WORKDIR /usr/local/dbcppp
+RUN mkdir build && cd build && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_BUILD_SHARED_LIBS=ON .. && \
+    make -j && \
+    make install && \
+    ldconfig
 
 # Copy source code into workspace
 WORKDIR ${AMENT_WS}
 COPY --from=source ${AMENT_WS}/src src
-
 
 ################################ Build ################################
 FROM dependencies AS build
