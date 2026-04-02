@@ -240,9 +240,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     
                     # The solver spits out a 1D array perfectly ordered to retargeter.joint_names
                     for i, j_name in enumerate(retargeter.joint_names):
-                        # Only override if it's a hand joint (we let arm tracking stay manual)
-                        if "dip_" in j_name:
-                            continue  # DexRetargeting Vector mode evaluates DIP joints as 0.0; rely on 1D solver for DIP!
+                        # Override all hand joints (arm joints stay manual)
                         if any(finger in j_name for finger in ["thumb", "index", "middle", "ring", "pinky"]):
                             if j_name in name_to_sim_idx:
                                 raw_angle = float(action[i])
