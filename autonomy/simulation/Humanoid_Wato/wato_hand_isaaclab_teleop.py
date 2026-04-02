@@ -240,7 +240,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     
                     # The solver spits out a 1D array perfectly ordered to retargeter.joint_names
                     for i, j_name in enumerate(retargeter.joint_names):
-                        # Override all hand joints (arm joints stay manual)
+                        # Override hand joints; SKIP dip_ joints because DexRetargeting
+                        # outputs 0.0 for them (no TIP link in URDF = no gradient).
+                        # The 1D solver from wato_hand_ros2_node.py handles dip coupling.
+                        if "dip_" in j_name:
+                            continue
                         if any(finger in j_name for finger in ["thumb", "index", "middle", "ring", "pinky"]):
                             if j_name in name_to_sim_idx:
                                 raw_angle = float(action[i])
