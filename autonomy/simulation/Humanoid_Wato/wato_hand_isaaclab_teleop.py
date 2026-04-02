@@ -252,6 +252,25 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                 except Exception as e:
                     print(f"IK Solver Error: {e}")
 
+            # --- DIP JOINT CORRECTION ---
+            # DexRetargeting skips dip_ joints (no TIP link = no gradient).
+            # Compute dip from IK-driven pip: biologically, dip ≈ 0.67 * pip (tendon coupling).
+            # The URDF DIP links point in +Z at rest (not inline with finger), so we add
+            # an offset that zeroes out when pip=0 (open) and adds curl as fingers close.
+            import numpy as np
+            for finger in ["index", "middle", "ring", "pinky"]:
+                pip_name = f"pip_{finger}"
+                dip_name = f"dip_{finger}"
+                if pip_name in name_to_sim_idx and dip_name in name_to_sim_idx:
+                    pip_val = float(joint_pos_target[0, name_to_sim_idx[pip_name]])
+                    # Clamp pip to [0, pi] to compute a clean curl ratio
+                    pip_curl = np.clip(pip_val / np.pi, 0.0, 1.0)
+                    # URDF geometry offset: dip=0 is a 90° hook; offset needed to straighten:
+                    # index/middle/ring/pinky DIP links all point in +Z at rest → need -1.57 offset
+                    # to look straight. As finger curls (pip_curl→1), we move toward 0 (touching palm).
+                    dip_val = -1.57 * (1.0 - pip_curl) + 0.7 * pip_val
+                    joint_pos_target[0, name_to_sim_idx[dip_name]] = float(dip_val)
+
         hand_visible_prev = hand_visible
 
         # -- Apply to robot --
