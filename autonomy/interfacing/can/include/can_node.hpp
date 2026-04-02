@@ -7,7 +7,10 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <fstream>
+#include <unordered_map>
 #include <yaml-cpp/yaml.h>
+#include <dbcppp/Network.h>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
 // Messages
@@ -29,11 +32,17 @@ public:
 private:
   autonomy::CanCore can_;
   YAML::Node hardware_config;
+
+  // Map of CAN message ID to its DBC definition for decoding
+  std::unordered_map<uint64_t, const dbcppp::IMessage*> can_messages;
+  std::unique_ptr<dbcppp::INetwork> dbc_net;
+
   static constexpr size_t max_payload_per_frame = 8;  // CAN frame max bytes
   static constexpr size_t data_chunk_size = 8;
 
   // Subscribers and publishers
-  std::unordered_map<std::string, rclcpp::SubscriptionBase::SharedPtr> _subscribers;
+  std::unordered_map<std::string, rclcpp::SubscriptionBase::SharedPtr> 
+      _subscribers;
 
   std::unordered_map<std::string, rclcpp::PublisherBase::SharedPtr>
       _publishers; // Map of topic name to its publisher

@@ -11,6 +11,21 @@ CanNode::CanNode() : Node("can_node"), can_(this->get_logger()) {
   hardware_config = YAML::LoadFile(ament_index_cpp::get_package_share_directory("can") 
                                    + "/config/hardware_params.yaml");
 
+  // Load DBC file
+  {
+      std::ifstream idbc(ament_index_cpp::get_package_share_directory("can") + "/config/humanoid.dbc");
+      dbc_net = dbcppp::INetwork::LoadDBCFromIs(idbc);
+      if (!dbc_net) {
+          RCLCPP_ERROR(this->get_logger(), "Failed to load DBC file");
+      } else {
+          RCLCPP_INFO(this->get_logger(), "DBC file loaded successfully");
+          // Build the message ID to IMessage* map for quick lookup during decoding
+          for (const auto& msg : dbc_net->Messages()) {
+              can_messages.insert(std::make_pair(msg.Id(), &msg));
+          }
+      }
+  }
+
   // Load parameters from config/params.yaml
   this->declare_parameter("can_interface", "can0");
   this->declare_parameter("device_path", "/dev/canable");
