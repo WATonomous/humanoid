@@ -16,6 +16,8 @@ find_package(ament_cmake REQUIRED) # ROS2 build tool
 find_package(rclcpp REQUIRED) # ROS2 C++ package
 find_package(std_msgs REQUIRED) # ROS2 message package
 find_package(Boost REQUIRED) # Boost libraries
+find_package(yaml-cpp REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 
 # Compiles source files into a library
 # A library is not executed, instead other executables can link
@@ -46,6 +48,8 @@ ament_target_dependencies(can_lib
 
 target_link_libraries(can_lib
   /usr/local/lib/libdbcppp.so   
+  yaml-cpp
+  ament_index_cpp::ament_index_cpp
 )
 
 # Create the can_node executable
@@ -83,5 +87,10 @@ ament_target_dependencies(test_controller_node rclcpp std_msgs)
 install(TARGETS
   test_controller_node
   DESTINATION lib/${PROJECT_NAME})
+
+install(
+    DIRECTORY config/
+    DESTINATION share/can/config
+)
 
 ament_package()

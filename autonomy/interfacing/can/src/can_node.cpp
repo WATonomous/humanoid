@@ -11,9 +11,13 @@
 #include <common_msgs/GripperPose.h>
 #include <common_msgs/JointState.h>
 #include <common_msgs/encoder.h>
+#include <common_msgs/MotorCMD.h>
 
 CanNode::CanNode() : Node("can_node"), can_(this->get_logger()) {
   RCLCPP_INFO(this->get_logger(), "CAN Node has been initialized");
+
+  hardware_config = YAML::LoadFile(ament_index_cpp::get_package_share_directory("can") 
+                                   + "/config/hardware_params.yaml");
 
   // Load parameters from config/params.yaml
   this->declare_parameter("can_interface", "can0");
@@ -27,6 +31,7 @@ CanNode::CanNode() : Node("can_node"), can_(this->get_logger()) {
   std::string device_path = this->get_parameter("device_path").as_string();
   std::string bustype = this->get_parameter("bustype").as_string();
   int bitrate = this->get_parameter("bitrate").as_int();
+
   long receive_poll_interval_ms =
       this->get_parameter("receive_poll_interval_ms").as_int();
 
@@ -83,6 +88,10 @@ void CanNode::createSubscribersPublishers() {
       "/gripperCMD", rclcpp::QoS(10),
       std::bind(&gripperCMDCallback, this));
 
+  _subscribers_["/motorCMD"] = this->create_generic_subscription<common_msgs::MotorCMD>(
+    "/motorCMD", rclcpp::QoS(10),
+    std::bind(&motorCMDCallback, this));
+
   // Create publishers
   _publishers_["/encoder"] = this->create_publisher<common_msgs::encoder>("/encoder", 10);
 }
@@ -96,8 +105,12 @@ void handCMDCallback(const common_msgs::HandPose::SharedPtr msg) {
               msg->roll, msg->pitch, msg->yaw);
 }
 void gripperCMDCallback(const common_msgs::GripperPose::SharedPtr msg) {
-  RCLCPP_INFO(this->get_logger(), "Received GripperPose command: width=%.2f",
-              msg->width);
+  RCLCPP_INFO(this->get_logger(), "Received GripperPose command: position=%.2f",
+              msg->position);
+}
+
+void motorCMDCallback(const common_msgs::MotorCMD::SharedPtr msg) {
+  RCLCPP_INFO(this->get_logger(), "Received MotorCMD motor=%d", msg->id);
 }
 
 void CanNode::receiveCanMessages() {
