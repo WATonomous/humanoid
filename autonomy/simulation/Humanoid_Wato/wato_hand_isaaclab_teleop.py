@@ -105,22 +105,34 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             "urdf_path": "/workspace/isaaclab/humanoid/autonomy/simulation/Humanoid_Wato/arm_assembly/arm_assembly_fixed.urdf",
             "wrist_link_name": "PALM_GAVIN_1DoF_Hinge_v2_1",
             "target_origin_link_names": [
+                # Thumb (2 vectors)
                 "CMC_THUMB_v1_1", "MCP_THUMB_v1_1",
-                "MCP_INDEX_v1_1", "PIP_INDEX_v1_1",
-                "MCP_MIDDLE_v1_1", "PIP_MIDDLE_v1_1",
-                "MCP_RING_v1_1", "PIP_RING_v1_1",
-                "MCP_PINKY_v1_1", "PIP_PINKY_v1_1"
+                # Index (3 vectors: palm->MCP, MCP->PIP, PIP->DIP)
+                "PALM_GAVIN_1DoF_Hinge_v2_1", "MCP_INDEX_v1_1", "PIP_INDEX_v1_1",
+                # Middle (3 vectors)
+                "PALM_GAVIN_1DoF_Hinge_v2_1", "MCP_MIDDLE_v1_1", "PIP_MIDDLE_v1_1",
+                # Ring (3 vectors)
+                "PALM_GAVIN_1DoF_Hinge_v2_1", "MCP_RING_v1_1", "PIP_RING_v1_1",
+                # Pinky (3 vectors)
+                "PALM_GAVIN_1DoF_Hinge_v2_1", "MCP_PINKY_v1_1", "PIP_PINKY_v1_1",
             ],
             "target_task_link_names": [
+                # Thumb
                 "MCP_THUMB_v1_1", "IP_THUMB_v1_1",
-                "PIP_INDEX_v1_1", "DIP_INDEX_v1_1",
-                "PIP_MIDDLE_v1_1", "DIP_MIDDLE_v1_1",
-                "PIP_RING_v1_1", "DIP_RING_v1_1",
-                "PIP_PINKY_v1_1", "DIP_PINKY_v1_1"
+                # Index
+                "MCP_INDEX_v1_1", "PIP_INDEX_v1_1", "DIP_INDEX_v1_1",
+                # Middle
+                "MCP_MIDDLE_v1_1", "PIP_MIDDLE_v1_1", "DIP_MIDDLE_v1_1",
+                # Ring
+                "MCP_RING_v1_1", "PIP_RING_v1_1", "DIP_RING_v1_1",
+                # Pinky
+                "MCP_PINKY_v1_1", "PIP_PINKY_v1_1", "DIP_PINKY_v1_1",
             ],
             "target_link_human_indices": np.array([
-                [1, 2, 5, 6, 9, 10, 13, 14, 17, 18],
-                [2, 3, 6, 7, 10, 11, 14, 15, 18, 19]
+                # origins: [thumb_cmc, thumb_mcp, wrist, idx_mcp, idx_pip, wrist, mid_mcp, mid_pip, wrist, rng_mcp, rng_pip, wrist, pnk_mcp, pnk_pip]
+                [1, 2,  0, 5, 6,  0, 9, 10,  0, 13, 14,  0, 17, 18],
+                # targets: [thumb_mcp, thumb_ip, idx_mcp, idx_pip, idx_dip, mid_mcp, mid_pip, mid_dip, rng_mcp, rng_pip, rng_dip, pnk_mcp, pnk_pip, pnk_dip]
+                [2, 3,  5, 6, 7,  9, 10, 11,  13, 14, 15,  17, 18, 19]
             ])
         }
         retargeter = RetargetingConfig.from_dict(ik_config).build()
@@ -205,14 +217,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     world_local = (world_np - wrist) @ R_cam_to_hand
 
                     # Align the target subset as angular direction vectors for the VectorOptimizer
-                    # We pair 2 vectors per finger: Proximal phalanx (MCP to PIP) and Middle phalanx (PIP to DIP)
-                    target_indices = [2, 3, 6, 7, 10, 11, 14, 15, 18, 19]
-                    origin_indices = [1, 2, 5, 6, 9, 10, 13, 14, 17, 18]
-                    
+                    # Layout: thumb(2) + each finger has 3 vectors: wrist->MCP, MCP->PIP, PIP->DIP
+                    #   thumb:  cmc(1)->mcp(2), mcp(2)->ip(3)
+                    #   index:  wrist(0)->mcp(5), mcp(5)->pip(6), pip(6)->dip(7)
+                    #   middle: wrist(0)->mcp(9), mcp(9)->pip(10),pip(10)->dip(11)
+                    #   ring:   wrist(0)->mcp(13),mcp(13)->pip(14),pip(14)->dip(15)
+                    #   pinky:  wrist(0)->mcp(17),mcp(17)->pip(18),pip(18)->dip(19)
+                    origin_indices = [1, 2,   0, 5, 6,   0, 9, 10,   0, 13, 14,   0, 17, 18]
+                    target_indices = [2, 3,   5, 6, 7,   9, 10, 11,  13, 14, 15,  17, 18, 19]
+
                     target_points = world_local[target_indices]
                     origin_points = world_local[origin_indices]
-                    
-                    # Compute directional vectors and normalize them uniformly
+
+                    # Compute directional vectors and normalize
                     target_vectors = target_points - origin_points
                     norms = np.linalg.norm(target_vectors, axis=1, keepdims=True)
                     target_vectors = target_vectors / (norms + 1e-6)
