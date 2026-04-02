@@ -21,15 +21,22 @@ public:
 
 private:
   autonomy::CanCore can_;
-  std::vector<TopicConfig> topic_configs_;
-  std::vector<std::shared_ptr<rclcpp::GenericSubscription>> subscribers_;
+
+
+  // Subscribers and publishers
+  std::unordered_map<std::string, rclcpp::GenericSubscription::SharedPtr>
+      _subscribers; // Map of topic name to its subscriber
+
+  std::unordered_map<std::string, rclcpp::PublisherBase::SharedPtr>
+      _publishers; // Map of topic name to its publisher
+
+  
   rclcpp::TimerBase::SharedPtr
       receive_timer_; // Timer to periodically check for CAN messages
 
   // Methods
-  void loadTopicConfigurations();
-  void createSubscribers();
-  std::string discoverTopicType(const std::string &topic_name);
+  void createSubscribersPublishers();
+
   void topicCallback(std::shared_ptr<rclcpp::SerializedMessage> msg,
                      const std::string &topic_name,
                      const std::string &topic_type);

@@ -15,20 +15,21 @@ find_package(ament_index_cpp REQUIRED) # ROS tool to find shared directories of 
 find_package(ament_cmake REQUIRED) # ROS2 build tool
 find_package(rclcpp REQUIRED) # ROS2 C++ package
 find_package(std_msgs REQUIRED) # ROS2 message package
-
-find_package(dbcppp REQUIRED) # DBC parser
+find_package(Boost REQUIRED) # Boost libraries
 
 # Compiles source files into a library
 # A library is not executed, instead other executables can link
 # against it to access defined methods and classes.
 # We build a library so that the methods defined can be used by
 # both the unit test and ROS2 node executables.
+
 add_library(can_lib
   src/can_core.cpp
 )
 
 # Indicate to compiler where to search for header files
-target_include_directories(can_lib
+target_include_directories(can_lib PRIVATE
+  /usr/local/include
   PUBLIC
   include
 )
@@ -42,11 +43,15 @@ ament_target_dependencies(can_lib
 
 # Link system libraries for CAN support
 # Note: Using system CAN libraries instead of libsocketcan for broader compatibility
-target_link_libraries(can_lib)
+
+target_link_libraries(can_lib
+  /usr/local/lib/libdbcppp.so   
+)
 
 # Create the can_node executable
 add_executable(can_node src/can_node.cpp src/can_core.cpp)
 ament_target_dependencies(can_node rclcpp std_msgs)
+
 # Link to the previously built libraries 
 target_link_libraries(can_node can_lib)
 

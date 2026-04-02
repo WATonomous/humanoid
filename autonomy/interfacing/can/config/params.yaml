@@ -9,8 +9,16 @@ can_node:
     
     # Communication Settings
     publish_rate_hz: 50                # Rate for checking incoming CAN messages
-    receive_timeout_ms: 10000           # Timeout for receiving CAN messages
+    receive_timeout_ms: 10000          # Timeout for receiving CAN messages
 
-    # Topics to subscribe to (message types will be auto-detected)
-    topics:
-      - "/test_controller"         
+    # Topics to subscribe
+    subscribe_topics:
+      - "/armCMD"
+      - "/handCMD"
+      - "/gripperCMD"
+
+    # Publisher topics
+    publish_topics:
+      - "/arm_encoder"
+      - "/hand_encoder"
+      - "/gripper_encoder"

@@ -17,7 +17,7 @@ NS_ :
     SGTYPE_VAL_
     BA_DEF_SGTYPE_
     BA_SGTYPE_
-    SIG_TYPE_REF_
+    SIG_TYPE_REF_hu  
     VAL_TABLE_
     SIG_GROUP_
     SIG_VALTYPE_
@@ -91,11 +91,14 @@ BO_ 4096 FingerPosLoopCmd: 8 Fingers
    SG_ PIP_x : 39|16@0+ (0.00549325,0) [0|360] "Degrees" Vector__XXX
    SG_ DIP_x : 55|16@0+ (0.00549325,0) [0|360] "Degrees" Vector__XXX
 
+BA_DEF_ BO_ "matchingcriteria" INT 0 0;
+BA_DEF_ BO_ "filterlabeling" INT 0 0;
 BA_DEF_ BO_ "GenMsgBackgroundColor" STRING ;
 BA_DEF_ BO_ "GenMsgForegroundColor" STRING ;
 BA_DEF_ BO_ "matchingcriteria" INT 0 0;
 BA_DEF_ BO_ "filterlabeling" INT 0 0;
-BA_ "GenMsgForegroundColor" BO_ 4096 "#000000";
+BA_DEF_DEF_ "matchingcriteria" 0;
+BA_DEF_DEF_ "filterlabeling" 0;
 BA_DEF_DEF_ "GenMsgBackgroundColor" "#ffffff";
 BA_DEF_DEF_ "GenMsgForegroundColor" "#000000";
 BA_DEF_DEF_ "matchingcriteria" 0;

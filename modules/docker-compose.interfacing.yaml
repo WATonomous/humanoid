@@ -10,8 +10,9 @@ services:
         - "${INTERFACING_IMAGE:?}:main"
     image: "${INTERFACING_IMAGE:?}:${TAG}"
     profiles: [deploy, develop]
-    command: /bin/bash -c "ros2 launch can can.launch.py"
-    privileged: false
+    # command: /bin/bash -c "ros2 launch can can.launch.py"
+    command: tail -F null
+    privileged: true
     devices:
       - /dev/canable:/dev/canable
     network_mode: host # Allow the container to access the host's network interfaces
