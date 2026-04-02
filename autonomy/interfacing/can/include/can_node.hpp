@@ -2,9 +2,8 @@
 #define CAN_NODE_HPP
 
 #include "can_core.hpp"
-#include "rclcpp/generic_subscription.hpp"
-#include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/string.hpp"
+
+// Libraries
 #include <memory>
 #include <string>
 #include <vector>
@@ -12,6 +11,10 @@
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
 // Messages
+#include "rclcpp/generic_subscription.hpp"
+#include "rclcpp/rclcpp.hpp"
+
+#include "std_msgs/msg/string.hpp"
 #include "common_msgs/msg/arm_pose.hpp"
 #include "common_msgs/msg/hand_pose.hpp"
 #include "common_msgs/msg/gripper_pose.hpp"
