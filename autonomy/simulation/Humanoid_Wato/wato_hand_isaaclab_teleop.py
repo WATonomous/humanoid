@@ -230,32 +230,41 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # Transformation matrix (3x3). Columns are the orthogonal axes.
                     R_cam_to_hand = np.column_stack((X_h, Y_h, Z_h))
 
-                    # ── FOREARM ROTATION FROM 3D PALM NORMAL ───────────────────────────
-                    # Z_h is the back-of-hand vector in camera space — a full 3D signal
-                    # that captures forearm roll across the complete range, unlike the
-                    # 2D image-space kvec used by the 1D solver (which goes blind when
-                    # the wrist is foreshortened from the camera's viewpoint).
-                    # Roll = atan2 of Z_h projected in camera XZ plane.
-                    forearm_3d = float(np.arctan2(Z_h[0], -Z_h[2]) + np.pi / 2)
+                    # ── WRIST ORIENTATION: SPHERICAL DECOMPOSITION OF Z_h ──────────────
+                    # Z_h = back-of-hand unit vector in camera space.
+                    # We decompose it into two independent angular components:
+                    #   azimuth  → forearm_rotation (palm rolling left/right)
+                    #   elevation→ wrist_extension  (palm tilting up/down)
+                    # Using the SAME vector for both joints prevents kinematic coupling
+                    # (the diagonal artifact that appears when two different signals
+                    # are fed into two series-connected joints independently).
+
+                    # Azimuth: project Z_h onto horizontal plane, find angle
+                    zh_horiz = np.array([Z_h[0], 0.0, Z_h[2]], dtype=np.float64)
+                    zh_len   = float(np.linalg.norm(zh_horiz))
+                    if zh_len > 0.1:
+                        zh_hat      = zh_horiz / zh_len
+                        forearm_3d  = float(np.arctan2(zh_hat[0], -zh_hat[2]) + np.pi / 2)
+                    else:
+                        forearm_3d  = _arm_smoothed.get("forearm_rotation", np.pi / 2)
                     forearm_3d = float(np.clip(forearm_3d, 0.0, np.pi))
+
+                    # Elevation: signed angle of Z_h above/below horizontal
+                    # Z_h[1] = 0 → palm vertical (camera-facing) → wrist neutral = 0
+                    # Z_h[1] < 0 → back-of-hand tilts down  → palm tilts up
+                    # Z_h[1] > 0 → back-of-hand tilts up    → palm tilts down
+                    wrist_3d = float(np.arcsin(np.clip(-Z_h[1], -1.0, 1.0)))
+                    wrist_3d = float(np.clip(wrist_3d, -1.4, 1.4))
+
                     if "forearm_rotation" in name_to_sim_idx:
-                        prev_fr = _arm_smoothed.get("forearm_rotation", forearm_3d)
+                        prev_fr    = _arm_smoothed.get("forearm_rotation", forearm_3d)
                         smoothed_fr = 0.15 * forearm_3d + 0.85 * prev_fr
                         _arm_smoothed["forearm_rotation"] = smoothed_fr
                         joint_pos_target[0, name_to_sim_idx["forearm_rotation"]] = smoothed_fr
 
-                    # ── WRIST EXTENSION FROM 3D FINGER ELEVATION ─────────────────────
-                    # Y_h = wrist→middle_MCP direction in camera space.
-                    # MediaPipe Y-axis points DOWN, so -Y_h[1] = upward component.
-                    # arcsin(-Y_h[1]) gives the elevation angle:
-                    #   fingers up   → +1.57 rad
-                    #   fingers level →  0.0  rad
-                    #   fingers down → -1.57 rad
-                    wrist_3d = float(np.arcsin(np.clip(-Y_h[1], -1.0, 1.0)))
-                    wrist_3d = float(np.clip(wrist_3d, -1.57, 1.57))
                     if "wrist_extension" in name_to_sim_idx:
-                        prev_we = _arm_smoothed.get("wrist_extension", wrist_3d)
-                        smoothed_we = 0.25 * wrist_3d + 0.75 * prev_we
+                        prev_we    = _arm_smoothed.get("wrist_extension", wrist_3d)
+                        smoothed_we = 0.20 * wrist_3d + 0.80 * prev_we
                         _arm_smoothed["wrist_extension"] = smoothed_we
                         joint_pos_target[0, name_to_sim_idx["wrist_extension"]] = smoothed_we
                     # ───────────────────────────────────────────────────────────────────
