@@ -178,20 +178,21 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     # ── ARM POSITION TRACKING CONFIG ────────────────────────────────────────────
     # Maps 2D wrist position and hand scale (depth proxy) to shoulder/elbow joints.
     # GAINS: radians per normalized unit.  Tune if arm motion feels too big/small.
-    ARM_SHOULDER_FE_GAIN =  0.68  # Blue arrow: up/down — 45% of previous 1.5  
-    ARM_SHOULDER_AA_GAIN =  1.2   # Green arrow: sideways
-    ARM_ELBOW_FE_GAIN    =  2.0   # Red   arrow: depth     (was 3.0)
+    ARM_SHOULDER_FE_GAIN =  0.68  # Blue  arrow: up/down — 45% of previous 1.5
+    ARM_SHOULDER_AA_GAIN =  1.8   # Green arrow: sideways (1.5× previous 1.2)
+    ARM_ELBOW_FE_GAIN    =  2.0   # Red   arrow: forward/depth
     ARM_POS_CALIB_FRAMES =  30    # Frames to average for the neutral reference
     ARM_POS_ALPHA        =  0.03  # Very slow EMA → silky smooth (was 0.06)
     ARM_DEADZONE_XY      =  0.02  # Ignore wrist movements < 2% of frame width
     ARM_DEADZONE_SCALE   =  0.04  # Ignore depth changes < 4% of neutral scale
     # Per-joint clamps [min, max] in radians.  min=0 prevents backward bending.
     ARM_JOINT_CLAMPS = {
-        # shoulder_flexion_extension: capped at 45% of original 1.2 = 0.54 rad (~31°)
-        # Height tracks bottom-of-palm (wrist landmark 0) — constrained max prevents over-raise
+        # Height: 45% of original max, uses bottom-of-palm (wrist lm 0) for tracking
         "shoulder_flexion_extension":   (-0.3, 0.54),
-        "shoulder_abduction_adduction": (-0.5, 1.2),
-        "elbow_flexion_extension":      ( 0.0, 1.4),  # hard 0 floor — no backward elbow
+        # Sideways: 1.5× previous clamp range
+        "shoulder_abduction_adduction": (-0.75, 1.8),
+        # Elbow: no backward bending
+        "elbow_flexion_extension":      ( 0.0, 1.4),
     }
     _arm_pos_ref: dict | None = None
     _arm_pos_count: int = 0
@@ -238,9 +239,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                 # not a fingertip that can swing high independently of the arm position.
                 wx  = float(lm_data[0]["x"])   # 0=left, 1=right
                 wy  = float(lm_data[0]["y"])   # 0=top,  1=bottom  (MediaPipe Y↓)
-                mxw = float(lm_data[9]["x"]) - wx
-                myw = float(lm_data[9]["y"]) - wy
-                scale = _math.sqrt(mxw*mxw + myw*myw)  # hand size in image (depth proxy)
+
+                # Palm WIDTH (index_mcp → pinky_mcp) as depth signal.
+                # This is immune to finger curling/uncurling, unlike wrist→middle_mcp.
+                pmx = float(lm_data[5]["x"]) - float(lm_data[17]["x"])
+                pmy = float(lm_data[5]["y"]) - float(lm_data[17]["y"])
+                scale = _math.sqrt(pmx*pmx + pmy*pmy)  # palm width in image
 
                 if _arm_pos_ref is None:
                     _arm_pos_ref = {"x": wx, "y": wy, "scale": scale}
@@ -260,14 +264,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     dy    = wy    - _arm_pos_ref["y"]       # + = moved down (MediaPipe Y)
                     d_scl = scale / max(_arm_pos_ref["scale"], 1e-4)  # >1 = closer
 
+                    # Perspective correction for height: when the hand is 2× closer,
+                    # the wrist landmark shifts 2× in image space. Dividing by d_scl
+                    # removes this false height signal, preventing the up-glitch.
+                    dy_corrected = dy / max(d_scl, 0.5)
+
                     # Apply deadzone: ignore micro-tremors below threshold
-                    dx    = dx    if abs(dx)        > ARM_DEADZONE_XY    else 0.0
-                    dy    = dy    if abs(dy)        > ARM_DEADZONE_XY    else 0.0
+                    dx           = dx    if abs(dx)        > ARM_DEADZONE_XY    else 0.0
+                    dy_corrected = dy_corrected if abs(dy_corrected) > ARM_DEADZONE_XY else 0.0
                     d_scl = d_scl if abs(d_scl-1.0) > ARM_DEADZONE_SCALE else 1.0
 
                     arm_targets = {
                         "shoulder_abduction_adduction":  ARM_SHOULDER_AA_GAIN *  dx,
-                        "shoulder_flexion_extension":    ARM_SHOULDER_FE_GAIN * -dy,
+                        "shoulder_flexion_extension":    ARM_SHOULDER_FE_GAIN * -dy_corrected,
                         "elbow_flexion_extension":       ARM_ELBOW_FE_GAIN   * (d_scl - 1.0),
                     }
                     for jname, jval in arm_targets.items():
