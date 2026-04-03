@@ -189,17 +189,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_DEADZONE_SCALE    =  0.06  # Forward extension deadzone (same as sideways for consistency)
     # Per-joint clamps [min, max] in radians.  min=0 prevents backward bending.
     ARM_JOINT_CLAMPS = {
-        "shoulder_flexion_extension":   (-0.5, 1.2),   # height: wider range
-        "shoulder_abduction_adduction": (-1.2, 1.2),   # forward/backward via hand span (d_scl)
-        "shoulder_rotation":            (-1.0, 1.0),   # sideways via wrist X position
+        "shoulder_flexion_extension":  (-0.5,  1.2),  # height
+        # elbow: 0=natural, negative=extension (arm reaches forward), positive=flexion (bends back)
+        # Only allow extension (≤0). Max extension -1.2 rad prevents over-straight.
+        "elbow_flexion_extension":    (-1.2,  0.0),  # forward reach: extension only
+        "shoulder_rotation":           (-1.0,  1.0),  # sideways
     }
     _arm_pos_ref: dict | None = None
     _arm_pos_count: int = 0
     # Pre-initialize at 0 so calibration phase holds joints at neutral with no snap
     _arm_pos_smoothed: dict[str, float] = {
-        "shoulder_flexion_extension":   0.0,
-        "shoulder_abduction_adduction": 0.0,
-        "shoulder_rotation":            0.0,
+        "shoulder_flexion_extension": 0.0,
+        "elbow_flexion_extension":    0.0,   # 0=natural; negative=extension (forward)
+        "shoulder_rotation":          0.0,
     }
     # ────────────────────────────────────────────────────────────────────────────
 
@@ -273,38 +275,30 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     dy_corrected = dy_corrected if abs(dy_corrected) > ARM_DEADZONE_XY else 0.0
                     d_scl = d_scl if abs(d_scl-1.0) > ARM_DEADZONE_SCALE else 1.0
 
-                    # Compute raw signals
-                    forward_delta = d_scl - 1.0   # hand span delta (filtered by SCALE deadzone)
+                    # Raw signals (all deadzone-filtered above)
+                    # Negative elbow = EXTENSION (arm reaches forward). Clamp keeps it ≤0.
+                    forward_elbow = -ARM_ELBOW_FE_GAIN * max(0.0, d_scl - 1.0)
 
-                    # ── Absolute sideways: screen X position maps directly to joint ────────
-                    # wx=0.5 (screen center) → 0 (arm at neutral/center)
-                    # wx<0.5 (left  of screen) → negative rotation
-                    # wx>0.5 (right of screen) → positive rotation
-                    # Multiply by 2 so the full half-screen range (0→0.5 or 0.5→1) spans
-                    # the full gain, i.e. screen edge = max joint angle.
-                    sideways_abs = (wx - 0.5) * 2.0   # range [-1, +1]
+                    # Absolute sideways: screen-center = 0, edges = ±1
+                    sideways_abs = (wx - 0.5) * 2.0
                     if abs(sideways_abs) < ARM_DEADZONE_SIDEWAYS:
                         sideways_abs = 0.0
 
-                    # ── DOMINANT AXIS SELECTION ───────────────────────────────────────────
-                    # Compare weighted magnitudes — fastest-changing axis wins exclusively.
-                    sig_height  = abs(ARM_SHOULDER_FE_GAIN * dy_corrected)
-                    sig_forward = abs(ARM_ELBOW_FE_GAIN    * forward_delta)
-                    sig_side    = abs(ARM_SHOULDER_AA_GAIN * sideways_abs)
+                    # ── PRIORITY ORDER: forward > height > sideways ───────────────────────
+                    # Each axis only activates if ALL higher-priority axes are silent.
+                    has_forward  = (forward_elbow != 0.0)
+                    has_height   = (dy_corrected  != 0.0)
+                    has_sideways = (sideways_abs  != 0.0)
 
-                    dominant = max(sig_height, sig_forward, sig_side)
-                    if dominant == 0.0:
-                        height_active = forward_active = side_active = True  # all silent
-                    else:
-                        height_active  = (sig_height  == dominant)
-                        forward_active = (sig_forward == dominant)
-                        side_active    = (sig_side    == dominant)
+                    forward_active = has_forward
+                    height_active  = has_height  and not has_forward
+                    side_active    = has_sideways and not has_forward and not has_height
                     # ─────────────────────────────────────────────────────────────────────
 
                     arm_targets = {
-                        "shoulder_flexion_extension":   ARM_SHOULDER_FE_GAIN * -dy_corrected if height_active  else 0.0,
-                        "shoulder_abduction_adduction": ARM_ELBOW_FE_GAIN    *  forward_delta if forward_active else 0.0,
-                        "shoulder_rotation":            ARM_SHOULDER_AA_GAIN *  sideways_abs  if side_active    else 0.0,
+                        "shoulder_flexion_extension": ARM_SHOULDER_FE_GAIN * -dy_corrected if height_active  else 0.0,
+                        "elbow_flexion_extension":    forward_elbow                         if forward_active else 0.0,
+                        "shoulder_rotation":          ARM_SHOULDER_AA_GAIN * sideways_abs   if side_active    else 0.0,
                     }
                     for jname, jval in arm_targets.items():
                         if jname not in name_to_sim_idx:
