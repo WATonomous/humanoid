@@ -242,14 +242,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # Azimuth: project Z_h onto horizontal plane, find angle
                     zh_horiz = np.array([Z_h[0], 0.0, Z_h[2]], dtype=np.float64)
                     zh_len   = float(np.linalg.norm(zh_horiz))
-                    # 90° offset rotates the rest pose along the dark blue (Z) gizmo axis.
-                    # Increase/decrease FOREARM_ROT_OFFSET in π/2 increments to tune.
-                    FOREARM_ROT_OFFSET = np.pi / 2
                     if zh_len > 0.1:
                         zh_hat      = zh_horiz / zh_len
-                        forearm_3d  = float(np.arctan2(zh_hat[0], -zh_hat[2]) + np.pi / 2 + FOREARM_ROT_OFFSET)
+                        forearm_3d  = float(np.arctan2(zh_hat[0], -zh_hat[2]) + np.pi / 2)
                     else:
-                        forearm_3d  = _arm_smoothed.get("forearm_rotation", np.pi / 2 + FOREARM_ROT_OFFSET)
+                        forearm_3d  = _arm_smoothed.get("forearm_rotation", np.pi / 2)
                     forearm_3d = float(np.clip(forearm_3d, 0.0, np.pi))
 
                     # Elevation: signed angle of Z_h above/below horizontal
@@ -259,11 +256,15 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     wrist_3d = float(np.arcsin(np.clip(-Z_h[1], -1.0, 1.0)))
                     wrist_3d = float(np.clip(wrist_3d, -1.4, 1.4))
 
+                    # Permanent offset applied AFTER EMA so the clip on forearm_3d
+                    # above never eats it. Isaac Lab joint limits handle range enforcement.
+                    FOREARM_ROT_OFFSET = np.pi / 2   # 90° — tune this value as needed
+
                     if "forearm_rotation" in name_to_sim_idx:
                         prev_fr    = _arm_smoothed.get("forearm_rotation", forearm_3d)
                         smoothed_fr = 0.15 * forearm_3d + 0.85 * prev_fr
                         _arm_smoothed["forearm_rotation"] = smoothed_fr
-                        joint_pos_target[0, name_to_sim_idx["forearm_rotation"]] = smoothed_fr
+                        joint_pos_target[0, name_to_sim_idx["forearm_rotation"]] = smoothed_fr + FOREARM_ROT_OFFSET
 
                     if "wrist_extension" in name_to_sim_idx:
                         prev_we    = _arm_smoothed.get("wrist_extension", wrist_3d)
