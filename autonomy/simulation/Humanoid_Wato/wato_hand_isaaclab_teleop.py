@@ -178,14 +178,27 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     # ── ARM POSITION TRACKING CONFIG ────────────────────────────────────────────
     # Maps 2D wrist position and hand scale (depth proxy) to shoulder/elbow joints.
     # GAINS: radians per normalized unit.  Tune if arm motion feels too big/small.
-    ARM_SHOULDER_FE_GAIN =  2.5   # Blue  arrow: up/down
-    ARM_SHOULDER_AA_GAIN =  2.0   # Green arrow: sideways
-    ARM_ELBOW_FE_GAIN    =  3.0   # Red   arrow: depth (hand scale ratio)
+    ARM_SHOULDER_FE_GAIN =  1.5   # Blue  arrow: up/down   (was 2.5)
+    ARM_SHOULDER_AA_GAIN =  1.2   # Green arrow: sideways  (was 2.0)
+    ARM_ELBOW_FE_GAIN    =  2.0   # Red   arrow: depth     (was 3.0)
     ARM_POS_CALIB_FRAMES =  30    # Frames to average for the neutral reference
-    ARM_POS_ALPHA        =  0.12  # EMA for arm position (separate from wrist EMA)
+    ARM_POS_ALPHA        =  0.03  # Very slow EMA → silky smooth (was 0.06)
+    ARM_DEADZONE_XY      =  0.02  # Ignore wrist movements < 2% of frame width
+    ARM_DEADZONE_SCALE   =  0.04  # Ignore depth changes < 4% of neutral scale
+    # Per-joint clamps [min, max] in radians.  min=0 prevents backward bending.
+    ARM_JOINT_CLAMPS = {
+        "shoulder_flexion_extension":   (-0.3, 1.2),  # slight backward allowed for shrug-down
+        "shoulder_abduction_adduction": (-0.5, 1.2),
+        "elbow_flexion_extension":      ( 0.0, 1.4),  # hard 0 floor — no backward elbow
+    }
     _arm_pos_ref: dict | None = None
     _arm_pos_count: int = 0
-    _arm_pos_smoothed: dict[str, float] = {}
+    # Pre-initialize at 0 so calibration phase holds joints at neutral with no snap
+    _arm_pos_smoothed: dict[str, float] = {
+        "shoulder_flexion_extension":   0.0,
+        "shoulder_abduction_adduction": 0.0,
+        "elbow_flexion_extension":      0.0,
+    }
     # ────────────────────────────────────────────────────────────────────────────
 
     hand_visible_prev = True
@@ -233,21 +246,33 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     _arm_pos_ref["y"]     = (_arm_pos_ref["y"]     * n + wy)    / (n + 1)
                     _arm_pos_ref["scale"] = (_arm_pos_ref["scale"] * n + scale) / (n + 1)
                     _arm_pos_count += 1
+                    # HOLD arm at neutral during calibration - no jitter
+                    for jname in _arm_pos_smoothed:
+                        if jname in name_to_sim_idx:
+                            joint_pos_target[0, name_to_sim_idx[jname]] = 0.0
                 else:
-                    dx     = wx    - _arm_pos_ref["x"]        # + = moved right
-                    dy     = wy    - _arm_pos_ref["y"]        # + = moved down (MediaPipe Y)
-                    d_scl  = scale / max(_arm_pos_ref["scale"], 1e-4)  # >1 = closer
+                    dx    = wx    - _arm_pos_ref["x"]       # + = moved right
+                    dy    = wy    - _arm_pos_ref["y"]       # + = moved down (MediaPipe Y)
+                    d_scl = scale / max(_arm_pos_ref["scale"], 1e-4)  # >1 = closer
+
+                    # Apply deadzone: ignore micro-tremors below threshold
+                    dx    = dx    if abs(dx)        > ARM_DEADZONE_XY    else 0.0
+                    dy    = dy    if abs(dy)        > ARM_DEADZONE_XY    else 0.0
+                    d_scl = d_scl if abs(d_scl-1.0) > ARM_DEADZONE_SCALE else 1.0
 
                     arm_targets = {
                         "shoulder_abduction_adduction":  ARM_SHOULDER_AA_GAIN *  dx,
-                        "shoulder_flexion_extension":    ARM_SHOULDER_FE_GAIN * -dy,  # negate: up=positive
+                        "shoulder_flexion_extension":    ARM_SHOULDER_FE_GAIN * -dy,
                         "elbow_flexion_extension":       ARM_ELBOW_FE_GAIN   * (d_scl - 1.0),
                     }
                     for jname, jval in arm_targets.items():
                         if jname not in name_to_sim_idx:
                             continue
-                        prev_val = _arm_pos_smoothed.get(jname, jval)
+                        prev_val = _arm_pos_smoothed.get(jname, 0.0)
                         smoothed_val = ARM_POS_ALPHA * jval + (1.0 - ARM_POS_ALPHA) * prev_val
+                        # Clamp to prevent backward/unnatural bending
+                        lo, hi = ARM_JOINT_CLAMPS.get(jname, (-3.14, 3.14))
+                        smoothed_val = max(lo, min(hi, smoothed_val))
                         _arm_pos_smoothed[jname] = smoothed_val
                         joint_pos_target[0, name_to_sim_idx[jname]] = smoothed_val
             # ────────────────────────────────────────────────────────────────────
