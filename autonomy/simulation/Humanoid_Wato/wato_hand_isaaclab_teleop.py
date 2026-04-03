@@ -260,6 +260,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # d_scl > 1 = hand is closer than neutral  (arm should extend)
                     # d_scl < 1 = hand is farther than neutral (arm returns to 0)
                     d_scl = scale / max(ARM_NEUTRAL_SCALE, 1e-4)
+                    print (f"scale: {scale}, max(ARM_NEUTRAL_SCALE, 1e-4): {max(ARM_NEUTRAL_SCALE, 1e-4)}, d_scl: {d_scl}")
 
                     # ABSOLUTE HEIGHT: screen-center = arm-center, no calibration dependency
                     # wy=0.5 → height_abs=0 → arm at neutral
@@ -275,6 +276,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # Negative shoulder_aa sweeps arm FORWARD as a rigid unit.
                     # Forearm is not touched — cannot go up.
                     forward_target = ARM_ELBOW_FE_GAIN * max(0.0, d_scl - 1.0)
+                    print(f"forward_target: {forward_target}, d_scl: {d_scl}")
 
                     # Absolute sideways: screen-center = 0, edges = ±1
                     sideways_abs = (wx - 0.5) * 2.0
