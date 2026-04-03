@@ -188,10 +188,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_DEADZONE_SCALE    =  0.06  # Forward extension deadzone (same as sideways for consistency)
     # Per-joint clamps [min, max] in radians.  min=0 prevents backward bending.
     ARM_JOINT_CLAMPS = {
-        "shoulder_flexion_extension":   (-0.3, 0.54),   # height (blue arrow)
-        # shoulder_abduction_adduction now driven by DEPTH (hand forward/backward on screen).
-        # Full bidirectional: closer = one side, farther = other side.
-        "shoulder_abduction_adduction": (-1.5, 1.5),
+        "shoulder_flexion_extension":   (-0.3, 0.54),  # height
+        "shoulder_abduction_adduction": (-1.2, 1.2),   # forward/backward via hand span (d_scl)
+        "shoulder_rotation":            (-1.0, 1.0),   # sideways via wrist X position
     }
     _arm_pos_ref: dict | None = None
     _arm_pos_count: int = 0
@@ -199,7 +198,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     _arm_pos_smoothed: dict[str, float] = {
         "shoulder_flexion_extension":   0.0,
         "shoulder_abduction_adduction": 0.0,
-        # elbow is NOT in arm position tracking — stays at URDF default (0)
+        "shoulder_rotation":            0.0,
     }
     # ────────────────────────────────────────────────────────────────────────────
 
@@ -273,19 +272,20 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     dy_corrected = dy_corrected if abs(dy_corrected) > ARM_DEADZONE_XY else 0.0
                     d_scl = d_scl if abs(d_scl-1.0) > ARM_DEADZONE_SCALE else 1.0
 
-                    # ── Sideways from wrist X position (lm[0] = bottom of palm) ──────────
-                    # lm_data[0].x is the wrist landmark — the single point at the
-                    # bottom of the palm. Moving it left/right on screen drives sideways.
-                    # A separate, wider deadzone filters the noisier X signal.
-                    dx_sideways = dx  # dx = lm_data[0].x - ref.x (bottom-of-palm X)
+                    # Forward/backward: hand span (d_scl) → shoulder_abduction_adduction only
+                    # d_scl already filtered by ARM_DEADZONE_SCALE above.
+                    forward_delta = d_scl - 1.0
+
+                    # Sideways: wrist X (lm[0] bottom of palm) → shoulder_rotation only
+                    # Separate wider deadzone for the noisier X signal.
+                    dx_sideways = dx
                     if abs(dx_sideways) < ARM_DEADZONE_SIDEWAYS:
                         dx_sideways = 0.0
 
                     arm_targets = {
-                        # Blue arrow: height from wrist Y (bottom of palm)
                         "shoulder_flexion_extension":   ARM_SHOULDER_FE_GAIN * -dy_corrected,
-                        # Green arrow: bottom-of-palm X position → lateral arm sweep
-                        "shoulder_abduction_adduction": ARM_SHOULDER_AA_GAIN * dx_sideways,
+                        "shoulder_abduction_adduction": ARM_ELBOW_FE_GAIN    *  forward_delta,
+                        "shoulder_rotation":            ARM_SHOULDER_AA_GAIN *  dx_sideways,
                     }
                     for jname, jval in arm_targets.items():
                         if jname not in name_to_sim_idx:
