@@ -194,8 +194,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     # Per-joint clamps [min, max] in radians.  min=0 prevents backward bending.
     ARM_JOINT_CLAMPS = {
         "shoulder_flexion_extension":   (-0.5,  1.2),  # height
-        "elbow_flexion_extension":      ( 0.0,  1.2),  # forward reach: positive = extends
-        "forearm_rotation":             ( 0.0,  0.0),  # locked: prevent spin during elbow move
+        # negative shoulder_aa = arm sweeps forward (forearm untouched, stays rigid)
+        "shoulder_abduction_adduction": (-1.5,  0.0),  # forward: negative = reaches out
         "shoulder_rotation":            (-1.0,  1.0),  # sideways
     }
     _arm_pos_ref: dict | None = None
@@ -203,8 +203,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     # Pre-initialize at 0 so calibration phase holds joints at neutral with no snap
     _arm_pos_smoothed: dict[str, float] = {
         "shoulder_flexion_extension":   0.0,
-        "elbow_flexion_extension":      0.0,
-        "forearm_rotation":             0.0,  # actively locked to 0
+        "shoulder_abduction_adduction": 0.0,
         "shoulder_rotation":            0.0,
     }
     # ────────────────────────────────────────────────────────────────────────────
@@ -273,8 +272,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     d_scl      = d_scl      if abs(d_scl - 1.0) > ARM_DEADZONE_SCALE  else 1.0
 
                     # Raw motion signals
-                    # Elbow extends arm forward without rotating. Positive = extends.
-                    forward_target = ARM_ELBOW_FE_GAIN * max(0.0, d_scl - 1.0)
+                    # Negative shoulder_aa sweeps arm FORWARD as a rigid unit.
+                    # Forearm is not touched — cannot go up.
+                    forward_target = -ARM_ELBOW_FE_GAIN * max(0.0, d_scl - 1.0)
 
                     # Absolute sideways: screen-center = 0, edges = ±1
                     sideways_abs = (wx - 0.5) * 2.0
@@ -293,10 +293,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # ─────────────────────────────────────────────────────────────────────
 
                     arm_targets = {
-                        "shoulder_flexion_extension":   ARM_SHOULDER_FE_GAIN * height_abs   if height_active  else 0.0,
-                        "elbow_flexion_extension":      forward_target                       if forward_active else 0.0,
-                        "forearm_rotation":             0.0,  # always locked — prevents spin
-                        "shoulder_rotation":            ARM_SHOULDER_AA_GAIN * sideways_abs if side_active    else 0.0,
+                        "shoulder_flexion_extension":   ARM_SHOULDER_FE_GAIN * height_abs    if height_active  else 0.0,
+                        "shoulder_abduction_adduction": forward_target                        if forward_active else 0.0,
+                        "shoulder_rotation":            ARM_SHOULDER_AA_GAIN * sideways_abs  if side_active    else 0.0,
                     }
                     for jname, jval in arm_targets.items():
                         if jname not in name_to_sim_idx:
