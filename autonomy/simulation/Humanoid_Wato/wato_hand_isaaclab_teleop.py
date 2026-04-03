@@ -183,15 +183,15 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_ELBOW_FE_GAIN     =  1.5   # Red   arrow: forward via elbow extension
     ARM_POS_CALIB_FRAMES =  30    # Frames to average for the neutral reference
     ARM_POS_ALPHA        =  0.03  # Very slow EMA → silky smooth (was 0.06)
-    ARM_DEADZONE_XY      =  0.02  # Ignore wrist movements < 2% of frame width
-    ARM_DEADZONE_SCALE   =  0.04  # Ignore depth changes < 4% of neutral scale
+    ARM_DEADZONE_XY       =  0.02  # Height: ignore wrist Y tremors < 2% of frame
+    ARM_DEADZONE_SIDEWAYS =  0.06  # Sideways: ignore depth changes < 6% (d_scl noise floor)
+    ARM_DEADZONE_SCALE    =  0.06  # Forward extension deadzone (same as sideways for consistency)
     # Per-joint clamps [min, max] in radians.  min=0 prevents backward bending.
     ARM_JOINT_CLAMPS = {
         "shoulder_flexion_extension":   (-0.3, 0.54),   # height (blue arrow)
-        # shoulder_abduction_adduction axis=-Y sweeps arm in XZ plane.
-        # Negative side = forward reach (arm extends out). Positive = arm pulls back/in.
-        # Sideways (dx) and depth (d_scl) are BOTH applied through this joint.
-        "shoulder_abduction_adduction": (-1.5, 1.8),
+        # shoulder_abduction_adduction now driven by DEPTH (hand forward/backward on screen).
+        # Full bidirectional: closer = one side, farther = other side.
+        "shoulder_abduction_adduction": (-1.5, 1.5),
     }
     _arm_pos_ref: dict | None = None
     _arm_pos_count: int = 0
@@ -273,15 +273,21 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     dy_corrected = dy_corrected if abs(dy_corrected) > ARM_DEADZONE_XY else 0.0
                     d_scl = d_scl if abs(d_scl-1.0) > ARM_DEADZONE_SCALE else 1.0
 
+                    # ── Sideways from depth (hand closer/farther on screen) ─────────────
+                    # d_scl > 1 = hand moved forward (closer to camera) → swing arm one way
+                    # d_scl < 1 = hand moved backward (farther from camera)→ swing arm other way
+                    # Bottom of palm (lm[0] = wrist) anchors the palm-width scale measurement
+                    # so this reads true depth change, not finger curl noise.
+                    depth_delta = d_scl - 1.0
+                    if abs(depth_delta) < ARM_DEADZONE_SIDEWAYS:
+                        depth_delta = 0.0
+
                     arm_targets = {
-                        # Blue arrow (up/down): wrist Y position
-                        "shoulder_flexion_extension":    ARM_SHOULDER_FE_GAIN * -dy_corrected,
-                        # Green arrow (sideways) + Red arrow (forward/depth):
-                        # shoulder_abduction_adduction rotates about -Y, sweeping arm in XZ plane.
-                        # dx (sideways wrist movement) and d_scl (depth) BOTH feed this joint.
-                        # Closer hand (d_scl>1) → positive depth term → arm extends outward.
-                        "shoulder_abduction_adduction":  ARM_SHOULDER_AA_GAIN * dx
-                                                         + ARM_ELBOW_FE_GAIN * max(0.0, d_scl - 1.0),
+                        # Blue arrow: height from wrist Y (bottom of palm)
+                        "shoulder_flexion_extension":   ARM_SHOULDER_FE_GAIN * -dy_corrected,
+                        # Green arrow (sideways): hand depth change drives lateral arm sweep
+                        # Red arrow (forward extend): also partially from depth positives
+                        "shoulder_abduction_adduction": ARM_SHOULDER_AA_GAIN * depth_delta,
                     }
                     for jname, jval in arm_targets.items():
                         if jname not in name_to_sim_idx:
