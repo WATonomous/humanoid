@@ -273,21 +273,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     dy_corrected = dy_corrected if abs(dy_corrected) > ARM_DEADZONE_XY else 0.0
                     d_scl = d_scl if abs(d_scl-1.0) > ARM_DEADZONE_SCALE else 1.0
 
-                    # ── Sideways from depth (hand closer/farther on screen) ─────────────
-                    # d_scl > 1 = hand moved forward (closer to camera) → swing arm one way
-                    # d_scl < 1 = hand moved backward (farther from camera)→ swing arm other way
-                    # Bottom of palm (lm[0] = wrist) anchors the palm-width scale measurement
-                    # so this reads true depth change, not finger curl noise.
-                    depth_delta = d_scl - 1.0
-                    if abs(depth_delta) < ARM_DEADZONE_SIDEWAYS:
-                        depth_delta = 0.0
+                    # ── Sideways from wrist X position (lm[0] = bottom of palm) ──────────
+                    # lm_data[0].x is the wrist landmark — the single point at the
+                    # bottom of the palm. Moving it left/right on screen drives sideways.
+                    # A separate, wider deadzone filters the noisier X signal.
+                    dx_sideways = dx  # dx = lm_data[0].x - ref.x (bottom-of-palm X)
+                    if abs(dx_sideways) < ARM_DEADZONE_SIDEWAYS:
+                        dx_sideways = 0.0
 
                     arm_targets = {
                         # Blue arrow: height from wrist Y (bottom of palm)
                         "shoulder_flexion_extension":   ARM_SHOULDER_FE_GAIN * -dy_corrected,
-                        # Green arrow (sideways): hand depth change drives lateral arm sweep
-                        # Red arrow (forward extend): also partially from depth positives
-                        "shoulder_abduction_adduction": ARM_SHOULDER_AA_GAIN * depth_delta,
+                        # Green arrow: bottom-of-palm X position → lateral arm sweep
+                        "shoulder_abduction_adduction": ARM_SHOULDER_AA_GAIN * dx_sideways,
                     }
                     for jname, jval in arm_targets.items():
                         if jname not in name_to_sim_idx:
