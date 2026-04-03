@@ -180,7 +180,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     # GAINS: radians per normalized unit.  Tune if arm motion feels too big/small.
     ARM_SHOULDER_FE_GAIN  =  0.68  # Blue  arrow: up/down
     ARM_SHOULDER_AA_GAIN  =  1.8   # Green arrow: sideways (1.5×)
-    ARM_SHOULDER_ROT_GAIN =  2.5   # Red   arrow: forward/backward via shoulder_rotation sweep
+    ARM_ELBOW_FE_GAIN     =  1.5   # Red   arrow: forward via elbow extension
     ARM_POS_CALIB_FRAMES =  30    # Frames to average for the neutral reference
     ARM_POS_ALPHA        =  0.03  # Very slow EMA → silky smooth (was 0.06)
     ARM_DEADZONE_XY      =  0.02  # Ignore wrist movements < 2% of frame width
@@ -189,9 +189,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_JOINT_CLAMPS = {
         "shoulder_flexion_extension":   (-0.3, 0.54),   # height: 45% of original max
         "shoulder_abduction_adduction": (-0.75, 1.8),   # sideways: 1.5×
-        # shoulder_rotation sweeps the arm forward/backward in horizontal arc.
-        # No floor clamp—arm must be able to go both + and - from neutral.
-        "shoulder_rotation":            (-1.0,  1.0),
+        # Elbow range [0, 1.4]: 0 = fully extended (arm reaches max forward)
+        #                       1.4 = fully bent (arm pulled back/in)
+        # Starting at 0.7 allows bidirectional motion.
+        "elbow_flexion_extension":     ( 0.0, 1.4),
     }
     _arm_pos_ref: dict | None = None
     _arm_pos_count: int = 0
@@ -199,7 +200,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     _arm_pos_smoothed: dict[str, float] = {
         "shoulder_flexion_extension":   0.0,
         "shoulder_abduction_adduction": 0.0,
-        "shoulder_rotation":            0.0,
+        # Start elbow at 0.7 (mid-bend) so the arm can EXTEND (go toward 0)
+        # when the hand comes closer — producing genuine forward reach.
+        "elbow_flexion_extension":      0.7,
     }
     # ────────────────────────────────────────────────────────────────────────────
 
@@ -274,12 +277,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     d_scl = d_scl if abs(d_scl-1.0) > ARM_DEADZONE_SCALE else 1.0
 
                     arm_targets = {
-                        "shoulder_abduction_adduction":  ARM_SHOULDER_AA_GAIN  *  dx,
-                        "shoulder_flexion_extension":    ARM_SHOULDER_FE_GAIN  * -dy_corrected,
-                        # shoulder_rotation sweeps the arm forward (d_scl>1=closer) or
-                        # backward (d_scl<1=farther) in the horizontal plane.
-                        # Negate if the robot sweeps the wrong direction.
-                        "shoulder_rotation":             ARM_SHOULDER_ROT_GAIN * (d_scl - 1.0),
+                        "shoulder_abduction_adduction":  ARM_SHOULDER_AA_GAIN *  dx,
+                        "shoulder_flexion_extension":    ARM_SHOULDER_FE_GAIN * -dy_corrected,
+                        # Closer hand (d_scl>1) → DECREASE elbow flex → arm extends forward.
+                        # Farther hand (d_scl<1) → INCREASE elbow flex → arm pulls back.
+                        # 0.7 is the neutral mid-bend starting point.
+                        "elbow_flexion_extension":  0.7 + ARM_ELBOW_FE_GAIN * (1.0 - d_scl),
                     }
                     for jname, jval in arm_targets.items():
                         if jname not in name_to_sim_idx:
