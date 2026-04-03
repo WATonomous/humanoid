@@ -193,19 +193,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_NEUTRAL_SCALE     =  0.20  # ~20% of frame height = neutral working distance
     # Per-joint clamps [min, max] in radians.  min=0 prevents backward bending.
     ARM_JOINT_CLAMPS = {
-        "shoulder_flexion_extension":  (-0.5,  1.2),  # height
-        # elbow: positive = extension (arm reaches forward), negative = flexion (bends back)
-        # Only allow extension (≥0).
-        "elbow_flexion_extension":    ( 0.0,  1.2),  # forward reach: positive = extends
-        "shoulder_rotation":           (-1.0,  1.0),  # sideways
+        "shoulder_flexion_extension":   (-0.5,  1.2),  # height
+        # shoulder_abduction_adduction sweeps the ENTIRE arm as a rigid body.
+        # Forearm stays stable; only the shoulder pivot behind it moves.
+        "shoulder_abduction_adduction": ( 0.0,  1.5),  # forward reach: positive = extends out
+        "shoulder_rotation":            (-1.0,  1.0),  # sideways
     }
     _arm_pos_ref: dict | None = None
     _arm_pos_count: int = 0
     # Pre-initialize at 0 so calibration phase holds joints at neutral with no snap
     _arm_pos_smoothed: dict[str, float] = {
-        "shoulder_flexion_extension": 0.0,
-        "elbow_flexion_extension":    0.0,   # 0=natural; negative=extension (forward)
-        "shoulder_rotation":          0.0,
+        "shoulder_flexion_extension":   0.0,
+        "shoulder_abduction_adduction": 0.0,  # forward: sweeps arm rigidly as one unit
+        "shoulder_rotation":            0.0,
     }
     # ────────────────────────────────────────────────────────────────────────────
 
@@ -273,8 +273,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     d_scl      = d_scl      if abs(d_scl - 1.0) > ARM_DEADZONE_SCALE  else 1.0
 
                     # Raw motion signals
-                    # Positive elbow = EXTENSION (arm reaches forward). Clamp keeps it ≥0.
-                    forward_elbow = ARM_ELBOW_FE_GAIN * max(0.0, d_scl - 1.0)
+                    # Positive shoulder_aa = arm sweeps forward as a rigid unit.
+                    # Forearm stays stable — only the shoulder pivot behind it moves.
+                    forward_shoulder = ARM_ELBOW_FE_GAIN * max(0.0, d_scl - 1.0)
 
                     # Absolute sideways: screen-center = 0, edges = ±1
                     sideways_abs = (wx - 0.5) * 2.0
@@ -283,7 +284,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
                     # ── PRIORITY ORDER: forward > height > sideways ───────────────────────
                     # Each axis only activates if ALL higher-priority axes are silent.
-                    has_forward  = (forward_elbow != 0.0)
+                    has_forward  = (forward_shoulder != 0.0)
                     has_height   = (height_abs    != 0.0)
                     has_sideways = (sideways_abs  != 0.0)
 
@@ -293,9 +294,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # ─────────────────────────────────────────────────────────────────────
 
                     arm_targets = {
-                        "shoulder_flexion_extension": ARM_SHOULDER_FE_GAIN * height_abs   if height_active  else 0.0,
-                        "elbow_flexion_extension":    forward_elbow                        if forward_active else 0.0,
-                        "shoulder_rotation":          ARM_SHOULDER_AA_GAIN * sideways_abs  if side_active    else 0.0,
+                        "shoulder_flexion_extension":   ARM_SHOULDER_FE_GAIN * height_abs     if height_active  else 0.0,
+                        "shoulder_abduction_adduction": forward_shoulder                       if forward_active else 0.0,
+                        "shoulder_rotation":            ARM_SHOULDER_AA_GAIN * sideways_abs   if side_active    else 0.0,
                     }
                     for jname, jval in arm_targets.items():
                         if jname not in name_to_sim_idx:
