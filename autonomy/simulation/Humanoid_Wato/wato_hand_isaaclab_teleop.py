@@ -184,9 +184,13 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_POS_CALIB_FRAMES =  30    # Frames to average for the neutral reference
     ARM_POS_ALPHA        =  0.03  # EMA for active axis: silky smooth motion
     ARM_RETURN_ALPHA     =  0.18  # EMA for inactive axes: fast snap back to neutral
-    ARM_DEADZONE_XY       =  0.02  # Height: ignore wrist Y tremors < 2% of frame
-    ARM_DEADZONE_SIDEWAYS =  0.06  # Sideways: ignore depth changes < 6% (d_scl noise floor)
-    ARM_DEADZONE_SCALE    =  0.06  # Forward extension deadzone (same as sideways for consistency)
+    ARM_DEADZONE_XY       =  0.02  # Height/sideways: dead band around screen center
+    ARM_DEADZONE_SIDEWAYS =  0.06  # Sideways-specific: wider (screen-X noisier)
+    ARM_DEADZONE_SCALE    =  0.08  # Forward: ignore depth changes < 8% of neutral scale
+    # Fixed neutral depth reference: wrist→middle-MCP distance when hand is at working distance.
+    # Increase if your hand appears SMALL at neutral; decrease if it appears LARGE.
+    # Purely absolute — no per-session calibration needed.
+    ARM_NEUTRAL_SCALE     =  0.20  # ~20% of frame height = neutral working distance
     # Per-joint clamps [min, max] in radians.  min=0 prevents backward bending.
     ARM_JOINT_CLAMPS = {
         "shoulder_flexion_extension":  (-0.5,  1.2),  # height
@@ -235,47 +239,40 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             import math as _math
             lm_data = hand_dict.get("landmarks", None)
             if lm_data and len(lm_data) >= 21:
-                # lm_data[0] = WRIST landmark = anatomical bottom of the palm.
-                # Using this point for height ensures we track where the palm base is,
-                # not a fingertip that can swing high independently of the arm position.
+                # lm_data[0] = WRIST = bottom of palm. All position tracking anchors here.
                 wx  = float(lm_data[0]["x"])   # 0=left, 1=right
                 wy  = float(lm_data[0]["y"])   # 0=top,  1=bottom  (MediaPipe Y↓)
 
-                # Palm WIDTH (index_mcp → pinky_mcp) as depth signal.
-                # This is immune to finger curling/uncurling, unlike wrist→middle_mcp.
-                pmx = float(lm_data[5]["x"]) - float(lm_data[17]["x"])
-                pmy = float(lm_data[5]["y"]) - float(lm_data[17]["y"])
-                scale = _math.sqrt(pmx*pmx + pmy*pmy)  # palm width in image
+                # Depth signal: WRIST (lm[0]) → MIDDLE MCP (lm[9]) distance in image.
+                # Uses bottom-of-palm as anchor. Grows when hand is closer to camera.
+                smx   = float(lm_data[9]["x"]) - wx
+                smy   = float(lm_data[9]["y"]) - wy
+                scale = _math.sqrt(smx*smx + smy*smy)
 
-                if _arm_pos_ref is None:
-                    _arm_pos_ref = {"x": wx, "y": wy, "scale": scale}
-                    _arm_pos_count = 1
-                elif _arm_pos_count < ARM_POS_CALIB_FRAMES:
-                    n = _arm_pos_count
-                    _arm_pos_ref["x"]     = (_arm_pos_ref["x"]     * n + wx)    / (n + 1)
-                    _arm_pos_ref["y"]     = (_arm_pos_ref["y"]     * n + wy)    / (n + 1)
-                    _arm_pos_ref["scale"] = (_arm_pos_ref["scale"] * n + scale) / (n + 1)
+                # Startup hold: lock arm for first ARM_POS_CALIB_FRAMES frames so the
+                # robot doesn't jitter before tracking begins. No reference captured.
+                if _arm_pos_count < ARM_POS_CALIB_FRAMES:
                     _arm_pos_count += 1
-                    # HOLD arm at neutral during calibration - no jitter
                     for jname in _arm_pos_smoothed:
                         if jname in name_to_sim_idx:
                             joint_pos_target[0, name_to_sim_idx[jname]] = 0.0
                 else:
-                    dx    = wx    - _arm_pos_ref["x"]       # + = moved right
-                    dy    = wy    - _arm_pos_ref["y"]       # + = moved down (MediaPipe Y)
-                    d_scl = scale / max(_arm_pos_ref["scale"], 1e-4)  # >1 = closer
+                    # FULLY ABSOLUTE depth: compare live scale to fixed neutral constant.
+                    # d_scl > 1 = hand is closer than neutral  (arm should extend)
+                    # d_scl < 1 = hand is farther than neutral (arm returns to 0)
+                    d_scl = scale / max(ARM_NEUTRAL_SCALE, 1e-4)
 
-                    # Perspective correction for height: when the hand is 2× closer,
-                    # the wrist landmark shifts 2× in image space. Dividing by d_scl
-                    # removes this false height signal, preventing the up-glitch.
-                    dy_corrected = dy / max(d_scl, 0.5)
+                    # ABSOLUTE HEIGHT: screen-center = arm-center, no calibration dependency
+                    # wy=0.5 → height_abs=0 → arm at neutral
+                    # wy<0.5 (hand above centre) → positive → arm raises
+                    # wy>0.5 (hand below centre) → negative → arm lowers
+                    height_abs = (0.5 - wy) * 2.0
 
-                    # Apply deadzone: ignore micro-tremors below threshold
-                    dx           = dx    if abs(dx)        > ARM_DEADZONE_XY    else 0.0
-                    dy_corrected = dy_corrected if abs(dy_corrected) > ARM_DEADZONE_XY else 0.0
-                    d_scl = d_scl if abs(d_scl-1.0) > ARM_DEADZONE_SCALE else 1.0
+                    # Deadzones
+                    height_abs = height_abs if abs(height_abs) > ARM_DEADZONE_XY * 2 else 0.0
+                    d_scl      = d_scl      if abs(d_scl - 1.0) > ARM_DEADZONE_SCALE  else 1.0
 
-                    # Raw signals (all deadzone-filtered above)
+                    # Raw motion signals
                     # Negative elbow = EXTENSION (arm reaches forward). Clamp keeps it ≤0.
                     forward_elbow = -ARM_ELBOW_FE_GAIN * max(0.0, d_scl - 1.0)
 
@@ -287,7 +284,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # ── PRIORITY ORDER: forward > height > sideways ───────────────────────
                     # Each axis only activates if ALL higher-priority axes are silent.
                     has_forward  = (forward_elbow != 0.0)
-                    has_height   = (dy_corrected  != 0.0)
+                    has_height   = (height_abs    != 0.0)
                     has_sideways = (sideways_abs  != 0.0)
 
                     forward_active = has_forward
@@ -296,9 +293,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # ─────────────────────────────────────────────────────────────────────
 
                     arm_targets = {
-                        "shoulder_flexion_extension": ARM_SHOULDER_FE_GAIN * -dy_corrected if height_active  else 0.0,
-                        "elbow_flexion_extension":    forward_elbow                         if forward_active else 0.0,
-                        "shoulder_rotation":          ARM_SHOULDER_AA_GAIN * sideways_abs   if side_active    else 0.0,
+                        "shoulder_flexion_extension": ARM_SHOULDER_FE_GAIN * height_abs   if height_active  else 0.0,
+                        "elbow_flexion_extension":    forward_elbow                        if forward_active else 0.0,
+                        "shoulder_rotation":          ARM_SHOULDER_AA_GAIN * sideways_abs  if side_active    else 0.0,
                     }
                     for jname, jval in arm_targets.items():
                         if jname not in name_to_sim_idx:
