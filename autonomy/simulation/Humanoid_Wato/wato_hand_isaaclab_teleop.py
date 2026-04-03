@@ -243,20 +243,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                         smoothed_fr = 0.15 * forearm_3d + 0.85 * prev_fr
                         _arm_smoothed["forearm_rotation"] = smoothed_fr
                         joint_pos_target[0, name_to_sim_idx["forearm_rotation"]] = smoothed_fr
-
-                    # ── WRIST EXTENSION FROM FINGER ELEVATION ANGLE ─────────────────────
-                    # Y_h points from wrist toward middle MCP in camera space.
-                    # Y_h[1] is the vertical component:
-                    #   +1 = fingers pointing straight up   (palm up, hand raised)
-                    #   -1 = fingers pointing straight down (hand hanging)
-                    #    0 = fingers level (horizontal)
-                    # arcsin maps this to the wrist joint angle in radians.
-                    wrist_3d = float(np.arcsin(np.clip(Y_h[1], -1.0, 1.0)))
-                    if "wrist_extension" in name_to_sim_idx:
-                        prev_we = _arm_smoothed.get("wrist_extension", wrist_3d)
-                        smoothed_we = 0.15 * wrist_3d + 0.85 * prev_we
-                        _arm_smoothed["wrist_extension"] = smoothed_we
-                        joint_pos_target[0, name_to_sim_idx["wrist_extension"]] = smoothed_we
                     # ───────────────────────────────────────────────────────────────────
 
                     # Rotate all points into tracking-independent local basis
