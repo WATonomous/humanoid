@@ -178,8 +178,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     # ── ARM POSITION TRACKING CONFIG ────────────────────────────────────────────
     # Maps 2D wrist position and hand scale (depth proxy) to shoulder/elbow joints.
     # GAINS: radians per normalized unit.  Tune if arm motion feels too big/small.
-    ARM_SHOULDER_FE_GAIN =  1.5   # Blue  arrow: up/down   (was 2.5)
-    ARM_SHOULDER_AA_GAIN =  1.2   # Green arrow: sideways  (was 2.0)
+    ARM_SHOULDER_FE_GAIN =  0.68  # Blue arrow: up/down — 45% of previous 1.5  
+    ARM_SHOULDER_AA_GAIN =  1.2   # Green arrow: sideways
     ARM_ELBOW_FE_GAIN    =  2.0   # Red   arrow: depth     (was 3.0)
     ARM_POS_CALIB_FRAMES =  30    # Frames to average for the neutral reference
     ARM_POS_ALPHA        =  0.03  # Very slow EMA → silky smooth (was 0.06)
@@ -187,7 +187,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_DEADZONE_SCALE   =  0.04  # Ignore depth changes < 4% of neutral scale
     # Per-joint clamps [min, max] in radians.  min=0 prevents backward bending.
     ARM_JOINT_CLAMPS = {
-        "shoulder_flexion_extension":   (-0.3, 1.2),  # slight backward allowed for shrug-down
+        # shoulder_flexion_extension: capped at 45% of original 1.2 = 0.54 rad (~31°)
+        # Height tracks bottom-of-palm (wrist landmark 0) — constrained max prevents over-raise
+        "shoulder_flexion_extension":   (-0.3, 0.54),
         "shoulder_abduction_adduction": (-0.5, 1.2),
         "elbow_flexion_extension":      ( 0.0, 1.4),  # hard 0 floor — no backward elbow
     }
@@ -231,8 +233,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             import math as _math
             lm_data = hand_dict.get("landmarks", None)
             if lm_data and len(lm_data) >= 21:
-                wx  = float(lm_data[0]["x"])   # 0=left,  1=right
-                wy  = float(lm_data[0]["y"])   # 0=top,   1=bottom
+                # lm_data[0] = WRIST landmark = anatomical bottom of the palm.
+                # Using this point for height ensures we track where the palm base is,
+                # not a fingertip that can swing high independently of the arm position.
+                wx  = float(lm_data[0]["x"])   # 0=left, 1=right
+                wy  = float(lm_data[0]["y"])   # 0=top,  1=bottom  (MediaPipe Y↓)
                 mxw = float(lm_data[9]["x"]) - wx
                 myw = float(lm_data[9]["y"]) - wy
                 scale = _math.sqrt(mxw*mxw + myw*myw)  # hand size in image (depth proxy)
