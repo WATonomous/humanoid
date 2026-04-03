@@ -184,7 +184,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         # -- Normal tracking: update target from latest data --
         if hand_visible:
             # 1) Directly map arm / finger joints from 1D heuristic solver
-            ARM_SLOW_JOINTS = {"forearm_rotation", "wrist_extension"}
+            ARM_SLOW_JOINTS = {"forearm_rotation"}  # wrist_extension locked at 0 (see below)
             for joint_name, angle in hand_dict.get("joints", {}).items():
                 if joint_name not in name_to_sim_idx:
                     continue
@@ -243,6 +243,13 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                         smoothed_fr = 0.15 * forearm_3d + 0.85 * prev_fr
                         _arm_smoothed["forearm_rotation"] = smoothed_fr
                         joint_pos_target[0, name_to_sim_idx["forearm_rotation"]] = smoothed_fr
+
+                    # Lock wrist_extension to 0: the joint is relative to the arm mount,
+                    # not absolute world elevation. The 1D solver maps absolute finger
+                    # elevation which causes the diagonal pose. True wrist-bend tracking
+                    # requires knowing the camera-to-robot transform.
+                    if "wrist_extension" in name_to_sim_idx:
+                        joint_pos_target[0, name_to_sim_idx["wrist_extension"]] = 0.0
                     # ───────────────────────────────────────────────────────────────────
 
                     # Rotate all points into tracking-independent local basis
