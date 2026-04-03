@@ -178,17 +178,18 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     # ── ARM POSITION TRACKING CONFIG ────────────────────────────────────────────
     # Maps 2D wrist position and hand scale (depth proxy) to shoulder/elbow joints.
     # GAINS: radians per normalized unit.  Tune if arm motion feels too big/small.
-    ARM_SHOULDER_FE_GAIN  =  0.68  # Blue  arrow: up/down
+    ARM_SHOULDER_FE_GAIN  =  2.0   # Blue  arrow: up/down (raised — was 0.68)
     ARM_SHOULDER_AA_GAIN  =  1.8   # Green arrow: sideways (1.5×)
     ARM_ELBOW_FE_GAIN     =  1.5   # Red   arrow: forward via elbow extension
     ARM_POS_CALIB_FRAMES =  30    # Frames to average for the neutral reference
-    ARM_POS_ALPHA        =  0.03  # Very slow EMA → silky smooth (was 0.06)
+    ARM_POS_ALPHA        =  0.03  # EMA for active axis: silky smooth motion
+    ARM_RETURN_ALPHA     =  0.18  # EMA for inactive axes: fast snap back to neutral
     ARM_DEADZONE_XY       =  0.02  # Height: ignore wrist Y tremors < 2% of frame
     ARM_DEADZONE_SIDEWAYS =  0.06  # Sideways: ignore depth changes < 6% (d_scl noise floor)
     ARM_DEADZONE_SCALE    =  0.06  # Forward extension deadzone (same as sideways for consistency)
     # Per-joint clamps [min, max] in radians.  min=0 prevents backward bending.
     ARM_JOINT_CLAMPS = {
-        "shoulder_flexion_extension":   (-0.3, 0.54),  # height
+        "shoulder_flexion_extension":   (-0.5, 1.2),   # height: wider range
         "shoulder_abduction_adduction": (-1.2, 1.2),   # forward/backward via hand span (d_scl)
         "shoulder_rotation":            (-1.0, 1.0),   # sideways via wrist X position
     }
@@ -309,8 +310,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                         if jname not in name_to_sim_idx:
                             continue
                         prev_val = _arm_pos_smoothed.get(jname, 0.0)
-                        smoothed_val = ARM_POS_ALPHA * jval + (1.0 - ARM_POS_ALPHA) * prev_val
-                        # Clamp to prevent backward/unnatural bending
+                        # Use fast return alpha when joint is inactive (target=0)
+                        # so residual values don't bleed into adjacent motions.
+                        alpha = ARM_POS_ALPHA if jval != 0.0 else ARM_RETURN_ALPHA
+                        smoothed_val = alpha * jval + (1.0 - alpha) * prev_val
                         lo, hi = ARM_JOINT_CLAMPS.get(jname, (-3.14, 3.14))
                         smoothed_val = max(lo, min(hi, smoothed_val))
                         _arm_pos_smoothed[jname] = smoothed_val
