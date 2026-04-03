@@ -193,9 +193,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_NEUTRAL_SCALE     =  0.20  # ~20% of frame height = neutral working distance
     # Per-joint clamps [min, max] in radians.  min=0 prevents backward bending.
     ARM_JOINT_CLAMPS = {
-        # elbow: positive = arm goes UP, negative = arm goes DOWN
-        "elbow_flexion_extension":      (-1.2,  1.2),  # height control
-        "shoulder_abduction_adduction": ( 0.0,  1.5),  # forward reach (positive = extends)
+        # elbow_fe: positive moves arm UP → used for height
+        "elbow_flexion_extension":      (-1.0,  1.0),  # height (up/down)
+        "shoulder_abduction_adduction": ( -1.5,  0),   # forward/backward
         "shoulder_rotation":            (-1.0,  1.0),  # sideways
     }
     _arm_pos_ref: dict | None = None
