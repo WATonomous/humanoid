@@ -175,6 +175,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     _ARM_SMOOTH_ALPHA = 0.15  # Moderate filter: responsive to wrist turns, damps finger-curl noise
     _arm_smoothed: dict[str, float] = {}
 
+    # ── ARM POSITION TRACKING CONFIG ────────────────────────────────────────────
+    # Maps 2D wrist position and hand scale (depth proxy) to shoulder/elbow joints.
+    # GAINS: radians per normalized unit.  Tune if arm motion feels too big/small.
+    ARM_SHOULDER_FE_GAIN =  2.5   # Blue  arrow: up/down
+    ARM_SHOULDER_AA_GAIN =  2.0   # Green arrow: sideways
+    ARM_ELBOW_FE_GAIN    =  3.0   # Red   arrow: depth (hand scale ratio)
+    ARM_POS_CALIB_FRAMES =  30    # Frames to average for the neutral reference
+    ARM_POS_ALPHA        =  0.12  # EMA for arm position (separate from wrist EMA)
+    _arm_pos_ref: dict | None = None
+    _arm_pos_count: int = 0
+    _arm_pos_smoothed: dict[str, float] = {}
+    # ────────────────────────────────────────────────────────────────────────────
+
     hand_visible_prev = True
 
     while simulation_app.is_running():
@@ -197,6 +210,47 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     joint_pos_target[0, name_to_sim_idx[joint_name]] = smoothed
                 else:
                     joint_pos_target[0, name_to_sim_idx[joint_name]] = raw
+
+            # 2) ARM POSITION TRACKING from 2D image landmarks ──────────────────
+            # Blue  (up/down)   → shoulder_flexion_extension
+            # Green (sideways)  → shoulder_abduction_adduction
+            # Red   (forward)   → elbow_flexion_extension  (hand scale = depth proxy)
+            import math as _math
+            lm_data = hand_dict.get("landmarks", None)
+            if lm_data and len(lm_data) >= 21:
+                wx  = float(lm_data[0]["x"])   # 0=left,  1=right
+                wy  = float(lm_data[0]["y"])   # 0=top,   1=bottom
+                mxw = float(lm_data[9]["x"]) - wx
+                myw = float(lm_data[9]["y"]) - wy
+                scale = _math.sqrt(mxw*mxw + myw*myw)  # hand size in image (depth proxy)
+
+                if _arm_pos_ref is None:
+                    _arm_pos_ref = {"x": wx, "y": wy, "scale": scale}
+                    _arm_pos_count = 1
+                elif _arm_pos_count < ARM_POS_CALIB_FRAMES:
+                    n = _arm_pos_count
+                    _arm_pos_ref["x"]     = (_arm_pos_ref["x"]     * n + wx)    / (n + 1)
+                    _arm_pos_ref["y"]     = (_arm_pos_ref["y"]     * n + wy)    / (n + 1)
+                    _arm_pos_ref["scale"] = (_arm_pos_ref["scale"] * n + scale) / (n + 1)
+                    _arm_pos_count += 1
+                else:
+                    dx     = wx    - _arm_pos_ref["x"]        # + = moved right
+                    dy     = wy    - _arm_pos_ref["y"]        # + = moved down (MediaPipe Y)
+                    d_scl  = scale / max(_arm_pos_ref["scale"], 1e-4)  # >1 = closer
+
+                    arm_targets = {
+                        "shoulder_abduction_adduction":  ARM_SHOULDER_AA_GAIN *  dx,
+                        "shoulder_flexion_extension":    ARM_SHOULDER_FE_GAIN * -dy,  # negate: up=positive
+                        "elbow_flexion_extension":       ARM_ELBOW_FE_GAIN   * (d_scl - 1.0),
+                    }
+                    for jname, jval in arm_targets.items():
+                        if jname not in name_to_sim_idx:
+                            continue
+                        prev_val = _arm_pos_smoothed.get(jname, jval)
+                        smoothed_val = ARM_POS_ALPHA * jval + (1.0 - ARM_POS_ALPHA) * prev_val
+                        _arm_pos_smoothed[jname] = smoothed_val
+                        joint_pos_target[0, name_to_sim_idx[jname]] = smoothed_val
+            # ────────────────────────────────────────────────────────────────────
 
             # 2) Override fingers with real-time Cartesian IK if world data exists
             world_data = hand_dict.get("world", None)
