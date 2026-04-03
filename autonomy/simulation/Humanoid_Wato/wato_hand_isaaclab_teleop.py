@@ -272,20 +272,38 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     dy_corrected = dy_corrected if abs(dy_corrected) > ARM_DEADZONE_XY else 0.0
                     d_scl = d_scl if abs(d_scl-1.0) > ARM_DEADZONE_SCALE else 1.0
 
-                    # Forward/backward: hand span (d_scl) → shoulder_abduction_adduction only
-                    # d_scl already filtered by ARM_DEADZONE_SCALE above.
-                    forward_delta = d_scl - 1.0
+                    # Compute raw signals
+                    forward_delta = d_scl - 1.0   # hand span delta (filtered by SCALE deadzone)
 
-                    # Sideways: wrist X (lm[0] bottom of palm) → shoulder_rotation only
-                    # Separate wider deadzone for the noisier X signal.
-                    dx_sideways = dx
-                    if abs(dx_sideways) < ARM_DEADZONE_SIDEWAYS:
-                        dx_sideways = 0.0
+                    # ── Absolute sideways: screen X position maps directly to joint ────────
+                    # wx=0.5 (screen center) → 0 (arm at neutral/center)
+                    # wx<0.5 (left  of screen) → negative rotation
+                    # wx>0.5 (right of screen) → positive rotation
+                    # Multiply by 2 so the full half-screen range (0→0.5 or 0.5→1) spans
+                    # the full gain, i.e. screen edge = max joint angle.
+                    sideways_abs = (wx - 0.5) * 2.0   # range [-1, +1]
+                    if abs(sideways_abs) < ARM_DEADZONE_SIDEWAYS:
+                        sideways_abs = 0.0
+
+                    # ── DOMINANT AXIS SELECTION ───────────────────────────────────────────
+                    # Compare weighted magnitudes — fastest-changing axis wins exclusively.
+                    sig_height  = abs(ARM_SHOULDER_FE_GAIN * dy_corrected)
+                    sig_forward = abs(ARM_ELBOW_FE_GAIN    * forward_delta)
+                    sig_side    = abs(ARM_SHOULDER_AA_GAIN * sideways_abs)
+
+                    dominant = max(sig_height, sig_forward, sig_side)
+                    if dominant == 0.0:
+                        height_active = forward_active = side_active = True  # all silent
+                    else:
+                        height_active  = (sig_height  == dominant)
+                        forward_active = (sig_forward == dominant)
+                        side_active    = (sig_side    == dominant)
+                    # ─────────────────────────────────────────────────────────────────────
 
                     arm_targets = {
-                        "shoulder_flexion_extension":   ARM_SHOULDER_FE_GAIN * -dy_corrected,
-                        "shoulder_abduction_adduction": ARM_ELBOW_FE_GAIN    *  forward_delta,
-                        "shoulder_rotation":            ARM_SHOULDER_AA_GAIN *  dx_sideways,
+                        "shoulder_flexion_extension":   ARM_SHOULDER_FE_GAIN * -dy_corrected if height_active  else 0.0,
+                        "shoulder_abduction_adduction": ARM_ELBOW_FE_GAIN    *  forward_delta if forward_active else 0.0,
+                        "shoulder_rotation":            ARM_SHOULDER_AA_GAIN *  sideways_abs  if side_active    else 0.0,
                     }
                     for jname, jval in arm_targets.items():
                         if jname not in name_to_sim_idx:
