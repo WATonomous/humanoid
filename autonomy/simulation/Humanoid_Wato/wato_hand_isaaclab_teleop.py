@@ -195,7 +195,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_JOINT_CLAMPS = {
         "shoulder_flexion_extension":   (-0.5,  1.2),  # height
         # negative shoulder_aa = arm sweeps forward (forearm untouched, stays rigid)
-        "shoulder_abduction_adduction": (-1.5,  0.0),  # forward: negative = reaches out
+        "shoulder_abduction_adduction": ( 0.0,  1.5),  # forward: positive = reaches out
         "shoulder_rotation":            (-1.0,  1.0),  # sideways
     }
     _arm_pos_ref: dict | None = None
@@ -274,7 +274,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # Raw motion signals
                     # Negative shoulder_aa sweeps arm FORWARD as a rigid unit.
                     # Forearm is not touched — cannot go up.
-                    forward_target = -ARM_ELBOW_FE_GAIN * max(0.0, d_scl - 1.0)
+                    forward_target = ARM_ELBOW_FE_GAIN * max(0.0, d_scl - 1.0)
 
                     # Absolute sideways: screen-center = 0, edges = ±1
                     sideways_abs = (wx - 0.5) * 2.0
