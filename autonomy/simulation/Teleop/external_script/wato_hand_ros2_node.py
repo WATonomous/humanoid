@@ -249,8 +249,9 @@ class WatoHandNode(Node):
 
             with open(JOINT_FILE, "w") as f:
                 json.dump({
-                    "joints": joint_dict, 
-                    "world": world, 
+                    "joints": joint_dict,
+                    "world": world,
+                    "landmarks": landmarks,   # 2D image-space [0,1] coords for arm position tracking
                     "timestamp": time.time()
                 }, f)
 
