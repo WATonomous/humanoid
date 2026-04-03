@@ -195,7 +195,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_JOINT_CLAMPS = {
         "shoulder_flexion_extension":   (-0.5,  1.2),  # height
         # negative shoulder_aa = arm sweeps forward (forearm untouched, stays rigid)
-        "shoulder_abduction_adduction": ( 0.0,  1.5),  # forward: positive = reaches out
+        "shoulder_abduction_adduction": ( -1.5,  0),  # forward: positive = reaches out
         "shoulder_rotation":            (-1.0,  1.0),  # sideways
     }
     _arm_pos_ref: dict | None = None
