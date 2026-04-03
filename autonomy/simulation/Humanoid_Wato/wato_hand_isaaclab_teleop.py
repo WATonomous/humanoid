@@ -244,12 +244,20 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                         _arm_smoothed["forearm_rotation"] = smoothed_fr
                         joint_pos_target[0, name_to_sim_idx["forearm_rotation"]] = smoothed_fr
 
-                    # Lock wrist_extension to 0: the joint is relative to the arm mount,
-                    # not absolute world elevation. The 1D solver maps absolute finger
-                    # elevation which causes the diagonal pose. True wrist-bend tracking
-                    # requires knowing the camera-to-robot transform.
+                    # ── WRIST EXTENSION FROM 3D FINGER ELEVATION ─────────────────────
+                    # Y_h = wrist→middle_MCP direction in camera space.
+                    # MediaPipe Y-axis points DOWN, so -Y_h[1] = upward component.
+                    # arcsin(-Y_h[1]) gives the elevation angle:
+                    #   fingers up   → +1.57 rad
+                    #   fingers level →  0.0  rad
+                    #   fingers down → -1.57 rad
+                    wrist_3d = float(np.arcsin(np.clip(-Y_h[1], -1.0, 1.0)))
+                    wrist_3d = float(np.clip(wrist_3d, -1.57, 1.57))
                     if "wrist_extension" in name_to_sim_idx:
-                        joint_pos_target[0, name_to_sim_idx["wrist_extension"]] = 0.0
+                        prev_we = _arm_smoothed.get("wrist_extension", wrist_3d)
+                        smoothed_we = 0.25 * wrist_3d + 0.75 * prev_we
+                        _arm_smoothed["wrist_extension"] = smoothed_we
+                        joint_pos_target[0, name_to_sim_idx["wrist_extension"]] = smoothed_we
                     # ───────────────────────────────────────────────────────────────────
 
                     # Rotate all points into tracking-independent local basis
