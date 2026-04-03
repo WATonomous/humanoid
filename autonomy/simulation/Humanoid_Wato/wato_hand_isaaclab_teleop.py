@@ -193,18 +193,18 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_NEUTRAL_SCALE     =  0.20  # ~20% of frame height = neutral working distance
     # Per-joint clamps [min, max] in radians.  min=0 prevents backward bending.
     ARM_JOINT_CLAMPS = {
-        "shoulder_flexion_extension":   (-0.5,  1.2),  # height
-        # negative shoulder_aa = arm sweeps forward (forearm untouched, stays rigid)
-        "shoulder_abduction_adduction": ( -1.5,  0),  # forward: positive = reaches out
+        # elbow: positive = arm goes UP, negative = arm goes DOWN
+        "elbow_flexion_extension":      (-1.2,  1.2),  # height control
+        "shoulder_abduction_adduction": ( 0.0,  1.5),  # forward reach (positive = extends)
         "shoulder_rotation":            (-1.0,  1.0),  # sideways
     }
     _arm_pos_ref: dict | None = None
     _arm_pos_count: int = 0
     # Pre-initialize at 0 so calibration phase holds joints at neutral with no snap
     _arm_pos_smoothed: dict[str, float] = {
-        "shoulder_flexion_extension":   0.0,
-        "shoulder_abduction_adduction": 0.0,
-        "shoulder_rotation":            0.0,
+        "elbow_flexion_extension":      0.0,  # height
+        "shoulder_abduction_adduction": 0.0,  # forward
+        "shoulder_rotation":            0.0,  # sideways
     }
     # ────────────────────────────────────────────────────────────────────────────
 
@@ -295,7 +295,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # ─────────────────────────────────────────────────────────────────────
 
                     arm_targets = {
-                        "shoulder_flexion_extension":   ARM_SHOULDER_FE_GAIN * height_abs    if height_active  else 0.0,
+                        "elbow_flexion_extension":      ARM_SHOULDER_FE_GAIN * height_abs    if height_active  else 0.0,
                         "shoulder_abduction_adduction": forward_target                        if forward_active else 0.0,
                         "shoulder_rotation":            ARM_SHOULDER_AA_GAIN * sideways_abs  if side_active    else 0.0,
                     }
