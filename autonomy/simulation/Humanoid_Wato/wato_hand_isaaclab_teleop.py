@@ -187,12 +187,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_DEADZONE_SCALE   =  0.04  # Ignore depth changes < 4% of neutral scale
     # Per-joint clamps [min, max] in radians.  min=0 prevents backward bending.
     ARM_JOINT_CLAMPS = {
-        "shoulder_flexion_extension":   (-0.3, 0.54),   # height: 45% of original max
-        "shoulder_abduction_adduction": (-0.75, 1.8),   # sideways: 1.5×
-        # Elbow range [0, 1.4]: 0 = fully extended (arm reaches max forward)
-        #                       1.4 = fully bent (arm pulled back/in)
-        # Starting at 0.7 allows bidirectional motion.
-        "elbow_flexion_extension":     ( 0.0, 1.4),
+        "shoulder_flexion_extension":   (-0.3, 0.54),   # height (blue arrow)
+        # shoulder_abduction_adduction axis=-Y sweeps arm in XZ plane.
+        # Negative side = forward reach (arm extends out). Positive = arm pulls back/in.
+        # Sideways (dx) and depth (d_scl) are BOTH applied through this joint.
+        "shoulder_abduction_adduction": (-1.5, 1.8),
     }
     _arm_pos_ref: dict | None = None
     _arm_pos_count: int = 0
@@ -200,9 +199,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     _arm_pos_smoothed: dict[str, float] = {
         "shoulder_flexion_extension":   0.0,
         "shoulder_abduction_adduction": 0.0,
-        # Start elbow at 0.7 (mid-bend) so the arm can EXTEND (go toward 0)
-        # when the hand comes closer — producing genuine forward reach.
-        "elbow_flexion_extension":      0.7,
+        # elbow is NOT in arm position tracking — stays at URDF default (0)
     }
     # ────────────────────────────────────────────────────────────────────────────
 
@@ -277,12 +274,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     d_scl = d_scl if abs(d_scl-1.0) > ARM_DEADZONE_SCALE else 1.0
 
                     arm_targets = {
-                        "shoulder_abduction_adduction":  ARM_SHOULDER_AA_GAIN *  dx,
+                        # Blue arrow (up/down): wrist Y position
                         "shoulder_flexion_extension":    ARM_SHOULDER_FE_GAIN * -dy_corrected,
-                        # Closer hand (d_scl>1) → DECREASE elbow flex → arm extends forward.
-                        # Farther hand (d_scl<1) → INCREASE elbow flex → arm pulls back.
-                        # 0.7 is the neutral mid-bend starting point.
-                        "elbow_flexion_extension":  0.7 + ARM_ELBOW_FE_GAIN * (1.0 - d_scl),
+                        # Green arrow (sideways) + Red arrow (forward/depth):
+                        # shoulder_abduction_adduction rotates about -Y, sweeping arm in XZ plane.
+                        # dx (sideways wrist movement) and d_scl (depth) BOTH feed this joint.
+                        # Closer hand (d_scl>1) → positive depth term → arm extends outward.
+                        "shoulder_abduction_adduction":  ARM_SHOULDER_AA_GAIN * dx
+                                                         + ARM_ELBOW_FE_GAIN * max(0.0, d_scl - 1.0),
                     }
                     for jname, jval in arm_targets.items():
                         if jname not in name_to_sim_idx:
