@@ -182,8 +182,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_SHOULDER_AA_GAIN  =  1.8   # Green arrow: sideways (1.5×)
     ARM_ELBOW_FE_GAIN     =  1.5   # Red   arrow: forward via elbow extension
     ARM_POS_CALIB_FRAMES =  30    # Frames to average for the neutral reference
-    ARM_POS_ALPHA        =  0.03  # EMA for active axis: silky smooth motion
-    ARM_RETURN_ALPHA     =  0.18  # EMA for inactive axes: fast snap back to neutral
+    ARM_POS_ALPHA        =  0.08  # EMA for active axis: silky smooth motion
+    ARM_RETURN_ALPHA     =  0.08  # EMA for inactive axes: fast snap back to neutral
     ARM_DEADZONE_XY       =  0.02  # Height/sideways: dead band around screen center
     ARM_DEADZONE_SIDEWAYS =  0.06  # Sideways-specific: wider (screen-X noisier)
     ARM_DEADZONE_SCALE    =  0.08  # Forward: ignore depth changes < 8% of neutral scale
@@ -294,8 +294,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # ─────────────────────────────────────────────────────────────────────
 
                     arm_targets = {
-                        "elbow_flexion_extension":    (0.5*ARM_SHOULDER_FE_GAIN * height_abs if height_active else 0.0)
-                                                    + (2.5*ARM_ELBOW_FE_GAIN * forward_target if forward_active else 0.0),
+                        "elbow_flexion_extension":    (0.3*ARM_SHOULDER_FE_GAIN * height_abs if height_active else 0.0)
+                                                    + (1.8*ARM_ELBOW_FE_GAIN * forward_target if forward_active else 0.0),
                         "shoulder_flexion_extension": -ARM_ELBOW_FE_GAIN * forward_target if forward_active else 0.0,
                         "shoulder_rotation":           ARM_SHOULDER_AA_GAIN * sideways_abs if side_active   else 0.0,
                     }
