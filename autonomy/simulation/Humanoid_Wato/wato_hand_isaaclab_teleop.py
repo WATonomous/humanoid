@@ -213,6 +213,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     while simulation_app.is_running():
         hand_dict = read_joint_file()
         hand_visible = is_hand_visible(hand_dict)
+        pos = robot.data.joint_pos[0]
+        for name, val in zip(sim_joint_names, pos.tolist()):
+            print(f"{name:45s} {val:+.4f} rad")
+        input("Press Enter for next frame...")  # pause so you can read it
 
         # -- Normal tracking: update target from latest data --
         if hand_visible:
