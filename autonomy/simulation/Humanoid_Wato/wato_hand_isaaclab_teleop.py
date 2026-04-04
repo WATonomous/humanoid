@@ -282,7 +282,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     side_active    = sideways_abs  != 0.0
 
                     arm_targets = {
-                        "elbow_flexion_extension":    (0.3 * ARM_SHOULDER_FE_GAIN * height_abs if height_active else 0.0)
+                        "elbow_flexion_extension":    (0.2 * ARM_SHOULDER_FE_GAIN * height_abs if height_active else 0.0)
                                                     - 1.2 * _arm_pos_smoothed.get("shoulder_flexion_extension", 0.0),
                         "shoulder_flexion_extension": -ARM_ELBOW_FE_GAIN * forward_target if forward_active else 0.0,
                         "shoulder_rotation":           -ARM_SHOULDER_AA_GAIN * sideways_abs if side_active    else 0.0,
