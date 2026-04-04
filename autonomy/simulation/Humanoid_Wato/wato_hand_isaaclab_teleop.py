@@ -195,16 +195,16 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_JOINT_CLAMPS = {
         # elbow_fe: positive moves arm UP → used for height
         "elbow_flexion_extension":      (-1.0,  1.0),  # height (up/down)
-        "shoulder_abduction_adduction": ( -1.5,  1.5),   # forward/backward
+        "shoulder_flexion_extension": ( -1.5,  1.5),   # forward/backward
         "shoulder_rotation":            (-1.0,  1.0),  # sideways
     }
     _arm_pos_ref: dict | None = None
     _arm_pos_count: int = 0
     # Pre-initialize at 0 so calibration phase holds joints at neutral with no snap
     _arm_pos_smoothed: dict[str, float] = {
-        "elbow_flexion_extension":      0.0,  # height
-        "shoulder_abduction_adduction": 0.0,  # forward
-        "shoulder_rotation":            0.0,  # sideways
+        "elbow_flexion_extension":      0.0,
+        "shoulder_flexion_extension":   0.0,
+        "shoulder_rotation":            0.0,
     }
     # ────────────────────────────────────────────────────────────────────────────
 
@@ -279,7 +279,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # Raw motion signals
                     # Negative shoulder_aa sweeps arm FORWARD as a rigid unit.
                     # Forearm is not touched — cannot go up.
-                    forward_target = ARM_ELBOW_FE_GAIN * (d_scl - 1.0)
+                    forward_target = (d_scl - 1.0)
                     print(f"forward_target: {forward_target}, d_scl: {d_scl}")
 
                     # Absolute sideways: screen-center = 0, edges = ±1
@@ -299,9 +299,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # ─────────────────────────────────────────────────────────────────────
 
                     arm_targets = {
-                        "elbow_flexion_extension":      ARM_SHOULDER_FE_GAIN * height_abs    if height_active  else 0.0,
-                        "shoulder_abduction_adduction": forward_target                        if forward_active else 0.0,
-                        "shoulder_rotation":            ARM_SHOULDER_AA_GAIN * sideways_abs  if side_active    else 0.0,
+                        "elbow_flexion_extension":     ARM_SHOULDER_FE_GAIN * height_abs   if height_active  else 0.0,
+                        "shoulder_flexion_extension":  -ARM_ELBOW_FE_GAIN * forward_target if forward_active else 0.0,
+                        "shoulder_rotation":            ARM_SHOULDER_AA_GAIN * sideways_abs if side_active   else 0.0,
                     }
                     for jname, jval in arm_targets.items():
                         if jname not in name_to_sim_idx:
