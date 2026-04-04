@@ -289,8 +289,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                         "shoulder_rotation":           ARM_SHOULDER_AA_GAIN * sideways_abs        if side_active    else 0.0,
                     }
 
-                    ARM_MAX_DELTA = 0.005   # max rad/frame — tune down to slow further
-                    ARM_MAX_ACCEL = 0.002   # max change in delta — kills jerk
+                    ARM_MAX_DELTA = 0.012   # max rad/frame — tune down to slow further
+                    ARM_MAX_ACCEL = 0.004   # max change in delta — kills jerk
 
                     for jname, jval in arm_targets.items():
                         if jname not in name_to_sim_idx:
