@@ -182,8 +182,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_SHOULDER_AA_GAIN  =  1.8   # Green arrow: sideways (1.5×)
     ARM_ELBOW_FE_GAIN     =  1.5   # Red   arrow: forward via elbow extension
     ARM_POS_CALIB_FRAMES =  30    # Frames to average for the neutral reference
-    ARM_POS_ALPHA        =  0.04  # EMA for active axis: silky smooth motion
-    ARM_RETURN_ALPHA     =  0.04  # EMA for inactive axes: fast snap back to neutral
+    ARM_POS_ALPHA        =  0.06  # EMA for active axis: silky smooth motion
+    ARM_RETURN_ALPHA     =  0.06  # EMA for inactive axes: fast snap back to neutral
     ARM_DEADZONE_XY       =  0.02  # Height/sideways: dead band around screen center
     ARM_DEADZONE_SIDEWAYS =  0.06  # Sideways-specific: wider (screen-X noisier)
     ARM_DEADZONE_SCALE    =  0.08  # Forward: ignore depth changes < 8% of neutral scale
