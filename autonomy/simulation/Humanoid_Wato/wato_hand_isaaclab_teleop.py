@@ -294,9 +294,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # ─────────────────────────────────────────────────────────────────────
 
                     arm_targets = {
-                        "elbow_flexion_extension":     ARM_SHOULDER_FE_GAIN * height_abs   if height_active  else 0.0,
-                        "shoulder_flexion_extension":  -ARM_ELBOW_FE_GAIN * forward_target if forward_active else 0.0,
-                        "shoulder_rotation":            ARM_SHOULDER_AA_GAIN * sideways_abs if side_active   else 0.0,
+                        "elbow_flexion_extension":    (ARM_SHOULDER_FE_GAIN * height_abs if height_active else 0.0)
+                                                    + (ARM_ELBOW_FE_GAIN * forward_target if forward_active else 0.0),
+                        "shoulder_flexion_extension": -ARM_ELBOW_FE_GAIN * forward_target if forward_active else 0.0,
+                        "shoulder_rotation":           ARM_SHOULDER_AA_GAIN * sideways_abs if side_active   else 0.0,
                     }
                     for jname, jval in arm_targets.items():
                         if jname not in name_to_sim_idx:
