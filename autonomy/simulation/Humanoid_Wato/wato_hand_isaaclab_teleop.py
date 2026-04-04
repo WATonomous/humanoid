@@ -182,8 +182,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_SHOULDER_AA_GAIN  =  1.8   # Green arrow: sideways (1.5×)
     ARM_ELBOW_FE_GAIN     =  1.5   # Red   arrow: forward via elbow extension
     ARM_POS_CALIB_FRAMES =  30    # Frames to average for the neutral reference
-    ARM_POS_ALPHA        =  0.08  # EMA for active axis: silky smooth motion
-    ARM_RETURN_ALPHA     =  0.08  # EMA for inactive axes: fast snap back to neutral
+    ARM_POS_ALPHA        =  0.04  # EMA for active axis: silky smooth motion
+    ARM_RETURN_ALPHA     =  0.04  # EMA for inactive axes: fast snap back to neutral
     ARM_DEADZONE_XY       =  0.02  # Height/sideways: dead band around screen center
     ARM_DEADZONE_SIDEWAYS =  0.06  # Sideways-specific: wider (screen-X noisier)
     ARM_DEADZONE_SCALE    =  0.08  # Forward: ignore depth changes < 8% of neutral scale
@@ -258,59 +258,66 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # FULLY ABSOLUTE depth: compare live scale to fixed neutral constant.
                     # d_scl > 1 = hand is closer than neutral  (arm should extend)
                     # d_scl < 1 = hand is farther than neutral (arm returns to 0)
-                    d_scl = scale / max(ARM_NEUTRAL_SCALE, 1e-4)
-                    print (f"scale: {scale}, max(ARM_NEUTRAL_SCALE, 1e-4): {max(ARM_NEUTRAL_SCALE, 1e-4)}, d_scl: {d_scl}")
-                    # d_scl = 0.7/d_scl
-                    # ABSOLUTE HEIGHT: screen-center = arm-center, no calibration dependency
-                    # wy=0.5 → height_abs=0 → arm at neutral
-                    # wy<0.5 (hand above centre) → positive → arm raises
-                    # wy>0.5 (hand below centre) → negative → arm lowers
-                    height_abs = (0.5 - wy) * 2.0
+                    # ── SIGNAL SMOOTHING PIPELINE ────────────────────────────────────
+                    # Step 1: Median filter on raw scale to kill noise spikes
+                    if not hasattr(run_simulator, '_scale_buf'):
+                        run_simulator._scale_buf = []
+                    run_simulator._scale_buf.append(scale)
+                    if len(run_simulator._scale_buf) > 7:   # 7-frame median window
+                        run_simulator._scale_buf.pop(0)
+                    scale_filtered = sorted(run_simulator._scale_buf)[len(run_simulator._scale_buf) // 2]
 
-                    # Deadzones
-                    height_abs = height_abs if abs(height_abs) > ARM_DEADZONE_XY * 2 else 0.0
-                    d_scl      = d_scl      if abs(d_scl - 1.0) > ARM_DEADZONE_SCALE  else 1.0
+                    d_scl = scale_filtered / max(ARM_NEUTRAL_SCALE, 1e-4)
+                    d_scl = d_scl if abs(d_scl - 1.0) > ARM_DEADZONE_SCALE else 1.0
 
-                    # Raw motion signals
-                    # Negative shoulder_aa sweeps arm FORWARD as a rigid unit.
-                    # Forearm is not touched — cannot go up.
-                    forward_target = (d_scl - 1.0)
-                    print(f"forward_target: {forward_target}, d_scl: {d_scl}")
+                    height_abs   = (0.5 - wy) * 2.0
+                    height_abs   = height_abs if abs(height_abs) > ARM_DEADZONE_XY * 2 else 0.0
 
-                    # Absolute sideways: screen-center = 0, edges = ±1
                     sideways_abs = (wx - 0.5) * 2.0
-                    if abs(sideways_abs) < ARM_DEADZONE_SIDEWAYS:
-                        sideways_abs = 0.0
+                    sideways_abs = sideways_abs if abs(sideways_abs) > ARM_DEADZONE_SIDEWAYS else 0.0
 
-                    # ── PRIORITY ORDER: forward > height > sideways ───────────────────────
-                    # Each axis only activates if ALL higher-priority axes are silent.
-                    has_forward  = (forward_target != 0.0)
-                    has_height   = (height_abs    != 0.0)
-                    has_sideways = (sideways_abs  != 0.0)
+                    forward_target = (d_scl - 1.0)
 
-                    forward_active = has_forward
-                    height_active  = has_height 
-                    side_active    = has_sideways 
-                    # ─────────────────────────────────────────────────────────────────────
+                    forward_active = forward_target != 0.0
+                    height_active  = height_abs    != 0.0
+                    side_active    = sideways_abs  != 0.0
 
                     arm_targets = {
-                        "elbow_flexion_extension":    (0.3*ARM_SHOULDER_FE_GAIN * height_abs if height_active else 0.0)
-                                                    + (1.8*ARM_ELBOW_FE_GAIN * forward_target if forward_active else 0.0),
-                        "shoulder_flexion_extension": -ARM_ELBOW_FE_GAIN * forward_target if forward_active else 0.0,
-                        "shoulder_rotation":           ARM_SHOULDER_AA_GAIN * sideways_abs if side_active   else 0.0,
+                        "elbow_flexion_extension":    (0.3 * ARM_SHOULDER_FE_GAIN * height_abs   if height_active  else 0.0)
+                                                    + (1.8 * ARM_ELBOW_FE_GAIN   * forward_target if forward_active else 0.0),
+                        "shoulder_flexion_extension": -ARM_ELBOW_FE_GAIN * forward_target         if forward_active else 0.0,
+                        "shoulder_rotation":           ARM_SHOULDER_AA_GAIN * sideways_abs        if side_active    else 0.0,
                     }
+
+                    ARM_MAX_DELTA = 0.005   # max rad/frame — tune down to slow further
+                    ARM_MAX_ACCEL = 0.002   # max change in delta — kills jerk
+
                     for jname, jval in arm_targets.items():
                         if jname not in name_to_sim_idx:
                             continue
-                        prev_val = _arm_pos_smoothed.get(jname, 0.0)
-                        # Use fast return alpha when joint is inactive (target=0)
-                        # so residual values don't bleed into adjacent motions.
+                        prev_val  = _arm_pos_smoothed.get(jname, 0.0)
+                        prev_delta = _arm_pos_smoothed.get(jname + "_delta", 0.0)
+
                         alpha = ARM_POS_ALPHA if jval != 0.0 else ARM_RETURN_ALPHA
-                        smoothed_val = alpha * jval + (1.0 - alpha) * prev_val
+                        raw_smooth = alpha * jval + (1.0 - alpha) * prev_val
+
+                        # Velocity clamp
+                        delta = raw_smooth - prev_val
+                        delta = max(-ARM_MAX_DELTA, min(ARM_MAX_DELTA, delta))
+
+                        # Acceleration clamp (jerk limiter)
+                        delta_change = delta - prev_delta
+                        delta_change = max(-ARM_MAX_ACCEL, min(ARM_MAX_ACCEL, delta_change))
+                        delta = prev_delta + delta_change
+
+                        smoothed_val = prev_val + delta
                         lo, hi = ARM_JOINT_CLAMPS.get(jname, (-3.14, 3.14))
                         smoothed_val = max(lo, min(hi, smoothed_val))
+
                         _arm_pos_smoothed[jname] = smoothed_val
+                        _arm_pos_smoothed[jname + "_delta"] = delta
                         joint_pos_target[0, name_to_sim_idx[jname]] = smoothed_val
+# ─────────────────────────────────────────────────────────────────
             # ────────────────────────────────────────────────────────────────────
 
             # 2) Override fingers with real-time Cartesian IK if world data exists
