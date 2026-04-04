@@ -194,7 +194,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     # Per-joint clamps [min, max] in radians.  min=0 prevents backward bending.
     ARM_JOINT_CLAMPS = {
         # elbow_fe: positive moves arm UP → used for height
-        "elbow_flexion_extension":      (-1.0,  1.0),  # height (up/down)
+        "elbow_flexion_extension":      (-1.0,  0.7),  # height (up/down)
         "shoulder_flexion_extension": ( -1.5,  1.5),   # forward/backward
         "shoulder_rotation":            (-1.0,  1.0),  # sideways
     }
@@ -294,8 +294,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # ─────────────────────────────────────────────────────────────────────
 
                     arm_targets = {
-                        "elbow_flexion_extension":    (0.7*ARM_SHOULDER_FE_GAIN * height_abs if height_active else 0.0)
-                                                    + (3*ARM_ELBOW_FE_GAIN * forward_target if forward_active else 0.0),
+                        "elbow_flexion_extension":    (0.5*ARM_SHOULDER_FE_GAIN * height_abs if height_active else 0.0)
+                                                    + (2.5*ARM_ELBOW_FE_GAIN * forward_target if forward_active else 0.0),
                         "shoulder_flexion_extension": -ARM_ELBOW_FE_GAIN * forward_target if forward_active else 0.0,
                         "shoulder_rotation":           ARM_SHOULDER_AA_GAIN * sideways_abs if side_active   else 0.0,
                     }
