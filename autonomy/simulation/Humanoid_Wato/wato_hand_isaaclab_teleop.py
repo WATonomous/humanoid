@@ -195,7 +195,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_JOINT_CLAMPS = {
         # elbow_fe: positive moves arm UP → used for height
         "elbow_flexion_extension":      (-1.0,  1.0),  # height (up/down)
-        "shoulder_abduction_adduction": ( -1.5,  0),   # forward/backward
+        "shoulder_abduction_adduction": ( -1.5,  1.5),   # forward/backward
         "shoulder_rotation":            (-1.0,  1.0),  # sideways
     }
     _arm_pos_ref: dict | None = None
@@ -261,7 +261,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # d_scl < 1 = hand is farther than neutral (arm returns to 0)
                     d_scl = scale / max(ARM_NEUTRAL_SCALE, 1e-4)
                     print (f"scale: {scale}, max(ARM_NEUTRAL_SCALE, 1e-4): {max(ARM_NEUTRAL_SCALE, 1e-4)}, d_scl: {d_scl}")
-                    d_scl = 0.7/d_scl
+                    # d_scl = 0.7/d_scl
                     # ABSOLUTE HEIGHT: screen-center = arm-center, no calibration dependency
                     # wy=0.5 → height_abs=0 → arm at neutral
                     # wy<0.5 (hand above centre) → positive → arm raises
@@ -275,7 +275,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     # Raw motion signals
                     # Negative shoulder_aa sweeps arm FORWARD as a rigid unit.
                     # Forearm is not touched — cannot go up.
-                    forward_target = ARM_ELBOW_FE_GAIN * max(0.0, d_scl - 1.0)
+                    forward_target = ARM_ELBOW_FE_GAIN * (d_scl - 1.0)
                     print(f"forward_target: {forward_target}, d_scl: {d_scl}")
 
                     # Absolute sideways: screen-center = 0, edges = ±1
@@ -290,8 +290,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     has_sideways = (sideways_abs  != 0.0)
 
                     forward_active = has_forward
-                    height_active  = has_height  and not has_forward
-                    side_active    = has_sideways and not has_forward and not has_height
+                    height_active  = has_height 
+                    side_active    = has_sideways 
                     # ─────────────────────────────────────────────────────────────────────
 
                     arm_targets = {
