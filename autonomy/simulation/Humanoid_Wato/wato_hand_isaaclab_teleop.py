@@ -186,17 +186,16 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_RETURN_ALPHA     =  0.06  # EMA for inactive axes: fast snap back to neutral
     ARM_DEADZONE_XY       =  0.02  # Height/sideways: dead band around screen center
     ARM_DEADZONE_SIDEWAYS =  0.06  # Sideways-specific: wider (screen-X noisier)
-    ARM_DEADZONE_SCALE    =  0.08  # Forward: ignore depth changes < 8% of neutral scale
+    ARM_DEADZONE_SCALE    =  0.15  # Forward: ignore depth changes < 8% of neutral scale
     # Fixed neutral depth reference: wrist→middle-MCP distance when hand is at working distance.
     # Increase if your hand appears SMALL at neutral; decrease if it appears LARGE.
     # Purely absolute — no per-session calibration needed.
     ARM_NEUTRAL_SCALE     =  0.20  # ~20% of frame height = neutral working distance
     # Per-joint clamps [min, max] in radians.  min=0 prevents backward bending.
     ARM_JOINT_CLAMPS = {
-        # elbow_fe: positive moves arm UP → used for height
-        "elbow_flexion_extension":      (-1.0,  0.6),  # height (up/down)
-        "shoulder_flexion_extension": ( -1,  1),   # forward/backward
-        "shoulder_rotation":            (-1.0,  1.0),  # sideways
+        "elbow_flexion_extension":    (-1.5,  1.5),  # was (-1.0, 0.6)
+        "shoulder_flexion_extension": (-1.0,  1.0),
+        "shoulder_rotation":          (-1.0,  1.0),
     }
     _arm_pos_ref: dict | None = None
     _arm_pos_count: int = 0
@@ -283,10 +282,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     side_active    = sideways_abs  != 0.0
 
                     arm_targets = {
-                        "elbow_flexion_extension":    (0.3 * ARM_SHOULDER_FE_GAIN * height_abs   if height_active  else 0.0)
-                                                    + (1.8 * ARM_ELBOW_FE_GAIN   * forward_target if forward_active else 0.0),
-                        "shoulder_flexion_extension": -ARM_ELBOW_FE_GAIN * forward_target         if forward_active else 0.0,
-                        "shoulder_rotation":           ARM_SHOULDER_AA_GAIN * sideways_abs        if side_active    else 0.0,
+                        "elbow_flexion_extension":    (0.3 * ARM_SHOULDER_FE_GAIN * height_abs if height_active else 0.0)
+                                                    - _arm_pos_smoothed.get("shoulder_flexion_extension", 0.0),
+                        "shoulder_flexion_extension": -ARM_ELBOW_FE_GAIN * forward_target if forward_active else 0.0,
+                        "shoulder_rotation":           ARM_SHOULDER_AA_GAIN * sideways_abs if side_active    else 0.0,
                     }
 
                     ARM_MAX_DELTA = 0.012   # max rad/frame — tune down to slow further
