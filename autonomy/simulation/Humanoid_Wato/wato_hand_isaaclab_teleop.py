@@ -285,7 +285,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                         "elbow_flexion_extension":    (0.3 * ARM_SHOULDER_FE_GAIN * height_abs if height_active else 0.0)
                                                     - 1.2 * _arm_pos_smoothed.get("shoulder_flexion_extension", 0.0),
                         "shoulder_flexion_extension": -ARM_ELBOW_FE_GAIN * forward_target if forward_active else 0.0,
-                        "shoulder_rotation":           ARM_SHOULDER_AA_GAIN * sideways_abs if side_active    else 0.0,
+                        "shoulder_rotation":           -ARM_SHOULDER_AA_GAIN * sideways_abs if side_active    else 0.0,
                     }
 
                     ARM_MAX_DELTA = 0.012   # max rad/frame — tune down to slow further
