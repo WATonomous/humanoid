@@ -195,7 +195,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ARM_JOINT_CLAMPS = {
         # elbow_fe: positive moves arm UP → used for height
         "elbow_flexion_extension":      (-1.0,  0.6),  # height (up/down)
-        "shoulder_flexion_extension": ( -1.5,  1.5),   # forward/backward
+        "shoulder_flexion_extension": ( -1,  1),   # forward/backward
         "shoulder_rotation":            (-1.0,  1.0),  # sideways
     }
     _arm_pos_ref: dict | None = None
