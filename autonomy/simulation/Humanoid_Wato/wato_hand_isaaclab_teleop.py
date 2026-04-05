@@ -84,13 +84,13 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.6, 0.4, 0.2)),
             collision_props=sim_utils.CollisionPropertiesCfg(),
         ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0, 0.6, 0)),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(0, 0.7, 0)),
     )
 
     ball = RigidObjectCfg(
         prim_path="/World/Ball",
         spawn=sim_utils.SphereCfg(
-            radius=0.04,
+            radius=0.03,
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.2, 0.2)),
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 disable_gravity=False,
@@ -99,7 +99,7 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
             mass_props=sim_utils.MassPropertiesCfg(mass=0.05),
             collision_props=sim_utils.CollisionPropertiesCfg(),
         ),
-        init_state=RigidObjectCfg.InitialStateCfg(pos=(0, 0.6, 0.05)),
+        init_state=RigidObjectCfg.InitialStateCfg(pos=(0, 0.7, 0.05)),
     )
 
 
