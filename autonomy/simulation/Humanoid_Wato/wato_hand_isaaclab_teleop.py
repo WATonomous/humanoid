@@ -94,13 +94,18 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.2, 0.2)),
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 disable_gravity=False,
-                max_depenetration_velocity=1.0,
+                max_depenetration_velocity=0.5,   # was 1.0 — less bouncy on contact
             ),
-            mass_props=sim_utils.MassPropertiesCfg(mass=0.05),
+            mass_props=sim_utils.MassPropertiesCfg(mass=0.01),  # was 0.05 — much lighter
             collision_props=sim_utils.CollisionPropertiesCfg(),
+            physics_material=sim_utils.RigidBodyMaterialCfg(
+                static_friction=2.0,    # high friction so fingers don't slip
+                dynamic_friction=2.0,
+                restitution=0.0,        # no bounce
+            ),
         ),
         init_state=RigidObjectCfg.InitialStateCfg(pos=(-0.1, 0.5, 0.05)),
-    )
+)
 
 
 # ── Main sim loop ─────────────────────────────────────────────────────────────
