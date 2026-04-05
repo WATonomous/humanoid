@@ -40,7 +40,7 @@ from isaaclab.scene import InteractiveScene, InteractiveSceneCfg  # noqa: E402
 from isaaclab.utils import configclass             # noqa: E402
 
 from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_CFG  # noqa: E402
-
+from isaaclab.assets import RigidObjectCfg
 # ── Shared file written by wato_hand_ros2_node.py ────────────────────────────
 JOINT_FILE = "/tmp/wato_joints.json"
 HAND_TIMEOUT = 2.0  # seconds before hand is considered lost
@@ -76,6 +76,31 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75)),
     )
     robot = ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+    table = AssetBaseCfg(
+        prim_path="/World/Table",
+        spawn=sim_utils.CuboidCfg(
+            size=(0.6, 0.6, 0.05),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.6, 0.4, 0.2)),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+        ),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.5, 0.0, -0.5)),
+    )
+
+    ball = RigidObjectCfg(
+        prim_path="/World/Ball",
+        spawn=sim_utils.SphereCfg(
+            radius=0.04,
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.2, 0.2)),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                disable_gravity=False,
+                max_depenetration_velocity=1.0,
+            ),
+            mass_props=sim_utils.MassPropertiesCfg(mass=0.05),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+        ),
+        init_state=RigidObjectCfg.InitialStateCfg(pos=(0.5, 0.0, -0.45)),
+    )
 
 
 # ── Main sim loop ─────────────────────────────────────────────────────────────
