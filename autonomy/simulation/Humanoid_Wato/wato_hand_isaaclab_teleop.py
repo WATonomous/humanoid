@@ -500,6 +500,28 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         sim.step()
         scene.update(sim_dt)
 
+                # -- CABINET PROXIMITY TRIGGER --
+        cabinet_obj = scene["cabinet"]
+        cabinet_joint_names = list(cabinet_obj.data.joint_names)
+
+        # Get palm position from robot body
+        palm_body_idx = robot.data.body_names.index("PALM_GAVIN_1DoF_Hinge_v2_1")
+        palm_pos = robot.data.body_pos_w[0, palm_body_idx]  # world position
+
+        # Cabinet handle is roughly at this world position (tune to match your scene)
+        import torch
+        handle_pos = torch.tensor([-0.5, 0.6, 0.4], device=palm_pos.device)  # tune this
+        dist = torch.norm(palm_pos - handle_pos)
+
+        if dist < 0.15:  # within 15cm of handle
+            # Directly drive the door open
+            door_idx = cabinet_joint_names.index("door_left_joint")
+            current = cabinet_obj.data.joint_pos[0, door_idx]
+            target = torch.zeros(1, len(cabinet_joint_names), device=palm_pos.device)
+            target[0, door_idx] = min(float(current) + 0.02, 1.5)  # open incrementally
+            cabinet_obj.set_joint_position_target(target)
+            print(f"[INFO] Handle contact! Door: {float(target[0, door_idx]):.2f} rad")
+
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 def main():
