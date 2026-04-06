@@ -34,7 +34,7 @@ simulation_app = app_launcher.app
 import torch                                        # noqa: E402
 
 import isaaclab.sim as sim_utils                   # noqa: E402
-from isaaclab.assets import AssetBaseCfg           # noqa: E402
+from isaaclab.assets import AssetBaseCfg, ArticulationCfg
 from isaaclab.managers import SceneEntityCfg       # noqa: E402
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg  # noqa: E402
 from isaaclab.utils import configclass             # noqa: E402
