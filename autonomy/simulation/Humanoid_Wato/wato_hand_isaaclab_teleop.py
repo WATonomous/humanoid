@@ -507,6 +507,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         # Tune this to where the door panel sits in your scene
         door_pos = torch.tensor([-0.3, 0.9, 0.4], device=palm_pos.device)
         dist = float(torch.norm(palm_pos - door_pos))
+        panel_idx = door_obj.data.body_names.index("door_panel")
+        panel_pos = door_obj.data.body_pos_w[0, panel_idx]
+        print(f"[DEBUG] Door panel pos: {panel_pos.cpu().numpy()}")
+        print(f"[DEBUG] Palm pos: {palm_pos.cpu().numpy()}")
+        print(f"[DEBUG] Dist: {dist:.3f}")
 
         # Fist detection: all MCP joints curled past threshold = closed hand
         FIST_THRESHOLD = 0.8
