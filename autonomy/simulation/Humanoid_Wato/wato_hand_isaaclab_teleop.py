@@ -512,8 +512,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         import torch
         handle_pos = torch.tensor([-0.5, 0.6, 0.4], device=palm_pos.device)  # tune this
         dist = torch.norm(palm_pos - handle_pos)
+        print(f"[INFO] Distance to handle: {dist:.2f} m")
 
-        if dist < 0.15:  # within 15cm of handle
+        if dist < 1.00:  # within 15cm of handle
             # Directly drive the door open
             door_idx = cabinet_joint_names.index("door_left_joint")
             current = cabinet_obj.data.joint_pos[0, door_idx]
