@@ -96,7 +96,7 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
             ),
         ),
         init_state=ArticulationCfg.InitialStateCfg(
-            pos=(0.5, 0.8, -0.25), 
+            pos=(0, 0.5, -0.25), 
             rot=(0.707, 0.0, 0.0, 0.707),
             joint_pos={"door_hinge": 0.0},
         ),
