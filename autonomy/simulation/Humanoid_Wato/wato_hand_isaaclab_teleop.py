@@ -80,37 +80,29 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
     )
     robot = ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
-    cabinet = ArticulationCfg(
-        prim_path="/World/Cabinet",
+    door = ArticulationCfg(
+        prim_path="/World/Door",
         spawn=sim_utils.UsdFileCfg(
             usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd",
             activate_contact_sensors=False,
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                max_depenetration_velocity=0.1,
-            ),
         ),
         init_state=ArticulationCfg.InitialStateCfg(
-        pos=(-0.3, 0.9, 0.0),
-        rot=(0.707, 0.0, 0.0, -0.707),
-        joint_pos={
-            "door_left_joint":    0.0,
-            "door_right_joint":   0.0,
-            "drawer_bottom_joint": 0.0,
-            "drawer_top_joint":   0.0,
-        },
+            pos=(-0.3, 0.9, 0.0),
+            rot=(0.707, 0.0, 0.0, -0.707),
+            joint_pos={"door_left_joint": 0.0, "door_right_joint": 0.0,
+                    "drawer_bottom_joint": 0.0, "drawer_top_joint": 0.0},
         ),
         actuators={
             "doors": ImplicitActuatorCfg(
                 joint_names_expr=["door_left_joint", "door_right_joint"],
                 effort_limit=87.0, velocity_limit=100.0,
-                stiffness=0.5,   # was 10.0 — barely resists movement
-                damping=0.5,     # was 2.5 — smooth, not sticky-stiff
+                stiffness=0.0,   # fully passive
+                damping=5.0,     # stays where pushed
             ),
             "drawers": ImplicitActuatorCfg(
                 joint_names_expr=["drawer_top_joint", "drawer_bottom_joint"],
                 effort_limit=87.0, velocity_limit=100.0,
-                stiffness=0.5,   # was 10.0
-                damping=0.5,     # was 1.0
+                stiffness=0.0, damping=5.0,
             ),
         },
     )
@@ -512,16 +504,31 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         import torch
         handle_pos = torch.tensor([-0.5, 0.6, 0.4], device=palm_pos.device)  # tune this
         dist = torch.norm(palm_pos - handle_pos)
-        print(f"[INFO] Distance to handle: {dist:.2f} m")
+        # -- FIST DETECTION + PUNCH TO OPEN DOOR --
+        # Fist = all four finger MCP joints curled past threshold
+        FIST_THRESHOLD = 0.8  # radians — tune to your hand
+        finger_mcps = ["mcp_index", "mcp_middle", "mcp_ring", "mcp_pinky"]
+        is_fist = all(
+            float(joint_pos_target[0, name_to_sim_idx[j]]) > FIST_THRESHOLD
+            for j in finger_mcps if j in name_to_sim_idx
+        )
 
-        if dist < 1.00:  # within 15cm of handle
-            # Directly drive the door open
-            door_idx = cabinet_joint_names.index("door_left_joint")
-            current = cabinet_obj.data.joint_pos[0, door_idx]
-            target = torch.zeros(1, len(cabinet_joint_names), device=palm_pos.device)
-            target[0, door_idx] = min(float(current) + 0.02, 1.5)  # open incrementally
-            cabinet_obj.set_joint_position_target(target)
-            print(f"[INFO] Handle contact! Door: {float(target[0, door_idx]):.2f} rad")
+        door_obj = scene["door"]
+        door_joint_names = list(door_obj.data.joint_names)
+        door_idx = door_joint_names.index("door_left_joint")
+        current_door = float(door_obj.data.joint_pos[0, door_idx])
+
+        palm_body_idx = robot.data.body_names.index("PALM_GAVIN_1DoF_Hinge_v2_1")
+        palm_pos = robot.data.body_pos_w[0, palm_body_idx]
+        handle_pos = torch.tensor([-0.3, 0.9, 0.4], device=palm_pos.device)  # tune to your scene
+        dist = float(torch.norm(palm_pos - handle_pos))
+
+        if is_fist and dist < 0.4:
+            # Punch detected — drive door open
+            target = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
+            target[0, door_idx] = min(current_door + 0.05, 1.5)
+            door_obj.set_joint_position_target(target)
+            print(f"[SUCCESS] Fist punch detected! Door angle: {target[0, door_idx]:.2f} rad")
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
