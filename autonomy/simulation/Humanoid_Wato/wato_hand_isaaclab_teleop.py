@@ -82,27 +82,20 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
 
     door = ArticulationCfg(
         prim_path="/World/Door",
-        spawn=sim_utils.UsdFileCfg(
-            usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd",
-            activate_contact_sensors=False,
+        spawn=sim_utils.UrdfFileCfg(
+            asset_path="/workspace/isaaclab/humanoid/autonomy/simulation/Humanoid_Wato/arm_assembly/simple_door.urdf",
+            fix_base=True,
         ),
         init_state=ArticulationCfg.InitialStateCfg(
             pos=(-0.3, 0.9, 0.0),
-            rot=(0.707, 0.0, 0.0, -0.707),
-            joint_pos={"door_left_joint": 0.0, "door_right_joint": 0.0,
-                    "drawer_bottom_joint": 0.0, "drawer_top_joint": 0.0},
+            joint_pos={"door_hinge": 0.0},
         ),
         actuators={
-            "doors": ImplicitActuatorCfg(
-                joint_names_expr=["door_left_joint", "door_right_joint"],
-                effort_limit=87.0, velocity_limit=100.0,
-                stiffness=0.0,   # fully passive
-                damping=5.0,     # stays where pushed
-            ),
-            "drawers": ImplicitActuatorCfg(
-                joint_names_expr=["drawer_top_joint", "drawer_bottom_joint"],
-                effort_limit=87.0, velocity_limit=100.0,
-                stiffness=0.0, damping=5.0,
+            "hinge": ImplicitActuatorCfg(
+                joint_names_expr=["door_hinge"],
+                effort_limit=50.0, velocity_limit=1.0,
+                stiffness=0.0,
+                damping=5.0,
             ),
         },
     )
@@ -492,40 +485,40 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         sim.step()
         scene.update(sim_dt)
 
+                # -- DOOR PUSH/PULL --
+        door_obj = scene["door"]
+        door_joint_names = list(door_obj.data.joint_names)
+        door_idx = door_joint_names.index("door_hinge")
+        current_door = float(door_obj.data.joint_pos[0, door_idx])
 
-        # Get palm position from robot body
         palm_body_idx = robot.data.body_names.index("PALM_GAVIN_1DoF_Hinge_v2_1")
-        palm_pos = robot.data.body_pos_w[0, palm_body_idx]  # world position
+        palm_pos = robot.data.body_pos_w[0, palm_body_idx]
 
-        # Cabinet handle is roughly at this world position (tune to match your scene)
-        import torch
-        handle_pos = torch.tensor([-0.5, 0.6, 0.4], device=palm_pos.device)  # tune this
-        dist = torch.norm(palm_pos - handle_pos)
-        # -- FIST DETECTION + PUNCH TO OPEN DOOR --
-        # Fist = all four finger MCP joints curled past threshold
-        FIST_THRESHOLD = 0.8  # radians — tune to your hand
+        # Tune this to where the door panel sits in your scene
+        door_pos = torch.tensor([-0.3, 0.9, 0.4], device=palm_pos.device)
+        dist = float(torch.norm(palm_pos - door_pos))
+
+        # Fist detection: all MCP joints curled past threshold = closed hand
+        FIST_THRESHOLD = 0.8
         finger_mcps = ["mcp_index", "mcp_middle", "mcp_ring", "mcp_pinky"]
         is_fist = all(
             float(joint_pos_target[0, name_to_sim_idx[j]]) > FIST_THRESHOLD
             for j in finger_mcps if j in name_to_sim_idx
         )
 
-        door_obj = scene["door"]
-        door_joint_names = list(door_obj.data.joint_names)
-        door_idx = door_joint_names.index("door_left_joint")
-        current_door = float(door_obj.data.joint_pos[0, door_idx])
-
-        palm_body_idx = robot.data.body_names.index("PALM_GAVIN_1DoF_Hinge_v2_1")
-        palm_pos = robot.data.body_pos_w[0, palm_body_idx]
-        handle_pos = torch.tensor([-0.3, 0.9, 0.4], device=palm_pos.device)  # tune to your scene
-        dist = float(torch.norm(palm_pos - handle_pos))
-
-        if is_fist and dist < 0.4:
-            # Punch detected — drive door open
+        if dist < 0.4:
             target = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
-            target[0, door_idx] = min(current_door + 0.05, 1.5)
+            if is_fist:
+                # Fist near door = PULL closed
+                new_angle = max(current_door - 0.03, 0.0)
+                print(f"[PULL] Closing door: {new_angle:.2f} rad")
+            else:
+                # Open hand near door = PUSH open
+                new_angle = min(current_door + 0.03, 0.524)  # 0.524 = 30 degrees
+            target[0, door_idx] = new_angle
             door_obj.set_joint_position_target(target)
-            print(f"[SUCCESS] Fist punch detected! Door angle: {target[0, door_idx]:.2f} rad")
+            print(f"[DOOR] angle: {new_angle:.2f} rad | fist={is_fist} | dist={dist:.2f}m")
+
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
