@@ -21,7 +21,6 @@ import os
 import time
 
 from isaaclab.app import AppLauncher
-from isaaclab.assets import ArticulationCfg
 
 # ── AppLauncher must come before any Isaac/USD imports ───────────────────────
 parser = argparse.ArgumentParser(description="Wato Hand Isaac Lab Teleop")
@@ -42,6 +41,7 @@ from isaaclab.utils import configclass             # noqa: E402
 
 from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_CFG  # noqa: E402
 from isaaclab.assets import RigidObjectCfg
+from isaaclab.assets import ArticulationCfg
 # ── Shared file written by wato_hand_ros2_node.py ────────────────────────────
 JOINT_FILE = "/tmp/wato_joints.json"
 HAND_TIMEOUT = 2.0  # seconds before hand is considered lost
