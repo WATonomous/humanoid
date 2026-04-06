@@ -85,6 +85,14 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.UsdFileCfg(
             usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd",
             activate_contact_sensors=False,
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                max_depenetration_velocity=0.1,
+            ),
+            physics_material=sim_utils.RigidBodyMaterialCfg(
+                static_friction=3.0,
+                dynamic_friction=2.0,
+                restitution=0.0,
+            ),
         ),
         init_state=ArticulationCfg.InitialStateCfg(
         pos=(-0.2, 1.0, 0.0),
@@ -97,15 +105,17 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
         },
         ),
         actuators={
-            "drawers": ImplicitActuatorCfg(
-                joint_names_expr=["drawer_top_joint", "drawer_bottom_joint"],
-                effort_limit=87.0, velocity_limit=100.0,
-                stiffness=10.0, damping=1.0,
-            ),
             "doors": ImplicitActuatorCfg(
                 joint_names_expr=["door_left_joint", "door_right_joint"],
                 effort_limit=87.0, velocity_limit=100.0,
-                stiffness=10.0, damping=2.5,
+                stiffness=0.5,   # was 10.0 — barely resists movement
+                damping=0.5,     # was 2.5 — smooth, not sticky-stiff
+            ),
+            "drawers": ImplicitActuatorCfg(
+                joint_names_expr=["drawer_top_joint", "drawer_bottom_joint"],
+                effort_limit=87.0, velocity_limit=100.0,
+                stiffness=0.5,   # was 10.0
+                damping=0.5,     # was 1.0
             ),
         },
     )
