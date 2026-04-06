@@ -85,6 +85,14 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.UrdfFileCfg(
             asset_path="/workspace/isaaclab/humanoid/autonomy/simulation/Humanoid_Wato/arm_assembly/simple_door.urdf",
             fix_base=True,
+            joint_drive=sim_utils.UrdfFileCfg.JointDriveCfg(
+                drive_type="force",
+                target_type="position",
+                gains=sim_utils.UrdfFileCfg.JointDriveCfg.PDGainsCfg(
+                    stiffness=0.0,
+                    damping=5.0,
+                ),
+            ),
         ),
         init_state=ArticulationCfg.InitialStateCfg(
             pos=(-0.3, 0.9, 0.0),
