@@ -80,11 +80,11 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
     table = AssetBaseCfg(
         prim_path="/World/Table",
         spawn=sim_utils.CuboidCfg(
-            size=(0.6, 1.0, 0.05),
+            size=(1.2, 0.6, 0.05),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.6, 0.4, 0.2)),
             collision_props=sim_utils.CollisionPropertiesCfg(),
         ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(-0.1, 0.5, 0)),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(-0.1, 0.4, 0)),
     )
 
     ball = RigidObjectCfg(
@@ -104,7 +104,7 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
                 restitution=0.0,        # no bounce
             ),
         ),
-        init_state=RigidObjectCfg.InitialStateCfg(pos=(-0.1, 0.5, 0.05)),
+        init_state=RigidObjectCfg.InitialStateCfg(pos=(-0.1, 0.4, 0.05)),
 )
 
 
