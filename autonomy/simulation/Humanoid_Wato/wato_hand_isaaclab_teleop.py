@@ -88,11 +88,6 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 max_depenetration_velocity=0.1,
             ),
-            physics_material=sim_utils.RigidBodyMaterialCfg(
-                static_friction=3.0,
-                dynamic_friction=2.0,
-                restitution=0.0,
-            ),
         ),
         init_state=ArticulationCfg.InitialStateCfg(
         pos=(-0.2, 1.0, 0.0),
