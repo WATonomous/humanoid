@@ -21,6 +21,7 @@ import os
 import time
 
 from isaaclab.app import AppLauncher
+from isaaclab.assets import ArticulationCfg
 
 # ── AppLauncher must come before any Isaac/USD imports ───────────────────────
 parser = argparse.ArgumentParser(description="Wato Hand Isaac Lab Teleop")
@@ -87,25 +88,15 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
         init_state=AssetBaseCfg.InitialStateCfg(pos=(-0.1, 0.4, 0)),
     )
 
-    ball = RigidObjectCfg(
-        prim_path="/World/Ball",
-        spawn=sim_utils.SphereCfg(
-            radius=0.01,
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.2, 0.2)),
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                disable_gravity=False,
-                max_depenetration_velocity=0.1,   # was 1.0 — less bouncy on contact
-            ),
-            mass_props=sim_utils.MassPropertiesCfg(mass=0.25),  # was 0.05 — much lighter
-            collision_props=sim_utils.CollisionPropertiesCfg(),
-            physics_material=sim_utils.RigidBodyMaterialCfg(
-                static_friction=2.0,    # high friction so fingers don't slip
-                dynamic_friction=1.0,
-                restitution=0.0,        # no bounce
-            ),
+    cabinet = ArticulationCfg(
+        prim_path="/World/Cabinet",
+        spawn=sim_utils.UsdFileCfg(usd_path="path/to/cabinet.usd"),
+        init_state=ArticulationCfg.InitialStateCfg(
+            pos=(0.0, 0.5, 0.0),
+            joint_pos={"door_joint": 0.0},  # start closed
         ),
-        init_state=RigidObjectCfg.InitialStateCfg(pos=(-0.1, 0.4, 0.05)),
-)
+        actuators={},  # passive — hand pushes it open
+    )
 
 
 # ── Main sim loop ─────────────────────────────────────────────────────────────
