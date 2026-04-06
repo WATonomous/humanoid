@@ -80,16 +80,6 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
     )
     robot = ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
-    table = AssetBaseCfg(
-        prim_path="/World/Table",
-        spawn=sim_utils.CuboidCfg(
-            size=(1.2, 0.6, 0.05),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.6, 0.4, 0.2)),
-            collision_props=sim_utils.CollisionPropertiesCfg(),
-        ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(-0.1, 0.4, 0)),
-    )
-
     cabinet = ArticulationCfg(
         prim_path="/World/Cabinet",
         spawn=sim_utils.UsdFileCfg(
@@ -97,8 +87,8 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
             activate_contact_sensors=False,
         ),
         init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.5, 0.0),
-        rot=(0.707, 0.0, 0.0, 0.707),
+        pos=(0.0, 1.0, 0.0),
+        rot=(0.707, 0.0, 0.0, -0.707),
         joint_pos={
             "door_left_joint":    0.0,
             "door_right_joint":   0.0,
