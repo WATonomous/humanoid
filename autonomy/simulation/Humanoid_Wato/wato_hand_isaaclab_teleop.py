@@ -492,9 +492,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         sim.step()
         scene.update(sim_dt)
 
-                # -- CABINET PROXIMITY TRIGGER --
-        cabinet_obj = scene["cabinet"]
-        cabinet_joint_names = list(cabinet_obj.data.joint_names)
 
         # Get palm position from robot body
         palm_body_idx = robot.data.body_names.index("PALM_GAVIN_1DoF_Hinge_v2_1")
