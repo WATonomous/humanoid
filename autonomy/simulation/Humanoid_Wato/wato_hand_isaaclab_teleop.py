@@ -502,7 +502,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         current_door = float(door_obj.data.joint_pos[0, door_idx])
         target = torch.zeros(1, len(door_joint_names), device=args_cli.device)
         # Oscillate between 0 and 0.524 rad using a sine wave
-        target[0, door_idx] = 0.262 + 0.262 * _math.sin(time.time() * 2.0)
+        target[0, door_idx] = -(0.524 + 0.524 * _math.sin(time.time() * 8.0))
         door_obj.set_joint_position_target(target)
         print(f"[TEST] Door angle: {current_door:.3f} rad")
 
