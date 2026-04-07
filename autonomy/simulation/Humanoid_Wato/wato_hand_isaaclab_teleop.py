@@ -547,17 +547,16 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         EDGE_ZONE  = 0.25
         touching = door_surface_dist < 0.1
         print(f"[DEBUG] Should open: edge_dist={edge_dist:.3f} < {EDGE_ZONE} → {edge_dist < EDGE_ZONE} | touching={touching} | is_fist={is_fist}")
-
+        FIST_THRESHOLD = 0.8
+        finger_mcps = ["mcp_index", "mcp_middle", "mcp_ring", "mcp_pinky"]
+        is_fist = all(
+                float(joint_pos_target[0, name_to_sim_idx[j]]) > FIST_THRESHOLD
+                for j in finger_mcps if j in name_to_sim_idx
+            )
         if edge_dist < EDGE_ZONE and touching:
             print("Should open")
             target = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
             # Fist detection — defined outside hand_visible block so door logic can use it
-            FIST_THRESHOLD = 0.8
-            finger_mcps = ["mcp_index", "mcp_middle", "mcp_ring", "mcp_pinky"]
-            is_fist = all(
-                float(joint_pos_target[0, name_to_sim_idx[j]]) > FIST_THRESHOLD
-                for j in finger_mcps if j in name_to_sim_idx
-            )
             if is_fist:
                 new_angle = min(current_door + 0.03, 0.0) 
                 print(f"[PULL] Closing door: {new_angle:.2f} rad")
