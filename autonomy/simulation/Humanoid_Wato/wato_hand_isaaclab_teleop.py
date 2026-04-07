@@ -507,32 +507,35 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         # Tune this to where the door panel sits in your scene
         door_pos = torch.tensor([-0.3, 0.9, 0.4], device=palm_pos.device)
         dist = float(torch.norm(palm_pos - door_pos))
+        # Use actual panel position from sim instead of hardcoded value
         panel_idx = door_obj.data.body_names.index("door_panel")
         panel_pos = door_obj.data.body_pos_w[0, panel_idx]
         print(f"[DEBUG] Door panel pos: {panel_pos.cpu().numpy()}")
         print(f"[DEBUG] Palm pos: {palm_pos.cpu().numpy()}")
-        print(f"[DEBUG] Dist: {dist:.3f}")
 
-        # Fist detection: all MCP joints curled past threshold = closed hand
-        FIST_THRESHOLD = 0.8
-        finger_mcps = ["mcp_index", "mcp_middle", "mcp_ring", "mcp_pinky"]
-        is_fist = all(
-            float(joint_pos_target[0, name_to_sim_idx[j]]) > FIST_THRESHOLD
-            for j in finger_mcps if j in name_to_sim_idx
-        )
+        # Horizontal distance only (ignore Z/height)
+        horiz_diff = palm_pos[:2] - panel_pos[:2]  # X and Y only
+        horiz_dist = float(torch.norm(horiz_diff))
 
-        if dist < 0.4:
+        # Distance from the free edge of the panel (Y axis, 0.9m * 0.5 scale = 0.45m from hinge)
+        PANEL_HALF_LENGTH = 0.45 * 0.5  # scaled panel length / 2
+        edge_dist = abs(float(palm_pos[1] - (panel_pos[1] + PANEL_HALF_LENGTH)))
+
+        print(f"[DEBUG] Horiz dist to panel: {horiz_dist:.3f} | Edge dist: {edge_dist:.3f}")
+
+        TOUCH_DIST = 0.15   # must be this close horizontally to count as touching
+        EDGE_ZONE  = 0.20   # must be within 20cm of the free edge
+
+        if horiz_dist < TOUCH_DIST and edge_dist < EDGE_ZONE:
             target = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
             if is_fist:
-                # Fist near door = PULL closed
                 new_angle = max(current_door - 0.03, 0.0)
                 print(f"[PULL] Closing door: {new_angle:.2f} rad")
             else:
-                # Open hand near door = PUSH open
-                new_angle = min(current_door + 0.03, 0.524)  # 0.524 = 30 degrees
+                new_angle = min(current_door + 0.03, 0.524)
+                print(f"[PUSH] Opening door: {new_angle:.2f} rad")
             target[0, door_idx] = new_angle
             door_obj.set_joint_position_target(target)
-            print(f"[DOOR] angle: {new_angle:.2f} rad | fist={is_fist} | dist={dist:.2f}m")
 
 
 
