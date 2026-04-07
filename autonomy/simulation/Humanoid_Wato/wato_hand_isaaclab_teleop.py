@@ -508,19 +508,18 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
        # -- DOOR PUSH/PULL --
        # Free edge = panel center shifted along X by half the scaled panel length
+        door_obj = scene["door"]
+        door_joint_names = list(door_obj.data.joint_names)
+        door_idx = door_joint_names.index("door_hinge")
         PANEL_HALF_LENGTH = 0.9 * 0.5 * 0.5  # URDF length * scale * 0.5 for center-to-edge
         panel_idx = door_obj.data.body_names.index("door_panel")
         panel_pos = door_obj.data.body_pos_w[0, panel_idx]
-        
+
         free_edge_pos = panel_pos.clone()
         free_edge_pos[0] = panel_pos[0] - PANEL_HALF_LENGTH
 
         edge_diff = palm_pos[:2] - free_edge_pos[:2]
         edge_dist = float(torch.norm(edge_diff))
-
-        door_obj = scene["door"]
-        door_joint_names = list(door_obj.data.joint_names)
-        door_idx = door_joint_names.index("door_hinge")
         current_door = float(door_obj.data.joint_pos[0, door_idx])
 
         palm_body_idx = robot.data.body_names.index("PALM_GAVIN_1DoF_Hinge_v2_1")
