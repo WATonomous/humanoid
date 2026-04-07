@@ -514,6 +514,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
         edge_diff = palm_pos[:2] - free_edge_pos[:2]
         edge_dist = float(torch.norm(edge_diff))
+        
         door_obj = scene["door"]
         door_joint_names = list(door_obj.data.joint_names)
         door_idx = door_joint_names.index("door_hinge")
