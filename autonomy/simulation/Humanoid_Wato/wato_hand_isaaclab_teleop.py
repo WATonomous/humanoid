@@ -519,12 +519,15 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
         # Distance from the free edge of the panel (Y axis, 0.9m * 0.5 scale = 0.45m from hinge)
         PANEL_HALF_LENGTH = 0.45 * 0.5  # scaled panel length / 2
-        edge_dist = abs(float(palm_pos[1] - (panel_pos[1] + PANEL_HALF_LENGTH)))
+        free_edge_pos = panel_pos.clone()
+        free_edge_pos[1] = panel_pos[1] - PANEL_HALF_LENGTH  # subtract to get free edge
 
-        print(f"[DEBUG] Horiz dist to panel: {horiz_dist:.3f} | Edge dist: {edge_dist:.3f}")
+        # Distance from palm to the free edge
+        edge_diff = palm_pos[:2] - free_edge_pos[:2]
+        edge_dist = float(torch.norm(edge_diff))
 
-        TOUCH_DIST = 0.15   # must be this close horizontally to count as touching
-        EDGE_ZONE  = 0.20   # must be within 20cm of the free edge
+        print(f"[DEBUG] Free edge pos: {free_edge_pos.cpu().numpy()}")
+        print(f"[DEBUG] Edge dist: {edge_dist:.3f}")
 
         if horiz_dist < TOUCH_DIST and edge_dist < EDGE_ZONE:
             target = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
