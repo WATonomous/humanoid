@@ -90,8 +90,8 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
                 drive_type="force",
                 target_type="position",
                 gains=sim_utils.UrdfFileCfg.JointDriveCfg.PDGainsCfg(
-                    stiffness=0.0,
-                    damping=5.0,
+                    stiffness=100.0,
+                    damping=10.0,
                 ),
             ),
         ),
@@ -104,8 +104,8 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
             "hinge": ImplicitActuatorCfg(
                 joint_names_expr=["door_hinge"],
                 effort_limit=50.0, velocity_limit=1.0,
-                stiffness=0.0,
-                damping=5.0,
+                stiffness=100.0,
+                damping=10.0,
             ),
         },
     )
