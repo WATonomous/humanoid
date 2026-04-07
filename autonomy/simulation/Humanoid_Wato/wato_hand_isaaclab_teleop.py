@@ -529,6 +529,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         print(f"[DEBUG] Free edge pos: {free_edge_pos.cpu().numpy()}")
         print(f"[DEBUG] Edge dist: {edge_dist:.3f}")
 
+        TOUCH_DIST = 0.15
+        EDGE_ZONE  = 0.20
+
         if horiz_dist < TOUCH_DIST and edge_dist < EDGE_ZONE:
             target = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
             if is_fist:
