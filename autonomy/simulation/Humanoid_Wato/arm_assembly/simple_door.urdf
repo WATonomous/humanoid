@@ -136,10 +136,14 @@
     <origin xyz="0 0 0" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
 <<<<<<< HEAD
+<<<<<<< HEAD
     <limit lower="-0.524" upper="0.524" effort="50.0" velocity="1.0"/>
 =======
     <limit lower="0.0" upper="0.524" effort="50.0" velocity="1.0"/>
 >>>>>>> 9612a780 (Arm motion)
+=======
+    <limit lower="-0.524" upper="0.524" effort="50.0" velocity="1.0"/>
+>>>>>>> 2b958a56 (Arm motion)
     <dynamics damping="2.0" friction="0.5"/>
   </joint>
 
