@@ -530,12 +530,16 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         door_surface_dist = abs(float(palm_pos[0] - panel_pos[0]))
         touching = door_surface_dist < 0.12
 
-        FIST_THRESHOLD = 0.8
+        FIST_THRESHOLD = 0.7
         finger_mcps = ["mcp_index", "mcp_middle", "mcp_ring", "mcp_pinky"]
         is_fist = all(
             float(joint_pos_target[0, name_to_sim_idx[j]]) > FIST_THRESHOLD
             for j in finger_mcps if j in name_to_sim_idx
         )
+        print(joint_pos_target[0, name_to_sim_idx["mcp_index"]])
+        print(joint_pos_target[0, name_to_sim_idx["mcp_middle"]])
+        print(joint_pos_target[0, name_to_sim_idx["mcp_ring"]])
+        print(joint_pos_target[0, name_to_sim_idx["mcp_pinky"]])
 
         current_door = float(door_obj.data.joint_pos[0, door_idx])
         print(f"[DEBUG] touching={touching} | is_fist={is_fist} | palm_dx={palm_dx:.4f} | door={current_door:.3f}")
