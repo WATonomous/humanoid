@@ -507,6 +507,13 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         print(f"[TEST] Door angle: {current_door:.3f} rad")'''
 
        # -- DOOR PUSH/PULL --
+       # Free edge = panel center shifted along X by half the scaled panel length
+        PANEL_HALF_LENGTH = 0.9 * 0.5 * 0.5  # URDF length * scale * 0.5 for center-to-edge
+        free_edge_pos = panel_pos.clone()
+        free_edge_pos[0] = panel_pos[0] - PANEL_HALF_LENGTH
+
+        edge_diff = palm_pos[:2] - free_edge_pos[:2]
+        edge_dist = float(torch.norm(edge_diff))
         door_obj = scene["door"]
         door_joint_names = list(door_obj.data.joint_names)
         door_idx = door_joint_names.index("door_hinge")
