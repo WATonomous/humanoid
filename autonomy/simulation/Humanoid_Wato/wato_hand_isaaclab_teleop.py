@@ -495,7 +495,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         sim.step()
         scene.update(sim_dt)
 
-        import math as _math
+        '''import math as _math
         door_obj = scene["door"]
         door_joint_names = list(door_obj.data.joint_names)
         door_idx = door_joint_names.index("door_hinge")
@@ -504,9 +504,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         # Oscillate between 0 and 0.524 rad using a sine wave
         target[0, door_idx] = -(0.524 + 0.524 * _math.sin(time.time() * 8.0))
         door_obj.set_joint_position_target(target)
-        print(f"[TEST] Door angle: {current_door:.3f} rad")
+        print(f"[TEST] Door angle: {current_door:.3f} rad")'''
 
-        '''        # -- DOOR PUSH/PULL --
+       # -- DOOR PUSH/PULL --
         door_obj = scene["door"]
         door_joint_names = list(door_obj.data.joint_names)
         door_idx = door_joint_names.index("door_hinge")
@@ -556,10 +556,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                 for j in finger_mcps if j in name_to_sim_idx
             )
             if is_fist:
-                new_angle = max(current_door - 0.03, 0.0)
+                new_angle = min(current_door + 0.03, 0.0) 
                 print(f"[PULL] Closing door: {new_angle:.2f} rad")
             else:
-                new_angle = min(current_door + 0.03, 0.524)
+                new_angle = max(current_door + 0.03, 0.524)
                 print(f"[PUSH] Opening door: {new_angle:.2f} rad")
             target[0, door_idx] = new_angle
             door_obj.set_joint_position_target(target)
@@ -570,7 +570,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     edge_diff = palm_pos[:2] - free_edge_pos[:2]
     edge_dist = float(torch.norm(edge_diff))
-    print(f"[DEBUG] Edge dist: {edge_dist:.3f}")'''
+    print(f"[DEBUG] Edge dist: {edge_dist:.3f}")
 
 
 
