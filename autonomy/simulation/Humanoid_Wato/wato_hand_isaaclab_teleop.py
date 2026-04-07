@@ -528,6 +528,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
         print(f"[DEBUG] Free edge pos: {free_edge_pos.cpu().numpy()}")
         print(f"[DEBUG] Edge dist: {edge_dist:.3f}")
+        # Check if palm is touching the door surface (X axis depth)
+        door_surface_dist = abs(float(palm_pos[0] - panel_pos[0]))
+        print(f"[DEBUG] Door surface dist (X): {door_surface_dist:.3f} | Touching: {door_surface_dist < 0.1}")
 
         TOUCH_DIST = 0.15
         EDGE_ZONE  = 0.20
