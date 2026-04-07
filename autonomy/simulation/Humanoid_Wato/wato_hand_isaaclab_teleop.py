@@ -532,10 +532,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         door_surface_dist = abs(float(palm_pos[0] - panel_pos[0]))
         print(f"[DEBUG] Door surface dist (X): {door_surface_dist:.3f} | Touching: {door_surface_dist < 0.1}")
 
-        TOUCH_DIST = 0.15
-        EDGE_ZONE  = 0.20
+        TOUCH_DIST = 0.25
+        EDGE_ZONE  = 0.25
 
-        if horiz_dist < TOUCH_DIST and edge_dist < EDGE_ZONE:
+        if edge_dist < EDGE_ZONE:
             target = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
             if is_fist:
                 new_angle = max(current_door - 0.03, 0.0)
