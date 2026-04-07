@@ -507,25 +507,28 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         print(f"[TEST] Door angle: {current_door:.3f} rad")'''
 
        # -- DOOR PUSH/PULL --
-       # Free edge = panel center shifted along X by half the scaled panel length
         door_obj = scene["door"]
         door_joint_names = list(door_obj.data.joint_names)
         door_idx = door_joint_names.index("door_hinge")
         palm_body_idx = robot.data.body_names.index("PALM_GAVIN_1DoF_Hinge_v2_1")
         palm_pos = robot.data.body_pos_w[0, palm_body_idx]
 
-        PANEL_HALF_LENGTH = 0.9 * 0.5 * 0.5  # URDF length * scale * 0.5 for center-to-edge
         panel_idx = door_obj.data.body_names.index("door_panel")
         panel_pos = door_obj.data.body_pos_w[0, panel_idx]
+        hinge_pos = door_obj.data.body_pos_w[0, 0]  # hinge body is index 0
 
-        free_edge_pos = panel_pos.clone()
-        free_edge_pos[0] = panel_pos[0] - PANEL_HALF_LENGTH
+        # Distance from hinge to palm (moment arm) — used to convert linear → angular
+        hinge_to_palm = float(torch.norm(palm_pos[:2] - hinge_pos[:2]))
+        hinge_to_palm = max(hinge_to_palm, 0.05)  # avoid divide-by-zero
 
-        edge_diff = palm_pos[:2] - free_edge_pos[:2]
-        edge_dist = float(torch.norm(edge_diff))
-        current_door = float(door_obj.data.joint_pos[0, door_idx])
+        # Track palm X velocity by diffing against last frame
+        prev_palm_x = getattr(run_simulator, '_prev_palm_x', float(palm_pos[0]))
+        palm_dx = float(palm_pos[0]) - prev_palm_x  # negative = pulling backward
+        run_simulator._prev_palm_x = float(palm_pos[0])
+
+        # Touch detection: is the palm anywhere near the door panel surface?
         door_surface_dist = abs(float(palm_pos[0] - panel_pos[0]))
-        touching = door_surface_dist < 0.1
+        touching = door_surface_dist < 0.12
 
         FIST_THRESHOLD = 0.8
         finger_mcps = ["mcp_index", "mcp_middle", "mcp_ring", "mcp_pinky"]
@@ -534,15 +537,20 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             for j in finger_mcps if j in name_to_sim_idx
         )
 
-        EDGE_ZONE = 0.25
-        print(f"[DEBUG] edge_dist={edge_dist:.3f} | touching={touching} | is_fist={is_fist} | door={current_door:.3f}")
+        current_door = float(door_obj.data.joint_pos[0, door_idx])
+        print(f"[DEBUG] touching={touching} | is_fist={is_fist} | palm_dx={palm_dx:.4f} | door={current_door:.3f}")
 
-        if edge_dist < EDGE_ZONE and touching and is_fist:
+        if is_fist and touching:
+            # Convert palm linear velocity → door angular velocity: dθ = dx / r
+            delta_angle = palm_dx / hinge_to_palm
+            new_angle = float(torch.clamp(
+                torch.tensor(current_door + delta_angle),
+                min=-0.524, max=0.0
+            ))
             target = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
-            new_angle = max(current_door - 0.03, -0.524)
             target[0, door_idx] = new_angle
             door_obj.set_joint_position_target(target)
-            print(f"[PULL] Door angle: {new_angle:.2f} rad")
+            print(f"[PULL] delta_angle={delta_angle:.4f} | door={new_angle:.3f} rad")
 
 
 
