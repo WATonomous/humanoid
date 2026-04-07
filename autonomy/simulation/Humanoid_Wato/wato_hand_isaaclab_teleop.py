@@ -546,6 +546,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             target[0, door_idx] = new_angle
             door_obj.set_joint_position_target(target)
 
+    marker_idx = door_obj.data.body_names.index("push_marker")
+    free_edge_pos = door_obj.data.body_pos_w[0, marker_idx]
+    print(f"[DEBUG] Free edge (marker) pos: {free_edge_pos.cpu().numpy()}")
+
+    edge_diff = palm_pos[:2] - free_edge_pos[:2]
+    edge_dist = float(torch.norm(edge_diff))
+    print(f"[DEBUG] Edge dist: {edge_dist:.3f}")
+
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
