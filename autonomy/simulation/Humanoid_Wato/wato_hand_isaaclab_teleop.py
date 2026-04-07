@@ -515,64 +515,33 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         palm_body_idx = robot.data.body_names.index("PALM_GAVIN_1DoF_Hinge_v2_1")
         palm_pos = robot.data.body_pos_w[0, palm_body_idx]
 
-        # Tune this to where the door panel sits in your scene
-        door_pos = torch.tensor([-0.3, 0.9, 0.4], device=palm_pos.device)
-        dist = float(torch.norm(palm_pos - door_pos))
-        # Use actual panel position from sim instead of hardcoded value
         panel_idx = door_obj.data.body_names.index("door_panel")
         panel_pos = door_obj.data.body_pos_w[0, panel_idx]
-        print(f"[DEBUG] Door panel pos: {panel_pos.cpu().numpy()}")
-        print(f"[DEBUG] Palm pos: {palm_pos.cpu().numpy()}")
 
-        # Horizontal distance only (ignore Z/height)
-        horiz_diff = palm_pos[:2] - panel_pos[:2]  # X and Y only
-        horiz_dist = float(torch.norm(horiz_diff))
+        marker_idx = door_obj.data.body_names.index("push_marker")
+        marker_pos = door_obj.data.body_pos_w[0, marker_idx]
 
-        # Distance from the free edge of the panel (Y axis, 0.9m * 0.5 scale = 0.45m from hinge)
-        PANEL_HALF_LENGTH = 0.45 * 0.5  # scaled panel length / 2
-        free_edge_pos = panel_pos.clone()
-        free_edge_pos[0] = panel_pos[0] - PANEL_HALF_LENGTH  # subtract to get free edge
-
-        # Distance from palm to the free edge
-        edge_diff = palm_pos[:2] - free_edge_pos[:2]
+        edge_diff = palm_pos[:2] - marker_pos[:2]
         edge_dist = float(torch.norm(edge_diff))
-
-        print(f"[DEBUG] Free edge pos: {free_edge_pos.cpu().numpy()}")
-        print(f"[DEBUG] Edge dist: {edge_dist:.3f}")
-        # Check if palm is touching the door surface (X axis depth)
         door_surface_dist = abs(float(palm_pos[0] - panel_pos[0]))
-        print(f"[DEBUG] Door surface dist (X): {door_surface_dist:.3f} | Touching: {door_surface_dist < 0.1}")
-
-        TOUCH_DIST = 0.25
-        EDGE_ZONE  = 0.25
         touching = door_surface_dist < 0.1
+
         FIST_THRESHOLD = 0.8
         finger_mcps = ["mcp_index", "mcp_middle", "mcp_ring", "mcp_pinky"]
         is_fist = all(
-                float(joint_pos_target[0, name_to_sim_idx[j]]) > FIST_THRESHOLD
-                for j in finger_mcps if j in name_to_sim_idx
+            float(joint_pos_target[0, name_to_sim_idx[j]]) > FIST_THRESHOLD
+            for j in finger_mcps if j in name_to_sim_idx
         )
-        print(f"[DEBUG] Should open: edge_dist={edge_dist:.3f} < {EDGE_ZONE} → {edge_dist < EDGE_ZONE} | touching={touching} | is_fist={is_fist}")
-        if edge_dist < EDGE_ZONE and touching:
-            print("Should open")
+
+        EDGE_ZONE = 0.25
+        print(f"[DEBUG] edge_dist={edge_dist:.3f} | touching={touching} | is_fist={is_fist} | door={current_door:.3f}")
+
+        if edge_dist < EDGE_ZONE and touching and is_fist:
             target = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
-            # Fist detection — defined outside hand_visible block so door logic can use it
-            if is_fist:
-                new_angle = min(current_door + 0.03, 0.0) 
-                print(f"[PULL] Closing door: {new_angle:.2f} rad")
-            else:
-                new_angle = max(current_door + 0.03, 0.524)
-                print(f"[PUSH] Opening door: {new_angle:.2f} rad")
+            new_angle = max(current_door - 0.03, -0.524)
             target[0, door_idx] = new_angle
             door_obj.set_joint_position_target(target)
-
-    marker_idx = door_obj.data.body_names.index("push_marker")
-    free_edge_pos = door_obj.data.body_pos_w[0, marker_idx]
-    print(f"[DEBUG] Free edge (marker) pos: {free_edge_pos.cpu().numpy()}")
-
-    edge_diff = palm_pos[:2] - free_edge_pos[:2]
-    edge_dist = float(torch.norm(edge_diff))
-    print(f"[DEBUG] Edge dist: {edge_dist:.3f}")
+            print(f"[PULL] Door angle: {new_angle:.2f} rad")
 
 
 
