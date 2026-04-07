@@ -511,6 +511,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         door_obj = scene["door"]
         door_joint_names = list(door_obj.data.joint_names)
         door_idx = door_joint_names.index("door_hinge")
+        palm_body_idx = robot.data.body_names.index("PALM_GAVIN_1DoF_Hinge_v2_1")
+        palm_pos = robot.data.body_pos_w[0, palm_body_idx]
+
         PANEL_HALF_LENGTH = 0.9 * 0.5 * 0.5  # URDF length * scale * 0.5 for center-to-edge
         panel_idx = door_obj.data.body_names.index("door_panel")
         panel_pos = door_obj.data.body_pos_w[0, panel_idx]
@@ -521,10 +524,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         edge_diff = palm_pos[:2] - free_edge_pos[:2]
         edge_dist = float(torch.norm(edge_diff))
         current_door = float(door_obj.data.joint_pos[0, door_idx])
-
-        palm_body_idx = robot.data.body_names.index("PALM_GAVIN_1DoF_Hinge_v2_1")
-        palm_pos = robot.data.body_pos_w[0, palm_body_idx]
-
 
         marker_idx = door_obj.data.body_names.index("push_marker")
         marker_pos = door_obj.data.body_pos_w[0, marker_idx]
