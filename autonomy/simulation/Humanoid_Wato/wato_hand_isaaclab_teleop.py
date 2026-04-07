@@ -495,7 +495,18 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         sim.step()
         scene.update(sim_dt)
 
-                # -- DOOR PUSH/PULL --
+        import math as _math
+        door_obj = scene["door"]
+        door_joint_names = list(door_obj.data.joint_names)
+        door_idx = door_joint_names.index("door_hinge")
+        current_door = float(door_obj.data.joint_pos[0, door_idx])
+        target = torch.zeros(1, len(door_joint_names), device=args_cli.device)
+        # Oscillate between 0 and 0.524 rad using a sine wave
+        target[0, door_idx] = 0.262 + 0.262 * _math.sin(time.time() * 2.0)
+        door_obj.set_joint_position_target(target)
+        print(f"[TEST] Door angle: {current_door:.3f} rad")
+
+        '''        # -- DOOR PUSH/PULL --
         door_obj = scene["door"]
         door_joint_names = list(door_obj.data.joint_names)
         door_idx = door_joint_names.index("door_hinge")
@@ -559,7 +570,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     edge_diff = palm_pos[:2] - free_edge_pos[:2]
     edge_dist = float(torch.norm(edge_diff))
-    print(f"[DEBUG] Edge dist: {edge_dist:.3f}")
+    print(f"[DEBUG] Edge dist: {edge_dist:.3f}")'''
 
 
 
