@@ -520,7 +520,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         # Distance from the free edge of the panel (Y axis, 0.9m * 0.5 scale = 0.45m from hinge)
         PANEL_HALF_LENGTH = 0.45 * 0.5  # scaled panel length / 2
         free_edge_pos = panel_pos.clone()
-        free_edge_pos[1] = panel_pos[1] - PANEL_HALF_LENGTH  # subtract to get free edge
+        free_edge_pos[0] = panel_pos[0] - PANEL_HALF_LENGTH  # subtract to get free edge
 
         # Distance from palm to the free edge
         edge_diff = palm_pos[:2] - free_edge_pos[:2]
