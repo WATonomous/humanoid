@@ -524,12 +524,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         edge_diff = palm_pos[:2] - free_edge_pos[:2]
         edge_dist = float(torch.norm(edge_diff))
         current_door = float(door_obj.data.joint_pos[0, door_idx])
-
-        marker_idx = door_obj.data.body_names.index("push_marker")
-        marker_pos = door_obj.data.body_pos_w[0, marker_idx]
-
-        edge_diff = palm_pos[:2] - marker_pos[:2]
-        edge_dist = float(torch.norm(edge_diff))
         door_surface_dist = abs(float(palm_pos[0] - panel_pos[0]))
         touching = door_surface_dist < 0.1
 
