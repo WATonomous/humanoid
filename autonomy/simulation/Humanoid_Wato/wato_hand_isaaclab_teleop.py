@@ -571,18 +571,31 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
         else:
             print("PULLING MOTION")
-            # pulling = moving AWAY (negative X)
-            delta_angle = palm_dx / hinge_to_palm
+
+            # Strong PD-style pull toward CLOSED (0.0 rad)
+            CLOSE_TARGET = 0.0
+
+            # Error (how far from closed)
+            error = CLOSE_TARGET - current_door
+
+            # High gain = strong pull
+            Kp = 8.0   # increase if still weak
+            force_angle = Kp * error
+
+            # Optional: add velocity boost from hand motion
+            VELOCITY_BOOST = 2.0
+            force_angle += VELOCITY_BOOST * palm_dx
 
             new_angle = float(torch.clamp(
-                torch.tensor(current_door + delta_angle),
+                torch.tensor(current_door + force_angle),
                 min=-0.524, max=0.0
             ))
 
+            target = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
             target[0, door_idx] = new_angle
             door_obj.set_joint_position_target(target)
 
-            print(f"[PULL] dist_hinge={dist_to_hinge:.3f} | dx={palm_dx:.4f} | door={new_angle:.3f}")
+            print(f"[PULL FORCE] error={error:.3f} | door={new_angle:.3f}")
 
 
 
