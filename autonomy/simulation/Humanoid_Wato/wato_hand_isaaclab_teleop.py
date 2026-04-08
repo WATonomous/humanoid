@@ -227,8 +227,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     # Per-joint clamps [min, max] in radians.  min=0 prevents backward bending.
     ARM_JOINT_CLAMPS = {
         "elbow_flexion_extension":    (-1.0,  1.0),  # was (-1.0, 0.6)
-        "shoulder_flexion_extension": (-0.5,  0.5),
-        "shoulder_rotation":          (-0.8,  0.8),
+        "shoulder_flexion_extension": (-1,  1),
+        "shoulder_rotation":          (-0.7,  0.7),
     }
     _arm_pos_ref: dict | None = None
     _arm_pos_count: int = 0
