@@ -572,30 +572,52 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         else:
             print("PULLING MOTION")
 
-            # Strong PD-style pull toward CLOSED (0.0 rad)
+            # --- TARGET: fully closed ---
             CLOSE_TARGET = 0.0
-
-            # Error (how far from closed)
             error = CLOSE_TARGET - current_door
 
-            # High gain = strong pull
-            Kp = 8.0   # increase if still weak
-            force_angle = Kp * error
+            # ---------------------------
+            # 1) STRONG DOOR TORQUE
+            # ---------------------------
+            TORQUE_GAIN = 300.0   # crank this if needed
+            DAMPING = 20.0        # stabilizes oscillation
 
-            # Optional: add velocity boost from hand motion
-            VELOCITY_BOOST = 2.0
-            force_angle += VELOCITY_BOOST * palm_dx
+            # Estimate door velocity (finite difference)
+            prev_door = getattr(run_simulator, "_prev_door_angle", current_door)
+            door_vel = current_door - prev_door
+            run_simulator._prev_door_angle = current_door
 
-            new_angle = float(torch.clamp(
-                torch.tensor(current_door + force_angle),
-                min=-0.524, max=0.0
-            ))
+            # PD controller → torque
+            torque = TORQUE_GAIN * error - DAMPING * door_vel
 
-            target = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
-            target[0, door_idx] = new_angle
-            door_obj.set_joint_position_target(target)
+            # Clamp torque
+            torque = float(max(min(torque, 300.0), -300.0))
 
-            print(f"[PULL FORCE] error={error:.3f} | door={new_angle:.3f}")
+            effort = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
+            effort[0, door_idx] = torque
+
+            # Apply REAL torque (not position target)
+            door_obj.set_joint_effort_target(effort)
+
+            # ---------------------------
+            # 2) REACTION FORCE ON HAND
+            # ---------------------------
+            PALM_FORCE_GAIN = 250.0  # this makes the arm get pulled back
+
+            # Direction: hinge ← palm
+            dir_vec = hinge_pos - palm_pos
+            dir_vec = dir_vec / (torch.norm(dir_vec) + 1e-6)
+
+            # Scale force by how hard we're pulling the door
+            force = PALM_FORCE_GAIN * abs(error) * dir_vec
+
+            # Apply force to palm body
+            robot.apply_external_force(
+                body_ids=[palm_body_idx],
+                forces=force.unsqueeze(0),
+            )
+
+            print(f"[PULL FORCE] error={error:.3f} | torque={torque:.2f}")
 
 
 
