@@ -245,6 +245,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     while simulation_app.is_running():
         hand_dict = read_joint_file()
         hand_visible = is_hand_visible(hand_dict)
+        world_local = None  # reset each frame
         # -- Normal tracking: update target from latest data --
         if hand_visible:
             # 1) Directly map arm / finger joints from 1D heuristic solver
@@ -538,49 +539,50 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         ]
         # Fist = index AND middle are curled negative (most reliable signal)
         # --- Robust fist detection ---
-        fingertips = [8, 12, 16, 20]
-        palm = world_local[0]
+        if world_local is not None:  
+            fingertips = [8, 12, 16, 20]
+            palm = world_local[0]
 
-        dists = [np.linalg.norm(world_local[i] - palm) for i in fingertips]
-        avg_dist = sum(dists) / len(dists)
+            dists = [np.linalg.norm(world_local[i] - palm) for i in fingertips]
+            avg_dist = sum(dists) / len(dists)
 
-        hand_scale = np.linalg.norm(world_local[9] - world_local[0])
-        norm_dist = avg_dist / (hand_scale + 1e-6)
+            hand_scale = np.linalg.norm(world_local[9] - world_local[0])
+            norm_dist = avg_dist / (hand_scale + 1e-6)
 
-        # Temporal smoothing
-        if not hasattr(run_simulator, "_fist_buffer"):
-            run_simulator._fist_buffer = []
+            # Temporal smoothing
+            if not hasattr(run_simulator, "_fist_buffer"):
+                run_simulator._fist_buffer = []
 
-        run_simulator._fist_buffer.append(norm_dist < 0.6)
-        if len(run_simulator._fist_buffer) > 5:
-            run_simulator._fist_buffer.pop(0)
+            run_simulator._fist_buffer.append(norm_dist < 0.6)
+            if len(run_simulator._fist_buffer) > 5:
+                run_simulator._fist_buffer.pop(0)
 
-        is_fist = sum(run_simulator._fist_buffer) >= 3
-        
-        print(joint_pos_target[0, name_to_sim_idx["mcp_index"]])
-        print(joint_pos_target[0, name_to_sim_idx["mcp_middle"]])
-        print(joint_pos_target[0, name_to_sim_idx["mcp_ring"]])
-        print(joint_pos_target[0, name_to_sim_idx["mcp_pinky"]])
+            is_fist = sum(run_simulator._fist_buffer) >= 3
+            
+            print(joint_pos_target[0, name_to_sim_idx["mcp_index"]])
+            print(joint_pos_target[0, name_to_sim_idx["mcp_middle"]])
+            print(joint_pos_target[0, name_to_sim_idx["mcp_ring"]])
+            print(joint_pos_target[0, name_to_sim_idx["mcp_pinky"]])
 
-        current_door = float(door_obj.data.joint_pos[0, door_idx])
-        print(f"[DEBUG] touching={touching} | is_fist={is_fist} | palm_dx={palm_dx:.4f} | door={current_door:.3f}")
+            current_door = float(door_obj.data.joint_pos[0, door_idx])
+            print(f"[DEBUG] touching={touching} | is_fist={is_fist} | palm_dx={palm_dx:.4f} | door={current_door:.3f}")
 
-        grasping = norm_dist < 0.65 and touching
+            grasping = norm_dist < 0.65 and touching
 
-        # Secondary confirmation
-        confirmed = grasping and is_fist
+            # Secondary confirmation
+            confirmed = grasping and is_fist
 
-        if confirmed:
-            # Convert palm linear velocity → door angular velocity: dθ = dx / r
-            delta_angle = palm_dx / hinge_to_palm
-            new_angle = float(torch.clamp(
-                torch.tensor(current_door + delta_angle),
-                min=-0.524, max=0.0
-            ))
-            target = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
-            target[0, door_idx] = new_angle
-            door_obj.set_joint_position_target(target)
-            print(f"[PULL] delta_angle={delta_angle:.4f} | door={new_angle:.3f} rad")
+            if confirmed:
+                # Convert palm linear velocity → door angular velocity: dθ = dx / r
+                delta_angle = palm_dx / hinge_to_palm
+                new_angle = float(torch.clamp(
+                    torch.tensor(current_door + delta_angle),
+                    min=-0.524, max=0.0
+                ))
+                target = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
+                target[0, door_idx] = new_angle
+                door_obj.set_joint_position_target(target)
+                print(f"[PULL] delta_angle={delta_angle:.4f} | door={new_angle:.3f} rad")
 
 
 
