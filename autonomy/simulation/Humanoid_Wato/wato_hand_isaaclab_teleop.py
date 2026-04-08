@@ -550,20 +550,56 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
         if dist_to_panel > PANEL_THRESH:
             print("PUSHING MOTION")
-            # pushing = moving INTO the door (positive X)
-            delta_angle = palm_dx / hinge_to_palm
 
-            new_angle = float(torch.clamp(
-                torch.tensor(current_door + delta_angle),
-                min=-0.524, max=0.0
-            ))
+            # --- TARGET: fully open (same limit you used) ---
+            OPEN_TARGET = -0.524
+            error = OPEN_TARGET - current_door
 
-            target[0, door_idx] = new_angle
-            door_obj.set_joint_position_target(target)
+            # ---------------------------
+            # 1) STRONG DOOR TORQUE (PUSH)
+            # ---------------------------
+            TORQUE_GAIN = 300.0
+            DAMPING = 20.0
 
-            print(f"[PUSH] dist_panel={dist_to_panel:.3f} | dx={palm_dx:.4f} | door={new_angle:.3f}")
+            # Door velocity (reuse same tracker as pull)
+            prev_door = getattr(run_simulator, "_prev_door_angle", current_door)
+            door_vel = current_door - prev_door
+            run_simulator._prev_door_angle = current_door
 
+            # PD torque toward OPEN
+            torque = TORQUE_GAIN * error - DAMPING * door_vel
+            torque = float(max(min(torque, 300.0), -300.0))
 
+            effort = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
+            effort[0, door_idx] = torque
+
+            door_obj.set_joint_effort_target(effort)
+
+            # ---------------------------
+            # 2) REACTION FORCE ON HAND (PUSH BACK)
+            # ---------------------------
+            PALM_FORCE_GAIN = 250.0
+
+            # Opposite of pull → push AWAY from hinge
+            dir_vec = palm_pos - hinge_pos
+            dir_vec = dir_vec / (torch.norm(dir_vec) + 1e-6)
+
+            force = PALM_FORCE_GAIN * abs(error) * dir_vec
+
+            # Apply to articulation (Isaac Lab format)
+            num_bodies = robot.data.body_pos_w.shape[1]
+
+            forces = torch.zeros((1, num_bodies, 3), device=palm_pos.device)
+            torques = torch.zeros((1, num_bodies, 3), device=palm_pos.device)
+
+            forces[0, palm_body_idx] = force
+
+            robot.set_external_force_and_torque(
+                forces=forces,
+                torques=torques,
+            )
+
+            print(f"[PUSH FORCE] error={error:.3f} | torque={torque:.2f}")
         # -------------------------------
         # PULL: near hinge → pull back
         # -------------------------------
