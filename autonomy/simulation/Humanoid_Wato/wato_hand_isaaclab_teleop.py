@@ -545,6 +545,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         # -------------------------------
         # PUSH: near panel → push forward
         # -------------------------------
+        print(f"[PUSH] dist_panel={dist_to_panel:.3f} | dx={palm_dx:.4f}")
+        print(f"[PULL] dist_hinge={dist_to_hinge:.3f} | dx={palm_dx:.4f}")
+        
         if dist_to_panel < PANEL_THRESH:
             # pushing = moving INTO the door (positive X)
             delta_angle = palm_dx / hinge_to_palm
