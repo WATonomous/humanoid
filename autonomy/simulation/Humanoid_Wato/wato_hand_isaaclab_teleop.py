@@ -537,7 +537,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         hinge_to_palm = max(float(torch.norm(palm_pos[:2] - hinge_pos[:2])), 0.05)
 
         # Thresholds
-        PANEL_THRESH = 0.07
+        PANEL_THRESH = 0.25
         HINGE_THRESH = 0.15
 
         target = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
@@ -547,8 +547,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         # -------------------------------
         print(f"[PUSH] dist_panel={dist_to_panel:.3f} | dx={palm_dx:.4f}")
         print(f"[PULL] dist_hinge={dist_to_hinge:.3f} | dx={palm_dx:.4f}")
-        
-        if dist_to_panel < PANEL_THRESH:
+
+        if dist_to_panel > PANEL_THRESH:
+            print("PUSHING MOTION")
             # pushing = moving INTO the door (positive X)
             delta_angle = palm_dx / hinge_to_palm
 
@@ -566,9 +567,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         # -------------------------------
         # PULL: near hinge → pull back
         # -------------------------------
-        print(f"[PULL] dist_hinge={dist_to_hinge:.3f} | dx={palm_dx:.4f}")
 
-        if dist_to_hinge < HINGE_THRESH:
+
+        else:
+            print("PULLING MOTION")
             # pulling = moving AWAY (negative X)
             delta_angle = palm_dx / hinge_to_palm
 
