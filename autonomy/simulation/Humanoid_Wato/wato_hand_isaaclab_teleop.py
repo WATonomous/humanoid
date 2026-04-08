@@ -602,19 +602,28 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             # ---------------------------
             # 2) REACTION FORCE ON HAND
             # ---------------------------
-            PALM_FORCE_GAIN = 250.0  # this makes the arm get pulled back
+            PALM_FORCE_GAIN = 250.0
 
             # Direction: hinge ← palm
             dir_vec = hinge_pos - palm_pos
             dir_vec = dir_vec / (torch.norm(dir_vec) + 1e-6)
 
-            # Scale force by how hard we're pulling the door
+            # Scale with how "hard" we're closing
             force = PALM_FORCE_GAIN * abs(error) * dir_vec
 
-            # Apply force to palm body
-            robot.apply_external_force(
-                body_ids=[palm_body_idx],
-                forces=force.unsqueeze(0),
+            # Build force tensor for ALL bodies (required API format)
+            num_bodies = robot.data.body_pos_w.shape[1]
+
+            forces = torch.zeros((1, num_bodies, 3), device=palm_pos.device)
+            torques = torch.zeros((1, num_bodies, 3), device=palm_pos.device)
+
+            # Apply ONLY to palm
+            forces[0, palm_body_idx] = force
+
+            # Apply to articulation
+            robot.set_external_force_and_torque(
+                forces=forces,
+                torques=torques,
             )
 
             print(f"[PULL FORCE] error={error:.3f} | torque={torque:.2f}")
