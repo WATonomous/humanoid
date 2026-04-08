@@ -507,82 +507,75 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         door_obj.set_joint_position_target(target)
         print(f"[TEST] Door angle: {current_door:.3f} rad")'''
 
-       # -- DOOR PUSH/PULL --
+       # --- DOOR PUSH / PULL (PURE SPATIAL) ---
+
         door_obj = scene["door"]
         door_joint_names = list(door_obj.data.joint_names)
         door_idx = door_joint_names.index("door_hinge")
+
         palm_body_idx = robot.data.body_names.index("PALM_GAVIN_1DoF_Hinge_v2_1")
         palm_pos = robot.data.body_pos_w[0, palm_body_idx]
 
         panel_idx = door_obj.data.body_names.index("door_panel")
         panel_pos = door_obj.data.body_pos_w[0, panel_idx]
-        hinge_pos = door_obj.data.body_pos_w[0, 0]  # hinge body is index 0
 
-        # Distance from hinge to palm (moment arm) — used to convert linear → angular
-        hinge_to_palm = float(torch.norm(palm_pos[:2] - hinge_pos[:2]))
-        hinge_to_palm = max(hinge_to_palm, 0.05)  # avoid divide-by-zero
+        hinge_pos = door_obj.data.body_pos_w[0, 0]  # hinge body
 
-        # Track palm X velocity by diffing against last frame
+        # Distances
+        dist_to_panel = float(torch.norm(palm_pos[:2] - panel_pos[:2]))
+        dist_to_hinge = float(torch.norm(palm_pos[:2] - hinge_pos[:2]))
+
+        # Motion (velocity)
         prev_palm_x = getattr(run_simulator, '_prev_palm_x', float(palm_pos[0]))
-        palm_dx = float(palm_pos[0]) - prev_palm_x  # negative = pulling backward
+        palm_dx = float(palm_pos[0]) - prev_palm_x
         run_simulator._prev_palm_x = float(palm_pos[0])
 
-        # Touch detection: is the palm anywhere near the door panel surface?
-        door_surface_dist = abs(float(palm_pos[0] - panel_pos[0]))
-        touching = door_surface_dist < 0.12
+        # Door state
+        current_door = float(door_obj.data.joint_pos[0, door_idx])
 
-        FIST_THRESHOLD = -0.5  # negative = curled inward
-        finger_mcps = ["mcp_index", "mcp_middle", "mcp_ring", "mcp_pinky"]
-        mcp_vals = [
-            float(joint_pos_target[0, name_to_sim_idx[j]])
-            for j in finger_mcps if j in name_to_sim_idx
-        ]
-        # Fist = index AND middle are curled negative (most reliable signal)
-        # --- Robust fist detection ---
-        if world_local is not None:  
-            fingertips = [8, 12, 16, 20]
-            palm = world_local[0]
+        # Moment arm (avoid divide-by-zero)
+        hinge_to_palm = max(float(torch.norm(palm_pos[:2] - hinge_pos[:2])), 0.05)
 
-            dists = [np.linalg.norm(world_local[i] - palm) for i in fingertips]
-            avg_dist = sum(dists) / len(dists)
+        # Thresholds
+        PANEL_THRESH = 0.15
+        HINGE_THRESH = 0.15
 
-            hand_scale = np.linalg.norm(world_local[9] - world_local[0])
-            norm_dist = avg_dist / (hand_scale + 1e-6)
+        target = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
 
-            # Temporal smoothing
-            if not hasattr(run_simulator, "_fist_buffer"):
-                run_simulator._fist_buffer = []
+        # -------------------------------
+        # PUSH: near panel → push forward
+        # -------------------------------
+        if dist_to_panel < PANEL_THRESH:
+            # pushing = moving INTO the door (positive X)
+            delta_angle = palm_dx / hinge_to_palm
 
-            run_simulator._fist_buffer.append(norm_dist < 0.6)
-            if len(run_simulator._fist_buffer) > 5:
-                run_simulator._fist_buffer.pop(0)
+            new_angle = float(torch.clamp(
+                torch.tensor(current_door + delta_angle),
+                min=-0.524, max=0.0
+            ))
 
-            is_fist = sum(run_simulator._fist_buffer) >= 3
-            
-            print(joint_pos_target[0, name_to_sim_idx["mcp_index"]])
-            print(joint_pos_target[0, name_to_sim_idx["mcp_middle"]])
-            print(joint_pos_target[0, name_to_sim_idx["mcp_ring"]])
-            print(joint_pos_target[0, name_to_sim_idx["mcp_pinky"]])
+            target[0, door_idx] = new_angle
+            door_obj.set_joint_position_target(target)
 
-            current_door = float(door_obj.data.joint_pos[0, door_idx])
-            print(f"[DEBUG] touching={touching} | is_fist={is_fist} | palm_dx={palm_dx:.4f} | door={current_door:.3f}")
+            print(f"[PUSH] dist_panel={dist_to_panel:.3f} | dx={palm_dx:.4f} | door={new_angle:.3f}")
 
-            grasping = norm_dist < 0.65 and touching
 
-            # Secondary confirmation
-            confirmed = grasping and is_fist
+        # -------------------------------
+        # PULL: near hinge → pull back
+        # -------------------------------
+        elif dist_to_hinge < HINGE_THRESH:
+            # pulling = moving AWAY (negative X)
+            delta_angle = palm_dx / hinge_to_palm
 
-            if confirmed:
-                # Convert palm linear velocity → door angular velocity: dθ = dx / r
-                delta_angle = palm_dx / hinge_to_palm
-                new_angle = float(torch.clamp(
-                    torch.tensor(current_door + delta_angle),
-                    min=-0.524, max=0.0
-                ))
-                target = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
-                target[0, door_idx] = new_angle
-                door_obj.set_joint_position_target(target)
-                print(f"[PULL] delta_angle={delta_angle:.4f} | door={new_angle:.3f} rad")
+            new_angle = float(torch.clamp(
+                torch.tensor(current_door + delta_angle),
+                min=-0.524, max=0.0
+            ))
+
+            target[0, door_idx] = new_angle
+            door_obj.set_joint_position_target(target)
+
+            print(f"[PULL] dist_hinge={dist_to_hinge:.3f} | dx={palm_dx:.4f} | door={new_angle:.3f}")
 
 
 
