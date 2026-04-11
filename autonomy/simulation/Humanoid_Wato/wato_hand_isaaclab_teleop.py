@@ -580,7 +580,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         print(f"[PULL] dist_hinge={dist_to_hinge:.3f} | dx={palm_dx:.4f}")
 
         PROXIMITY_THRESHOLD = 0.3  # must be within 30cm of the panel to interact
-        if not (is_touching_surface and is_in_front):
+        if not (is_touching_surface):
             print(f"[DEBUG] Not touching door surface ({surface_dist:.3f}m)")
         else:
             if dist_to_panel > PANEL_THRESH:
