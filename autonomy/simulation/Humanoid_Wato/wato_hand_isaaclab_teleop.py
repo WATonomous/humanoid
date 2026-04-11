@@ -43,7 +43,7 @@ from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_C
 from isaaclab.assets import RigidObjectCfg
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.actuators import ImplicitActuatorCfg
-from isaaclab.utils.math import quat_to_matrix
+from isaaclab.utils.math import quat_to_rot_matrix
 
 # ── Shared file written by wato_hand_ros2_node.py ────────────────────────────
 JOINT_FILE = "/tmp/wato_joints.json"
@@ -519,11 +519,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
         panel_idx = door_obj.data.body_names.index("door_panel")
         panel_pos = door_obj.data.body_pos_w[0, panel_idx]
-        from isaaclab.utils.math import quat_to_matrix
 
         # Get door orientation
         panel_quat = door_obj.data.body_quat_w[0, panel_idx]
-        R = quat_to_matrix(panel_quat.unsqueeze(0))[0]
+        R = quat_to_rot_matrix(panel_quat.unsqueeze(0))[0]
 
         # Door normal (TRY AXIS if needed)
         door_normal = R[:, 0]  # try 1 or 2 if wrong
@@ -534,6 +533,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         surface_dist = abs(dist_to_plane)
 
         print(f"[SURFACE] dist={surface_dist:.3f}")
+        SURFACE_THRESH = 0.06  # 6 cm
+        is_touching_surface = surface_dist < SURFACE_THRESH
+        is_in_front = dist_to_plane > 0
 
         hinge_pos = door_obj.data.body_pos_w[0, 0]  # hinge body
 
@@ -565,8 +567,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         print(f"[PULL] dist_hinge={dist_to_hinge:.3f} | dx={palm_dx:.4f}")
 
         PROXIMITY_THRESHOLD = 0.3  # must be within 30cm of the panel to interact
-        if dist_to_panel > PROXIMITY_THRESHOLD:
-            print(f"[DEBUG] Hand too far from door: {dist_to_panel:.3f}m — no interaction")
+        if not (is_touching_surface and is_in_front):
+            print(f"[DEBUG] Not touching door surface ({surface_dist:.3f}m)")
         else:
             if dist_to_panel > PANEL_THRESH:
                 print("PUSHING MOTION")
@@ -681,7 +683,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     forces=forces,
                     torques=torques,
                 )
-
                 print(f"[PULL FORCE] error={error:.3f} | torque={torque:.2f}")
 
 
