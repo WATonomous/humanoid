@@ -439,6 +439,7 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
         ),
         offset=CameraCfg.OffsetCfg(pos=(0.85, -0.85, 1.0), rot=_get_cam_quat(315.0, 30.0), convention="world"),
     )
+    #TEST
     # Camera 9: Wrist-mounted — attached to palm link, moves with the robot
     # Positioned above/forward of palm looking down at the fingers
     '''camera_wrist = CameraCfg(
