@@ -43,7 +43,19 @@ from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_C
 from isaaclab.assets import RigidObjectCfg
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.actuators import ImplicitActuatorCfg
-from isaaclab.utils.math import quat_to_rot_matrix
+
+def quat_to_matrix(q):
+    """
+    Convert quaternion (w, x, y, z) → 3x3 rotation matrix
+    q: tensor of shape (4,)
+    """
+    w, x, y, z = q
+
+    return torch.tensor([
+        [1 - 2*(y*y + z*z), 2*(x*y - z*w),     2*(x*z + y*w)],
+        [2*(x*y + z*w),     1 - 2*(x*x + z*z), 2*(y*z - x*w)],
+        [2*(x*z - y*w),     2*(y*z + x*w),     1 - 2*(x*x + y*y)]
+    ], device=q.device)
 
 # ── Shared file written by wato_hand_ros2_node.py ────────────────────────────
 JOINT_FILE = "/tmp/wato_joints.json"
@@ -522,7 +534,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
         # Get door orientation
         panel_quat = door_obj.data.body_quat_w[0, panel_idx]
-        R = quat_to_rot_matrix(panel_quat.unsqueeze(0))[0]
+        print("quat:", panel_quat)
+        R = quat_to_matrix(panel_quat)
 
         # Door normal (TRY AXIS if needed)
         door_normal = R[:, 0]  # try 1 or 2 if wrong
