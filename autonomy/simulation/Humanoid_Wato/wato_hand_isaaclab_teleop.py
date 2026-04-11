@@ -578,7 +578,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             # ---------------------------
             # 2) REACTION FORCE ON HAND (PUSH BACK)
             # ---------------------------
-            PALM_FORCE_GAIN = 250.0
+            PALM_FORCE_GAIN = 100.0
 
             # Opposite of pull → push AWAY from hinge
             dir_vec = palm_pos - hinge_pos
