@@ -581,7 +581,18 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
         PROXIMITY_THRESHOLD = 0.3  # must be within 30cm of the panel to interact
         if not (is_touching_surface):
-            print(f"[DEBUG] Not touching door surface ({surface_dist:.3f}m)")
+            # --- HARD STOP: no interaction ---
+            effort = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
+            door_obj.set_joint_effort_target(effort)
+
+            # Also remove any external forces on the hand
+            num_bodies = robot.data.body_pos_w.shape[1]
+            forces = torch.zeros((1, num_bodies, 3), device=palm_pos.device)
+            torques = torch.zeros((1, num_bodies, 3), device=palm_pos.device)
+
+            robot.set_external_force_and_torque(forces=forces, torques=torques)
+
+            continue  # skip rest of logic
         else:
             print(f"[DEBUG] Touching door surface ({surface_dist:.3f}m)")
             if dist_to_panel > PANEL_THRESH:
