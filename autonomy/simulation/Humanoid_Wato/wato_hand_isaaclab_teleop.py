@@ -583,6 +583,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         if not (is_touching_surface):
             print(f"[DEBUG] Not touching door surface ({surface_dist:.3f}m)")
         else:
+            print(f"[DEBUG] Touching door surface ({surface_dist:.3f}m)")
             if dist_to_panel > PANEL_THRESH:
                 print("PUSHING MOTION")
 
