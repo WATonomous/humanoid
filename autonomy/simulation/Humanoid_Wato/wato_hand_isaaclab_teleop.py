@@ -441,7 +441,7 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
     )
     # Camera 9: Wrist-mounted — attached to palm link, moves with the robot
     # Positioned above/forward of palm looking down at the fingers
-    camera_wrist = CameraCfg(
+    '''camera_wrist = CameraCfg(
         prim_path="{ENV_REGEX_NS}/Robot/PALM_GAVIN_1DoF_Hinge_v2_1/wrist_cam",
         update_period=0.1, height=240, width=320, data_types=["rgb"],
         spawn=sim_utils.PinholeCameraCfg(
@@ -453,7 +453,7 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
             rot=(0.7071, 0.0, 0.7071, 0.0),
             convention="ros",
         ),
-    )
+    )'''
 
 
 # ── Main sim loop ─────────────────────────────────────────────────────────────
