@@ -546,7 +546,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         surface_dist = abs(dist_to_plane)
 
         print(f"[SURFACE] dist={surface_dist:.3f}")
-        SURFACE_THRESH = 0.17  # 17 cm
+        SURFACE_THRESH = 0.14  # 14 cm
         is_touching_surface = surface_dist < SURFACE_THRESH
         is_in_front = dist_to_plane > 0
 
