@@ -43,6 +43,7 @@ from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_C
 from isaaclab.assets import RigidObjectCfg
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.actuators import ImplicitActuatorCfg
+from isaaclab.utils.math import quat_to_matrix
 
 # ── Shared file written by wato_hand_ros2_node.py ────────────────────────────
 JOINT_FILE = "/tmp/wato_joints.json"
@@ -518,6 +519,21 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
         panel_idx = door_obj.data.body_names.index("door_panel")
         panel_pos = door_obj.data.body_pos_w[0, panel_idx]
+        from isaaclab.utils.math import quat_to_matrix
+
+        # Get door orientation
+        panel_quat = door_obj.data.body_quat_w[0, panel_idx]
+        R = quat_to_matrix(panel_quat.unsqueeze(0))[0]
+
+        # Door normal (TRY AXIS if needed)
+        door_normal = R[:, 0]  # try 1 or 2 if wrong
+
+        # Perpendicular distance to door surface
+        vec = palm_pos - panel_pos
+        dist_to_plane = float(torch.dot(vec, door_normal))
+        surface_dist = abs(dist_to_plane)
+
+        print(f"[SURFACE] dist={surface_dist:.3f}")
 
         hinge_pos = door_obj.data.body_pos_w[0, 0]  # hinge body
 
@@ -548,121 +564,125 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         print(f"[PUSH] dist_panel={dist_to_panel:.3f} | dx={palm_dx:.4f}")
         print(f"[PULL] dist_hinge={dist_to_hinge:.3f} | dx={palm_dx:.4f}")
 
-        if dist_to_panel > PANEL_THRESH:
-            print("PUSHING MOTION")
-
-            # --- TARGET: fully open (same limit you used) ---
-            OPEN_TARGET = -0.524
-            error = OPEN_TARGET - current_door
-
-            # ---------------------------
-            # 1) STRONG DOOR TORQUE (PUSH)
-            # ---------------------------
-            TORQUE_GAIN = 300.0
-            DAMPING = 20.0
-
-            # Door velocity (reuse same tracker as pull)
-            prev_door = getattr(run_simulator, "_prev_door_angle", current_door)
-            door_vel = current_door - prev_door
-            run_simulator._prev_door_angle = current_door
-
-            # PD torque toward OPEN
-            torque = TORQUE_GAIN * error - DAMPING * door_vel
-            torque = float(max(min(torque, 300.0), -300.0))
-
-            effort = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
-            effort[0, door_idx] = torque
-
-            door_obj.set_joint_effort_target(effort)
-
-            # ---------------------------
-            # 2) REACTION FORCE ON HAND (PUSH BACK)
-            # ---------------------------
-            PALM_FORCE_GAIN = 100.0
-
-            # Opposite of pull → push AWAY from hinge
-            dir_vec = palm_pos - hinge_pos
-            dir_vec = dir_vec / (torch.norm(dir_vec) + 1e-6)
-
-            force = PALM_FORCE_GAIN * abs(error) * dir_vec
-
-            # Apply to articulation (Isaac Lab format)
-            num_bodies = robot.data.body_pos_w.shape[1]
-
-            forces = torch.zeros((1, num_bodies, 3), device=palm_pos.device)
-            torques = torch.zeros((1, num_bodies, 3), device=palm_pos.device)
-
-            forces[0, palm_body_idx] = force
-
-            robot.set_external_force_and_torque(
-                forces=forces,
-                torques=torques,
-            )
-
-            print(f"[PUSH FORCE] error={error:.3f} | torque={torque:.2f}")
-        # -------------------------------
-        # PULL: near hinge → pull back
-        # -------------------------------
-
-
+        PROXIMITY_THRESHOLD = 0.3  # must be within 30cm of the panel to interact
+        if dist_to_panel > PROXIMITY_THRESHOLD:
+            print(f"[DEBUG] Hand too far from door: {dist_to_panel:.3f}m — no interaction")
         else:
-            print("PULLING MOTION")
+            if dist_to_panel > PANEL_THRESH:
+                print("PUSHING MOTION")
 
-            # --- TARGET: fully closed ---
-            CLOSE_TARGET = 0.0
-            error = CLOSE_TARGET - current_door
+                # --- TARGET: fully open (same limit you used) ---
+                OPEN_TARGET = -0.524
+                error = OPEN_TARGET - current_door
 
-            # ---------------------------
-            # 1) STRONG DOOR TORQUE
-            # ---------------------------
-            TORQUE_GAIN = 300.0   # crank this if needed
-            DAMPING = 20.0        # stabilizes oscillation
+                # ---------------------------
+                # 1) STRONG DOOR TORQUE (PUSH)
+                # ---------------------------
+                TORQUE_GAIN = 300.0
+                DAMPING = 20.0
 
-            # Estimate door velocity (finite difference)
-            prev_door = getattr(run_simulator, "_prev_door_angle", current_door)
-            door_vel = current_door - prev_door
-            run_simulator._prev_door_angle = current_door
+                # Door velocity (reuse same tracker as pull)
+                prev_door = getattr(run_simulator, "_prev_door_angle", current_door)
+                door_vel = current_door - prev_door
+                run_simulator._prev_door_angle = current_door
 
-            # PD controller → torque
-            torque = TORQUE_GAIN * error - DAMPING * door_vel
+                # PD torque toward OPEN
+                torque = TORQUE_GAIN * error - DAMPING * door_vel
+                torque = float(max(min(torque, 300.0), -300.0))
 
-            # Clamp torque
-            torque = float(max(min(torque, 300.0), -300.0))
+                effort = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
+                effort[0, door_idx] = torque
 
-            effort = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
-            effort[0, door_idx] = torque
+                door_obj.set_joint_effort_target(effort)
 
-            # Apply REAL torque (not position target)
-            door_obj.set_joint_effort_target(effort)
+                # ---------------------------
+                # 2) REACTION FORCE ON HAND (PUSH BACK)
+                # ---------------------------
+                PALM_FORCE_GAIN = 100.0
 
-            # ---------------------------
-            # 2) REACTION FORCE ON HAND
-            # ---------------------------
-            PALM_FORCE_GAIN = 250.0
+                # Opposite of pull → push AWAY from hinge
+                dir_vec = palm_pos - hinge_pos
+                dir_vec = dir_vec / (torch.norm(dir_vec) + 1e-6)
 
-            # Direction: hinge ← palm
-            dir_vec = hinge_pos - palm_pos
-            dir_vec = dir_vec / (torch.norm(dir_vec) + 1e-6)
+                force = PALM_FORCE_GAIN * abs(error) * dir_vec
 
-            # Scale with how "hard" we're closing
-            force = PALM_FORCE_GAIN * abs(error) * dir_vec
+                # Apply to articulation (Isaac Lab format)
+                num_bodies = robot.data.body_pos_w.shape[1]
 
-            # Build force tensor for ALL bodies (required API format)
-            num_bodies = robot.data.body_pos_w.shape[1]
+                forces = torch.zeros((1, num_bodies, 3), device=palm_pos.device)
+                torques = torch.zeros((1, num_bodies, 3), device=palm_pos.device)
 
-            forces = torch.zeros((1, num_bodies, 3), device=palm_pos.device)
-            torques = torch.zeros((1, num_bodies, 3), device=palm_pos.device)
+                forces[0, palm_body_idx] = force
 
-            # Apply ONLY to palm
-            forces[0, palm_body_idx] = force
+                robot.set_external_force_and_torque(
+                    forces=forces,
+                    torques=torques,
+                )
 
-            # Apply to articulation
-            robot.set_external_force_and_torque(
-                forces=forces,
-                torques=torques,
-            )
+                print(f"[PUSH FORCE] error={error:.3f} | torque={torque:.2f}")
+            # -------------------------------
+            # PULL: near hinge → pull back
+            # -------------------------------
 
-            print(f"[PULL FORCE] error={error:.3f} | torque={torque:.2f}")
+
+            else:
+                print("PULLING MOTION")
+
+                # --- TARGET: fully closed ---
+                CLOSE_TARGET = 0.0
+                error = CLOSE_TARGET - current_door
+
+                # ---------------------------
+                # 1) STRONG DOOR TORQUE
+                # ---------------------------
+                TORQUE_GAIN = 300.0   # crank this if needed
+                DAMPING = 20.0        # stabilizes oscillation
+
+                # Estimate door velocity (finite difference)
+                prev_door = getattr(run_simulator, "_prev_door_angle", current_door)
+                door_vel = current_door - prev_door
+                run_simulator._prev_door_angle = current_door
+
+                # PD controller → torque
+                torque = TORQUE_GAIN * error - DAMPING * door_vel
+
+                # Clamp torque
+                torque = float(max(min(torque, 300.0), -300.0))
+
+                effort = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
+                effort[0, door_idx] = torque
+
+                # Apply REAL torque (not position target)
+                door_obj.set_joint_effort_target(effort)
+
+                # ---------------------------
+                # 2) REACTION FORCE ON HAND
+                # ---------------------------
+                PALM_FORCE_GAIN = 250.0
+
+                # Direction: hinge ← palm
+                dir_vec = hinge_pos - palm_pos
+                dir_vec = dir_vec / (torch.norm(dir_vec) + 1e-6)
+
+                # Scale with how "hard" we're closing
+                force = PALM_FORCE_GAIN * abs(error) * dir_vec
+
+                # Build force tensor for ALL bodies (required API format)
+                num_bodies = robot.data.body_pos_w.shape[1]
+
+                forces = torch.zeros((1, num_bodies, 3), device=palm_pos.device)
+                torques = torch.zeros((1, num_bodies, 3), device=palm_pos.device)
+
+                # Apply ONLY to palm
+                forces[0, palm_body_idx] = force
+
+                # Apply to articulation
+                robot.set_external_force_and_torque(
+                    forces=forces,
+                    torques=torques,
+                )
+
+                print(f"[PULL FORCE] error={error:.3f} | torque={torque:.2f}")
 
 
 
