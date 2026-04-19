@@ -6,8 +6,9 @@ FROM ${BASE_IMAGE} AS source
 WORKDIR ${AMENT_WS}/src
 
 # Copy source code
-# COPY autonomy/interfacing/can can
-COPY autonomy/wato_msgs/sample_msgs sample_msgs
+COPY autonomy/interfacing/can can
+COPY autonomy/interfacing/dbc dbc
+COPY autonomy/wato_msgs/common_msgs common_msgs
 
 # Install rosdep if not present, update package lists
 RUN apt-get update && \
@@ -31,6 +32,9 @@ RUN rosdep install \
 ################################ Dependencies ################################
 FROM ${BASE_IMAGE} AS dependencies
 
+# Copy dependency list from source stage
+COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
+
 # Apt dependencies
 RUN apt-get update && apt-get install -y \
     git \
@@ -43,9 +47,6 @@ RUN apt-get update && apt-get install -y \
     iproute2  \
     $(cat /tmp/colcon_install_list) \
     && rm -rf /var/lib/apt/lists/*
-
-# Copy dependency list from source stage
-COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
 
 # # CAN dbc parser
 WORKDIR /usr/local

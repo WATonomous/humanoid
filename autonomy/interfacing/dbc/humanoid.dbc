@@ -33,11 +33,11 @@ NS_ :
 
 BS_: 
 BU_: CubeMars Motor Fingers 
-BO_ 1 DutyCycleCmd: 4 CubeMars
-   SG_ DutyCycle : 7|32@0- (1e-05,0) [-0.95|0.95] "" 
+BO_ 0 DutyCycleCmd: 4 CubeMars
+   SG_ DutyCycle : 7|32@0- (1e-05,0) [-0.95|0.95] "" Vector__XXX
 
 BO_ 256 CurrentLoopCmd: 4 CubeMars
-   SG_ IqCurrent : 7|32@0- (0.001,0) [-60|60] "A" Motor
+   SG_ IqCurrent : 7|32@0- (0.001,0) [-60|60] "A" Vector__XXX
 
 BO_ 512 CurrentBrakeCmd: 4 CubeMars
    SG_ BrakeCurrent : 7|32@0- (0.001,0) [0|60] "A" Motor
@@ -46,7 +46,7 @@ BO_ 768 VelocityLoopCmd: 4 CubeMars
    SG_ VelocityERPM : 7|32@0- (1,0) [-100000|100000] "ERPM" Motor
 
 BO_ 1024 PositionLoopCmd: 4 CubeMars
-   SG_ PositionDeg : 7|32@0- (0.0001,0) [-36000|36000] "deg" 
+   SG_ PositionDeg : 7|32@0- (0.0001,0) [-36000|36000] "deg" Vector__XXX
 
 BO_ 1280 SetOriginCmd: 1 CubeMars
    SG_ OriginMode : 7|8@0+ (1,0) [0|1] "" Motor
@@ -63,34 +63,33 @@ BO_ 2048 MITControlCmd: 8 CubeMars
    SG_ MIT_Velocity : 47|12@0+ (1,0) [0|4095] "rad/s" Motor
    SG_ MIT_Torque : 51|12@0+ (1,0) [0|4095] "Nm" Motor
 
-BO_ 3840 MotorDisableCmd: 0 CubeMars
+BO_ 3840 MotorDisableCmd: 4 CubeMars
 
-BO_ 4097 FeedbackConfigCmd: 8 CubeMars
+BO_ 4096 FeedbackConfigCmd: 8 CubeMars
    SG_ FbkCfgReserved : 7|48@0+ (1,0) [0|0] "" Motor
    SG_ FbkCfgParam : 55|16@0+ (1,0) [0|65535] "" Motor
 
 BO_ 10496 ServoStatusFeedback: 8 Motor
-   SG_ FbkPosition : 7|16@0- (0.1,0) [-3200|3200] "deg" 
-   SG_ FbkSpeed : 23|16@0- (10,0) [-320000|320000] "ERPM" 
-   SG_ FbkCurrent : 39|16@0- (0.01,0) [-60|60] "A" 
-   SG_ FbkTemperature : 55|8@0- (1,0) [-20|127] "degC" 
-   SG_ FbkErrorCode : 63|8@0+ (1,0) [0|7] "" 
+   SG_ FbkPosition : 7|16@0- (0.1,0) [-3200|3200] "deg" Vector__XXX
+   SG_ FbkSpeed : 23|16@0- (10,0) [-320000|320000] "ERPM" Vector__XXX
+   SG_ FbkCurrent : 39|16@0- (0.01,0) [-60|60] "A" Vector__XXX
+   SG_ FbkTemperature : 55|8@0- (1,0) [-20|127] "degC" Vector__XXX
+   SG_ FbkErrorCode : 63|8@0+ (1,0) [0|7] "" Vector__XXX
 
 BO_ 10752 ExtPositionFeedback: 4 Motor
-   SG_ ExtPosition : 7|32@0- (0.01,0) [-2.14748e+07|2.14748e+07] "deg" 
+   SG_ ExtPosition : 7|32@0- (0.01,0) [-2.14748e+07|2.14748e+07] "deg" Vector__XXX
 
 BO_ 11264 ServoStartFeedback: 4 Motor
-   SG_ StartByte0 : 7|8@0+ (1,0) [0|255] "" 
-   SG_ StartByte1 : 15|8@0+ (1,0) [0|255] "" 
-   SG_ StartByte2 : 23|8@0+ (1,0) [0|255] "" 
-   SG_ StartByte3 : 31|8@0+ (1,0) [0|255] "" 
+   SG_ StartByte0 : 7|8@0+ (1,0) [0|255] "" Vector__XXX
+   SG_ StartByte1 : 15|8@0+ (1,0) [0|255] "" Vector__XXX
+   SG_ StartByte2 : 23|8@0+ (1,0) [0|255] "" Vector__XXX
+   SG_ StartByte3 : 31|8@0+ (1,0) [0|255] "" Vector__XXX
 
-BO_ 16640 FingerPosLoopCmd: 8 Fingers
-   SG_ MCP_x : 7|16@0+ (0.00549325,0) [0|360] "Degrees" 
-   SG_ MCP_y : 23|16@0+ (0.00549325,0) [0|360] "Degrees" 
-   SG_ PIP_x : 39|16@0+ (0.00549325,0) [0|360] "Degrees" 
-   SG_ DIP_x : 55|16@0+ (0.00549325,0) [0|360] "Degrees" 
-
+BO_ 16384 FingerPosLoopCmd: 8 Fingers
+   SG_ MCP_x : 7|16@0+ (0.00549325,0) [0|360] "Degrees" Vector__XXX
+   SG_ MCP_y : 23|16@0+ (0.00549325,0) [0|360] "Degrees" Vector__XXX
+   SG_ PIP_x : 39|16@0+ (0.00549325,0) [0|360] "Degrees" Vector__XXX
+   SG_ DIP_x : 55|16@0+ (0.00549325,0) [0|360] "Degrees" Vector__XXX
 
 CM_ BU_ Motor "CubeMars AK-series actuator";
 CM_ BU_ Fingers "STM devices controlling fingers";
