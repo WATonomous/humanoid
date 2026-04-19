@@ -13,8 +13,6 @@
 #include "ament_index_cpp/get_package_prefix.hpp" // defines PackageNotFoundError
 #include "ament_index_cpp/get_package_share_directory.hpp" // to load the bash scripts
 
-namespace autonomy {
-
 CanCore::CanCore(const rclcpp::Logger &logger)
     : logger_(logger), socket_fd_(-1), initialized_(false), connected_(false) {
   RCLCPP_INFO(logger_, "CAN Core initialized");
@@ -117,8 +115,6 @@ bool CanCore::sendMessage(const CanMessage &message) {
     return false;
   }
 
-  // RCLCPP_INFO(logger_, "CAN frame sent successfully! (%zd bytes written)",
-  // bytes_written);
   return true;
 }
 
@@ -322,4 +318,3 @@ bool CanCore::setupSlcan() {
               config_.interface_name.c_str());
   return setupSocketCan();
 }
-} // namespace autonomy

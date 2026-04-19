@@ -11,8 +11,6 @@ DBC files define CAN bus messages, signals, and communication protocols used in 
 - `humanoid.dbc` - message definitions
 - `decode.c` - generated c code for embedded system
 
-
-
 ## Usage
 
 generate via entering the docker container and then:

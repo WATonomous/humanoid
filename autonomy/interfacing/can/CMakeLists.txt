@@ -92,10 +92,11 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME})
 
 install(
-    DIRECTORY config/
-    DESTINATION share/can/config
+  DIRECTORY config/
+  DESTINATION share/can/config
 )
 
+# NOTE: this method of installation is not secure for production env
 install(
   FILES ../dbc/humanoid.dbc
   DESTINATION share/can/config

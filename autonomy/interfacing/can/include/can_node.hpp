@@ -1,5 +1,4 @@
-#ifndef CAN_NODE_HPP
-#define CAN_NODE_HPP
+#pragma once
 
 #include "can_core.hpp"
 
@@ -30,15 +29,21 @@ public:
   CanNode();
 
 private:
-  autonomy::CanCore can_;
+  CanCore can_core;
   YAML::Node hardware_config;
-
+  // Can messages
   // Map of CAN message ID to its DBC definition for decoding
-  std::unordered_map<uint64_t, const dbcppp::IMessage*> can_messages;
+  std::unordered_map<std::string, const dbcppp::IMessage*> can_messages;
   std::unique_ptr<dbcppp::INetwork> dbc_net;
 
   static constexpr size_t max_payload_per_frame = 8;  // CAN frame max bytes
   static constexpr size_t data_chunk_size = 8;
+
+  void publishCanMessage(CanMessage& can_msg);
+  void encodeSignal(const dbcppp::ISignal& signal, int64_t phys_value, CanMessage& can_msg);
+  void encodeSignal(const dbcppp::ISignal& signal, double phys_value, CanMessage& can_msg);
+  int32_t getMessageId(const dbcppp::IMessage* msg, int device_id) const;
+  void recieveCanMessages();
 
   // Subscribers and publishers
   std::unordered_map<std::string, rclcpp::SubscriptionBase::SharedPtr> 
@@ -59,13 +64,8 @@ private:
   // Methods
   void createSubscribersPublishers();
 
-  void receiveCanMessages(); // Method to be called by the timer
-
   // Helper methods
   uint32_t generateCanId(const std::string &topic_name);
-  std::vector<autonomy::CanMessage>
-  createCanMessages(const std::string &topic_name,
+  std::vector<CanMessage> createCanMessages(const std::string &topic_name,
                     std::shared_ptr<rclcpp::SerializedMessage> ros_msg);
 };
-
-#endif // CAN_NODE_HPP
