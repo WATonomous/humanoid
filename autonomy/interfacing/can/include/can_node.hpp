@@ -34,7 +34,8 @@ private:
   // Can messages
   // Map of CAN message ID to its DBC definition for decoding
   std::unordered_map<std::string, const dbcppp::IMessage*> can_messages;
-  std::unique_ptr<dbcppp::INetwork> dbc_net;
+  std::unordered_map<int, const dbcppp::IMessage*> can_id_map; // for programming convience
+  std::unique_ptr<dbcppp::INetwork> dbc_net; // decoding CAN messages using DBC file
 
   static constexpr size_t max_payload_per_frame = 8;  // CAN frame max bytes
   static constexpr size_t data_chunk_size = 8;

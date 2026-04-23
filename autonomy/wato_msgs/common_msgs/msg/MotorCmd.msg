@@ -1,3 +1,5 @@
 int8 motor_id
 
-common_msgs/JointState state
+int32 position
+int32 velocity
+int32 force

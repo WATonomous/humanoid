@@ -23,6 +23,7 @@ CanNode::CanNode() : Node("can_node"), can_core(this->get_logger()) {
           for (const auto& msg : dbc_net->Messages()) {
               RCLCPP_INFO(this->get_logger(), "Loaded DBC message: %s (ID 0x%X)", msg.Name().c_str(), msg.Id());
               can_messages.insert(std::make_pair(msg.Name(), &msg));
+              can_id_map.insert(std::make_pair(msg.Id(), &msg));
           }
       }
   }
@@ -122,8 +123,20 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
 
     const dbcppp::IMessage* dbc_msg = can_messages["PositionLoopCmd"];
     CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+    try {
+      encodeSignal(dbc_msg->Signals_Get(0), static_cast<double>(msg->position), can_msg);
+    } catch (const std::exception& e) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to encode signal for PositionLoopCmd");
+      return;
+    }
 
-    encodeSignal(dbc_msg->Signals_Get(0), msg->state.position[0], can_msg);
+    std::string data_str;
+    for (auto byte : can_msg.data) {
+        char buf[5];
+        snprintf(buf, sizeof(buf), "%02X ", byte);
+        data_str += buf;
+    }
+    RCLCPP_INFO(this->get_logger(), "Sending signal: %s", data_str.c_str());
 
     publishCanMessage(can_msg);
 }
@@ -140,7 +153,7 @@ void CanNode::encodeSignal(const dbcppp::ISignal& signal, double phys_value, Can
 
 int32_t CanNode::getMessageId(const dbcppp::IMessage* msg, int device_id) const {
     // CAN ID format: base_id | device_id (lower 2 bits)
-    return msg->Id() | (device_id & 0x03);
+    return (msg->Id() & 0xFFFFFF00) | (device_id & 0xFF);
 }
 
 /// TODO: Implement the receiveCanMessages method to read CAN messages and publish to ROS topics
@@ -152,17 +165,22 @@ void CanNode::recieveCanMessages() {
   }
 
   for (const auto& message : messages) {
-    RCLCPP_INFO(this->get_logger(), "Received CAN message: ID=0x%X, DLC=%d",
-                message.id, message.dlc);
-    // Here you would decode the CAN message using the DBC and publish to ROS topics
+    unsigned device_id = message.id & 0xFF; 
+    unsigned int base_id = message.id & 0xFFFFFF00;
+
+  //   if (can_id_map.find(base_id) != can_id_map.end()) {
+  //     RCLCPP_INFO(this->get_logger(), "Received CAN message: ID=0x%X, type=%s, DEVICE=%d",
+  //                 base_id, can_id_map[base_id]->Name().c_str(), device_id);
+  //   } else {
+  //     RCLCPP_WARN(this->get_logger(), "Received CAN message with unknown ID: 0x%X", message.id);
+  //   }
   }
 }
 
 void CanNode::publishCanMessage(CanMessage& can_msg) {
-
   // Send the CAN message
   if (can_core.sendMessage(can_msg)) {
-    RCLCPP_INFO(this->get_logger(), "Sentfor CAN message: ID=0x%X", can_msg.id);
+    RCLCPP_INFO(this->get_logger(), "Sent for CAN message: ID=0x%X", can_msg.id);
   } else {
     RCLCPP_ERROR(this->get_logger(), "Failed to send CAN message: ID=0x%X", can_msg.id);
   }
