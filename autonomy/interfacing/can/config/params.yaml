@@ -11,7 +11,7 @@ can_node:
     publish_rate_hz: 50                # Rate for checking incoming CAN messages
     receive_timeout_ms: 10000          # Timeout for receiving CAN messages
 
-    # Topics to subscribe
+    # Currently not used to initialize
     subscribe_topics:
       - "/armCMD"
       - "/handCMD"
