@@ -43,7 +43,8 @@ class ObjectTableSceneCfg(InteractiveSceneCfg):
     table = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/Table",
         init_state=AssetBaseCfg.InitialStateCfg(pos=[0.5, 0, 0], rot=[0.707, 0, 0, 0.707]),
-        spawn=UsdFileCfg(usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd"),
+        spawn=UsdFileCfg(
+            usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd"),
     )
 
     plane = AssetBaseCfg(
@@ -84,7 +85,8 @@ class ObservationsCfg:
         joint_pos = ObsTerm(func=mdp.joint_pos_rel)
         joint_vel = ObsTerm(func=mdp.joint_vel_rel)
         object_position = ObsTerm(func=mdp.object_position_in_robot_root_frame)
-        target_object_position = ObsTerm(func=mdp.generated_commands, params={"command_name": "object_pose"})
+        target_object_position = ObsTerm(func=mdp.generated_commands, params={
+                                         "command_name": "object_pose"})
         actions = ObsTerm(func=mdp.last_action)
 
         def __post_init__(self):
@@ -113,7 +115,8 @@ class EventCfg:
 class RewardsCfg:
     reaching_object = RewTerm(func=mdp.object_ee_distance, params={"std": 0.3}, weight=1.0)
 
-    lifting_object = RewTerm(func=mdp.object_is_lifted, params={"minimal_height": 0.04}, weight=18.0)
+    lifting_object = RewTerm(func=mdp.object_is_lifted, params={
+                             "minimal_height": 0.04}, weight=18.0)
 
     object_goal_tracking = RewTerm(
         func=mdp.object_goal_distance,
@@ -141,18 +144,21 @@ class TerminationsCfg:
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
 
     object_dropping = DoneTerm(
-        func=mdp.root_height_below_minimum, params={"minimum_height": -0.05, "asset_cfg": SceneEntityCfg("object")}
+        func=mdp.root_height_below_minimum, params={
+            "minimum_height": -0.05, "asset_cfg": SceneEntityCfg("object")}
     )
 
 
 @configclass
 class CurriculumCfg:
     action_rate = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -1e-1, "num_steps": 10000}
+        func=mdp.modify_reward_weight, params={
+            "term_name": "action_rate", "weight": -1e-1, "num_steps": 10000}
     )
 
     joint_vel = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -1e-1, "num_steps": 10000}
+        func=mdp.modify_reward_weight, params={
+            "term_name": "joint_vel", "weight": -1e-1, "num_steps": 10000}
     )
 
 

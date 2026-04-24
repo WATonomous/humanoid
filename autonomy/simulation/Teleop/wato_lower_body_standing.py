@@ -5,6 +5,7 @@ from isaaclab.devices.retargeter_base import RetargeterBase, RetargeterCfg
 
 # Current lower body retargeter just keep the lower body at constant height and not moving
 
+
 class WatoLowerBodyStandingRetargeter(RetargeterBase):
     """Provides lower body standing commands"""
 

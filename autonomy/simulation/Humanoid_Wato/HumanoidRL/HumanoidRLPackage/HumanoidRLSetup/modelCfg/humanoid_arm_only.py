@@ -93,6 +93,6 @@ ARM_CFG = ArticulationCfg(
             damping=9.0,
             velocity_limit_sim=3.0,
         ),
-        
+
     },
 )

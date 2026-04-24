@@ -24,7 +24,8 @@ logging.getLogger("dex_retargeting.yourdfpy").setLevel(logging.ERROR)
 
 # OpenXR hand joint indices (XrHandJointEXT 0-25) to select 21 joints for dex-retargeting.
 # Selects: wrist(1), thumb(2-5), index/middle/ring/pinky proximal→tip (skips metacarpals 6,11,16,21).
-_OPENXR_HAND_JOINT_INDICES = [1, 2, 3, 4, 5, 7, 8, 9, 10, 12, 13, 14, 15, 17, 18, 19, 20, 22, 23, 24, 25]
+_OPENXR_HAND_JOINT_INDICES = [1, 2, 3, 4, 5, 7, 8, 9,
+                              10, 12, 13, 14, 15, 17, 18, 19, 20, 22, 23, 24, 25]
 
 # The transformation matrices to convert hand pose to canonical view.
 _OPERATOR2MANO_RIGHT = np.array(
@@ -70,7 +71,8 @@ def _urdf_continuous_to_revolute_for_dex(source_urdf_path: str) -> str:
             r'(<joint name="' + re.escape(joint_name) + r'"[^>]*>.*?<axis xyz="[^"]+"/>)'
             r'\s*(</joint>)'
         )
-        content = re.sub(pattern, r'\1\n' + _DEX_LIMIT_LINE + r'\n  \2', content, count=1, flags=re.DOTALL)
+        content = re.sub(pattern, r'\1\n' + _DEX_LIMIT_LINE +
+                         r'\n  \2', content, count=1, flags=re.DOTALL)
     fd, path = tempfile.mkstemp(suffix=".urdf", prefix="wato_dex_")
     try:
         with os.fdopen(fd, "w") as f:
@@ -106,7 +108,8 @@ class WatoHandDexRetargeting:
         config_dir = os.path.join(data_dir, "configs/dex-retargeting")
         # Local Wato arm_assembly.urdf path (relative to this package)
         default_urdf = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", "Humanoid_Wato", "arm_assembly", "arm_assembly.urdf")
+            os.path.join(os.path.dirname(__file__), "..", "..",
+                         "Humanoid_Wato", "arm_assembly", "arm_assembly.urdf")
         )
         local_left_urdf_path = left_hand_urdf_path if left_hand_urdf_path else default_urdf
         local_right_urdf_path = right_hand_urdf_path if right_hand_urdf_path else default_urdf
@@ -178,7 +181,8 @@ class WatoHandDexRetargeting:
         joint_position = joint_position - joint_position[0:1, :]
         xr_wrist_quat = hand_poses.get("wrist")[3:]
         # OpenXR hand uses w,x,y,z order for quaternions but scipy uses x,y,z,w order
-        wrist_rot = R.from_quat([xr_wrist_quat[1], xr_wrist_quat[2], xr_wrist_quat[3], xr_wrist_quat[0]]).as_matrix()
+        wrist_rot = R.from_quat([xr_wrist_quat[1], xr_wrist_quat[2],
+                                xr_wrist_quat[3], xr_wrist_quat[0]]).as_matrix()
 
         return joint_position @ wrist_rot @ operator2mano
 
@@ -263,7 +267,8 @@ class WatoHandDexRetargeting:
             Retargeted joint angles for left hand
         """
         if left_hand_poses is not None:
-            left_hand_q = self.compute_one_hand(left_hand_poses, self._dex_left_hand, _OPERATOR2MANO_LEFT)
+            left_hand_q = self.compute_one_hand(
+                left_hand_poses, self._dex_left_hand, _OPERATOR2MANO_LEFT)
         else:
             left_hand_q = np.zeros(len(_LEFT_HAND_JOINT_NAMES))
         return left_hand_q
@@ -278,7 +283,8 @@ class WatoHandDexRetargeting:
             Retargeted joint angles for right hand
         """
         if right_hand_poses is not None:
-            right_hand_q = self.compute_one_hand(right_hand_poses, self._dex_right_hand, _OPERATOR2MANO_RIGHT)
+            right_hand_q = self.compute_one_hand(
+                right_hand_poses, self._dex_right_hand, _OPERATOR2MANO_RIGHT)
         else:
             right_hand_q = np.zeros(len(_RIGHT_HAND_JOINT_NAMES))
         return right_hand_q
