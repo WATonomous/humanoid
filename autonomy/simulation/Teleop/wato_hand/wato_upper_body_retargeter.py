@@ -102,17 +102,20 @@ class WatoUpperBodyRetargeter(RetargeterBase):
             joints_position = np.zeros((self._num_open_xr_hand_joints, 3))
             joints_position[::2] = np.array([pose[:3] for pose in left_hand_poses.values()])
             joints_position[1::2] = np.array([pose[:3] for pose in right_hand_poses.values()])
-            self._markers.visualize(translations=torch.tensor(joints_position, device=self._sim_device))
+            self._markers.visualize(translations=torch.tensor(
+                joints_position, device=self._sim_device))
 
         # Compute retargeted hand joints
         left_hands_pos = self._hands_controller.compute_left(left_hand_poses)
-        indexes = [self._hand_joint_names.index(name) for name in self._hands_controller.get_left_joint_names()]
+        indexes = [self._hand_joint_names.index(name)
+                   for name in self._hands_controller.get_left_joint_names()]
         left_retargeted_hand_joints = np.zeros(len(self._hands_controller.get_joint_names()))
         left_retargeted_hand_joints[indexes] = left_hands_pos
         left_hand_joints = left_retargeted_hand_joints
 
         right_hands_pos = self._hands_controller.compute_right(right_hand_poses)
-        indexes = [self._hand_joint_names.index(name) for name in self._hands_controller.get_right_joint_names()]
+        indexes = [self._hand_joint_names.index(
+            name) for name in self._hands_controller.get_right_joint_names()]
         right_retargeted_hand_joints = np.zeros(len(self._hands_controller.get_joint_names()))
         right_retargeted_hand_joints[indexes] = right_hands_pos
         right_hand_joints = right_retargeted_hand_joints
@@ -125,7 +128,8 @@ class WatoUpperBodyRetargeter(RetargeterBase):
         right_wrist_tensor = torch.tensor(
             self._retarget_abs(right_wrist, is_left=False), dtype=torch.float32, device=self._sim_device
         )
-        hand_joints_tensor = torch.tensor(retargeted_hand_joints, dtype=torch.float32, device=self._sim_device)
+        hand_joints_tensor = torch.tensor(
+            retargeted_hand_joints, dtype=torch.float32, device=self._sim_device)
 
         # Combine all tensors into a single tensor
         return torch.cat([left_wrist_tensor, right_wrist_tensor, hand_joints_tensor])
@@ -154,7 +158,8 @@ class WatoUpperBodyRetargeter(RetargeterBase):
             combined_quat = torch.tensor([0, -0.7071, 0, 0.7071], dtype=torch.float32)
 
         openxr_pose = PoseUtils.make_pose(wrist_pos, PoseUtils.matrix_from_quat(wrist_quat))
-        transform_pose = PoseUtils.make_pose(torch.zeros(3), PoseUtils.matrix_from_quat(combined_quat))
+        transform_pose = PoseUtils.make_pose(torch.zeros(
+            3), PoseUtils.matrix_from_quat(combined_quat))
 
         result_pose = PoseUtils.pose_in_A_to_pose_in_B(transform_pose, openxr_pose)
         pos, rot_mat = PoseUtils.unmake_pose(result_pose)

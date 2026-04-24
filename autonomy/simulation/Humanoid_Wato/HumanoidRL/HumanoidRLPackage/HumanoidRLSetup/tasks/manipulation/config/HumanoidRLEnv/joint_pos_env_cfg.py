@@ -8,11 +8,13 @@ from HumanoidRLPackage.HumanoidRLSetup.tasks.manipulation.reach_env_cfg import R
 class HumanoidArmReachEnvCfg(ReachEnvCfg):
     def __post_init__(self):
         super().__post_init__()
-        
+
         marker_scale = 0.02
 
-        self.commands.ee_pose.goal_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
-        self.commands.ee_pose.current_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
+        self.commands.ee_pose.goal_pose_visualizer_cfg.markers["frame"].scale = (
+            marker_scale, marker_scale, marker_scale)
+        self.commands.ee_pose.current_pose_visualizer_cfg.markers["frame"].scale = (
+            marker_scale, marker_scale, marker_scale)
 
         # self.commands.ee_pose_2.goal_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
         # self.commands.ee_pose_2.current_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
@@ -29,8 +31,10 @@ class HumanoidArmReachEnvCfg(ReachEnvCfg):
         # override events
         self.events.reset_robot_joints.params["position_range"] = (0.75, 1.25)
         # override rewards
-        self.rewards.end_effector_position_tracking.params["asset_cfg"].body_names = ["DIP_INDEX_v1_.*"]
-        self.rewards.end_effector_position_tracking_fine_grained.params["asset_cfg"].body_names = ["DIP_INDEX_v1_.*"]
+        self.rewards.end_effector_position_tracking.params["asset_cfg"].body_names = [
+            "DIP_INDEX_v1_.*"]
+        self.rewards.end_effector_position_tracking_fine_grained.params["asset_cfg"].body_names = [
+            "DIP_INDEX_v1_.*"]
         # self.rewards.end_effector_orientation_tracking.params["asset_cfg"].body_names = ["DIP_INDEX_v1_.*"]
 
         # self.rewards.end_effector_2_position_tracking.params["asset_cfg"].body_names = ["DIP_MIDDLE_v1_.*"]

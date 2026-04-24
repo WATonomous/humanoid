@@ -3,6 +3,16 @@ Task space controller on only the 6 DOF of the humanoid arm, there is a cube whi
 user can move the cube's position and see the arm's IK controller react to it and follow the cube around
 """
 
+from humanoid_arm_only import ARM_CFG
+import isaaclab.sim as sim_utils
+from isaaclab.assets import AssetBaseCfg
+from isaaclab.controllers import DifferentialIKController, DifferentialIKControllerCfg
+from isaaclab.managers import SceneEntityCfg
+from isaaclab.markers import VisualizationMarkers
+from isaaclab.markers.config import FRAME_MARKER_CFG
+from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
+from isaaclab.utils import configclass
+from isaaclab.utils.math import subtract_frame_transforms
 import torch
 import argparse
 import sys
@@ -18,19 +28,9 @@ args_cli = parser.parse_args()
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
-from isaaclab.utils.math import subtract_frame_transforms
-from isaaclab.utils import configclass
-from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
-from isaaclab.markers.config import FRAME_MARKER_CFG
-from isaaclab.markers import VisualizationMarkers
-from isaaclab.managers import SceneEntityCfg
-from isaaclab.controllers import DifferentialIKController, DifferentialIKControllerCfg
-from isaaclab.assets import AssetBaseCfg
-import isaaclab.sim as sim_utils
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 
-    "../../Humanoid_Wato/HumanoidRL/HumanoidRLPackage/HumanoidRLSetup/modelCfg")))
-from humanoid_arm_only import ARM_CFG
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                             "../../Humanoid_Wato/HumanoidRL/HumanoidRLPackage/HumanoidRLSetup/modelCfg")))
 
 
 @configclass
@@ -64,6 +64,7 @@ class TableTopSceneCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/Robot"
     )
 
+
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     robot = scene["robot"]
@@ -85,8 +86,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     robot_entity_cfg = SceneEntityCfg(
         "robot",
         joint_names=["shoulder_flexion_extension", "shoulder_abduction_adduction",
-                    "shoulder_rotation", "elbow_flexion_extension",
-                    "forearm_rotation", "wrist_extension"],
+                     "shoulder_rotation", "elbow_flexion_extension",
+                     "forearm_rotation", "wrist_extension"],
         body_names=["PALM_GAVIN_1DoF_Hinge_v2_1"]
     )
 

@@ -30,7 +30,6 @@ class HumanoidArmCabinetEnvCfg(CabinetEnvCfg):
             close_command_expr={"mcp_.*": 0.0},
         )
 
-
         # Cabinet scale 1.15 so handle gap is large enough for humanoid fingers.
         self.scene.cabinet.spawn.scale = (1.15, 1.15, 1.15)
         self.scene.cabinet.init_state.pos = (0.75, 0.0, 0.35)

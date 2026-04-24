@@ -1,3 +1,11 @@
+from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
+from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import HAND_CFG
+from isaaclab.utils import configclass
+from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
+from isaaclab.managers import SceneEntityCfg
+from isaaclab.assets import AssetBaseCfg
+import isaaclab.sim as sim_utils
+import torch
 import argparse
 from isaaclab.app import AppLauncher
 
@@ -7,19 +15,6 @@ args_cli = parser.parse_args()
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
-
-import torch
-
-import isaaclab.sim as sim_utils
-from isaaclab.assets import AssetBaseCfg
-from isaaclab.managers import SceneEntityCfg
-from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
-from isaaclab.utils import configclass
-
-from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import HAND_CFG
-
-from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
-
 
 
 @configclass
@@ -46,7 +41,7 @@ class HandSceneCfg(InteractiveSceneCfg):
 
 
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
-    
+
     robot = scene["robot"]
 
     robot_entity_cfg = SceneEntityCfg("robot", joint_names=[".*"], body_names=[".*"])
@@ -65,8 +60,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         # print(joint_position)
         # joint_vel = robot.data.default_joint_vel.clone()
         # robot.write_joint_state_to_sim(joint_position, joint_vel)
-        
-        joint_position_list = [[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]]
+
+        joint_position_list = [[1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]]
         joint_position = torch.tensor(joint_position_list[0], device=sim.device)
 
         robot.reset()

@@ -1,20 +1,21 @@
-#ifndef CAN_CORE_HPP
-#define CAN_CORE_HPP
+#pragma once
 
 #include "rclcpp/rclcpp.hpp"
 #include <cstdint>
 #include <string>
 #include <vector>
 
-namespace autonomy {
-
 struct CanMessage {
-  uint32_t id;               // CAN message ID
-  std::vector<uint8_t> data; // Message data (up to 8 bytes for classic CAN)
-  uint8_t dlc;               // Data Length Code
-  bool is_extended_id;       // Extended frame format flag
-  bool is_remote_frame;      // Remote transmission request flag
-  uint64_t timestamp_us;     // Timestamp in microseconds
+  CanMessage() {}
+  CanMessage(int size) : data(size, 0), dlc(size) {}
+  CanMessage(int id, int size) : id(id), data(size, 0), dlc(size) {}
+
+  uint32_t id;                  // CAN message ID
+  std::vector<uint8_t> data;    // Message data 8 bytes
+  uint8_t dlc;                  // Data Length Code
+  bool is_extended_id = false;  // Extended frame format flag
+  bool is_remote_frame = false; // Remote transmission request flag
+  uint64_t timestamp_us;        // Timestamp in microseconds
 };
 
 struct CanConfig {
@@ -54,7 +55,3 @@ private:
   bool setupSocketCan();
   bool setupSlcan();
 };
-
-} // namespace autonomy
-
-#endif // CAN_CORE_HPP
