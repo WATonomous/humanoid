@@ -56,6 +56,7 @@ BO_ 2147487488 MotorDisableCmd: 4 CubeMars
 BO_ 2147487744 FeedbackConfigCmd: 8 CubeMars
    SG_ FbkCfgReserved : 7|48@0+ (1,0) [0|0] "" Motor
    SG_ FbkCfgParam : 55|16@0+ (1,0) [0|65535] "" Motor
+
 BO_ 2147494144 ServoStatusFeedback: 8 Motor
    SG_ FbkPosition : 7|16@0- (0.1,0) [-3200|3200] "deg" Vector__XXX
    SG_ FbkSpeed : 23|16@0- (10,0) [-320000|320000] "ERPM" Vector__XXX
@@ -69,11 +70,14 @@ BO_ 2147494912 ServoStartFeedback: 4 Motor
    SG_ StartByte1 : 15|8@0+ (1,0) [0|255] "" Vector__XXX
    SG_ StartByte2 : 23|8@0+ (1,0) [0|255] "" Vector__XXX
    SG_ StartByte3 : 31|8@0+ (1,0) [0|255] "" Vector__XXX
+
 BO_ 2147500032 FingerPosLoopCmd: 8 Fingers
    SG_ MCP_x : 7|16@0+ (0.00549325,0) [0|360] "Degrees" Vector__XXX
    SG_ MCP_y : 23|16@0+ (0.00549325,0) [0|360] "Degrees" Vector__XXX
    SG_ PIP_x : 39|16@0+ (0.00549325,0) [0|360] "Degrees" Vector__XXX
    SG_ DIP_x : 55|16@0+ (0.00549325,0) [0|360] "Degrees" Vector__XXX
+
+
 CM_ BU_ Motor "CubeMars AK-series actuator";
 CM_ BU_ Fingers "STM devices controlling fingers";
 VAL_ 2147484928 OriginMode 0 "Temporary Origin" 1 "Permanent Origin";

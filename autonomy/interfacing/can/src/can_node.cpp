@@ -21,7 +21,7 @@ CanNode::CanNode() : Node("can_node"), can_core(this->get_logger()) {
           RCLCPP_INFO(this->get_logger(), "DBC file loaded successfully");
           // Build the message ID to IMessage* map for quick lookup during decoding
           for (const auto& msg : dbc_net->Messages()) {
-              RCLCPP_INFO(this->get_logger(), "Loaded DBC message: %s (ID 0x%X)", msg.Name().c_str(), msg.Id());
+              RCLCPP_INFO(this->get_logger(), "Loaded DBC message: %s (ID 0x%lX)", msg.Name().c_str(), msg.Id());
               can_messages.insert(std::make_pair(msg.Name(), &msg));
               can_id_map.insert(std::make_pair(msg.Id(), &msg));
           }
@@ -83,72 +83,164 @@ void CanNode::createSubscribersPublishers() {
   _publishers.clear();
 
   // Create subscribers
-  _subscribers["/armCMD"] = this->create_subscription<common_msgs::msg::ArmPose>(
-      "/armCMD", rclcpp::QoS(10),
-      std::bind(&CanNode::armCMDCallback, this, std::placeholders::_1));
+  // _subscribers["/armCMD"] = this->create_subscription<common_msgs::msg::ArmPose>(
+  //     "/armCMD", rclcpp::QoS(10),
+  //     std::bind(&CanNode::armCMDCallback, this, std::placeholders::_1));
 
-  _subscribers["/handCMD"] = this->create_subscription<common_msgs::msg::HandPose>(
-      "/handCMD", rclcpp::QoS(10),
-      std::bind(&CanNode::handCMDCallback, this, std::placeholders::_1));
+  // _subscribers["/handCMD"] = this->create_subscription<common_msgs::msg::HandPose>(
+  //     "/handCMD", rclcpp::QoS(10),
+  //     std::bind(&CanNode::handCMDCallback, this, std::placeholders::_1));
 
-  _subscribers["/gripperCMD"] = this->create_subscription<common_msgs::msg::GripperPose>(
-      "/gripperCMD", rclcpp::QoS(10),
-      std::bind(&CanNode::gripperCMDCallback, this, std::placeholders::_1));
+  // _subscribers["/gripperCMD"] = this->create_subscription<common_msgs::msg::GripperPose>(
+  //     "/gripperCMD", rclcpp::QoS(10),
+  //     std::bind(&CanNode::gripperCMDCallback, this, std::placeholders::_1));
 
-  _subscribers["/motorCMD"] = this->create_subscription<common_msgs::msg::MotorCmd>(
-      "/motorCMD", rclcpp::QoS(10),
+  _subscribers["/interfacing/motorCMD"] = this->create_subscription<common_msgs::msg::MotorCmd>(
+      "/interfacing/motorCMD", rclcpp::QoS(10),
       std::bind(&CanNode::motorCMDCallback, this, std::placeholders::_1));
 
   // Create publishers
-  _publishers["/encoder"] = this->create_publisher<common_msgs::msg::Encoder>("/encoder", 10);
+  _publishers["/interfacing/motorFeedback"] = this->create_publisher<common_msgs::msg::Encoder>("/interfacing/motorFeedback", 10);
   RCLCPP_INFO(this->get_logger(), "Subscribers and publishers created successfully");
 }
 
 // Subscriber callbacks
-void CanNode::armCMDCallback(const common_msgs::msg::ArmPose::SharedPtr msg) {
-  RCLCPP_INFO(this->get_logger(), "Received ArmPose command");
+// void CanNode::armCMDCallback(const common_msgs::msg::ArmPose::SharedPtr msg) {
+//   RCLCPP_INFO(this->get_logger(), "Received ArmPose command");
+// }
+
+// void CanNode::handCMDCallback(const common_msgs::msg::HandPose::SharedPtr msg) {
+//   RCLCPP_INFO(this->get_logger(), "Received HandPose command");
+// }
+
+// void CanNode::gripperCMDCallback(const common_msgs::msg::GripperPose::SharedPtr msg) {
+//   RCLCPP_INFO(this->get_logger(), "Received GripperPose command: position=%.2f",
+//               msg->position);
+// }
+
+const dbcppp::ISignal* CanNode::findSignalByName(const dbcppp::IMessage* msg, const std::string& signal_name) {
+    for (const auto& signal : msg->Signals()) {
+        if (signal.Name() == signal_name) {
+            return const_cast<dbcppp::ISignal*>(&signal);
+        }
+    }
+    RCLCPP_ERROR(rclcpp::get_logger("CanNode"), "Signal '%s' not found in message '%s'", signal_name.c_str(), msg->Name().c_str());
+    return nullptr;
 }
 
-void CanNode::handCMDCallback(const common_msgs::msg::HandPose::SharedPtr msg) {
-  RCLCPP_INFO(this->get_logger(), "Received HandPose command");
-}
-
-void CanNode::gripperCMDCallback(const common_msgs::msg::GripperPose::SharedPtr msg) {
-  RCLCPP_INFO(this->get_logger(), "Received GripperPose command: position=%.2f",
-              msg->position);
-}
 
 void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) {
-    RCLCPP_INFO(this->get_logger(), "Received MotorCMD motor=%d", static_cast<int>(msg->motor_id));
+    RCLCPP_INFO(this->get_logger(), "Received MotorCMD motor=%d control_type=%d",
+        static_cast<int>(msg->motor_id), static_cast<int>(msg->control_type));
 
-    const dbcppp::IMessage* dbc_msg = can_messages["PositionLoopCmd"];
-    CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+    const dbcppp::IMessage* dbc_msg = nullptr;
+
     try {
-      encodeSignal(dbc_msg->Signals_Get(0), static_cast<double>(msg->position), can_msg);
+        switch (msg->control_type) {
+
+        case common_msgs::msg::MotorCmd::DUTY_CYCLE: {
+            dbc_msg = can_messages["DutyCycleCmd"];
+            CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+            encodeSignal(findSignalByName(dbc_msg, "DutyCycle"), static_cast<double>(msg->duty_cycle), can_msg);
+            publishCanMessage(can_msg);
+            break;
+        }
+
+        case common_msgs::msg::MotorCmd::CURRENT_LOOP: {
+            dbc_msg = can_messages["CurrentLoopCmd"];
+            CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+            encodeSignal(findSignalByName(dbc_msg, "IqCurrent"), static_cast<double>(msg->current), can_msg);
+            publishCanMessage(can_msg);
+            break;
+        }
+
+        case common_msgs::msg::MotorCmd::CURRENT_BRAKE: {
+            dbc_msg = can_messages["CurrentBrakeCmd"];
+            CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+            encodeSignal(findSignalByName(dbc_msg, "BrakeCurrent"), static_cast<double>(msg->current), can_msg);
+            publishCanMessage(can_msg);
+            break;
+        }
+
+        case common_msgs::msg::MotorCmd::VELOCITY_LOOP: {
+            dbc_msg = can_messages["VelocityLoopCmd"];
+            CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+            encodeSignal(findSignalByName(dbc_msg, "VelocityERPM"), static_cast<double>(msg->velocity), can_msg);
+            publishCanMessage(can_msg);
+            break;
+        }
+
+        case common_msgs::msg::MotorCmd::POSITION_LOOP: {
+            dbc_msg = can_messages["PositionLoopCmd"];
+            CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+            encodeSignal(findSignalByName(dbc_msg, "PositionDeg"), static_cast<double>(msg->position), can_msg);
+            publishCanMessage(can_msg);
+            break;
+        }
+
+        case common_msgs::msg::MotorCmd::SET_ORIGIN: {
+            dbc_msg = can_messages["SetOriginCmd"];
+            CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+            // 0 = Temporary Origin, 1 = Permanent Origin (from DBC VAL_)
+            double origin_mode = msg->temporary ? 0.0 : 1.0;
+            encodeSignal(findSignalByName(dbc_msg, "OriginMode"), origin_mode, can_msg);
+            publishCanMessage(can_msg);
+            break;
+        }
+
+        case common_msgs::msg::MotorCmd::POSITION_VELOCITY: {
+            dbc_msg = can_messages["PositionVelocityCmd"];
+            CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+            encodeSignal(findSignalByName(dbc_msg, "PosVelPosition"),     static_cast<double>(msg->position),     can_msg);
+            encodeSignal(findSignalByName(dbc_msg, "PosVelSpeed"),        static_cast<double>(msg->velocity),     can_msg);
+            encodeSignal(findSignalByName(dbc_msg, "PosVelAccel"),        static_cast<double>(msg->acceleration), can_msg);
+            publishCanMessage(can_msg);
+            break;
+        }
+
+        case common_msgs::msg::MotorCmd::MIT_CONTROL: {
+            dbc_msg = can_messages["MITControlCmd"];
+            CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+            // NOTE: MIT mode requires KP/KD gains — these are not in the message yet
+            // TODO: add kp, kd fields to MotorCmd.msg
+            encodeSignal(findSignalByName(dbc_msg, "MIT_Position"), static_cast<double>(msg->position), can_msg);
+            encodeSignal(findSignalByName(dbc_msg, "MIT_Velocity"), static_cast<double>(msg->velocity), can_msg);
+            encodeSignal(findSignalByName(dbc_msg, "MIT_Torque"),   static_cast<double>(msg->torque),   can_msg);
+            publishCanMessage(can_msg);
+            break;
+        }
+
+        case common_msgs::msg::MotorCmd::DISABLE: {
+            dbc_msg = can_messages["MotorDisableCmd"];
+            // MotorDisableCmd has no signals, just send the CAN ID
+            CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
+            publishCanMessage(can_msg);
+            break;
+        }
+
+        default:
+            RCLCPP_WARN(this->get_logger(), "Unknown control_type=%d, ignoring",
+                static_cast<int>(msg->control_type));
+            return;
+        }
+
     } catch (const std::exception& e) {
-      RCLCPP_ERROR(this->get_logger(), "Failed to encode signal for PositionLoopCmd");
-      return;
+        RCLCPP_ERROR(this->get_logger(), "Failed to encode CAN message: %s", e.what());
+        return;
     }
 
-    std::string data_str;
-    for (auto byte : can_msg.data) {
-        char buf[5];
-        snprintf(buf, sizeof(buf), "%02X ", byte);
-        data_str += buf;
-    }
-    RCLCPP_INFO(this->get_logger(), "Sending signal: %s", data_str.c_str());
-
-    publishCanMessage(can_msg);
+    RCLCPP_DEBUG(this->get_logger(), "CAN message sent for control_type=%d motor=%d",
+        static_cast<int>(msg->control_type), static_cast<int>(msg->motor_id));
 }
 
-void CanNode::encodeSignal(const dbcppp::ISignal& signal, int64_t phys_value, CanMessage& can_msg) {
-    auto raw = signal.PhysToRaw(phys_value);
-    signal.Encode(raw, can_msg.data.data());
+void CanNode::encodeSignal(const dbcppp::ISignal* signal, int64_t phys_value, CanMessage& can_msg) {
+    auto raw = signal->PhysToRaw(phys_value);
+    signal->Encode(raw, can_msg.data.data());
 }
 
-void CanNode::encodeSignal(const dbcppp::ISignal& signal, double phys_value, CanMessage& can_msg) {
-    auto raw = signal.PhysToRaw(phys_value);
-    signal.Encode(raw, can_msg.data.data());
+void CanNode::encodeSignal(const dbcppp::ISignal* signal, double phys_value, CanMessage& can_msg) {
+    auto raw = signal->PhysToRaw(phys_value);
+    signal->Encode(raw, can_msg.data.data());
 }
 
 int32_t CanNode::getMessageId(const dbcppp::IMessage* msg, int device_id) const {
@@ -165,15 +257,20 @@ void CanNode::recieveCanMessages() {
   }
 
   for (const auto& message : messages) {
+    // all messages are extended frame CAN ids
     unsigned device_id = message.id & 0xFF; 
     unsigned int base_id = message.id & 0xFFFFFF00;
 
-  //   if (can_id_map.find(base_id) != can_id_map.end()) {
-  //     RCLCPP_INFO(this->get_logger(), "Received CAN message: ID=0x%X, type=%s, DEVICE=%d",
-  //                 base_id, can_id_map[base_id]->Name().c_str(), device_id);
-  //   } else {
-  //     RCLCPP_WARN(this->get_logger(), "Received CAN message with unknown ID: 0x%X", message.id);
-  //   }
+    // if (can_id_map.find(base_id) != can_id_map.end()) {
+    //     // Handling each feedback message on can bus
+    //     // switch (can_id_map[base_id]->Name()) {
+    //     //   case "ServoStatusFeedback": {
+
+    //     //   }
+    //     // }
+    // } else {
+    //   RCLCPP_WARN(this->get_logger(), "Received CAN message with unknown ID: 0x%X", base_id);
+    // }
   }
 }
 

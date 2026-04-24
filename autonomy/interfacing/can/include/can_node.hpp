@@ -37,12 +37,14 @@ private:
   std::unordered_map<int, const dbcppp::IMessage*> can_id_map; // for programming convience
   std::unique_ptr<dbcppp::INetwork> dbc_net; // decoding CAN messages using DBC file
 
+  const dbcppp::ISignal* findSignalByName(const dbcppp::IMessage* msg, const std::string& signal_name); // O(signal_num)
+
   static constexpr size_t max_payload_per_frame = 8;  // CAN frame max bytes
   static constexpr size_t data_chunk_size = 8;
 
   void publishCanMessage(CanMessage& can_msg);
-  void encodeSignal(const dbcppp::ISignal& signal, int64_t phys_value, CanMessage& can_msg);
-  void encodeSignal(const dbcppp::ISignal& signal, double phys_value, CanMessage& can_msg);
+  void encodeSignal(const dbcppp::ISignal* signal, int64_t phys_value, CanMessage& can_msg);
+  void encodeSignal(const dbcppp::ISignal* signal, double phys_value, CanMessage& can_msg);
   int32_t getMessageId(const dbcppp::IMessage* msg, int device_id) const;
   void recieveCanMessages();
 
