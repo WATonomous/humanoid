@@ -55,7 +55,7 @@ If trying to stimulate robot using canable, you will need to set up the CAN inte
 
 Run the setup script:
 ```bash
-./autonomy/interfacing/can/scripts/can_udev.sh install_rule
+./autonomy/interfacing/can/scripts/can_udev.sh install
 ```
 
 This configures the mount rules on the host pc
