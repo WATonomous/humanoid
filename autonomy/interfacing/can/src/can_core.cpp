@@ -176,7 +176,7 @@ bool CanCore::receiveMessage(CanMessage &message) {
 
   // This is to log received message details for debugging
   RCLCPP_DEBUG(logger_, "CAN frame received: ID=0x%X, Extended=%d, RTR=%d",
-              message.id, message.is_extended_id, message.is_remote_frame);
+               message.id, message.is_extended_id, message.is_remote_frame);
 
   return true;
 }

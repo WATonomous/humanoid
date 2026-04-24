@@ -7,15 +7,15 @@
 
 struct CanMessage {
   CanMessage() {}
-  CanMessage(int size) : data(size, 0), dlc(size) {} 
-  CanMessage(int id, int size) : id(id), data(size, 0), dlc(size) {} 
+  CanMessage(int size) : data(size, 0), dlc(size) {}
+  CanMessage(int id, int size) : id(id), data(size, 0), dlc(size) {}
 
-  uint32_t id;               // CAN message ID
-  std::vector<uint8_t> data; // Message data 8 bytes
-  uint8_t dlc;               // Data Length Code
-  bool is_extended_id=false;       // Extended frame format flag
-  bool is_remote_frame=false;      // Remote transmission request flag
-  uint64_t timestamp_us;     // Timestamp in microseconds
+  uint32_t id;                  // CAN message ID
+  std::vector<uint8_t> data;    // Message data 8 bytes
+  uint8_t dlc;                  // Data Length Code
+  bool is_extended_id = false;  // Extended frame format flag
+  bool is_remote_frame = false; // Remote transmission request flag
+  uint64_t timestamp_us;        // Timestamp in microseconds
 };
 
 struct CanConfig {
