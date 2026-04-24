@@ -26,3 +26,8 @@ float32 current
 float32 duty_cycle
 
 bool temporary false
+
+# Gains - allow gain scheduling via message
+# TODO: tune and define default values in message
+float32 kd
+float32 kp

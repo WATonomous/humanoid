@@ -21,7 +21,7 @@
 #include "common_msgs/msg/hand_pose.hpp"
 #include "common_msgs/msg/gripper_pose.hpp"
 #include "common_msgs/msg/joint_state.hpp"
-#include "common_msgs/msg/encoder.hpp"
+#include "common_msgs/msg/motor_feedback.hpp"
 #include "common_msgs/msg/motor_cmd.hpp"
 
 class CanNode : public rclcpp::Node {
@@ -56,9 +56,6 @@ private:
       _publishers; // Map of topic name to its publisher
 
   // Callbacks
-  void armCMDCallback(const common_msgs::msg::ArmPose::SharedPtr msg);
-  void handCMDCallback(const common_msgs::msg::HandPose::SharedPtr msg);
-  void gripperCMDCallback(const common_msgs::msg::GripperPose::SharedPtr msg);
   void motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg);
   
   rclcpp::TimerBase::SharedPtr

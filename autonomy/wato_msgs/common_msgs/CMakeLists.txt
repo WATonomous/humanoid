@@ -20,7 +20,7 @@ set(msg_files
     msg/JointState.msg
     msg/GripperPose.msg
     msg/MotorCmd.msg
-    msg/Encoder.msg
+    msg/MotorFeedback.msg
     )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
