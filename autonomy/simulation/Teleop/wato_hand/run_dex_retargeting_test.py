@@ -112,7 +112,8 @@ def build_right_openxr_pose_from_mediapipe(
     # Wrist quaternion: wrapper expects hand_poses["wrist"] = [x,y,z, w,qx,qy,qz]
     quat_xyzw = R.from_matrix(wrist_rot).as_quat()  # (x,y,z,w)
     qx, qy, qz, qw = quat_xyzw
-    hand_poses["wrist"] = np.array([wrist_xyz[0], wrist_xyz[1], wrist_xyz[2], qw, qx, qy, qz], dtype=np.float64)
+    hand_poses["wrist"] = np.array(
+        [wrist_xyz[0], wrist_xyz[1], wrist_xyz[2], qw, qx, qy, qz], dtype=np.float64)
 
     return hand_poses
 

@@ -19,7 +19,7 @@ URDF_PATH = _SCRIPT_DIR / "arm_assembly.urdf"
 FINGERTIP_BODIES = [
     "IP_THUMB_v1_1",   # thumb
     "DIP_INDEX_v1_1",  # index
-    "DIP_MIDDLE_v1_1", # middle
+    "DIP_MIDDLE_v1_1",  # middle
     "DIP_RING_v1_1",   # ring
     "DIP_PINKY_v1_1",  # pinky
 ]
@@ -138,7 +138,7 @@ def get_fingertip_positions(model: mujoco.MjModel, data: mujoco.MjData) -> dict[
 def main():
     model = load_model()
     data = mujoco.MjData(model)
-    
+
     data.qpos[:] = 0.0
     mujoco.mj_forward(model, data)
     default_positions = get_fingertip_positions(model, data)
