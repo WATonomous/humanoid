@@ -51,7 +51,7 @@ Before developing please read these documents.
 
 
 ## CAN Setup
-If trying to stimulate robot using canable, you will need to set up the CAN interface.
+If you are stimulating the robot using canable, you will need to set up the CAN interface.
 
 Run the setup script:
 ```bash
