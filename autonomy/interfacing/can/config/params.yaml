@@ -10,3 +10,4 @@ can_node:
     # Communication Settings
     publish_rate_hz: 50                # Rate for checking incoming CAN messages
     receive_timeout_ms: 10000          # Timeout for receiving CAN messages
+    receive_poll_interval_ms: 10           # Interval for polling CAN messages in milliseconds
