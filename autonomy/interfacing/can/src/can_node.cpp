@@ -14,20 +14,22 @@ CanNode::CanNode() : Node("can_node"), can_core(this->get_logger()) {
 
   // Load DBC file
   {
-      std::ifstream idbc(ament_index_cpp::get_package_share_directory("can") + "/config/humanoid.dbc");
-      dbc_net = dbcppp::INetwork::LoadDBCFromIs(idbc);
-      if (!dbc_net) {
-          RCLCPP_ERROR(this->get_logger(), "Failed to load DBC file");
-      } else {
-          RCLCPP_INFO(this->get_logger(), "DBC file loaded successfully");
-          // Build the message ID to IMessage* map for quick lookup during decoding
-          for (const auto& msg : dbc_net->Messages()) {
-              RCLCPP_INFO(this->get_logger(), "Loaded DBC message: %s (ID 0x%lX)", msg.Name().c_str(), msg.Id());
-              can_messages.insert(std::make_pair(msg.Name(), &msg));
-              // Subtraction due to extended can frame
-              can_id_map.insert(std::make_pair(msg.Id() - 0x80000000, &msg));
-          }
+    std::ifstream idbc(ament_index_cpp::get_package_share_directory("can") +
+                       "/config/humanoid.dbc");
+    dbc_net = dbcppp::INetwork::LoadDBCFromIs(idbc);
+    if (!dbc_net) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to load DBC file");
+    } else {
+      RCLCPP_INFO(this->get_logger(), "DBC file loaded successfully");
+      // Build the message ID to IMessage* map for quick lookup during decoding
+      for (const auto &msg : dbc_net->Messages()) {
+        RCLCPP_INFO(this->get_logger(), "Loaded DBC message: %s (ID 0x%lX)",
+                    msg.Name().c_str(), msg.Id());
+        can_messages.insert(std::make_pair(msg.Name(), &msg));
+        // Subtraction due to extended can frame
+        can_id_map.insert(std::make_pair(msg.Id() - 0x80000000, &msg));
       }
+    }
   }
 
   // Load parameters from config/params.yaml
@@ -69,8 +71,7 @@ CanNode::CanNode() : Node("can_node"), can_core(this->get_logger()) {
     // Setup a timer to periodically call receiveCanMessages
     receive_timer_ = this->create_wall_timer(
         std::chrono::milliseconds(receive_poll_interval_ms),
-        [this]() { receiveCanMessages(); }
-    );
+        [this]() { receiveCanMessages(); });
 
   } else {
     RCLCPP_ERROR(this->get_logger(), "Failed to initialize CAN Core");
