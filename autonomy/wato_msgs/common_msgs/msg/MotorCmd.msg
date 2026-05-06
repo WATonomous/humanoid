@@ -1,3 +1,4 @@
+# Cube mars documentation: https://www.cubemars.com/data/cms/202602/ak-series-prodcut-manual-v3-2-0-for-ak-3-0-robotic-actuator.pdf
 # Motor ID and control type
 int8 motor_id
 int8 control_type
