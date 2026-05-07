@@ -10,7 +10,11 @@ app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 import isaaclab.sim as sim_utils
+<<<<<<< HEAD
 from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid_arm_hand import (
+=======
+from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import (
+>>>>>>> ac22f6fa (new changes)
     ARM_CFG,
     LEFT_ARM_CFG,
 )
@@ -37,15 +41,22 @@ class BothArmsSceneCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/RightArm",
         init_state=ArticulationCfg.InitialStateCfg(
             pos=(0.5, 0.0, 0.0),
+<<<<<<< HEAD
             rot=(0.0, 0.0, 0.0, 1.0),
+=======
+>>>>>>> ac22f6fa (new changes)
             joint_pos=ARM_CFG.init_state.joint_pos,
         ),
     )
     left_arm = LEFT_ARM_CFG.replace(
         prim_path="{ENV_REGEX_NS}/LeftArm",
         init_state=ArticulationCfg.InitialStateCfg(
+<<<<<<< HEAD
             pos=(0.0, 0.0, 0.0),
             rot=(0.0, 0.0, 0.0, 1.0),
+=======
+            pos=(-0.5, 0.0, 0.0),
+>>>>>>> ac22f6fa (new changes)
             joint_pos=LEFT_ARM_CFG.init_state.joint_pos,
         ),
     )

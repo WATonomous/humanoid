@@ -102,6 +102,9 @@
       }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> ac22f6fa (new changes)
       function createShader(gl, type, source) {
         const shader = gl.createShader(type);
         gl.shaderSource(shader, source);
@@ -187,8 +190,11 @@
         gl.drawArrays(gl.POINTS, 0, 25);
       }
 
+<<<<<<< HEAD
 =======
 >>>>>>> cbcbea1d (new changes)
+=======
+>>>>>>> ac22f6fa (new changes)
       document.getElementById("start").onclick = async () => {
         const wsUrl = `wss://${window.location.hostname}:9090`;
         const ws = new WebSocket(wsUrl);
@@ -223,6 +229,7 @@
             })
 =======
           const gl = canvas.getContext("webgl", { xrCompatible: true });
+          const pointRenderer = createPointRenderer(gl);
 
           session.updateRenderState({
             baseLayer: new XRWebGLLayer(session, gl)
@@ -259,11 +266,18 @@
             }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> ac22f6fa (new changes)
             const pose = frame.getViewerPose(refSpace);
             if (pose) {
               gl.bindFramebuffer(gl.FRAMEBUFFER, session.renderState.baseLayer.framebuffer);
               gl.enable(gl.DEPTH_TEST);
+<<<<<<< HEAD
               gl.clearColor(0.0, 0.0, 0.0, useAr ? 0.0 : 1.0);
+=======
+              gl.clearColor(0.02, 0.02, 0.02, 1.0);
+>>>>>>> ac22f6fa (new changes)
               gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
               for (const view of pose.views) {
@@ -290,8 +304,11 @@
               }
             }
 
+<<<<<<< HEAD
 =======
 >>>>>>> cbcbea1d (new changes)
+=======
+>>>>>>> ac22f6fa (new changes)
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify(payload));
             }
@@ -317,7 +334,11 @@
     </script>
   </body>
 <<<<<<< HEAD
+<<<<<<< HEAD
 </html>
 =======
 </html>
 >>>>>>> cbcbea1d (new changes)
+=======
+</html>
+>>>>>>> ac22f6fa (new changes)
