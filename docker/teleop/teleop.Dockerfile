@@ -37,7 +37,10 @@ COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
 # Install dependencies + tools (update must be in same layer)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        $(cat /tmp/colcon_install_list) && \
+        $(cat /tmp/colcon_install_list) \
+        libboost-system-dev \
+        libssl-dev \
+        nlohmann-json3-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy source code into workspace

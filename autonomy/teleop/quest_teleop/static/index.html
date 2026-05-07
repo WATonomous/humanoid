@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Quest Teleop</title>
+  </head>
+  <body>
+    <h1>Quest Teleop</h1>
+    <button id="start">Start</button>
+    <pre id="status">Not connected</pre>
+
+    <canvas id="xr-canvas" style="display:none;"></canvas>
+
+    <script>
+      const status = document.getElementById("status");
+
+      const JOINTS = [
+        "wrist",
+
+        "thumb-metacarpal",
+        "thumb-phalanx-proximal",
+        "thumb-phalanx-distal",
+        "thumb-tip",
+
+        "index-finger-metacarpal",
+        "index-finger-phalanx-proximal",
+        "index-finger-phalanx-intermediate",
+        "index-finger-phalanx-distal",
+        "index-finger-tip",
+
+        "middle-finger-metacarpal",
+        "middle-finger-phalanx-proximal",
+        "middle-finger-phalanx-intermediate",
+        "middle-finger-phalanx-distal",
+        "middle-finger-tip",
+
+        "ring-finger-metacarpal",
+        "ring-finger-phalanx-proximal",
+        "ring-finger-phalanx-intermediate",
+        "ring-finger-phalanx-distal",
+        "ring-finger-tip",
+
+        "pinky-finger-metacarpal",
+        "pinky-finger-phalanx-proximal",
+        "pinky-finger-phalanx-intermediate",
+        "pinky-finger-phalanx-distal",
+        "pinky-finger-tip"
+      ];
+
+      function emptyPose() {
+        return {
+          position: { x: 0, y: 0, z: 0 },
+          orientation: { x: 0, y: 0, z: 0, w: 1 }
+        };
+      }
+
+      function poseToJson(pose) {
+        if (!pose) return emptyPose();
+
+        const t = pose.transform;
+
+        return {
+          position: {
+            x: t.position.x,
+            y: t.position.y,
+            z: t.position.z
+          },
+          orientation: {
+            x: t.orientation.x,
+            y: t.orientation.y,
+            z: t.orientation.z,
+            w: t.orientation.w
+          }
+        };
+      }
+
+      // right_hand_joints layout:
+      // 0-2: wrist xyz
+      // 3-5: thumb-metacarpal xyz
+      // 6-8: thumb-phalanx-proximal xyz
+      // ...
+
+      function handJointsToArray(hand, frame, refSpace) {
+        const values = [];
+
+        for (const jointName of JOINTS) {
+          const jointSpace = hand.get(jointName);
+          const jointPose = jointSpace ? frame.getJointPose(jointSpace, refSpace) : null;
+
+          if (jointPose) {
+            values.push(
+              jointPose.transform.position.x,
+              jointPose.transform.position.y,
+              jointPose.transform.position.z
+            );
+          } else {
+            values.push(0, 0, 0);
+          }
+        }
+
+        return values;
+      }
+
+      document.getElementById("start").onclick = async () => {
+        const wsUrl = `wss://${window.location.hostname}:9090`;
+        const ws = new WebSocket(wsUrl);
+
+        status.textContent = `Connecting to ${wsUrl}`;
+
+        ws.onopen = async () => {
+          status.textContent = "WSS connected. Starting WebXR...";
+
+          const session = await navigator.xr.requestSession("immersive-vr", {
+            requiredFeatures: ["hand-tracking"]
+          });
+
+          const canvas = document.getElementById("xr-canvas"); //needed for scene and getting pose data
+          const gl = canvas.getContext("webgl", { xrCompatible: true });
+
+          session.updateRenderState({
+            baseLayer: new XRWebGLLayer(session, gl)
+          });
+
+          const refSpace = await session.requestReferenceSpace("local");
+
+          function onFrame(time, frame) {
+            session.requestAnimationFrame(onFrame);
+
+            const payload = {
+              left_wrist: emptyPose(),
+              right_wrist: emptyPose(),
+              left_hand_joints: Array(75).fill(0),
+              right_hand_joints: Array(75).fill(0)
+            };
+
+            for (const inputSource of session.inputSources) {
+              if (!inputSource.hand) continue;
+
+              const wristSpace = inputSource.hand.get("wrist");
+              const wristPose = wristSpace ? frame.getJointPose(wristSpace, refSpace) : null;
+
+              if (inputSource.handedness === "left") {
+                payload.left_wrist = poseToJson(wristPose);
+                payload.left_hand_joints = handJointsToArray(inputSource.hand, frame, refSpace);
+              }
+
+              if (inputSource.handedness === "right") {
+                payload.right_wrist = poseToJson(wristPose);
+                payload.right_hand_joints = handJointsToArray(inputSource.hand, frame, refSpace);
+              }
+            }
+
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify(payload));
+            }
+
+            status.textContent = "Streaming hand data";
+          }
+
+          session.requestAnimationFrame(onFrame);
+        };
+
+        ws.onerror = () => {
+          status.textContent = "WebSocket error";
+        };
+
+        ws.onclose = () => {
+          status.textContent = "WebSocket closed";
+        };
+      };
+    </script>
+  </body>
+</html>
