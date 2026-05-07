@@ -10,6 +10,7 @@ __pycache__
 watod-config.local.sh
 utils/voxel/spconv
 
+<<<<<<< HEAD
 build/
 install/
 log/
@@ -19,3 +20,6 @@ log/
 autonomy/teleop/quest_teleop_server/certs/*
 datasets/
 outputs/
+=======
+autonomy/teleop/quest_teleop_server/certs/*
+>>>>>>> cbcbea1d (new changes)

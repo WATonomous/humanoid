@@ -3,12 +3,18 @@
 #include <iostream>
 
 #include <boost/beast/core.hpp>
+<<<<<<< HEAD
 #include <boost/beast/http.hpp>
+=======
+>>>>>>> cbcbea1d (new changes)
 #include <boost/beast/websocket.hpp>
 #include <boost/beast/websocket/ssl.hpp>
 
 namespace beast = boost::beast;
+<<<<<<< HEAD
 namespace http = beast::http;
+=======
+>>>>>>> cbcbea1d (new changes)
 namespace websocket = beast::websocket;
 namespace ssl = boost::asio::ssl;
 
@@ -77,6 +83,7 @@ void WssServer::run() {
 
 void WssServer::handle_session(tcp::socket socket) {
   try {
+<<<<<<< HEAD
     ssl::stream<tcp::socket> tls_stream(std::move(socket), ssl_context_);
     tls_stream.handshake(ssl::stream_base::server);
 
@@ -102,14 +109,27 @@ void WssServer::handle_session(tcp::socket socket) {
 
     websocket::stream<ssl::stream<tcp::socket>> ws(std::move(tls_stream));
     ws.accept(req);
+=======
+    websocket::stream<ssl::stream<tcp::socket>> ws(std::move(socket), ssl_context_);
+
+    ws.next_layer().handshake(ssl::stream_base::server);
+    ws.accept();
+>>>>>>> cbcbea1d (new changes)
 
     std::cout << "Quest browser connected" << std::endl;
 
     while (running_) {
+<<<<<<< HEAD
       beast::flat_buffer msg_buffer;
       ws.read(msg_buffer);
 
       std::string text = beast::buffers_to_string(msg_buffer.data());
+=======
+      beast::flat_buffer buffer;
+      ws.read(buffer);
+
+      std::string text = beast::buffers_to_string(buffer.data());
+>>>>>>> cbcbea1d (new changes)
 
       if (on_message_) {
         on_message_(text);

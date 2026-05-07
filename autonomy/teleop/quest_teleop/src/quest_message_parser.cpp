@@ -34,8 +34,13 @@ void fill_float_array(const json& source, std::vector<float>& target) {
 
 } // namespace
 
+<<<<<<< HEAD
 common_msgs::msg::QuestHandPose QuestMessageParser::make_empty_message() {
   common_msgs::msg::QuestHandPose msg;
+=======
+quest_teleop::msg::QuestHandPose QuestMessageParser::make_empty_message() {
+  quest_teleop::msg::QuestHandPose msg;
+>>>>>>> cbcbea1d (new changes)
 
   msg.left_wrist.orientation.w = 1.0;
   msg.right_wrist.orientation.w = 1.0;
@@ -46,7 +51,11 @@ common_msgs::msg::QuestHandPose QuestMessageParser::make_empty_message() {
   return msg;
 }
 
+<<<<<<< HEAD
 common_msgs::msg::QuestHandPose QuestMessageParser::parse(const std::string& json_text) {
+=======
+quest_teleop::msg::QuestHandPose QuestMessageParser::parse(const std::string& json_text) {
+>>>>>>> cbcbea1d (new changes)
   auto msg = make_empty_message();
 
   const auto data = json::parse(json_text);

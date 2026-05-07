@@ -101,6 +101,7 @@
         return values;
       }
 
+<<<<<<< HEAD
       function createShader(gl, type, source) {
         const shader = gl.createShader(type);
         gl.shaderSource(shader, source);
@@ -186,6 +187,8 @@
         gl.drawArrays(gl.POINTS, 0, 25);
       }
 
+=======
+>>>>>>> cbcbea1d (new changes)
       document.getElementById("start").onclick = async () => {
         const wsUrl = `wss://${window.location.hostname}:9090`;
         const ws = new WebSocket(wsUrl);
@@ -195,14 +198,19 @@
         ws.onopen = async () => {
           status.textContent = "WSS connected. Starting WebXR...";
 
+<<<<<<< HEAD
           const useAr = await navigator.xr.isSessionSupported("immersive-ar");
           const sessionMode = useAr ? "immersive-ar" : "immersive-vr";
 
           const session = await navigator.xr.requestSession(sessionMode, {
+=======
+          const session = await navigator.xr.requestSession("immersive-vr", {
+>>>>>>> cbcbea1d (new changes)
             requiredFeatures: ["hand-tracking"]
           });
 
           const canvas = document.getElementById("xr-canvas"); //needed for scene and getting pose data
+<<<<<<< HEAD
           const gl = canvas.getContext("webgl", {
             xrCompatible: true,
             alpha: true
@@ -213,6 +221,12 @@
             baseLayer: new XRWebGLLayer(session, gl, {
               alpha: true
             })
+=======
+          const gl = canvas.getContext("webgl", { xrCompatible: true });
+
+          session.updateRenderState({
+            baseLayer: new XRWebGLLayer(session, gl)
+>>>>>>> cbcbea1d (new changes)
           });
 
           const refSpace = await session.requestReferenceSpace("local");
@@ -244,6 +258,7 @@
               }
             }
 
+<<<<<<< HEAD
             const pose = frame.getViewerPose(refSpace);
             if (pose) {
               gl.bindFramebuffer(gl.FRAMEBUFFER, session.renderState.baseLayer.framebuffer);
@@ -275,11 +290,17 @@
               }
             }
 
+=======
+>>>>>>> cbcbea1d (new changes)
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify(payload));
             }
 
+<<<<<<< HEAD
             status.textContent = `Streaming hand data (${sessionMode})`;
+=======
+            status.textContent = "Streaming hand data";
+>>>>>>> cbcbea1d (new changes)
           }
 
           session.requestAnimationFrame(onFrame);
@@ -295,4 +316,8 @@
       };
     </script>
   </body>
+<<<<<<< HEAD
 </html>
+=======
+</html>
+>>>>>>> cbcbea1d (new changes)

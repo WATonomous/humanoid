@@ -1,0 +1,17 @@
+services:
+  teleop:
+    build:
+      context: ..
+      dockerfile: docker/teleop/teleop.Dockerfile
+      cache_from:
+        - "${TELEOP_IMAGE:?}:${TAG}"
+        - "${TELEOP_IMAGE:?}:main"
+    image: "${TELEOP_IMAGE:?}:${TAG}"
+    ports:
+      - "8443:8443"   # static HTTPS
+      - "9090:9090"   # WSS
+    profiles: [deploy, develop]
+    command: sleep infinity
+    volumes:
+      - ${MONO_DIR}/autonomy/teleop:/root/ament_ws/src/teleop
+      - ${MONO_DIR}/autonomy/teleop/quest_teleop/certs:/certs:ro
