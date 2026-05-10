@@ -37,13 +37,15 @@ class BothArmsSceneCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/RightArm",
         init_state=ArticulationCfg.InitialStateCfg(
             pos=(0.5, 0.0, 0.0),
+            rot=(0.0, 0.0, 0.0, 1.0),
             joint_pos=ARM_CFG.init_state.joint_pos,
         ),
     )
     left_arm = LEFT_ARM_CFG.replace(
         prim_path="{ENV_REGEX_NS}/LeftArm",
         init_state=ArticulationCfg.InitialStateCfg(
-            pos=(-0.5, 0.0, 0.0),
+            pos=(0.0, 0.0, 0.0),
+            rot=(0.0, 0.0, 0.0, 1.0),
             joint_pos=LEFT_ARM_CFG.init_state.joint_pos,
         ),
     )
