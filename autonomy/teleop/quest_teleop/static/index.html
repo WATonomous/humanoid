@@ -195,16 +195,24 @@
         ws.onopen = async () => {
           status.textContent = "WSS connected. Starting WebXR...";
 
-          const session = await navigator.xr.requestSession("immersive-vr", {
+          const useAr = await navigator.xr.isSessionSupported("immersive-ar");
+          const sessionMode = useAr ? "immersive-ar" : "immersive-vr";
+
+          const session = await navigator.xr.requestSession(sessionMode, {
             requiredFeatures: ["hand-tracking"]
           });
 
           const canvas = document.getElementById("xr-canvas"); //needed for scene and getting pose data
-          const gl = canvas.getContext("webgl", { xrCompatible: true });
+          const gl = canvas.getContext("webgl", {
+            xrCompatible: true,
+            alpha: true
+          });
           const pointRenderer = createPointRenderer(gl);
 
           session.updateRenderState({
-            baseLayer: new XRWebGLLayer(session, gl)
+            baseLayer: new XRWebGLLayer(session, gl, {
+              alpha: true
+            })
           });
 
           const refSpace = await session.requestReferenceSpace("local");
@@ -240,7 +248,7 @@
             if (pose) {
               gl.bindFramebuffer(gl.FRAMEBUFFER, session.renderState.baseLayer.framebuffer);
               gl.enable(gl.DEPTH_TEST);
-              gl.clearColor(0.02, 0.02, 0.02, 1.0);
+              gl.clearColor(0.0, 0.0, 0.0, useAr ? 0.0 : 1.0);
               gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
               for (const view of pose.views) {
@@ -271,7 +279,7 @@
               ws.send(JSON.stringify(payload));
             }
 
-            status.textContent = "Streaming hand data";
+            status.textContent = `Streaming hand data (${sessionMode})`;
           }
 
           session.requestAnimationFrame(onFrame);
