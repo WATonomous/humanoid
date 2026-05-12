@@ -4,82 +4,82 @@
  *
  * SPDX-License-Identifier: MIT
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  *
  * https://www.FreeRTOS.org
  * https://github.com/FreeRTOS
  *
  */
 
-
 #ifndef INC_TASK_H
 #define INC_TASK_H
 
 #ifndef INC_FREERTOS_H
-    #error "include FreeRTOS.h must appear in source files before include task.h"
+#error "include FreeRTOS.h must appear in source files before include task.h"
 #endif
 
 #include "list.h"
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
-    extern "C" {
+extern "C" {
 #endif
 /* *INDENT-ON* */
 
 /*-----------------------------------------------------------
-* MACROS AND DEFINITIONS
-*----------------------------------------------------------*/
+ * MACROS AND DEFINITIONS
+ *----------------------------------------------------------*/
 
 /*
- * If tskKERNEL_VERSION_NUMBER ends with + it represents the version in development
- * after the numbered release.
+ * If tskKERNEL_VERSION_NUMBER ends with + it represents the version in
+ * development after the numbered release.
  *
  * The tskKERNEL_VERSION_MAJOR, tskKERNEL_VERSION_MINOR, tskKERNEL_VERSION_BUILD
  * values will reflect the last released version number.
  */
-#define tskKERNEL_VERSION_NUMBER                      "V11.1.0+"
-#define tskKERNEL_VERSION_MAJOR                       11
-#define tskKERNEL_VERSION_MINOR                       1
-#define tskKERNEL_VERSION_BUILD                       0
+#define tskKERNEL_VERSION_NUMBER "V11.1.0+"
+#define tskKERNEL_VERSION_MAJOR 11
+#define tskKERNEL_VERSION_MINOR 1
+#define tskKERNEL_VERSION_BUILD 0
 
 /* MPU region parameters passed in ulParameters
  * of MemoryRegion_t struct. */
-#define tskMPU_REGION_READ_ONLY                       ( 1U << 0U )
-#define tskMPU_REGION_READ_WRITE                      ( 1U << 1U )
-#define tskMPU_REGION_EXECUTE_NEVER                   ( 1U << 2U )
-#define tskMPU_REGION_NORMAL_MEMORY                   ( 1U << 3U )
-#define tskMPU_REGION_DEVICE_MEMORY                   ( 1U << 4U )
-#if defined( portARMV8M_MINOR_VERSION ) && ( portARMV8M_MINOR_VERSION >= 1 )
-    #define tskMPU_REGION_PRIVILEGED_EXECUTE_NEVER    ( 1U << 5U )
+#define tskMPU_REGION_READ_ONLY (1U << 0U)
+#define tskMPU_REGION_READ_WRITE (1U << 1U)
+#define tskMPU_REGION_EXECUTE_NEVER (1U << 2U)
+#define tskMPU_REGION_NORMAL_MEMORY (1U << 3U)
+#define tskMPU_REGION_DEVICE_MEMORY (1U << 4U)
+#if defined(portARMV8M_MINOR_VERSION) && (portARMV8M_MINOR_VERSION >= 1)
+#define tskMPU_REGION_PRIVILEGED_EXECUTE_NEVER (1U << 5U)
 #endif /* portARMV8M_MINOR_VERSION >= 1 */
 
 /* MPU region permissions stored in MPU settings to
  * authorize access requests. */
-#define tskMPU_READ_PERMISSION        ( 1U << 0U )
-#define tskMPU_WRITE_PERMISSION       ( 1U << 1U )
+#define tskMPU_READ_PERMISSION (1U << 0U)
+#define tskMPU_WRITE_PERMISSION (1U << 1U)
 
-/* The direct to task notification feature used to have only a single notification
- * per task.  Now there is an array of notifications per task that is dimensioned by
- * configTASK_NOTIFICATION_ARRAY_ENTRIES.  For backward compatibility, any use of the
- * original direct to task notification defaults to using the first index in the
- * array. */
-#define tskDEFAULT_INDEX_TO_NOTIFY    ( 0 )
+/* The direct to task notification feature used to have only a single
+ * notification per task.  Now there is an array of notifications per task that
+ * is dimensioned by configTASK_NOTIFICATION_ARRAY_ENTRIES.  For backward
+ * compatibility, any use of the original direct to task notification defaults
+ * to using the first index in the array. */
+#define tskDEFAULT_INDEX_TO_NOTIFY (0)
 
 /**
  * task. h
@@ -91,104 +91,136 @@
  * \defgroup TaskHandle_t TaskHandle_t
  * \ingroup Tasks
  */
-struct tskTaskControlBlock; /* The old naming convention is used to prevent breaking kernel aware debuggers. */
-typedef struct tskTaskControlBlock         * TaskHandle_t;
-typedef const struct tskTaskControlBlock   * ConstTaskHandle_t;
+struct tskTaskControlBlock; /* The old naming convention is used to prevent
+                               breaking kernel aware debuggers. */
+typedef struct tskTaskControlBlock *TaskHandle_t;
+typedef const struct tskTaskControlBlock *ConstTaskHandle_t;
 
 /*
  * Defines the prototype to which the application task hook function must
  * conform.
  */
-typedef BaseType_t (* TaskHookFunction_t)( void * arg );
+typedef BaseType_t (*TaskHookFunction_t)(void *arg);
 
 /* Task states returned by eTaskGetState. */
-typedef enum
-{
-    eRunning = 0, /* A task is querying the state of itself, so must be running. */
-    eReady,       /* The task being queried is in a ready or pending ready list. */
-    eBlocked,     /* The task being queried is in the Blocked state. */
-    eSuspended,   /* The task being queried is in the Suspended state, or is in the Blocked state with an infinite time out. */
-    eDeleted,     /* The task being queried has been deleted, but its TCB has not yet been freed. */
-    eInvalid      /* Used as an 'invalid state' value. */
+typedef enum {
+  eRunning =
+      0,      /* A task is querying the state of itself, so must be running. */
+  eReady,     /* The task being queried is in a ready or pending ready list. */
+  eBlocked,   /* The task being queried is in the Blocked state. */
+  eSuspended, /* The task being queried is in the Suspended state, or is in the
+                 Blocked state with an infinite time out. */
+  eDeleted, /* The task being queried has been deleted, but its TCB has not yet
+               been freed. */
+  eInvalid  /* Used as an 'invalid state' value. */
 } eTaskState;
 
 /* Actions that can be performed when vTaskNotify() is called. */
-typedef enum
-{
-    eNoAction = 0,            /* Notify the task without updating its notify value. */
-    eSetBits,                 /* Set bits in the task's notification value. */
-    eIncrement,               /* Increment the task's notification value. */
-    eSetValueWithOverwrite,   /* Set the task's notification value to a specific value even if the previous value has not yet been read by the task. */
-    eSetValueWithoutOverwrite /* Set the task's notification value if the previous value has been read by the task. */
+typedef enum {
+  eNoAction = 0, /* Notify the task without updating its notify value. */
+  eSetBits,      /* Set bits in the task's notification value. */
+  eIncrement,    /* Increment the task's notification value. */
+  eSetValueWithOverwrite,   /* Set the task's notification value to a specific
+                               value even if the previous value has not yet been
+                               read by the task. */
+  eSetValueWithoutOverwrite /* Set the task's notification value if the previous
+                               value has been read by the task. */
 } eNotifyAction;
 
 /*
  * Used internally only.
  */
-typedef struct xTIME_OUT
-{
-    BaseType_t xOverflowCount;
-    TickType_t xTimeOnEntering;
+typedef struct xTIME_OUT {
+  BaseType_t xOverflowCount;
+  TickType_t xTimeOnEntering;
 } TimeOut_t;
 
 /*
  * Defines the memory ranges allocated to the task when an MPU is used.
  */
-typedef struct xMEMORY_REGION
-{
-    void * pvBaseAddress;
-    uint32_t ulLengthInBytes;
-    uint32_t ulParameters;
+typedef struct xMEMORY_REGION {
+  void *pvBaseAddress;
+  uint32_t ulLengthInBytes;
+  uint32_t ulParameters;
 } MemoryRegion_t;
 
 /*
  * Parameters required to create an MPU protected task.
  */
-typedef struct xTASK_PARAMETERS
-{
-    TaskFunction_t pvTaskCode;
-    const char * pcName;
-    configSTACK_DEPTH_TYPE usStackDepth;
-    void * pvParameters;
-    UBaseType_t uxPriority;
-    StackType_t * puxStackBuffer;
-    MemoryRegion_t xRegions[ portNUM_CONFIGURABLE_REGIONS ];
-    #if ( ( portUSING_MPU_WRAPPERS == 1 ) && ( configSUPPORT_STATIC_ALLOCATION == 1 ) )
-        StaticTask_t * const pxTaskBuffer;
-    #endif
+typedef struct xTASK_PARAMETERS {
+  TaskFunction_t pvTaskCode;
+  const char *pcName;
+  configSTACK_DEPTH_TYPE usStackDepth;
+  void *pvParameters;
+  UBaseType_t uxPriority;
+  StackType_t *puxStackBuffer;
+  MemoryRegion_t xRegions[portNUM_CONFIGURABLE_REGIONS];
+#if ((portUSING_MPU_WRAPPERS == 1) && (configSUPPORT_STATIC_ALLOCATION == 1))
+  StaticTask_t *const pxTaskBuffer;
+#endif
 } TaskParameters_t;
 
-/* Used with the uxTaskGetSystemState() function to return the state of each task
- * in the system. */
-typedef struct xTASK_STATUS
-{
-    TaskHandle_t xHandle;                         /* The handle of the task to which the rest of the information in the structure relates. */
-    const char * pcTaskName;                      /* A pointer to the task's name.  This value will be invalid if the task was deleted since the structure was populated! */
-    UBaseType_t xTaskNumber;                      /* A number unique to the task. Note that this is not the task number that may be modified using vTaskSetTaskNumber() and uxTaskGetTaskNumber(), but a separate TCB-specific and unique identifier automatically assigned on task generation. */
-    eTaskState eCurrentState;                     /* The state in which the task existed when the structure was populated. */
-    UBaseType_t uxCurrentPriority;                /* The priority at which the task was running (may be inherited) when the structure was populated. */
-    UBaseType_t uxBasePriority;                   /* The priority to which the task will return if the task's current priority has been inherited to avoid unbounded priority inversion when obtaining a mutex.  Only valid if configUSE_MUTEXES is defined as 1 in FreeRTOSConfig.h. */
-    configRUN_TIME_COUNTER_TYPE ulRunTimeCounter; /* The total run time allocated to the task so far, as defined by the run time stats clock.  See https://www.FreeRTOS.org/rtos-run-time-stats.html.  Only valid when configGENERATE_RUN_TIME_STATS is defined as 1 in FreeRTOSConfig.h. */
-    StackType_t * pxStackBase;                    /* Points to the lowest address of the task's stack area. */
-    #if ( ( portSTACK_GROWTH > 0 ) || ( configRECORD_STACK_HIGH_ADDRESS == 1 ) )
-        StackType_t * pxTopOfStack;               /* Points to the top address of the task's stack area. */
-        StackType_t * pxEndOfStack;               /* Points to the end address of the task's stack area. */
-    #endif
-    configSTACK_DEPTH_TYPE usStackHighWaterMark;  /* The minimum amount of stack space that has remained for the task since the task was created.  The closer this value is to zero the closer the task has come to overflowing its stack. */
-    #if ( ( configUSE_CORE_AFFINITY == 1 ) && ( configNUMBER_OF_CORES > 1 ) )
-        UBaseType_t uxCoreAffinityMask;           /* The core affinity mask for the task */
-    #endif
+/* Used with the uxTaskGetSystemState() function to return the state of each
+ * task in the system. */
+typedef struct xTASK_STATUS {
+  TaskHandle_t xHandle;    /* The handle of the task to which the rest of the
+                              information in the structure relates. */
+  const char *pcTaskName;  /* A pointer to the task's name.  This value will be
+                              invalid if the task was deleted since the structure
+                              was populated! */
+  UBaseType_t xTaskNumber; /* A number unique to the task. Note that this is not
+                              the task number that may be modified using
+                              vTaskSetTaskNumber() and uxTaskGetTaskNumber(),
+                              but a separate TCB-specific and unique identifier
+                              automatically assigned on task generation. */
+  eTaskState eCurrentState; /* The state in which the task existed when the
+                               structure was populated. */
+  UBaseType_t
+      uxCurrentPriority; /* The priority at which the task was running (may be
+                            inherited) when the structure was populated. */
+  UBaseType_t
+      uxBasePriority; /* The priority to which the task will return if the
+                         task's current priority has been inherited to avoid
+                         unbounded priority inversion when obtaining a mutex.
+                         Only valid if configUSE_MUTEXES is defined as 1 in
+                         FreeRTOSConfig.h. */
+  configRUN_TIME_COUNTER_TYPE
+      ulRunTimeCounter; /* The total run time allocated to the task so far, as
+                           defined by the run time stats clock.  See
+                           https://www.FreeRTOS.org/rtos-run-time-stats.html.
+                           Only valid when configGENERATE_RUN_TIME_STATS is
+                           defined as 1 in FreeRTOSConfig.h. */
+  StackType_t
+      *pxStackBase; /* Points to the lowest address of the task's stack area. */
+#if ((portSTACK_GROWTH > 0) || (configRECORD_STACK_HIGH_ADDRESS == 1))
+  StackType_t
+      *pxTopOfStack; /* Points to the top address of the task's stack area. */
+  StackType_t
+      *pxEndOfStack; /* Points to the end address of the task's stack area. */
+#endif
+  configSTACK_DEPTH_TYPE
+      usStackHighWaterMark; /* The minimum amount of stack space that has
+                               remained for the task since the task was created.
+                               The closer this value is to zero the closer the
+                               task has come to overflowing its stack. */
+#if ((configUSE_CORE_AFFINITY == 1) && (configNUMBER_OF_CORES > 1))
+  UBaseType_t uxCoreAffinityMask; /* The core affinity mask for the task */
+#endif
 } TaskStatus_t;
 
 /* Possible return values for eTaskConfirmSleepModeStatus(). */
-typedef enum
-{
-    eAbortSleep = 0, /* A task has been made ready or a context switch pended since portSUPPRESS_TICKS_AND_SLEEP() was called - abort entering a sleep mode. */
-    eStandardSleep   /* Enter a sleep mode that will not last any longer than the expected idle time. */
-    #if ( INCLUDE_vTaskSuspend == 1 )
-        ,
-        eNoTasksWaitingTimeout /* No tasks are waiting for a timeout so it is safe to enter a sleep mode that can only be exited by an external interrupt. */
-    #endif /* INCLUDE_vTaskSuspend */
+typedef enum {
+  eAbortSleep = 0, /* A task has been made ready or a context switch pended
+                      since portSUPPRESS_TICKS_AND_SLEEP() was called - abort
+                      entering a sleep mode. */
+  eStandardSleep   /* Enter a sleep mode that will not last any longer than the
+                      expected idle time. */
+#if (INCLUDE_vTaskSuspend == 1)
+  ,
+  eNoTasksWaitingTimeout /* No tasks are waiting for a timeout so it is safe to
+                            enter a sleep mode that can only be exited by an
+                            external interrupt. */
+#endif                   /* INCLUDE_vTaskSuspend */
 } eSleepModeStatus;
 
 /**
@@ -196,14 +228,14 @@ typedef enum
  *
  * \ingroup TaskUtils
  */
-#define tskIDLE_PRIORITY    ( ( UBaseType_t ) 0U )
+#define tskIDLE_PRIORITY ((UBaseType_t)0U)
 
 /**
  * Defines affinity to all available cores.
  *
  * \ingroup TaskUtils
  */
-#define tskNO_AFFINITY      ( ( UBaseType_t ) -1 )
+#define tskNO_AFFINITY ((UBaseType_t) - 1)
 
 /**
  * task. h
@@ -213,7 +245,7 @@ typedef enum
  * \defgroup taskYIELD taskYIELD
  * \ingroup SchedulerControl
  */
-#define taskYIELD()                          portYIELD()
+#define taskYIELD() portYIELD()
 
 /**
  * task. h
@@ -227,11 +259,11 @@ typedef enum
  * \defgroup taskENTER_CRITICAL taskENTER_CRITICAL
  * \ingroup SchedulerControl
  */
-#define taskENTER_CRITICAL()                 portENTER_CRITICAL()
-#if ( configNUMBER_OF_CORES == 1 )
-    #define taskENTER_CRITICAL_FROM_ISR()    portSET_INTERRUPT_MASK_FROM_ISR()
+#define taskENTER_CRITICAL() portENTER_CRITICAL()
+#if (configNUMBER_OF_CORES == 1)
+#define taskENTER_CRITICAL_FROM_ISR() portSET_INTERRUPT_MASK_FROM_ISR()
 #else
-    #define taskENTER_CRITICAL_FROM_ISR()    portENTER_CRITICAL_FROM_ISR()
+#define taskENTER_CRITICAL_FROM_ISR() portENTER_CRITICAL_FROM_ISR()
 #endif
 
 /**
@@ -246,11 +278,11 @@ typedef enum
  * \defgroup taskEXIT_CRITICAL taskEXIT_CRITICAL
  * \ingroup SchedulerControl
  */
-#define taskEXIT_CRITICAL()                    portEXIT_CRITICAL()
-#if ( configNUMBER_OF_CORES == 1 )
-    #define taskEXIT_CRITICAL_FROM_ISR( x )    portCLEAR_INTERRUPT_MASK_FROM_ISR( x )
+#define taskEXIT_CRITICAL() portEXIT_CRITICAL()
+#if (configNUMBER_OF_CORES == 1)
+#define taskEXIT_CRITICAL_FROM_ISR(x) portCLEAR_INTERRUPT_MASK_FROM_ISR(x)
 #else
-    #define taskEXIT_CRITICAL_FROM_ISR( x )    portEXIT_CRITICAL_FROM_ISR( x )
+#define taskEXIT_CRITICAL_FROM_ISR(x) portEXIT_CRITICAL_FROM_ISR(x)
 #endif
 
 /**
@@ -261,7 +293,7 @@ typedef enum
  * \defgroup taskDISABLE_INTERRUPTS taskDISABLE_INTERRUPTS
  * \ingroup SchedulerControl
  */
-#define taskDISABLE_INTERRUPTS()    portDISABLE_INTERRUPTS()
+#define taskDISABLE_INTERRUPTS() portDISABLE_INTERRUPTS()
 
 /**
  * task. h
@@ -271,21 +303,25 @@ typedef enum
  * \defgroup taskENABLE_INTERRUPTS taskENABLE_INTERRUPTS
  * \ingroup SchedulerControl
  */
-#define taskENABLE_INTERRUPTS()     portENABLE_INTERRUPTS()
+#define taskENABLE_INTERRUPTS() portENABLE_INTERRUPTS()
 
 /* Definitions returned by xTaskGetSchedulerState().  taskSCHEDULER_SUSPENDED is
- * 0 to generate more optimal code when configASSERT() is defined as the constant
- * is used in assert() statements. */
-#define taskSCHEDULER_SUSPENDED      ( ( BaseType_t ) 0 )
-#define taskSCHEDULER_NOT_STARTED    ( ( BaseType_t ) 1 )
-#define taskSCHEDULER_RUNNING        ( ( BaseType_t ) 2 )
+ * 0 to generate more optimal code when configASSERT() is defined as the
+ * constant is used in assert() statements. */
+#define taskSCHEDULER_SUSPENDED ((BaseType_t)0)
+#define taskSCHEDULER_NOT_STARTED ((BaseType_t)1)
+#define taskSCHEDULER_RUNNING ((BaseType_t)2)
 
 /* Checks if core ID is valid. */
-#define taskVALID_CORE_ID( xCoreID )    ( ( ( ( ( BaseType_t ) 0 <= ( xCoreID ) ) && ( ( xCoreID ) < ( BaseType_t ) configNUMBER_OF_CORES ) ) ) ? ( pdTRUE ) : ( pdFALSE ) )
+#define taskVALID_CORE_ID(xCoreID)                                             \
+  (((((BaseType_t)0 <= (xCoreID)) &&                                           \
+     ((xCoreID) < (BaseType_t)configNUMBER_OF_CORES)))                         \
+       ? (pdTRUE)                                                              \
+       : (pdFALSE))
 
 /*-----------------------------------------------------------
-* TASK CREATION API
-*----------------------------------------------------------*/
+ * TASK CREATION API
+ *----------------------------------------------------------*/
 
 /**
  * task. h
@@ -324,8 +360,8 @@ typedef enum
  * must be implemented to never return (i.e. continuous loop).
  *
  * @param pcName A descriptive name for the task.  This is mainly used to
- * facilitate debugging.  Max length defined by configMAX_TASK_NAME_LEN - default
- * is 16.
+ * facilitate debugging.  Max length defined by configMAX_TASK_NAME_LEN -
+ * default is 16.
  *
  * @param uxStackDepth The size of the task stack specified as the number of
  * variables the stack can hold - not the number of bytes.  For example, if
@@ -364,12 +400,15 @@ typedef enum
  * static uint8_t ucParameterToPass;
  * TaskHandle_t xHandle = NULL;
  *
- *   // Create the task, storing the handle.  Note that the passed parameter ucParameterToPass
- *   // must exist for the lifetime of the task, so in this case is declared static.  If it was just an
- *   // an automatic stack variable it might no longer exist, or at least have been corrupted, by the time
+ *   // Create the task, storing the handle.  Note that the passed parameter
+ * ucParameterToPass
+ *   // must exist for the lifetime of the task, so in this case is declared
+ * static.  If it was just an
+ *   // an automatic stack variable it might no longer exist, or at least have
+ * been corrupted, by the time
  *   // the new task attempts to access it.
- *   xTaskCreate( vTaskCode, "NAME", STACK_SIZE, &ucParameterToPass, tskIDLE_PRIORITY, &xHandle );
- *   configASSERT( xHandle );
+ *   xTaskCreate( vTaskCode, "NAME", STACK_SIZE, &ucParameterToPass,
+ * tskIDLE_PRIORITY, &xHandle ); configASSERT( xHandle );
  *
  *   // Use the handle to delete the task.
  *   if( xHandle != NULL )
@@ -381,23 +420,21 @@ typedef enum
  * \defgroup xTaskCreate xTaskCreate
  * \ingroup Tasks
  */
-#if ( configSUPPORT_DYNAMIC_ALLOCATION == 1 )
-    BaseType_t xTaskCreate( TaskFunction_t pxTaskCode,
-                            const char * const pcName,
-                            const configSTACK_DEPTH_TYPE uxStackDepth,
-                            void * const pvParameters,
-                            UBaseType_t uxPriority,
-                            TaskHandle_t * const pxCreatedTask ) PRIVILEGED_FUNCTION;
+#if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+BaseType_t xTaskCreate(TaskFunction_t pxTaskCode, const char *const pcName,
+                       const configSTACK_DEPTH_TYPE uxStackDepth,
+                       void *const pvParameters, UBaseType_t uxPriority,
+                       TaskHandle_t *const pxCreatedTask) PRIVILEGED_FUNCTION;
 #endif
 
-#if ( ( configSUPPORT_DYNAMIC_ALLOCATION == 1 ) && ( configNUMBER_OF_CORES > 1 ) && ( configUSE_CORE_AFFINITY == 1 ) )
-    BaseType_t xTaskCreateAffinitySet( TaskFunction_t pxTaskCode,
-                                       const char * const pcName,
-                                       const configSTACK_DEPTH_TYPE uxStackDepth,
-                                       void * const pvParameters,
-                                       UBaseType_t uxPriority,
-                                       UBaseType_t uxCoreAffinityMask,
-                                       TaskHandle_t * const pxCreatedTask ) PRIVILEGED_FUNCTION;
+#if ((configSUPPORT_DYNAMIC_ALLOCATION == 1) && (configNUMBER_OF_CORES > 1) && \
+     (configUSE_CORE_AFFINITY == 1))
+BaseType_t
+xTaskCreateAffinitySet(TaskFunction_t pxTaskCode, const char *const pcName,
+                       const configSTACK_DEPTH_TYPE uxStackDepth,
+                       void *const pvParameters, UBaseType_t uxPriority,
+                       UBaseType_t uxCoreAffinityMask,
+                       TaskHandle_t *const pxCreatedTask) PRIVILEGED_FUNCTION;
 #endif
 
 /**
@@ -457,9 +494,11 @@ typedef enum
  * Example usage:
  * @code{c}
  *
- *  // Dimensions of the buffer that the task being created will use as its stack.
+ *  // Dimensions of the buffer that the task being created will use as its
+ stack.
  *  // NOTE:  This is the number of words the stack will hold, not the number of
- *  // bytes.  For example, if each stack item is 32-bits, and this is set to 100,
+ *  // bytes.  For example, if each stack item is 32-bits, and this is set to
+ 100,
  *  // then 400 bytes (100 * 32-bits) will be allocated.
  #define STACK_SIZE 200
  *
@@ -467,7 +506,8 @@ typedef enum
  *  StaticTask_t xTaskBuffer;
  *
  *  // Buffer that the task being created will use as its stack.  Note this is
- *  // an array of StackType_t variables.  The size of StackType_t is dependent on
+ *  // an array of StackType_t variables.  The size of StackType_t is dependent
+ on
  *  // the RTOS port.
  *  StackType_t xStack[ STACK_SIZE ];
  *
@@ -497,7 +537,8 @@ typedef enum
  *                    ( void * ) 1,    // Parameter passed into the task.
  *                    tskIDLE_PRIORITY,// Priority at which the task is created.
  *                    xStack,          // Array to use as the task's stack.
- *                    &xTaskBuffer );  // Variable to hold the task's data structure.
+ *                    &xTaskBuffer );  // Variable to hold the task's data
+ structure.
  *
  *      // puxStackBuffer and pxTaskBuffer were not NULL, so the task will have
  *      // been created, and xHandle will be the task's handle.  Use the handle
@@ -508,31 +549,30 @@ typedef enum
  * \defgroup xTaskCreateStatic xTaskCreateStatic
  * \ingroup Tasks
  */
-#if ( configSUPPORT_STATIC_ALLOCATION == 1 )
-    TaskHandle_t xTaskCreateStatic( TaskFunction_t pxTaskCode,
-                                    const char * const pcName,
-                                    const configSTACK_DEPTH_TYPE uxStackDepth,
-                                    void * const pvParameters,
-                                    UBaseType_t uxPriority,
-                                    StackType_t * const puxStackBuffer,
-                                    StaticTask_t * const pxTaskBuffer ) PRIVILEGED_FUNCTION;
+#if (configSUPPORT_STATIC_ALLOCATION == 1)
+TaskHandle_t
+xTaskCreateStatic(TaskFunction_t pxTaskCode, const char *const pcName,
+                  const configSTACK_DEPTH_TYPE uxStackDepth,
+                  void *const pvParameters, UBaseType_t uxPriority,
+                  StackType_t *const puxStackBuffer,
+                  StaticTask_t *const pxTaskBuffer) PRIVILEGED_FUNCTION;
 #endif /* configSUPPORT_STATIC_ALLOCATION */
 
-#if ( ( configSUPPORT_STATIC_ALLOCATION == 1 ) && ( configNUMBER_OF_CORES > 1 ) && ( configUSE_CORE_AFFINITY == 1 ) )
-    TaskHandle_t xTaskCreateStaticAffinitySet( TaskFunction_t pxTaskCode,
-                                               const char * const pcName,
-                                               const configSTACK_DEPTH_TYPE uxStackDepth,
-                                               void * const pvParameters,
-                                               UBaseType_t uxPriority,
-                                               StackType_t * const puxStackBuffer,
-                                               StaticTask_t * const pxTaskBuffer,
-                                               UBaseType_t uxCoreAffinityMask ) PRIVILEGED_FUNCTION;
+#if ((configSUPPORT_STATIC_ALLOCATION == 1) && (configNUMBER_OF_CORES > 1) &&  \
+     (configUSE_CORE_AFFINITY == 1))
+TaskHandle_t xTaskCreateStaticAffinitySet(
+    TaskFunction_t pxTaskCode, const char *const pcName,
+    const configSTACK_DEPTH_TYPE uxStackDepth, void *const pvParameters,
+    UBaseType_t uxPriority, StackType_t *const puxStackBuffer,
+    StaticTask_t *const pxTaskBuffer,
+    UBaseType_t uxCoreAffinityMask) PRIVILEGED_FUNCTION;
 #endif
 
 /**
  * task. h
  * @code{c}
- * BaseType_t xTaskCreateRestricted( TaskParameters_t *pxTaskDefinition, TaskHandle_t *pxCreatedTask );
+ * BaseType_t xTaskCreateRestricted( TaskParameters_t *pxTaskDefinition,
+ * TaskHandle_t *pxCreatedTask );
  * @endcode
  *
  * Only available when configSUPPORT_DYNAMIC_ALLOCATION is set to 1.
@@ -566,19 +606,22 @@ typedef enum
  *  vATask,     // pvTaskCode - the function that implements the task.
  *  "ATask",    // pcName - just a text name for the task to assist debugging.
  *  100,        // uxStackDepth - the stack size DEFINED IN WORDS.
- *  NULL,       // pvParameters - passed into the task function as the function parameters.
- *  ( 1U | portPRIVILEGE_BIT ),// uxPriority - task priority, set the portPRIVILEGE_BIT if the task should run in a privileged state.
+ *  NULL,       // pvParameters - passed into the task function as the function
+ * parameters. ( 1U | portPRIVILEGE_BIT ),// uxPriority - task priority, set the
+ * portPRIVILEGE_BIT if the task should run in a privileged state.
  *  cStackBuffer,// puxStackBuffer - the buffer to be used as the task stack.
  *
  *  // xRegions - Allocate up to three separate memory regions for access by
  *  // the task, with appropriate access permissions.  Different processors have
- *  // different memory alignment requirements - refer to the FreeRTOS documentation
+ *  // different memory alignment requirements - refer to the FreeRTOS
+ * documentation
  *  // for full information.
  *  {
  *      // Base address                 Length  Parameters
  *      { cReadWriteArray,              32,     portMPU_REGION_READ_WRITE },
  *      { cReadOnlyArray,               32,     portMPU_REGION_READ_ONLY },
- *      { cPrivilegedOnlyAccessArray,   128,    portMPU_REGION_PRIVILEGED_READ_WRITE }
+ *      { cPrivilegedOnlyAccessArray,   128,
+ * portMPU_REGION_PRIVILEGED_READ_WRITE }
  *  }
  * };
  *
@@ -602,21 +645,25 @@ typedef enum
  * \defgroup xTaskCreateRestricted xTaskCreateRestricted
  * \ingroup Tasks
  */
-#if ( portUSING_MPU_WRAPPERS == 1 )
-    BaseType_t xTaskCreateRestricted( const TaskParameters_t * const pxTaskDefinition,
-                                      TaskHandle_t * pxCreatedTask ) PRIVILEGED_FUNCTION;
+#if (portUSING_MPU_WRAPPERS == 1)
+BaseType_t
+xTaskCreateRestricted(const TaskParameters_t *const pxTaskDefinition,
+                      TaskHandle_t *pxCreatedTask) PRIVILEGED_FUNCTION;
 #endif
 
-#if ( ( portUSING_MPU_WRAPPERS == 1 ) && ( configNUMBER_OF_CORES > 1 ) && ( configUSE_CORE_AFFINITY == 1 ) )
-    BaseType_t xTaskCreateRestrictedAffinitySet( const TaskParameters_t * const pxTaskDefinition,
-                                                 UBaseType_t uxCoreAffinityMask,
-                                                 TaskHandle_t * pxCreatedTask ) PRIVILEGED_FUNCTION;
+#if ((portUSING_MPU_WRAPPERS == 1) && (configNUMBER_OF_CORES > 1) &&           \
+     (configUSE_CORE_AFFINITY == 1))
+BaseType_t xTaskCreateRestrictedAffinitySet(
+    const TaskParameters_t *const pxTaskDefinition,
+    UBaseType_t uxCoreAffinityMask,
+    TaskHandle_t *pxCreatedTask) PRIVILEGED_FUNCTION;
 #endif
 
 /**
  * task. h
  * @code{c}
- * BaseType_t xTaskCreateRestrictedStatic( TaskParameters_t *pxTaskDefinition, TaskHandle_t *pxCreatedTask );
+ * BaseType_t xTaskCreateRestrictedStatic( TaskParameters_t *pxTaskDefinition,
+ * TaskHandle_t *pxCreatedTask );
  * @endcode
  *
  * Only available when configSUPPORT_STATIC_ALLOCATION is set to 1.
@@ -652,7 +699,8 @@ typedef enum
  * @code{c}
  * // Create an TaskParameters_t structure that defines the task to be created.
  * // The StaticTask_t variable is only included in the structure when
- * // configSUPPORT_STATIC_ALLOCATION is set to 1.  The PRIVILEGED_DATA macro can
+ * // configSUPPORT_STATIC_ALLOCATION is set to 1.  The PRIVILEGED_DATA macro
+ * can
  * // be used to force the variable into the RTOS kernel's privileged data area.
  * static PRIVILEGED_DATA StaticTask_t xTaskBuffer;
  * static const TaskParameters_t xCheckTaskParameters =
@@ -660,19 +708,22 @@ typedef enum
  *  vATask,     // pvTaskCode - the function that implements the task.
  *  "ATask",    // pcName - just a text name for the task to assist debugging.
  *  100,        // uxStackDepth - the stack size DEFINED IN WORDS.
- *  NULL,       // pvParameters - passed into the task function as the function parameters.
- *  ( 1U | portPRIVILEGE_BIT ),// uxPriority - task priority, set the portPRIVILEGE_BIT if the task should run in a privileged state.
+ *  NULL,       // pvParameters - passed into the task function as the function
+ * parameters. ( 1U | portPRIVILEGE_BIT ),// uxPriority - task priority, set the
+ * portPRIVILEGE_BIT if the task should run in a privileged state.
  *  cStackBuffer,// puxStackBuffer - the buffer to be used as the task stack.
  *
  *  // xRegions - Allocate up to three separate memory regions for access by
  *  // the task, with appropriate access permissions.  Different processors have
- *  // different memory alignment requirements - refer to the FreeRTOS documentation
+ *  // different memory alignment requirements - refer to the FreeRTOS
+ * documentation
  *  // for full information.
  *  {
  *      // Base address                 Length  Parameters
  *      { cReadWriteArray,              32,     portMPU_REGION_READ_WRITE },
  *      { cReadOnlyArray,               32,     portMPU_REGION_READ_ONLY },
- *      { cPrivilegedOnlyAccessArray,   128,    portMPU_REGION_PRIVILEGED_READ_WRITE }
+ *      { cPrivilegedOnlyAccessArray,   128,
+ * portMPU_REGION_PRIVILEGED_READ_WRITE }
  *  }
  *
  *  &xTaskBuffer; // Holds the task's data structure.
@@ -698,21 +749,26 @@ typedef enum
  * \defgroup xTaskCreateRestrictedStatic xTaskCreateRestrictedStatic
  * \ingroup Tasks
  */
-#if ( ( portUSING_MPU_WRAPPERS == 1 ) && ( configSUPPORT_STATIC_ALLOCATION == 1 ) )
-    BaseType_t xTaskCreateRestrictedStatic( const TaskParameters_t * const pxTaskDefinition,
-                                            TaskHandle_t * pxCreatedTask ) PRIVILEGED_FUNCTION;
+#if ((portUSING_MPU_WRAPPERS == 1) && (configSUPPORT_STATIC_ALLOCATION == 1))
+BaseType_t
+xTaskCreateRestrictedStatic(const TaskParameters_t *const pxTaskDefinition,
+                            TaskHandle_t *pxCreatedTask) PRIVILEGED_FUNCTION;
 #endif
 
-#if ( ( portUSING_MPU_WRAPPERS == 1 ) && ( configSUPPORT_STATIC_ALLOCATION == 1 ) && ( configNUMBER_OF_CORES > 1 ) && ( configUSE_CORE_AFFINITY == 1 ) )
-    BaseType_t xTaskCreateRestrictedStaticAffinitySet( const TaskParameters_t * const pxTaskDefinition,
-                                                       UBaseType_t uxCoreAffinityMask,
-                                                       TaskHandle_t * pxCreatedTask ) PRIVILEGED_FUNCTION;
+#if ((portUSING_MPU_WRAPPERS == 1) &&                                          \
+     (configSUPPORT_STATIC_ALLOCATION == 1) && (configNUMBER_OF_CORES > 1) &&  \
+     (configUSE_CORE_AFFINITY == 1))
+BaseType_t xTaskCreateRestrictedStaticAffinitySet(
+    const TaskParameters_t *const pxTaskDefinition,
+    UBaseType_t uxCoreAffinityMask,
+    TaskHandle_t *pxCreatedTask) PRIVILEGED_FUNCTION;
 #endif
 
 /**
  * task. h
  * @code{c}
- * void vTaskAllocateMPURegions( TaskHandle_t xTask, const MemoryRegion_t * const pxRegions );
+ * void vTaskAllocateMPURegions( TaskHandle_t xTask, const MemoryRegion_t *
+ * const pxRegions );
  * @endcode
  *
  * Memory regions are assigned to a restricted task when the task is created by
@@ -721,8 +777,8 @@ typedef enum
  *
  * @param xTaskToModify The handle of the task being updated.
  *
- * @param[in] pxRegions A pointer to a MemoryRegion_t structure that contains the
- * new memory region definitions.
+ * @param[in] pxRegions A pointer to a MemoryRegion_t structure that contains
+ * the new memory region definitions.
  *
  * Example usage:
  * @code{c}
@@ -756,9 +812,10 @@ typedef enum
  * \defgroup vTaskAllocateMPURegions vTaskAllocateMPURegions
  * \ingroup Tasks
  */
-#if ( portUSING_MPU_WRAPPERS == 1 )
-    void vTaskAllocateMPURegions( TaskHandle_t xTaskToModify,
-                                  const MemoryRegion_t * const pxRegions ) PRIVILEGED_FUNCTION;
+#if (portUSING_MPU_WRAPPERS == 1)
+void vTaskAllocateMPURegions(TaskHandle_t xTaskToModify,
+                             const MemoryRegion_t *const pxRegions)
+    PRIVILEGED_FUNCTION;
 #endif
 
 /**
@@ -793,7 +850,8 @@ typedef enum
  * TaskHandle_t xHandle;
  *
  *   // Create the task, storing the handle.
- *   xTaskCreate( vTaskCode, "NAME", STACK_SIZE, NULL, tskIDLE_PRIORITY, &xHandle );
+ *   xTaskCreate( vTaskCode, "NAME", STACK_SIZE, NULL, tskIDLE_PRIORITY,
+ * &xHandle );
  *
  *   // Use the handle to delete the task.
  *   vTaskDelete( xHandle );
@@ -802,11 +860,11 @@ typedef enum
  * \defgroup vTaskDelete vTaskDelete
  * \ingroup Tasks
  */
-void vTaskDelete( TaskHandle_t xTaskToDelete ) PRIVILEGED_FUNCTION;
+void vTaskDelete(TaskHandle_t xTaskToDelete) PRIVILEGED_FUNCTION;
 
 /*-----------------------------------------------------------
-* TASK CONTROL API
-*----------------------------------------------------------*/
+ * TASK CONTROL API
+ *----------------------------------------------------------*/
 
 /**
  * task. h
@@ -826,14 +884,14 @@ void vTaskDelete( TaskHandle_t xTaskToDelete ) PRIVILEGED_FUNCTION;
  * vTaskDelay() specifies a time at which the task wishes to unblock relative to
  * the time at which vTaskDelay() is called.  For example, specifying a block
  * period of 100 ticks will cause the task to unblock 100 ticks after
- * vTaskDelay() is called.  vTaskDelay() does not therefore provide a good method
- * of controlling the frequency of a periodic task as the path taken through the
- * code, as well as other task and interrupt activity, will affect the frequency
- * at which vTaskDelay() gets called and therefore the time at which the task
- * next executes.  See xTaskDelayUntil() for an alternative API function designed
- * to facilitate fixed frequency execution.  It does this by specifying an
- * absolute time (rather than a relative time) at which the calling task should
- * unblock.
+ * vTaskDelay() is called.  vTaskDelay() does not therefore provide a good
+ * method of controlling the frequency of a periodic task as the path taken
+ * through the code, as well as other task and interrupt activity, will affect
+ * the frequency at which vTaskDelay() gets called and therefore the time at
+ * which the task next executes.  See xTaskDelayUntil() for an alternative API
+ * function designed to facilitate fixed frequency execution.  It does this by
+ * specifying an absolute time (rather than a relative time) at which the
+ * calling task should unblock.
  *
  * @param xTicksToDelay The amount of time, in tick periods, that
  * the calling task should block.
@@ -856,48 +914,49 @@ void vTaskDelete( TaskHandle_t xTaskToDelete ) PRIVILEGED_FUNCTION;
  * \defgroup vTaskDelay vTaskDelay
  * \ingroup TaskCtrl
  */
-void vTaskDelay( const TickType_t xTicksToDelay ) PRIVILEGED_FUNCTION;
+void vTaskDelay(const TickType_t xTicksToDelay) PRIVILEGED_FUNCTION;
 
 /**
  * task. h
  * @code{c}
- * BaseType_t xTaskDelayUntil( TickType_t *pxPreviousWakeTime, const TickType_t xTimeIncrement );
+ * BaseType_t xTaskDelayUntil( TickType_t *pxPreviousWakeTime, const TickType_t
+ * xTimeIncrement );
  * @endcode
  *
- * INCLUDE_xTaskDelayUntil must be defined as 1 for this function to be available.
- * See the configuration section for more information.
+ * INCLUDE_xTaskDelayUntil must be defined as 1 for this function to be
+ * available. See the configuration section for more information.
  *
  * Delay a task until a specified time.  This function can be used by periodic
  * tasks to ensure a constant execution frequency.
  *
- * This function differs from vTaskDelay () in one important aspect:  vTaskDelay () will
- * cause a task to block for the specified number of ticks from the time vTaskDelay () is
- * called.  It is therefore difficult to use vTaskDelay () by itself to generate a fixed
- * execution frequency as the time between a task starting to execute and that task
- * calling vTaskDelay () may not be fixed [the task may take a different path though the
- * code between calls, or may get interrupted or preempted a different number of times
- * each time it executes].
+ * This function differs from vTaskDelay () in one important aspect:  vTaskDelay
+ * () will cause a task to block for the specified number of ticks from the time
+ * vTaskDelay () is called.  It is therefore difficult to use vTaskDelay () by
+ * itself to generate a fixed execution frequency as the time between a task
+ * starting to execute and that task calling vTaskDelay () may not be fixed [the
+ * task may take a different path though the code between calls, or may get
+ * interrupted or preempted a different number of times each time it executes].
  *
- * Whereas vTaskDelay () specifies a wake time relative to the time at which the function
- * is called, xTaskDelayUntil () specifies the absolute (exact) time at which it wishes to
- * unblock.
+ * Whereas vTaskDelay () specifies a wake time relative to the time at which the
+ * function is called, xTaskDelayUntil () specifies the absolute (exact) time at
+ * which it wishes to unblock.
  *
  * The macro pdMS_TO_TICKS() can be used to calculate the number of ticks from a
  * time specified in milliseconds with a resolution of one tick period.
  *
- * @param pxPreviousWakeTime Pointer to a variable that holds the time at which the
- * task was last unblocked.  The variable must be initialised with the current time
- * prior to its first use (see the example below).  Following this the variable is
- * automatically updated within xTaskDelayUntil ().
+ * @param pxPreviousWakeTime Pointer to a variable that holds the time at which
+ * the task was last unblocked.  The variable must be initialised with the
+ * current time prior to its first use (see the example below).  Following this
+ * the variable is automatically updated within xTaskDelayUntil ().
  *
  * @param xTimeIncrement The cycle time period.  The task will be unblocked at
  * time *pxPreviousWakeTime + xTimeIncrement.  Calling xTaskDelayUntil with the
  * same xTimeIncrement parameter value will cause the task to execute with
  * a fixed interface period.
  *
- * @return Value which can be used to check whether the task was actually delayed.
- * Will be pdTRUE if the task way delayed and pdFALSE otherwise.  A task will not
- * be delayed if the next expected wake time is in the past.
+ * @return Value which can be used to check whether the task was actually
+ * delayed. Will be pdTRUE if the task way delayed and pdFALSE otherwise.  A
+ * task will not be delayed if the next expected wake time is in the past.
  *
  * Example usage:
  * @code{c}
@@ -923,18 +982,17 @@ void vTaskDelay( const TickType_t xTicksToDelay ) PRIVILEGED_FUNCTION;
  * \defgroup xTaskDelayUntil xTaskDelayUntil
  * \ingroup TaskCtrl
  */
-BaseType_t xTaskDelayUntil( TickType_t * const pxPreviousWakeTime,
-                            const TickType_t xTimeIncrement ) PRIVILEGED_FUNCTION;
+BaseType_t xTaskDelayUntil(TickType_t *const pxPreviousWakeTime,
+                           const TickType_t xTimeIncrement) PRIVILEGED_FUNCTION;
 
 /*
  * vTaskDelayUntil() is the older version of xTaskDelayUntil() and does not
  * return a value.
  */
-#define vTaskDelayUntil( pxPreviousWakeTime, xTimeIncrement )                   \
-    do {                                                                        \
-        ( void ) xTaskDelayUntil( ( pxPreviousWakeTime ), ( xTimeIncrement ) ); \
-    } while( 0 )
-
+#define vTaskDelayUntil(pxPreviousWakeTime, xTimeIncrement)                    \
+  do {                                                                         \
+    (void)xTaskDelayUntil((pxPreviousWakeTime), (xTimeIncrement));             \
+  } while (0)
 
 /**
  * task. h
@@ -966,8 +1024,8 @@ BaseType_t xTaskDelayUntil( TickType_t * const pxPreviousWakeTime,
  * \defgroup xTaskAbortDelay xTaskAbortDelay
  * \ingroup TaskCtrl
  */
-#if ( INCLUDE_xTaskAbortDelay == 1 )
-    BaseType_t xTaskAbortDelay( TaskHandle_t xTask ) PRIVILEGED_FUNCTION;
+#if (INCLUDE_xTaskAbortDelay == 1)
+BaseType_t xTaskAbortDelay(TaskHandle_t xTask) PRIVILEGED_FUNCTION;
 #endif
 
 /**
@@ -976,8 +1034,8 @@ BaseType_t xTaskDelayUntil( TickType_t * const pxPreviousWakeTime,
  * UBaseType_t uxTaskPriorityGet( const TaskHandle_t xTask );
  * @endcode
  *
- * INCLUDE_uxTaskPriorityGet must be defined as 1 for this function to be available.
- * See the configuration section for more information.
+ * INCLUDE_uxTaskPriorityGet must be defined as 1 for this function to be
+ * available. See the configuration section for more information.
  *
  * Obtain the priority of any task.
  *
@@ -993,7 +1051,8 @@ BaseType_t xTaskDelayUntil( TickType_t * const pxPreviousWakeTime,
  * TaskHandle_t xHandle;
  *
  *   // Create a task, storing the handle.
- *   xTaskCreate( vTaskCode, "NAME", STACK_SIZE, NULL, tskIDLE_PRIORITY, &xHandle );
+ *   xTaskCreate( vTaskCode, "NAME", STACK_SIZE, NULL, tskIDLE_PRIORITY,
+ * &xHandle );
  *
  *   // ...
  *
@@ -1017,7 +1076,7 @@ BaseType_t xTaskDelayUntil( TickType_t * const pxPreviousWakeTime,
  * \defgroup uxTaskPriorityGet uxTaskPriorityGet
  * \ingroup TaskCtrl
  */
-UBaseType_t uxTaskPriorityGet( const TaskHandle_t xTask ) PRIVILEGED_FUNCTION;
+UBaseType_t uxTaskPriorityGet(const TaskHandle_t xTask) PRIVILEGED_FUNCTION;
 
 /**
  * task. h
@@ -1027,7 +1086,8 @@ UBaseType_t uxTaskPriorityGet( const TaskHandle_t xTask ) PRIVILEGED_FUNCTION;
  *
  * A version of uxTaskPriorityGet() that can be used from an ISR.
  */
-UBaseType_t uxTaskPriorityGetFromISR( const TaskHandle_t xTask ) PRIVILEGED_FUNCTION;
+UBaseType_t
+uxTaskPriorityGetFromISR(const TaskHandle_t xTask) PRIVILEGED_FUNCTION;
 
 /**
  * task. h
@@ -1048,7 +1108,7 @@ UBaseType_t uxTaskPriorityGetFromISR( const TaskHandle_t xTask ) PRIVILEGED_FUNC
  * \defgroup uxTaskPriorityGet uxTaskBasePriorityGet
  * \ingroup TaskCtrl
  */
-UBaseType_t uxTaskBasePriorityGet( const TaskHandle_t xTask ) PRIVILEGED_FUNCTION;
+UBaseType_t uxTaskBasePriorityGet(const TaskHandle_t xTask) PRIVILEGED_FUNCTION;
 
 /**
  * task. h
@@ -1058,7 +1118,8 @@ UBaseType_t uxTaskBasePriorityGet( const TaskHandle_t xTask ) PRIVILEGED_FUNCTIO
  *
  * A version of uxTaskBasePriorityGet() that can be used from an ISR.
  */
-UBaseType_t uxTaskBasePriorityGetFromISR( const TaskHandle_t xTask ) PRIVILEGED_FUNCTION;
+UBaseType_t
+uxTaskBasePriorityGetFromISR(const TaskHandle_t xTask) PRIVILEGED_FUNCTION;
 
 /**
  * task. h
@@ -1078,14 +1139,16 @@ UBaseType_t uxTaskBasePriorityGetFromISR( const TaskHandle_t xTask ) PRIVILEGED_
  * state of the task might change between the function being called, and the
  * functions return value being tested by the calling task.
  */
-#if ( ( INCLUDE_eTaskGetState == 1 ) || ( configUSE_TRACE_FACILITY == 1 ) || ( INCLUDE_xTaskAbortDelay == 1 ) )
-    eTaskState eTaskGetState( TaskHandle_t xTask ) PRIVILEGED_FUNCTION;
+#if ((INCLUDE_eTaskGetState == 1) || (configUSE_TRACE_FACILITY == 1) ||        \
+     (INCLUDE_xTaskAbortDelay == 1))
+eTaskState eTaskGetState(TaskHandle_t xTask) PRIVILEGED_FUNCTION;
 #endif
 
 /**
  * task. h
  * @code{c}
- * void vTaskGetInfo( TaskHandle_t xTask, TaskStatus_t *pxTaskStatus, BaseType_t xGetFreeStackSpace, eTaskState eState );
+ * void vTaskGetInfo( TaskHandle_t xTask, TaskStatus_t *pxTaskStatus, BaseType_t
+ * xGetFreeStackSpace, eTaskState eState );
  * @endcode
  *
  * configUSE_TRACE_FACILITY must be defined as 1 for this function to be
@@ -1100,9 +1163,9 @@ UBaseType_t uxTaskBasePriorityGetFromISR( const TaskHandle_t xTask ) PRIVILEGED_
  * filled with information about the task referenced by the handle passed using
  * the xTask parameter.
  *
- * @param xGetFreeStackSpace The TaskStatus_t structure contains a member to report
- * the stack high water mark of the task being queried.  Calculating the stack
- * high water mark takes a relatively long time, and can make the system
+ * @param xGetFreeStackSpace The TaskStatus_t structure contains a member to
+ * report the stack high water mark of the task being queried.  Calculating the
+ * stack high water mark takes a relatively long time, and can make the system
  * temporarily unresponsive - so the xGetFreeStackSpace parameter is provided to
  * allow the high water mark checking to be skipped.  The high watermark value
  * will only be written to the TaskStatus_t structure if xGetFreeStackSpace is
@@ -1138,11 +1201,10 @@ UBaseType_t uxTaskBasePriorityGetFromISR( const TaskHandle_t xTask ) PRIVILEGED_
  * \defgroup vTaskGetInfo vTaskGetInfo
  * \ingroup TaskCtrl
  */
-#if ( configUSE_TRACE_FACILITY == 1 )
-    void vTaskGetInfo( TaskHandle_t xTask,
-                       TaskStatus_t * pxTaskStatus,
-                       BaseType_t xGetFreeStackSpace,
-                       eTaskState eState ) PRIVILEGED_FUNCTION;
+#if (configUSE_TRACE_FACILITY == 1)
+void vTaskGetInfo(TaskHandle_t xTask, TaskStatus_t *pxTaskStatus,
+                  BaseType_t xGetFreeStackSpace,
+                  eTaskState eState) PRIVILEGED_FUNCTION;
 #endif
 
 /**
@@ -1151,8 +1213,8 @@ UBaseType_t uxTaskBasePriorityGetFromISR( const TaskHandle_t xTask ) PRIVILEGED_
  * void vTaskPrioritySet( TaskHandle_t xTask, UBaseType_t uxNewPriority );
  * @endcode
  *
- * INCLUDE_vTaskPrioritySet must be defined as 1 for this function to be available.
- * See the configuration section for more information.
+ * INCLUDE_vTaskPrioritySet must be defined as 1 for this function to be
+ * available. See the configuration section for more information.
  *
  * Set the priority of any task.
  *
@@ -1171,7 +1233,8 @@ UBaseType_t uxTaskBasePriorityGetFromISR( const TaskHandle_t xTask ) PRIVILEGED_
  * TaskHandle_t xHandle;
  *
  *   // Create a task, storing the handle.
- *   xTaskCreate( vTaskCode, "NAME", STACK_SIZE, NULL, tskIDLE_PRIORITY, &xHandle );
+ *   xTaskCreate( vTaskCode, "NAME", STACK_SIZE, NULL, tskIDLE_PRIORITY,
+ * &xHandle );
  *
  *   // ...
  *
@@ -1187,8 +1250,8 @@ UBaseType_t uxTaskBasePriorityGetFromISR( const TaskHandle_t xTask ) PRIVILEGED_
  * \defgroup vTaskPrioritySet vTaskPrioritySet
  * \ingroup TaskCtrl
  */
-void vTaskPrioritySet( TaskHandle_t xTask,
-                       UBaseType_t uxNewPriority ) PRIVILEGED_FUNCTION;
+void vTaskPrioritySet(TaskHandle_t xTask,
+                      UBaseType_t uxNewPriority) PRIVILEGED_FUNCTION;
 
 /**
  * task. h
@@ -1216,7 +1279,8 @@ void vTaskPrioritySet( TaskHandle_t xTask,
  * TaskHandle_t xHandle;
  *
  *   // Create a task, storing the handle.
- *   xTaskCreate( vTaskCode, "NAME", STACK_SIZE, NULL, tskIDLE_PRIORITY, &xHandle );
+ *   xTaskCreate( vTaskCode, "NAME", STACK_SIZE, NULL, tskIDLE_PRIORITY,
+ * &xHandle );
  *
  *   // ...
  *
@@ -1241,7 +1305,7 @@ void vTaskPrioritySet( TaskHandle_t xTask,
  * \defgroup vTaskSuspend vTaskSuspend
  * \ingroup TaskCtrl
  */
-void vTaskSuspend( TaskHandle_t xTaskToSuspend ) PRIVILEGED_FUNCTION;
+void vTaskSuspend(TaskHandle_t xTaskToSuspend) PRIVILEGED_FUNCTION;
 
 /**
  * task. h
@@ -1267,7 +1331,8 @@ void vTaskSuspend( TaskHandle_t xTaskToSuspend ) PRIVILEGED_FUNCTION;
  * TaskHandle_t xHandle;
  *
  *   // Create a task, storing the handle.
- *   xTaskCreate( vTaskCode, "NAME", STACK_SIZE, NULL, tskIDLE_PRIORITY, &xHandle );
+ *   xTaskCreate( vTaskCode, "NAME", STACK_SIZE, NULL, tskIDLE_PRIORITY,
+ * &xHandle );
  *
  *   // ...
  *
@@ -1292,7 +1357,7 @@ void vTaskSuspend( TaskHandle_t xTaskToSuspend ) PRIVILEGED_FUNCTION;
  * \defgroup vTaskResume vTaskResume
  * \ingroup TaskCtrl
  */
-void vTaskResume( TaskHandle_t xTaskToResume ) PRIVILEGED_FUNCTION;
+void vTaskResume(TaskHandle_t xTaskToResume) PRIVILEGED_FUNCTION;
 
 /**
  * task. h
@@ -1323,9 +1388,9 @@ void vTaskResume( TaskHandle_t xTaskToResume ) PRIVILEGED_FUNCTION;
  * \defgroup vTaskResumeFromISR vTaskResumeFromISR
  * \ingroup TaskCtrl
  */
-BaseType_t xTaskResumeFromISR( TaskHandle_t xTaskToResume ) PRIVILEGED_FUNCTION;
+BaseType_t xTaskResumeFromISR(TaskHandle_t xTaskToResume) PRIVILEGED_FUNCTION;
 
-#if ( configUSE_CORE_AFFINITY == 1 )
+#if (configUSE_CORE_AFFINITY == 1)
 
 /**
  * @brief Sets the core affinity mask for a task.
@@ -1337,8 +1402,8 @@ BaseType_t xTaskResumeFromISR( TaskHandle_t xTaskToResume ) PRIVILEGED_FUNCTION;
  * Passing NULL will set the core affinity mask for the calling task.
  *
  * @param uxCoreAffinityMask A bitwise value that indicates the cores on
- * which the task can run. Cores are numbered from 0 to configNUMBER_OF_CORES - 1.
- * For example, to ensure that a task can run on core 0 and core 1, set
+ * which the task can run. Cores are numbered from 0 to configNUMBER_OF_CORES
+ * - 1. For example, to ensure that a task can run on core 0 and core 1, set
  * uxCoreAffinityMask to 0x03.
  *
  * Example usage:
@@ -1350,7 +1415,8 @@ BaseType_t xTaskResumeFromISR( TaskHandle_t xTaskToResume ) PRIVILEGED_FUNCTION;
  * UBaseType_t uxCoreAffinityMask;
  *
  *      // Create a task, storing the handle.
- *      xTaskCreate( vTaskCode, "NAME", STACK_SIZE, NULL, tskIDLE_PRIORITY, &( xHandle ) );
+ *      xTaskCreate( vTaskCode, "NAME", STACK_SIZE, NULL, tskIDLE_PRIORITY, &(
+ * xHandle ) );
  *
  *      // Define the core affinity mask such that this task can only run
  *      // on core 0 and core 2.
@@ -1360,11 +1426,11 @@ BaseType_t xTaskResumeFromISR( TaskHandle_t xTaskToResume ) PRIVILEGED_FUNCTION;
  *      vTaskCoreAffinitySet( xHandle, uxCoreAffinityMask );
  * }
  */
-    void vTaskCoreAffinitySet( const TaskHandle_t xTask,
-                               UBaseType_t uxCoreAffinityMask );
+void vTaskCoreAffinitySet(const TaskHandle_t xTask,
+                          UBaseType_t uxCoreAffinityMask);
 #endif
 
-#if ( ( configNUMBER_OF_CORES > 1 ) && ( configUSE_CORE_AFFINITY == 1 ) )
+#if ((configNUMBER_OF_CORES > 1) && (configUSE_CORE_AFFINITY == 1))
 
 /**
  * @brief Gets the core affinity mask for a task.
@@ -1377,8 +1443,8 @@ BaseType_t xTaskResumeFromISR( TaskHandle_t xTaskToResume ) PRIVILEGED_FUNCTION;
  *
  * @return The core affinity mask which is a bitwise value that indicates
  * the cores on which a task can run. Cores are numbered from 0 to
- * configNUMBER_OF_CORES - 1. For example, if a task can run on core 0 and core 1,
- * the core affinity mask is 0x03.
+ * configNUMBER_OF_CORES - 1. For example, if a task can run on core 0 and core
+ * 1, the core affinity mask is 0x03.
  *
  * Example usage:
  *
@@ -1391,13 +1457,16 @@ BaseType_t xTaskResumeFromISR( TaskHandle_t xTaskToResume ) PRIVILEGED_FUNCTION;
  * UBaseType_t uxNetworkingCoreAffinityMask;
  *
  *     // Create a task, storing the handle.
- *     xTaskCreate( vTaskCode, "NAME", STACK_SIZE, NULL, tskIDLE_PRIORITY, &( xHandle ) );
+ *     xTaskCreate( vTaskCode, "NAME", STACK_SIZE, NULL, tskIDLE_PRIORITY, &(
+ * xHandle ) );
  *
  *     //Get the core affinity mask for the networking task.
- *     uxNetworkingCoreAffinityMask = vTaskCoreAffinityGet( xNetworkingTaskHandle );
+ *     uxNetworkingCoreAffinityMask = vTaskCoreAffinityGet(
+ * xNetworkingTaskHandle );
  *
  *     // Here is a hypothetical scenario, just for the example. Assume that we
- *     // have 2 cores - Core 0 and core 1. We want to pin the application task to
+ *     // have 2 cores - Core 0 and core 1. We want to pin the application task
+ * to
  *     // the core different than the networking task to ensure that the
  *     // application task does not interfere with networking.
  *     if( ( uxNetworkingCoreAffinityMask & ( 1 << 0 ) ) != 0 )
@@ -1412,10 +1481,10 @@ BaseType_t xTaskResumeFromISR( TaskHandle_t xTaskToResume ) PRIVILEGED_FUNCTION;
  *     }
  * }
  */
-    UBaseType_t vTaskCoreAffinityGet( ConstTaskHandle_t xTask );
+UBaseType_t vTaskCoreAffinityGet(ConstTaskHandle_t xTask);
 #endif
 
-#if ( configUSE_TASK_PREEMPTION_DISABLE == 1 )
+#if (configUSE_TASK_PREEMPTION_DISABLE == 1)
 
 /**
  * @brief Disables preemption for a task.
@@ -1437,7 +1506,8 @@ BaseType_t xTaskResumeFromISR( TaskHandle_t xTaskToResume ) PRIVILEGED_FUNCTION;
  *         // Disable preemption for this task.
  *         vTaskPreemptionDisable( NULL );
  *
- *         // The task will not be preempted when it is executing in this portion ...
+ *         // The task will not be preempted when it is executing in this
+ * portion ...
  *
  *         // ... until the preemption is enabled again.
  *         vTaskPreemptionEnable( NULL );
@@ -1446,10 +1516,10 @@ BaseType_t xTaskResumeFromISR( TaskHandle_t xTaskToResume ) PRIVILEGED_FUNCTION;
  *     }
  * }
  */
-    void vTaskPreemptionDisable( const TaskHandle_t xTask );
+void vTaskPreemptionDisable(const TaskHandle_t xTask);
 #endif
 
-#if ( configUSE_TASK_PREEMPTION_DISABLE == 1 )
+#if (configUSE_TASK_PREEMPTION_DISABLE == 1)
 
 /**
  * @brief Enables preemption for a task.
@@ -1471,7 +1541,8 @@ BaseType_t xTaskResumeFromISR( TaskHandle_t xTaskToResume ) PRIVILEGED_FUNCTION;
  *         // Disable preemption for this task.
  *         vTaskPreemptionDisable( NULL );
  *
- *         // The task will not be preempted when it is executing in this portion ...
+ *         // The task will not be preempted when it is executing in this
+ * portion ...
  *
  *         // ... until the preemption is enabled again.
  *         vTaskPreemptionEnable( NULL );
@@ -1480,12 +1551,12 @@ BaseType_t xTaskResumeFromISR( TaskHandle_t xTaskToResume ) PRIVILEGED_FUNCTION;
  *     }
  * }
  */
-    void vTaskPreemptionEnable( const TaskHandle_t xTask );
+void vTaskPreemptionEnable(const TaskHandle_t xTask);
 #endif
 
 /*-----------------------------------------------------------
-* SCHEDULER CONTROL
-*----------------------------------------------------------*/
+ * SCHEDULER CONTROL
+ *----------------------------------------------------------*/
 
 /**
  * task. h
@@ -1516,7 +1587,7 @@ BaseType_t xTaskResumeFromISR( TaskHandle_t xTaskToResume ) PRIVILEGED_FUNCTION;
  * \defgroup vTaskStartScheduler vTaskStartScheduler
  * \ingroup SchedulerControl
  */
-void vTaskStartScheduler( void ) PRIVILEGED_FUNCTION;
+void vTaskStartScheduler(void) PRIVILEGED_FUNCTION;
 
 /**
  * task. h
@@ -1574,7 +1645,7 @@ void vTaskStartScheduler( void ) PRIVILEGED_FUNCTION;
  * \defgroup vTaskEndScheduler vTaskEndScheduler
  * \ingroup SchedulerControl
  */
-void vTaskEndScheduler( void ) PRIVILEGED_FUNCTION;
+void vTaskEndScheduler(void) PRIVILEGED_FUNCTION;
 
 /**
  * task. h
@@ -1627,7 +1698,7 @@ void vTaskEndScheduler( void ) PRIVILEGED_FUNCTION;
  * \defgroup vTaskSuspendAll vTaskSuspendAll
  * \ingroup SchedulerControl
  */
-void vTaskSuspendAll( void ) PRIVILEGED_FUNCTION;
+void vTaskSuspendAll(void) PRIVILEGED_FUNCTION;
 
 /**
  * task. h
@@ -1683,11 +1754,11 @@ void vTaskSuspendAll( void ) PRIVILEGED_FUNCTION;
  * \defgroup xTaskResumeAll xTaskResumeAll
  * \ingroup SchedulerControl
  */
-BaseType_t xTaskResumeAll( void ) PRIVILEGED_FUNCTION;
+BaseType_t xTaskResumeAll(void) PRIVILEGED_FUNCTION;
 
 /*-----------------------------------------------------------
-* TASK UTILITIES
-*----------------------------------------------------------*/
+ * TASK UTILITIES
+ *----------------------------------------------------------*/
 
 /**
  * task. h
@@ -1700,7 +1771,7 @@ BaseType_t xTaskResumeAll( void ) PRIVILEGED_FUNCTION;
  * \defgroup xTaskGetTickCount xTaskGetTickCount
  * \ingroup TaskUtils
  */
-TickType_t xTaskGetTickCount( void ) PRIVILEGED_FUNCTION;
+TickType_t xTaskGetTickCount(void) PRIVILEGED_FUNCTION;
 
 /**
  * task. h
@@ -1718,7 +1789,7 @@ TickType_t xTaskGetTickCount( void ) PRIVILEGED_FUNCTION;
  * \defgroup xTaskGetTickCountFromISR xTaskGetTickCountFromISR
  * \ingroup TaskUtils
  */
-TickType_t xTaskGetTickCountFromISR( void ) PRIVILEGED_FUNCTION;
+TickType_t xTaskGetTickCountFromISR(void) PRIVILEGED_FUNCTION;
 
 /**
  * task. h
@@ -1734,7 +1805,7 @@ TickType_t xTaskGetTickCountFromISR( void ) PRIVILEGED_FUNCTION;
  * \defgroup uxTaskGetNumberOfTasks uxTaskGetNumberOfTasks
  * \ingroup TaskUtils
  */
-UBaseType_t uxTaskGetNumberOfTasks( void ) PRIVILEGED_FUNCTION;
+UBaseType_t uxTaskGetNumberOfTasks(void) PRIVILEGED_FUNCTION;
 
 /**
  * task. h
@@ -1749,7 +1820,7 @@ UBaseType_t uxTaskGetNumberOfTasks( void ) PRIVILEGED_FUNCTION;
  * \defgroup pcTaskGetName pcTaskGetName
  * \ingroup TaskUtils
  */
-char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
+char *pcTaskGetName(TaskHandle_t xTaskToQuery) PRIVILEGED_FUNCTION;
 
 /**
  * task. h
@@ -1760,15 +1831,16 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * NOTE:  This function takes a relatively long time to complete and should be
  * used sparingly.
  *
- * @return The handle of the task that has the human readable name pcNameToQuery.
- * NULL is returned if no matching name is found.  INCLUDE_xTaskGetHandle
- * must be set to 1 in FreeRTOSConfig.h for pcTaskGetHandle() to be available.
+ * @return The handle of the task that has the human readable name
+ * pcNameToQuery. NULL is returned if no matching name is found.
+ * INCLUDE_xTaskGetHandle must be set to 1 in FreeRTOSConfig.h for
+ * pcTaskGetHandle() to be available.
  *
  * \defgroup pcTaskGetHandle pcTaskGetHandle
  * \ingroup TaskUtils
  */
-#if ( INCLUDE_xTaskGetHandle == 1 )
-    TaskHandle_t xTaskGetHandle( const char * pcNameToQuery ) PRIVILEGED_FUNCTION;
+#if (INCLUDE_xTaskGetHandle == 1)
+TaskHandle_t xTaskGetHandle(const char *pcNameToQuery) PRIVILEGED_FUNCTION;
 #endif
 
 /**
@@ -1795,10 +1867,10 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * \defgroup xTaskGetStaticBuffers xTaskGetStaticBuffers
  * \ingroup TaskUtils
  */
-#if ( configSUPPORT_STATIC_ALLOCATION == 1 )
-    BaseType_t xTaskGetStaticBuffers( TaskHandle_t xTask,
-                                      StackType_t ** ppuxStackBuffer,
-                                      StaticTask_t ** ppxTaskBuffer ) PRIVILEGED_FUNCTION;
+#if (configSUPPORT_STATIC_ALLOCATION == 1)
+BaseType_t
+xTaskGetStaticBuffers(TaskHandle_t xTask, StackType_t **ppuxStackBuffer,
+                      StaticTask_t **ppxTaskBuffer) PRIVILEGED_FUNCTION;
 #endif /* configSUPPORT_STATIC_ALLOCATION */
 
 /**
@@ -1828,8 +1900,8 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * actual spaces on the stack rather than bytes) since the task referenced by
  * xTask was created.
  */
-#if ( INCLUDE_uxTaskGetStackHighWaterMark == 1 )
-    UBaseType_t uxTaskGetStackHighWaterMark( TaskHandle_t xTask ) PRIVILEGED_FUNCTION;
+#if (INCLUDE_uxTaskGetStackHighWaterMark == 1)
+UBaseType_t uxTaskGetStackHighWaterMark(TaskHandle_t xTask) PRIVILEGED_FUNCTION;
 #endif
 
 /**
@@ -1859,31 +1931,33 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * actual spaces on the stack rather than bytes) since the task referenced by
  * xTask was created.
  */
-#if ( INCLUDE_uxTaskGetStackHighWaterMark2 == 1 )
-    configSTACK_DEPTH_TYPE uxTaskGetStackHighWaterMark2( TaskHandle_t xTask ) PRIVILEGED_FUNCTION;
+#if (INCLUDE_uxTaskGetStackHighWaterMark2 == 1)
+configSTACK_DEPTH_TYPE
+uxTaskGetStackHighWaterMark2(TaskHandle_t xTask) PRIVILEGED_FUNCTION;
 #endif
 
 /* When using trace macros it is sometimes necessary to include task.h before
- * FreeRTOS.h.  When this is done TaskHookFunction_t will not yet have been defined,
- * so the following two prototypes will cause a compilation error.  This can be
- * fixed by simply guarding against the inclusion of these two prototypes unless
- * they are explicitly required by the configUSE_APPLICATION_TASK_TAG configuration
- * constant. */
+ * FreeRTOS.h.  When this is done TaskHookFunction_t will not yet have been
+ * defined, so the following two prototypes will cause a compilation error. This
+ * can be fixed by simply guarding against the inclusion of these two prototypes
+ * unless they are explicitly required by the configUSE_APPLICATION_TASK_TAG
+ * configuration constant. */
 #ifdef configUSE_APPLICATION_TASK_TAG
-    #if configUSE_APPLICATION_TASK_TAG == 1
+#if configUSE_APPLICATION_TASK_TAG == 1
 
 /**
  * task.h
  * @code{c}
- * void vTaskSetApplicationTaskTag( TaskHandle_t xTask, TaskHookFunction_t pxHookFunction );
+ * void vTaskSetApplicationTaskTag( TaskHandle_t xTask, TaskHookFunction_t
+ * pxHookFunction );
  * @endcode
  *
  * Sets pxHookFunction to be the task hook function used by the task xTask.
  * Passing xTask as NULL has the effect of setting the calling tasks hook
  * function.
  */
-        void vTaskSetApplicationTaskTag( TaskHandle_t xTask,
-                                         TaskHookFunction_t pxHookFunction ) PRIVILEGED_FUNCTION;
+void vTaskSetApplicationTaskTag(
+    TaskHandle_t xTask, TaskHookFunction_t pxHookFunction) PRIVILEGED_FUNCTION;
 
 /**
  * task.h
@@ -1895,7 +1969,8 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * call from an interrupt service routine - call
  * xTaskGetApplicationTaskTagFromISR() instead.
  */
-        TaskHookFunction_t xTaskGetApplicationTaskTag( TaskHandle_t xTask ) PRIVILEGED_FUNCTION;
+TaskHookFunction_t
+xTaskGetApplicationTaskTag(TaskHandle_t xTask) PRIVILEGED_FUNCTION;
 
 /**
  * task.h
@@ -1906,26 +1981,27 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * Returns the pxHookFunction value assigned to the task xTask.  Can
  * be called from an interrupt service routine.
  */
-        TaskHookFunction_t xTaskGetApplicationTaskTagFromISR( TaskHandle_t xTask ) PRIVILEGED_FUNCTION;
-    #endif /* configUSE_APPLICATION_TASK_TAG ==1 */
+TaskHookFunction_t
+xTaskGetApplicationTaskTagFromISR(TaskHandle_t xTask) PRIVILEGED_FUNCTION;
+#endif /* configUSE_APPLICATION_TASK_TAG ==1 */
 #endif /* ifdef configUSE_APPLICATION_TASK_TAG */
 
-#if ( configNUM_THREAD_LOCAL_STORAGE_POINTERS > 0 )
+#if (configNUM_THREAD_LOCAL_STORAGE_POINTERS > 0)
 
 /* Each task contains an array of pointers that is dimensioned by the
  * configNUM_THREAD_LOCAL_STORAGE_POINTERS setting in FreeRTOSConfig.h.  The
  * kernel does not use the pointers itself, so the application writer can use
  * the pointers for any purpose they wish.  The following two functions are
  * used to set and query a pointer respectively. */
-    void vTaskSetThreadLocalStoragePointer( TaskHandle_t xTaskToSet,
-                                            BaseType_t xIndex,
-                                            void * pvValue ) PRIVILEGED_FUNCTION;
-    void * pvTaskGetThreadLocalStoragePointer( TaskHandle_t xTaskToQuery,
-                                               BaseType_t xIndex ) PRIVILEGED_FUNCTION;
+void vTaskSetThreadLocalStoragePointer(TaskHandle_t xTaskToSet,
+                                       BaseType_t xIndex,
+                                       void *pvValue) PRIVILEGED_FUNCTION;
+void *pvTaskGetThreadLocalStoragePointer(TaskHandle_t xTaskToQuery,
+                                         BaseType_t xIndex) PRIVILEGED_FUNCTION;
 
 #endif
 
-#if ( configCHECK_FOR_STACK_OVERFLOW > 0 )
+#if (configCHECK_FOR_STACK_OVERFLOW > 0)
 
 /**
  * task.h
@@ -1933,22 +2009,25 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName);
  * @endcode
  *
- * The application stack overflow hook is called when a stack overflow is detected for a task.
+ * The application stack overflow hook is called when a stack overflow is
+ * detected for a task.
  *
- * Details on stack overflow detection can be found here: https://www.FreeRTOS.org/Stacks-and-stack-overflow-checking.html
+ * Details on stack overflow detection can be found here:
+ * https://www.FreeRTOS.org/Stacks-and-stack-overflow-checking.html
  *
  * @param xTask the task that just exceeded its stack boundaries.
- * @param pcTaskName A character string containing the name of the offending task.
+ * @param pcTaskName A character string containing the name of the offending
+ * task.
  */
-    /* MISRA Ref 8.6.1 [External linkage] */
-    /* More details at: https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/main/MISRA.md#rule-86 */
-    /* coverity[misra_c_2012_rule_8_6_violation] */
-    void vApplicationStackOverflowHook( TaskHandle_t xTask,
-                                        char * pcTaskName );
+/* MISRA Ref 8.6.1 [External linkage] */
+/* More details at:
+ * https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/main/MISRA.md#rule-86 */
+/* coverity[misra_c_2012_rule_8_6_violation] */
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName);
 
 #endif
 
-#if ( configUSE_IDLE_HOOK == 1 )
+#if (configUSE_IDLE_HOOK == 1)
 
 /**
  * task.h
@@ -1959,17 +2038,18 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * The application idle hook is called by the idle task.
  * This allows the application designer to add background functionality without
  * the overhead of a separate task.
- * NOTE: vApplicationIdleHook() MUST NOT, UNDER ANY CIRCUMSTANCES, CALL A FUNCTION THAT MIGHT BLOCK.
+ * NOTE: vApplicationIdleHook() MUST NOT, UNDER ANY CIRCUMSTANCES, CALL A
+ * FUNCTION THAT MIGHT BLOCK.
  */
-    /* MISRA Ref 8.6.1 [External linkage] */
-    /* More details at: https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/main/MISRA.md#rule-86 */
-    /* coverity[misra_c_2012_rule_8_6_violation] */
-    void vApplicationIdleHook( void );
+/* MISRA Ref 8.6.1 [External linkage] */
+/* More details at:
+ * https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/main/MISRA.md#rule-86 */
+/* coverity[misra_c_2012_rule_8_6_violation] */
+void vApplicationIdleHook(void);
 
 #endif
 
-
-#if  ( configUSE_TICK_HOOK != 0 )
+#if (configUSE_TICK_HOOK != 0)
 
 /**
  *  task.h
@@ -1977,70 +2057,86 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * void vApplicationTickHook( void );
  * @endcode
  *
- * This hook function is called in the system tick handler after any OS work is completed.
+ * This hook function is called in the system tick handler after any OS work is
+ * completed.
  */
-    /* MISRA Ref 8.6.1 [External linkage] */
-    /* More details at: https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/main/MISRA.md#rule-86 */
-    /* coverity[misra_c_2012_rule_8_6_violation] */
-    void vApplicationTickHook( void );
+/* MISRA Ref 8.6.1 [External linkage] */
+/* More details at:
+ * https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/main/MISRA.md#rule-86 */
+/* coverity[misra_c_2012_rule_8_6_violation] */
+void vApplicationTickHook(void);
 
 #endif
 
-#if ( configSUPPORT_STATIC_ALLOCATION == 1 )
+#if (configSUPPORT_STATIC_ALLOCATION == 1)
 
 /**
  * task.h
  * @code{c}
- * void vApplicationGetIdleTaskMemory( StaticTask_t ** ppxIdleTaskTCBBuffer, StackType_t ** ppxIdleTaskStackBuffer, configSTACK_DEPTH_TYPE * puxIdleTaskStackSize )
+ * void vApplicationGetIdleTaskMemory( StaticTask_t ** ppxIdleTaskTCBBuffer,
+ * StackType_t ** ppxIdleTaskStackBuffer, configSTACK_DEPTH_TYPE *
+ * puxIdleTaskStackSize )
  * @endcode
  *
- * This function is used to provide a statically allocated block of memory to FreeRTOS to hold the Idle Task TCB.  This function is required when
- * configSUPPORT_STATIC_ALLOCATION is set.  For more information see this URI: https://www.FreeRTOS.org/a00110.html#configSUPPORT_STATIC_ALLOCATION
+ * This function is used to provide a statically allocated block of memory to
+ * FreeRTOS to hold the Idle Task TCB.  This function is required when
+ * configSUPPORT_STATIC_ALLOCATION is set.  For more information see this URI:
+ * https://www.FreeRTOS.org/a00110.html#configSUPPORT_STATIC_ALLOCATION
  *
  * @param ppxIdleTaskTCBBuffer A handle to a statically allocated TCB buffer
- * @param ppxIdleTaskStackBuffer A handle to a statically allocated Stack buffer for the idle task
- * @param puxIdleTaskStackSize A pointer to the number of elements that will fit in the allocated stack buffer
+ * @param ppxIdleTaskStackBuffer A handle to a statically allocated Stack buffer
+ * for the idle task
+ * @param puxIdleTaskStackSize A pointer to the number of elements that will fit
+ * in the allocated stack buffer
  */
-    void vApplicationGetIdleTaskMemory( StaticTask_t ** ppxIdleTaskTCBBuffer,
-                                        StackType_t ** ppxIdleTaskStackBuffer,
-                                        configSTACK_DEPTH_TYPE * puxIdleTaskStackSize );
+void vApplicationGetIdleTaskMemory(
+    StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer,
+    configSTACK_DEPTH_TYPE *puxIdleTaskStackSize);
 
 /**
  * task.h
  * @code{c}
- * void vApplicationGetPassiveIdleTaskMemory( StaticTask_t ** ppxIdleTaskTCBBuffer, StackType_t ** ppxIdleTaskStackBuffer, configSTACK_DEPTH_TYPE * puxIdleTaskStackSize, BaseType_t xCoreID )
+ * void vApplicationGetPassiveIdleTaskMemory( StaticTask_t **
+ * ppxIdleTaskTCBBuffer, StackType_t ** ppxIdleTaskStackBuffer,
+ * configSTACK_DEPTH_TYPE * puxIdleTaskStackSize, BaseType_t xCoreID )
  * @endcode
  *
- * This function is used to provide a statically allocated block of memory to FreeRTOS to hold the Idle Tasks TCB.  This function is required when
- * configSUPPORT_STATIC_ALLOCATION is set.  For more information see this URI: https://www.FreeRTOS.org/a00110.html#configSUPPORT_STATIC_ALLOCATION
+ * This function is used to provide a statically allocated block of memory to
+ * FreeRTOS to hold the Idle Tasks TCB.  This function is required when
+ * configSUPPORT_STATIC_ALLOCATION is set.  For more information see this URI:
+ * https://www.FreeRTOS.org/a00110.html#configSUPPORT_STATIC_ALLOCATION
  *
  * In the FreeRTOS SMP, there are a total of configNUMBER_OF_CORES idle tasks:
  *  1. 1 Active idle task which does all the housekeeping.
  *  2. ( configNUMBER_OF_CORES - 1 ) Passive idle tasks which do nothing.
- * These idle tasks are created to ensure that each core has an idle task to run when
- * no other task is available to run.
+ * These idle tasks are created to ensure that each core has an idle task to run
+ * when no other task is available to run.
  *
  * The function vApplicationGetPassiveIdleTaskMemory is called with passive idle
- * task index 0, 1 ... ( configNUMBER_OF_CORES - 2 ) to get memory for passive idle
- * tasks.
+ * task index 0, 1 ... ( configNUMBER_OF_CORES - 2 ) to get memory for passive
+ * idle tasks.
  *
  * @param ppxIdleTaskTCBBuffer A handle to a statically allocated TCB buffer
- * @param ppxIdleTaskStackBuffer A handle to a statically allocated Stack buffer for the idle task
- * @param puxIdleTaskStackSize A pointer to the number of elements that will fit in the allocated stack buffer
- * @param xPassiveIdleTaskIndex The passive idle task index of the idle task buffer
+ * @param ppxIdleTaskStackBuffer A handle to a statically allocated Stack buffer
+ * for the idle task
+ * @param puxIdleTaskStackSize A pointer to the number of elements that will fit
+ * in the allocated stack buffer
+ * @param xPassiveIdleTaskIndex The passive idle task index of the idle task
+ * buffer
  */
-    #if ( configNUMBER_OF_CORES > 1 )
-        void vApplicationGetPassiveIdleTaskMemory( StaticTask_t ** ppxIdleTaskTCBBuffer,
-                                                   StackType_t ** ppxIdleTaskStackBuffer,
-                                                   configSTACK_DEPTH_TYPE * puxIdleTaskStackSize,
-                                                   BaseType_t xPassiveIdleTaskIndex );
-    #endif /* #if ( configNUMBER_OF_CORES > 1 ) */
+#if (configNUMBER_OF_CORES > 1)
+void vApplicationGetPassiveIdleTaskMemory(
+    StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer,
+    configSTACK_DEPTH_TYPE *puxIdleTaskStackSize,
+    BaseType_t xPassiveIdleTaskIndex);
+#endif /* #if ( configNUMBER_OF_CORES > 1 ) */
 #endif /* if ( configSUPPORT_STATIC_ALLOCATION == 1 ) */
 
 /**
  * task.h
  * @code{c}
- * BaseType_t xTaskCallApplicationTaskHook( TaskHandle_t xTask, void *pvParameter );
+ * BaseType_t xTaskCallApplicationTaskHook( TaskHandle_t xTask, void
+ * *pvParameter );
  * @endcode
  *
  * Calls the hook function associated with xTask.  Passing xTask as NULL has
@@ -2050,9 +2146,9 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * wants.  The return value is the value returned by the task hook function
  * registered by the user.
  */
-#if ( configUSE_APPLICATION_TASK_TAG == 1 )
-    BaseType_t xTaskCallApplicationTaskHook( TaskHandle_t xTask,
-                                             void * pvParameter ) PRIVILEGED_FUNCTION;
+#if (configUSE_APPLICATION_TASK_TAG == 1)
+BaseType_t xTaskCallApplicationTaskHook(TaskHandle_t xTask,
+                                        void *pvParameter) PRIVILEGED_FUNCTION;
 #endif
 
 /**
@@ -2066,18 +2162,19 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * In the FreeRTOS SMP, there are a total of configNUMBER_OF_CORES idle tasks:
  *  1. 1 Active idle task which does all the housekeeping.
  *  2. ( configNUMBER_OF_CORES - 1 ) Passive idle tasks which do nothing.
- * These idle tasks are created to ensure that each core has an idle task to run when
- * no other task is available to run. Call xTaskGetIdleTaskHandle() or
+ * These idle tasks are created to ensure that each core has an idle task to run
+ * when no other task is available to run. Call xTaskGetIdleTaskHandle() or
  * xTaskGetIdleTaskHandleForCore() with xCoreID set to 0  to get the Active
  * idle task handle. Call xTaskGetIdleTaskHandleForCore() with xCoreID set to
  * 1,2 ... ( configNUMBER_OF_CORES - 1 ) to get the Passive idle task handles.
  */
-#if ( INCLUDE_xTaskGetIdleTaskHandle == 1 )
-    #if ( configNUMBER_OF_CORES == 1 )
-        TaskHandle_t xTaskGetIdleTaskHandle( void ) PRIVILEGED_FUNCTION;
-    #endif /* #if ( configNUMBER_OF_CORES == 1 ) */
+#if (INCLUDE_xTaskGetIdleTaskHandle == 1)
+#if (configNUMBER_OF_CORES == 1)
+TaskHandle_t xTaskGetIdleTaskHandle(void) PRIVILEGED_FUNCTION;
+#endif /* #if ( configNUMBER_OF_CORES == 1 ) */
 
-    TaskHandle_t xTaskGetIdleTaskHandleForCore( BaseType_t xCoreID ) PRIVILEGED_FUNCTION;
+TaskHandle_t
+xTaskGetIdleTaskHandleForCore(BaseType_t xCoreID) PRIVILEGED_FUNCTION;
 #endif /* #if ( INCLUDE_xTaskGetIdleTaskHandle == 1 ) */
 
 /**
@@ -2096,7 +2193,8 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * @param pxTaskStatusArray A pointer to an array of TaskStatus_t structures.
  * The array must contain at least one TaskStatus_t structure for each task
  * that is under the control of the RTOS.  The number of tasks under the control
- * of the RTOS can be determined using the uxTaskGetNumberOfTasks() API function.
+ * of the RTOS can be determined using the uxTaskGetNumberOfTasks() API
+ * function.
  *
  * @param uxArraySize The size of the array pointed to by the pxTaskStatusArray
  * parameter.  The size is specified as the number of indexes in the array, or
@@ -2104,8 +2202,8 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * number of bytes in the array.
  *
  * @param pulTotalRunTime If configGENERATE_RUN_TIME_STATS is set to 1 in
- * FreeRTOSConfig.h then *pulTotalRunTime is set by uxTaskGetSystemState() to the
- * total run time (as defined by the run time stats clock, see
+ * FreeRTOSConfig.h then *pulTotalRunTime is set by uxTaskGetSystemState() to
+ * the total run time (as defined by the run time stats clock, see
  * https://www.FreeRTOS.org/rtos-run-time-stats.html) since the target booted.
  * pulTotalRunTime can be set to NULL to omit the total run time information.
  *
@@ -2117,7 +2215,8 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * Example usage:
  * @code{c}
  *  // This example demonstrates how a human readable table of run time stats
- *  // information is generated from raw data provided by uxTaskGetSystemState().
+ *  // information is generated from raw data provided by
+ * uxTaskGetSystemState().
  *  // The human readable table is written to pcWriteBuffer
  *  void vTaskGetRunTimeStats( char *pcWriteBuffer )
  *  {
@@ -2134,12 +2233,14 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  *
  *      // Allocate a TaskStatus_t structure for each task.  An array could be
  *      // allocated statically at compile time.
- *      pxTaskStatusArray = pvPortMalloc( uxArraySize * sizeof( TaskStatus_t ) );
+ *      pxTaskStatusArray = pvPortMalloc( uxArraySize * sizeof( TaskStatus_t )
+ * );
  *
  *      if( pxTaskStatusArray != NULL )
  *      {
  *          // Generate raw status information about each task.
- *          uxArraySize = uxTaskGetSystemState( pxTaskStatusArray, uxArraySize, &ulTotalRunTime );
+ *          uxArraySize = uxTaskGetSystemState( pxTaskStatusArray, uxArraySize,
+ * &ulTotalRunTime );
  *
  *          // For percentage calculations.
  *          ulTotalRunTime /= 100U;
@@ -2154,17 +2255,21 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  *                  // What percentage of the total run time has the task used?
  *                  // This will always be rounded down to the nearest integer.
  *                  // ulTotalRunTimeDiv100 has already been divided by 100.
- *                  ulStatsAsPercentage = pxTaskStatusArray[ x ].ulRunTimeCounter / ulTotalRunTime;
+ *                  ulStatsAsPercentage = pxTaskStatusArray[ x
+ * ].ulRunTimeCounter / ulTotalRunTime;
  *
  *                  if( ulStatsAsPercentage > 0U )
  *                  {
- *                      sprintf( pcWriteBuffer, "%s\t\t%lu\t\t%lu%%\r\n", pxTaskStatusArray[ x ].pcTaskName, pxTaskStatusArray[ x ].ulRunTimeCounter, ulStatsAsPercentage );
+ *                      sprintf( pcWriteBuffer, "%s\t\t%lu\t\t%lu%%\r\n",
+ * pxTaskStatusArray[ x ].pcTaskName, pxTaskStatusArray[ x ].ulRunTimeCounter,
+ * ulStatsAsPercentage );
  *                  }
  *                  else
  *                  {
  *                      // If the percentage is zero here then the task has
  *                      // consumed less than 1% of the total run time.
- *                      sprintf( pcWriteBuffer, "%s\t\t%lu\t\t<1%%\r\n", pxTaskStatusArray[ x ].pcTaskName, pxTaskStatusArray[ x ].ulRunTimeCounter );
+ *                      sprintf( pcWriteBuffer, "%s\t\t%lu\t\t<1%%\r\n",
+ * pxTaskStatusArray[ x ].pcTaskName, pxTaskStatusArray[ x ].ulRunTimeCounter );
  *                  }
  *
  *                  pcWriteBuffer += strlen( ( char * ) pcWriteBuffer );
@@ -2177,10 +2282,10 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  *  }
  *  @endcode
  */
-#if ( configUSE_TRACE_FACILITY == 1 )
-    UBaseType_t uxTaskGetSystemState( TaskStatus_t * const pxTaskStatusArray,
-                                      const UBaseType_t uxArraySize,
-                                      configRUN_TIME_COUNTER_TYPE * const pulTotalRunTime ) PRIVILEGED_FUNCTION;
+#if (configUSE_TRACE_FACILITY == 1)
+UBaseType_t uxTaskGetSystemState(
+    TaskStatus_t *const pxTaskStatusArray, const UBaseType_t uxArraySize,
+    configRUN_TIME_COUNTER_TYPE *const pulTotalRunTime) PRIVILEGED_FUNCTION;
 #endif
 
 /**
@@ -2199,8 +2304,8 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * Lists all the current tasks, along with their current state and stack
  * usage high water mark.
  *
- * Tasks are reported as running ('X'), blocked ('B'), ready ('R'), deleted ('D')
- * or suspended ('S').
+ * Tasks are reported as running ('X'), blocked ('B'), ready ('R'), deleted
+ * ('D') or suspended ('S').
  *
  * PLEASE NOTE:
  *
@@ -2218,12 +2323,12 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * IDLE         R       0           67           5
  * Tmr Svc      B       6           137          6
  *
- * Stack usage specified as the number of unused StackType_t words stack can hold
- * on top of stack - not the number of bytes.
+ * Stack usage specified as the number of unused StackType_t words stack can
+ * hold on top of stack - not the number of bytes.
  *
- * vTaskListTasks() has a dependency on the snprintf() C library function that might
- * bloat the code size, use a lot of stack, and provide different results on
- * different platforms.  An alternative, tiny, third party, and limited
+ * vTaskListTasks() has a dependency on the snprintf() C library function that
+ * might bloat the code size, use a lot of stack, and provide different results
+ * on different platforms.  An alternative, tiny, third party, and limited
  * functionality implementation of snprintf() is provided in many of the
  * FreeRTOS/Demo sub-directories in a file called printf-stdarg.c (note
  * printf-stdarg.c does not provide a full snprintf() implementation!).
@@ -2242,9 +2347,10 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * \defgroup vTaskListTasks vTaskListTasks
  * \ingroup TaskUtils
  */
-#if ( ( configUSE_TRACE_FACILITY == 1 ) && ( configUSE_STATS_FORMATTING_FUNCTIONS > 0 ) )
-    void vTaskListTasks( char * pcWriteBuffer,
-                         size_t uxBufferLength ) PRIVILEGED_FUNCTION;
+#if ((configUSE_TRACE_FACILITY == 1) &&                                        \
+     (configUSE_STATS_FORMATTING_FUNCTIONS > 0))
+void vTaskListTasks(char *pcWriteBuffer,
+                    size_t uxBufferLength) PRIVILEGED_FUNCTION;
 #endif
 
 /**
@@ -2268,8 +2374,8 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * Lists all the current tasks, along with their current state and stack
  * usage high water mark.
  *
- * Tasks are reported as running ('X'), blocked ('B'), ready ('R'), deleted ('D')
- * or suspended ('S').
+ * Tasks are reported as running ('X'), blocked ('B'), ready ('R'), deleted
+ * ('D') or suspended ('S').
  *
  * PLEASE NOTE:
  *
@@ -2287,8 +2393,8 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * IDLE         R       0           67           5
  * Tmr Svc      B       6           137          6
  *
- * Stack usage specified as the number of unused StackType_t words stack can hold
- * on top of stack - not the number of bytes.
+ * Stack usage specified as the number of unused StackType_t words stack can
+ * hold on top of stack - not the number of bytes.
  *
  * vTaskList() has a dependency on the snprintf() C library function that might
  * bloat the code size, use a lot of stack, and provide different results on
@@ -2309,7 +2415,8 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * \defgroup vTaskList vTaskList
  * \ingroup TaskUtils
  */
-#define vTaskList( pcWriteBuffer )    vTaskListTasks( ( pcWriteBuffer ), configSTATS_BUFFER_MAX_LENGTH )
+#define vTaskList(pcWriteBuffer)                                               \
+  vTaskListTasks((pcWriteBuffer), configSTATS_BUFFER_MAX_LENGTH)
 
 /**
  * task. h
@@ -2341,21 +2448,21 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * This function is provided for convenience only, and is used by many of the
  * demo applications.  Do not consider it to be part of the scheduler.
  *
- * vTaskGetRunTimeStatistics() calls uxTaskGetSystemState(), then formats part of
- * the uxTaskGetSystemState() output into a human readable table that displays the
- * amount of time each task has spent in the Running state in both absolute and
- * percentage terms.
+ * vTaskGetRunTimeStatistics() calls uxTaskGetSystemState(), then formats part
+ * of the uxTaskGetSystemState() output into a human readable table that
+ * displays the amount of time each task has spent in the Running state in both
+ * absolute and percentage terms.
  *
- * vTaskGetRunTimeStatistics() has a dependency on the snprintf() C library function
- * that might bloat the code size, use a lot of stack, and provide different
- * results on different platforms.  An alternative, tiny, third party, and
- * limited functionality implementation of snprintf() is provided in many of the
- * FreeRTOS/Demo sub-directories in a file called printf-stdarg.c (note
+ * vTaskGetRunTimeStatistics() has a dependency on the snprintf() C library
+ * function that might bloat the code size, use a lot of stack, and provide
+ * different results on different platforms.  An alternative, tiny, third party,
+ * and limited functionality implementation of snprintf() is provided in many of
+ * the FreeRTOS/Demo sub-directories in a file called printf-stdarg.c (note
  * printf-stdarg.c does not provide a full snprintf() implementation!).
  *
- * It is recommended that production systems call uxTaskGetSystemState() directly
- * to get access to raw stats data, rather than indirectly through a call to
- * vTaskGetRunTimeStatistics().
+ * It is recommended that production systems call uxTaskGetSystemState()
+ * directly to get access to raw stats data, rather than indirectly through a
+ * call to vTaskGetRunTimeStatistics().
  *
  * @param pcWriteBuffer A buffer into which the execution times will be
  * written, in ASCII form.  This buffer is assumed to be large enough to
@@ -2367,9 +2474,11 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * \defgroup vTaskGetRunTimeStatistics vTaskGetRunTimeStatistics
  * \ingroup TaskUtils
  */
-#if ( ( configGENERATE_RUN_TIME_STATS == 1 ) && ( configUSE_STATS_FORMATTING_FUNCTIONS > 0 ) && ( configUSE_TRACE_FACILITY == 1 ) )
-    void vTaskGetRunTimeStatistics( char * pcWriteBuffer,
-                                    size_t uxBufferLength ) PRIVILEGED_FUNCTION;
+#if ((configGENERATE_RUN_TIME_STATS == 1) &&                                   \
+     (configUSE_STATS_FORMATTING_FUNCTIONS > 0) &&                             \
+     (configUSE_TRACE_FACILITY == 1))
+void vTaskGetRunTimeStatistics(char *pcWriteBuffer,
+                               size_t uxBufferLength) PRIVILEGED_FUNCTION;
 #endif
 
 /**
@@ -2420,9 +2529,9 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * FreeRTOS/Demo sub-directories in a file called printf-stdarg.c (note
  * printf-stdarg.c does not provide a full snprintf() implementation!).
  *
- * It is recommended that production systems call uxTaskGetSystemState() directly
- * to get access to raw stats data, rather than indirectly through a call to
- * vTaskGetRunTimeStats().
+ * It is recommended that production systems call uxTaskGetSystemState()
+ * directly to get access to raw stats data, rather than indirectly through a
+ * call to vTaskGetRunTimeStats().
  *
  * @param pcWriteBuffer A buffer into which the execution times will be
  * written, in ASCII form.  This buffer is assumed to be large enough to
@@ -2432,13 +2541,15 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * \defgroup vTaskGetRunTimeStats vTaskGetRunTimeStats
  * \ingroup TaskUtils
  */
-#define vTaskGetRunTimeStats( pcWriteBuffer )    vTaskGetRunTimeStatistics( ( pcWriteBuffer ), configSTATS_BUFFER_MAX_LENGTH )
+#define vTaskGetRunTimeStats(pcWriteBuffer)                                    \
+  vTaskGetRunTimeStatistics((pcWriteBuffer), configSTATS_BUFFER_MAX_LENGTH)
 
 /**
  * task. h
  * @code{c}
- * configRUN_TIME_COUNTER_TYPE ulTaskGetRunTimeCounter( const TaskHandle_t xTask );
- * configRUN_TIME_COUNTER_TYPE ulTaskGetRunTimePercent( const TaskHandle_t xTask );
+ * configRUN_TIME_COUNTER_TYPE ulTaskGetRunTimeCounter( const TaskHandle_t xTask
+ * ); configRUN_TIME_COUNTER_TYPE ulTaskGetRunTimePercent( const TaskHandle_t
+ * xTask );
  * @endcode
  *
  * configGENERATE_RUN_TIME_STATS must be defined as 1 for these functions to be
@@ -2467,9 +2578,11 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * \defgroup ulTaskGetRunTimeCounter ulTaskGetRunTimeCounter
  * \ingroup TaskUtils
  */
-#if ( configGENERATE_RUN_TIME_STATS == 1 )
-    configRUN_TIME_COUNTER_TYPE ulTaskGetRunTimeCounter( const TaskHandle_t xTask ) PRIVILEGED_FUNCTION;
-    configRUN_TIME_COUNTER_TYPE ulTaskGetRunTimePercent( const TaskHandle_t xTask ) PRIVILEGED_FUNCTION;
+#if (configGENERATE_RUN_TIME_STATS == 1)
+configRUN_TIME_COUNTER_TYPE
+ulTaskGetRunTimeCounter(const TaskHandle_t xTask) PRIVILEGED_FUNCTION;
+configRUN_TIME_COUNTER_TYPE
+ulTaskGetRunTimePercent(const TaskHandle_t xTask) PRIVILEGED_FUNCTION;
 #endif
 
 /**
@@ -2509,16 +2622,21 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * \defgroup ulTaskGetIdleRunTimeCounter ulTaskGetIdleRunTimeCounter
  * \ingroup TaskUtils
  */
-#if ( ( configGENERATE_RUN_TIME_STATS == 1 ) && ( INCLUDE_xTaskGetIdleTaskHandle == 1 ) )
-    configRUN_TIME_COUNTER_TYPE ulTaskGetIdleRunTimeCounter( void ) PRIVILEGED_FUNCTION;
-    configRUN_TIME_COUNTER_TYPE ulTaskGetIdleRunTimePercent( void ) PRIVILEGED_FUNCTION;
+#if ((configGENERATE_RUN_TIME_STATS == 1) &&                                   \
+     (INCLUDE_xTaskGetIdleTaskHandle == 1))
+configRUN_TIME_COUNTER_TYPE
+ulTaskGetIdleRunTimeCounter(void) PRIVILEGED_FUNCTION;
+configRUN_TIME_COUNTER_TYPE
+ulTaskGetIdleRunTimePercent(void) PRIVILEGED_FUNCTION;
 #endif
 
 /**
  * task. h
  * @code{c}
- * BaseType_t xTaskNotifyIndexed( TaskHandle_t xTaskToNotify, UBaseType_t uxIndexToNotify, uint32_t ulValue, eNotifyAction eAction );
- * BaseType_t xTaskNotify( TaskHandle_t xTaskToNotify, uint32_t ulValue, eNotifyAction eAction );
+ * BaseType_t xTaskNotifyIndexed( TaskHandle_t xTaskToNotify, UBaseType_t
+ * uxIndexToNotify, uint32_t ulValue, eNotifyAction eAction ); BaseType_t
+ * xTaskNotify( TaskHandle_t xTaskToNotify, uint32_t ulValue, eNotifyAction
+ * eAction );
  * @endcode
  *
  * See https://www.FreeRTOS.org/RTOS-task-notifications.html for details.
@@ -2622,21 +2740,25 @@ char * pcTaskGetName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION;
  * \defgroup xTaskNotifyIndexed xTaskNotifyIndexed
  * \ingroup TaskNotifications
  */
-BaseType_t xTaskGenericNotify( TaskHandle_t xTaskToNotify,
-                               UBaseType_t uxIndexToNotify,
-                               uint32_t ulValue,
-                               eNotifyAction eAction,
-                               uint32_t * pulPreviousNotificationValue ) PRIVILEGED_FUNCTION;
-#define xTaskNotify( xTaskToNotify, ulValue, eAction ) \
-    xTaskGenericNotify( ( xTaskToNotify ), ( tskDEFAULT_INDEX_TO_NOTIFY ), ( ulValue ), ( eAction ), NULL )
-#define xTaskNotifyIndexed( xTaskToNotify, uxIndexToNotify, ulValue, eAction ) \
-    xTaskGenericNotify( ( xTaskToNotify ), ( uxIndexToNotify ), ( ulValue ), ( eAction ), NULL )
+BaseType_t
+xTaskGenericNotify(TaskHandle_t xTaskToNotify, UBaseType_t uxIndexToNotify,
+                   uint32_t ulValue, eNotifyAction eAction,
+                   uint32_t *pulPreviousNotificationValue) PRIVILEGED_FUNCTION;
+#define xTaskNotify(xTaskToNotify, ulValue, eAction)                           \
+  xTaskGenericNotify((xTaskToNotify), (tskDEFAULT_INDEX_TO_NOTIFY), (ulValue), \
+                     (eAction), NULL)
+#define xTaskNotifyIndexed(xTaskToNotify, uxIndexToNotify, ulValue, eAction)   \
+  xTaskGenericNotify((xTaskToNotify), (uxIndexToNotify), (ulValue), (eAction), \
+                     NULL)
 
 /**
  * task. h
  * @code{c}
- * BaseType_t xTaskNotifyAndQueryIndexed( TaskHandle_t xTaskToNotify, UBaseType_t uxIndexToNotify, uint32_t ulValue, eNotifyAction eAction, uint32_t *pulPreviousNotifyValue );
- * BaseType_t xTaskNotifyAndQuery( TaskHandle_t xTaskToNotify, uint32_t ulValue, eNotifyAction eAction, uint32_t *pulPreviousNotifyValue );
+ * BaseType_t xTaskNotifyAndQueryIndexed( TaskHandle_t xTaskToNotify,
+ * UBaseType_t uxIndexToNotify, uint32_t ulValue, eNotifyAction eAction,
+ * uint32_t *pulPreviousNotifyValue ); BaseType_t xTaskNotifyAndQuery(
+ * TaskHandle_t xTaskToNotify, uint32_t ulValue, eNotifyAction eAction, uint32_t
+ * *pulPreviousNotifyValue );
  * @endcode
  *
  * See https://www.FreeRTOS.org/RTOS-task-notifications.html for details.
@@ -2656,16 +2778,23 @@ BaseType_t xTaskGenericNotify( TaskHandle_t xTaskToNotify,
  * \defgroup xTaskNotifyAndQueryIndexed xTaskNotifyAndQueryIndexed
  * \ingroup TaskNotifications
  */
-#define xTaskNotifyAndQuery( xTaskToNotify, ulValue, eAction, pulPreviousNotifyValue ) \
-    xTaskGenericNotify( ( xTaskToNotify ), ( tskDEFAULT_INDEX_TO_NOTIFY ), ( ulValue ), ( eAction ), ( pulPreviousNotifyValue ) )
-#define xTaskNotifyAndQueryIndexed( xTaskToNotify, uxIndexToNotify, ulValue, eAction, pulPreviousNotifyValue ) \
-    xTaskGenericNotify( ( xTaskToNotify ), ( uxIndexToNotify ), ( ulValue ), ( eAction ), ( pulPreviousNotifyValue ) )
+#define xTaskNotifyAndQuery(xTaskToNotify, ulValue, eAction,                   \
+                            pulPreviousNotifyValue)                            \
+  xTaskGenericNotify((xTaskToNotify), (tskDEFAULT_INDEX_TO_NOTIFY), (ulValue), \
+                     (eAction), (pulPreviousNotifyValue))
+#define xTaskNotifyAndQueryIndexed(xTaskToNotify, uxIndexToNotify, ulValue,    \
+                                   eAction, pulPreviousNotifyValue)            \
+  xTaskGenericNotify((xTaskToNotify), (uxIndexToNotify), (ulValue), (eAction), \
+                     (pulPreviousNotifyValue))
 
 /**
  * task. h
  * @code{c}
- * BaseType_t xTaskNotifyIndexedFromISR( TaskHandle_t xTaskToNotify, UBaseType_t uxIndexToNotify, uint32_t ulValue, eNotifyAction eAction, BaseType_t *pxHigherPriorityTaskWoken );
- * BaseType_t xTaskNotifyFromISR( TaskHandle_t xTaskToNotify, uint32_t ulValue, eNotifyAction eAction, BaseType_t *pxHigherPriorityTaskWoken );
+ * BaseType_t xTaskNotifyIndexedFromISR( TaskHandle_t xTaskToNotify, UBaseType_t
+ * uxIndexToNotify, uint32_t ulValue, eNotifyAction eAction, BaseType_t
+ * *pxHigherPriorityTaskWoken ); BaseType_t xTaskNotifyFromISR( TaskHandle_t
+ * xTaskToNotify, uint32_t ulValue, eNotifyAction eAction, BaseType_t
+ * *pxHigherPriorityTaskWoken );
  * @endcode
  *
  * See https://www.FreeRTOS.org/RTOS-task-notifications.html for details.
@@ -2693,9 +2822,9 @@ BaseType_t xTaskGenericNotify( TaskHandle_t xTaskToNotify,
  * light weight and fast binary or counting semaphores.
  *
  * A task can use xTaskNotifyWaitIndexed() to [optionally] block to wait for a
- * notification to be pending, or ulTaskNotifyTakeIndexed() to [optionally] block
- * to wait for a notification value to have a non-zero value.  The task does
- * not consume any CPU time while it is in the Blocked state.
+ * notification to be pending, or ulTaskNotifyTakeIndexed() to [optionally]
+ * block to wait for a notification value to have a non-zero value.  The task
+ * does not consume any CPU time while it is in the Blocked state.
  *
  * A notification sent to a task will remain pending until it is cleared by the
  * task calling xTaskNotifyWaitIndexed() or ulTaskNotifyTakeIndexed() (or their
@@ -2720,7 +2849,7 @@ BaseType_t xTaskGenericNotify( TaskHandle_t xTaskToNotify,
  *
  * @param uxIndexToNotify The index within the target task's array of
  * notification values to which the notification is to be sent.  uxIndexToNotify
- * must be less than configTASK_NOTIFICATION_ARRAY_ENTRIES.  xTaskNotifyFromISR()
+ * must be less than configTASK_NOTIFICATION_ARRAY_ENTRIES. xTaskNotifyFromISR()
  * does not have this parameter and always sends notifications to index 0.
  *
  * @param xTaskToNotify The handle of the task being notified.  The handle to a
@@ -2774,22 +2903,29 @@ BaseType_t xTaskGenericNotify( TaskHandle_t xTaskToNotify,
  * \defgroup xTaskNotifyIndexedFromISR xTaskNotifyIndexedFromISR
  * \ingroup TaskNotifications
  */
-BaseType_t xTaskGenericNotifyFromISR( TaskHandle_t xTaskToNotify,
-                                      UBaseType_t uxIndexToNotify,
-                                      uint32_t ulValue,
-                                      eNotifyAction eAction,
-                                      uint32_t * pulPreviousNotificationValue,
-                                      BaseType_t * pxHigherPriorityTaskWoken ) PRIVILEGED_FUNCTION;
-#define xTaskNotifyFromISR( xTaskToNotify, ulValue, eAction, pxHigherPriorityTaskWoken ) \
-    xTaskGenericNotifyFromISR( ( xTaskToNotify ), ( tskDEFAULT_INDEX_TO_NOTIFY ), ( ulValue ), ( eAction ), NULL, ( pxHigherPriorityTaskWoken ) )
-#define xTaskNotifyIndexedFromISR( xTaskToNotify, uxIndexToNotify, ulValue, eAction, pxHigherPriorityTaskWoken ) \
-    xTaskGenericNotifyFromISR( ( xTaskToNotify ), ( uxIndexToNotify ), ( ulValue ), ( eAction ), NULL, ( pxHigherPriorityTaskWoken ) )
+BaseType_t xTaskGenericNotifyFromISR(
+    TaskHandle_t xTaskToNotify, UBaseType_t uxIndexToNotify, uint32_t ulValue,
+    eNotifyAction eAction, uint32_t *pulPreviousNotificationValue,
+    BaseType_t *pxHigherPriorityTaskWoken) PRIVILEGED_FUNCTION;
+#define xTaskNotifyFromISR(xTaskToNotify, ulValue, eAction,                    \
+                           pxHigherPriorityTaskWoken)                          \
+  xTaskGenericNotifyFromISR((xTaskToNotify), (tskDEFAULT_INDEX_TO_NOTIFY),     \
+                            (ulValue), (eAction), NULL,                        \
+                            (pxHigherPriorityTaskWoken))
+#define xTaskNotifyIndexedFromISR(xTaskToNotify, uxIndexToNotify, ulValue,     \
+                                  eAction, pxHigherPriorityTaskWoken)          \
+  xTaskGenericNotifyFromISR((xTaskToNotify), (uxIndexToNotify), (ulValue),     \
+                            (eAction), NULL, (pxHigherPriorityTaskWoken))
 
 /**
  * task. h
  * @code{c}
- * BaseType_t xTaskNotifyAndQueryIndexedFromISR( TaskHandle_t xTaskToNotify, UBaseType_t uxIndexToNotify, uint32_t ulValue, eNotifyAction eAction, uint32_t *pulPreviousNotificationValue, BaseType_t *pxHigherPriorityTaskWoken );
- * BaseType_t xTaskNotifyAndQueryFromISR( TaskHandle_t xTaskToNotify, uint32_t ulValue, eNotifyAction eAction, uint32_t *pulPreviousNotificationValue, BaseType_t *pxHigherPriorityTaskWoken );
+ * BaseType_t xTaskNotifyAndQueryIndexedFromISR( TaskHandle_t xTaskToNotify,
+ * UBaseType_t uxIndexToNotify, uint32_t ulValue, eNotifyAction eAction,
+ * uint32_t *pulPreviousNotificationValue, BaseType_t *pxHigherPriorityTaskWoken
+ * ); BaseType_t xTaskNotifyAndQueryFromISR( TaskHandle_t xTaskToNotify,
+ * uint32_t ulValue, eNotifyAction eAction, uint32_t
+ * *pulPreviousNotificationValue, BaseType_t *pxHigherPriorityTaskWoken );
  * @endcode
  *
  * See https://www.FreeRTOS.org/RTOS-task-notifications.html for details.
@@ -2809,17 +2945,29 @@ BaseType_t xTaskGenericNotifyFromISR( TaskHandle_t xTaskToNotify,
  * \defgroup xTaskNotifyAndQueryIndexedFromISR xTaskNotifyAndQueryIndexedFromISR
  * \ingroup TaskNotifications
  */
-#define xTaskNotifyAndQueryIndexedFromISR( xTaskToNotify, uxIndexToNotify, ulValue, eAction, pulPreviousNotificationValue, pxHigherPriorityTaskWoken ) \
-    xTaskGenericNotifyFromISR( ( xTaskToNotify ), ( uxIndexToNotify ), ( ulValue ), ( eAction ), ( pulPreviousNotificationValue ), ( pxHigherPriorityTaskWoken ) )
-#define xTaskNotifyAndQueryFromISR( xTaskToNotify, ulValue, eAction, pulPreviousNotificationValue, pxHigherPriorityTaskWoken ) \
-    xTaskGenericNotifyFromISR( ( xTaskToNotify ), ( tskDEFAULT_INDEX_TO_NOTIFY ), ( ulValue ), ( eAction ), ( pulPreviousNotificationValue ), ( pxHigherPriorityTaskWoken ) )
+#define xTaskNotifyAndQueryIndexedFromISR(                                     \
+    xTaskToNotify, uxIndexToNotify, ulValue, eAction,                          \
+    pulPreviousNotificationValue, pxHigherPriorityTaskWoken)                   \
+  xTaskGenericNotifyFromISR((xTaskToNotify), (uxIndexToNotify), (ulValue),     \
+                            (eAction), (pulPreviousNotificationValue),         \
+                            (pxHigherPriorityTaskWoken))
+#define xTaskNotifyAndQueryFromISR(xTaskToNotify, ulValue, eAction,            \
+                                   pulPreviousNotificationValue,               \
+                                   pxHigherPriorityTaskWoken)                  \
+  xTaskGenericNotifyFromISR(                                                   \
+      (xTaskToNotify), (tskDEFAULT_INDEX_TO_NOTIFY), (ulValue), (eAction),     \
+      (pulPreviousNotificationValue), (pxHigherPriorityTaskWoken))
 
 /**
  * task. h
  * @code{c}
- * BaseType_t xTaskNotifyWaitIndexed( UBaseType_t uxIndexToWaitOn, uint32_t ulBitsToClearOnEntry, uint32_t ulBitsToClearOnExit, uint32_t *pulNotificationValue, TickType_t xTicksToWait );
+ * BaseType_t xTaskNotifyWaitIndexed( UBaseType_t uxIndexToWaitOn, uint32_t
+ * ulBitsToClearOnEntry, uint32_t ulBitsToClearOnExit, uint32_t
+ * *pulNotificationValue, TickType_t xTicksToWait );
  *
- * BaseType_t xTaskNotifyWait( uint32_t ulBitsToClearOnEntry, uint32_t ulBitsToClearOnExit, uint32_t *pulNotificationValue, TickType_t xTicksToWait );
+ * BaseType_t xTaskNotifyWait( uint32_t ulBitsToClearOnEntry, uint32_t
+ * ulBitsToClearOnExit, uint32_t *pulNotificationValue, TickType_t xTicksToWait
+ * );
  * @endcode
  *
  * Waits for a direct to task notification to be pending at a given index within
@@ -2854,9 +3002,9 @@ BaseType_t xTaskGenericNotifyFromISR( TaskHandle_t xTaskToNotify,
  * notification cleared.
  *
  * A task can use xTaskNotifyWaitIndexed() to [optionally] block to wait for a
- * notification to be pending, or ulTaskNotifyTakeIndexed() to [optionally] block
- * to wait for a notification value to have a non-zero value.  The task does
- * not consume any CPU time while it is in the Blocked state.
+ * notification to be pending, or ulTaskNotifyTakeIndexed() to [optionally]
+ * block to wait for a notification value to have a non-zero value.  The task
+ * does not consume any CPU time while it is in the Blocked state.
  *
  * **NOTE** Each notification within the array operates independently - a task
  * can only block on one notification within the array at a time and will not be
@@ -2918,21 +3066,28 @@ BaseType_t xTaskGenericNotifyFromISR( TaskHandle_t xTaskToNotify,
  * \defgroup xTaskNotifyWaitIndexed xTaskNotifyWaitIndexed
  * \ingroup TaskNotifications
  */
-BaseType_t xTaskGenericNotifyWait( UBaseType_t uxIndexToWaitOn,
-                                   uint32_t ulBitsToClearOnEntry,
-                                   uint32_t ulBitsToClearOnExit,
-                                   uint32_t * pulNotificationValue,
-                                   TickType_t xTicksToWait ) PRIVILEGED_FUNCTION;
-#define xTaskNotifyWait( ulBitsToClearOnEntry, ulBitsToClearOnExit, pulNotificationValue, xTicksToWait ) \
-    xTaskGenericNotifyWait( tskDEFAULT_INDEX_TO_NOTIFY, ( ulBitsToClearOnEntry ), ( ulBitsToClearOnExit ), ( pulNotificationValue ), ( xTicksToWait ) )
-#define xTaskNotifyWaitIndexed( uxIndexToWaitOn, ulBitsToClearOnEntry, ulBitsToClearOnExit, pulNotificationValue, xTicksToWait ) \
-    xTaskGenericNotifyWait( ( uxIndexToWaitOn ), ( ulBitsToClearOnEntry ), ( ulBitsToClearOnExit ), ( pulNotificationValue ), ( xTicksToWait ) )
+BaseType_t xTaskGenericNotifyWait(UBaseType_t uxIndexToWaitOn,
+                                  uint32_t ulBitsToClearOnEntry,
+                                  uint32_t ulBitsToClearOnExit,
+                                  uint32_t *pulNotificationValue,
+                                  TickType_t xTicksToWait) PRIVILEGED_FUNCTION;
+#define xTaskNotifyWait(ulBitsToClearOnEntry, ulBitsToClearOnExit,             \
+                        pulNotificationValue, xTicksToWait)                    \
+  xTaskGenericNotifyWait(tskDEFAULT_INDEX_TO_NOTIFY, (ulBitsToClearOnEntry),   \
+                         (ulBitsToClearOnExit), (pulNotificationValue),        \
+                         (xTicksToWait))
+#define xTaskNotifyWaitIndexed(uxIndexToWaitOn, ulBitsToClearOnEntry,          \
+                               ulBitsToClearOnExit, pulNotificationValue,      \
+                               xTicksToWait)                                   \
+  xTaskGenericNotifyWait((uxIndexToWaitOn), (ulBitsToClearOnEntry),            \
+                         (ulBitsToClearOnExit), (pulNotificationValue),        \
+                         (xTicksToWait))
 
 /**
  * task. h
  * @code{c}
- * BaseType_t xTaskNotifyGiveIndexed( TaskHandle_t xTaskToNotify, UBaseType_t uxIndexToNotify );
- * BaseType_t xTaskNotifyGive( TaskHandle_t xTaskToNotify );
+ * BaseType_t xTaskNotifyGiveIndexed( TaskHandle_t xTaskToNotify, UBaseType_t
+ * uxIndexToNotify ); BaseType_t xTaskNotifyGive( TaskHandle_t xTaskToNotify );
  * @endcode
  *
  * Sends a direct to task notification to a particular index in the target
@@ -3000,16 +3155,19 @@ BaseType_t xTaskGenericNotifyWait( UBaseType_t uxIndexToWaitOn,
  * \defgroup xTaskNotifyGiveIndexed xTaskNotifyGiveIndexed
  * \ingroup TaskNotifications
  */
-#define xTaskNotifyGive( xTaskToNotify ) \
-    xTaskGenericNotify( ( xTaskToNotify ), ( tskDEFAULT_INDEX_TO_NOTIFY ), ( 0 ), eIncrement, NULL )
-#define xTaskNotifyGiveIndexed( xTaskToNotify, uxIndexToNotify ) \
-    xTaskGenericNotify( ( xTaskToNotify ), ( uxIndexToNotify ), ( 0 ), eIncrement, NULL )
+#define xTaskNotifyGive(xTaskToNotify)                                         \
+  xTaskGenericNotify((xTaskToNotify), (tskDEFAULT_INDEX_TO_NOTIFY), (0),       \
+                     eIncrement, NULL)
+#define xTaskNotifyGiveIndexed(xTaskToNotify, uxIndexToNotify)                 \
+  xTaskGenericNotify((xTaskToNotify), (uxIndexToNotify), (0), eIncrement, NULL)
 
 /**
  * task. h
  * @code{c}
- * void vTaskNotifyGiveIndexedFromISR( TaskHandle_t xTaskHandle, UBaseType_t uxIndexToNotify, BaseType_t *pxHigherPriorityTaskWoken );
- * void vTaskNotifyGiveFromISR( TaskHandle_t xTaskHandle, BaseType_t *pxHigherPriorityTaskWoken );
+ * void vTaskNotifyGiveIndexedFromISR( TaskHandle_t xTaskHandle, UBaseType_t
+ * uxIndexToNotify, BaseType_t *pxHigherPriorityTaskWoken ); void
+ * vTaskNotifyGiveFromISR( TaskHandle_t xTaskHandle, BaseType_t
+ * *pxHigherPriorityTaskWoken );
  * @endcode
  *
  * A version of xTaskNotifyGiveIndexed() that can be called from an interrupt
@@ -3084,20 +3242,25 @@ BaseType_t xTaskGenericNotifyWait( UBaseType_t uxIndexToWaitOn,
  * \defgroup vTaskNotifyGiveIndexedFromISR vTaskNotifyGiveIndexedFromISR
  * \ingroup TaskNotifications
  */
-void vTaskGenericNotifyGiveFromISR( TaskHandle_t xTaskToNotify,
-                                    UBaseType_t uxIndexToNotify,
-                                    BaseType_t * pxHigherPriorityTaskWoken ) PRIVILEGED_FUNCTION;
-#define vTaskNotifyGiveFromISR( xTaskToNotify, pxHigherPriorityTaskWoken ) \
-    vTaskGenericNotifyGiveFromISR( ( xTaskToNotify ), ( tskDEFAULT_INDEX_TO_NOTIFY ), ( pxHigherPriorityTaskWoken ) )
-#define vTaskNotifyGiveIndexedFromISR( xTaskToNotify, uxIndexToNotify, pxHigherPriorityTaskWoken ) \
-    vTaskGenericNotifyGiveFromISR( ( xTaskToNotify ), ( uxIndexToNotify ), ( pxHigherPriorityTaskWoken ) )
+void vTaskGenericNotifyGiveFromISR(
+    TaskHandle_t xTaskToNotify, UBaseType_t uxIndexToNotify,
+    BaseType_t *pxHigherPriorityTaskWoken) PRIVILEGED_FUNCTION;
+#define vTaskNotifyGiveFromISR(xTaskToNotify, pxHigherPriorityTaskWoken)       \
+  vTaskGenericNotifyGiveFromISR((xTaskToNotify), (tskDEFAULT_INDEX_TO_NOTIFY), \
+                                (pxHigherPriorityTaskWoken))
+#define vTaskNotifyGiveIndexedFromISR(xTaskToNotify, uxIndexToNotify,          \
+                                      pxHigherPriorityTaskWoken)               \
+  vTaskGenericNotifyGiveFromISR((xTaskToNotify), (uxIndexToNotify),            \
+                                (pxHigherPriorityTaskWoken))
 
 /**
  * task. h
  * @code{c}
- * uint32_t ulTaskNotifyTakeIndexed( UBaseType_t uxIndexToWaitOn, BaseType_t xClearCountOnExit, TickType_t xTicksToWait );
+ * uint32_t ulTaskNotifyTakeIndexed( UBaseType_t uxIndexToWaitOn, BaseType_t
+ * xClearCountOnExit, TickType_t xTicksToWait );
  *
- * uint32_t ulTaskNotifyTake( BaseType_t xClearCountOnExit, TickType_t xTicksToWait );
+ * uint32_t ulTaskNotifyTake( BaseType_t xClearCountOnExit, TickType_t
+ * xTicksToWait );
  * @endcode
  *
  * Waits for a direct to task notification on a particular index in the calling
@@ -3131,9 +3294,9 @@ void vTaskGenericNotifyGiveFromISR( TaskHandle_t xTaskToNotify,
  * ulTaskNotifyTakeIndexed().
  *
  * When a task is using its notification value as a binary or counting semaphore
- * other tasks should send notifications to it using the xTaskNotifyGiveIndexed()
- * macro, or xTaskNotifyIndex() function with the eAction parameter set to
- * eIncrement.
+ * other tasks should send notifications to it using the
+ * xTaskNotifyGiveIndexed() macro, or xTaskNotifyIndex() function with the
+ * eAction parameter set to eIncrement.
  *
  * ulTaskNotifyTakeIndexed() can either clear the task's notification value at
  * the array index specified by the uxIndexToWaitOn parameter to zero on exit,
@@ -3190,18 +3353,22 @@ void vTaskGenericNotifyGiveFromISR( TaskHandle_t xTaskToNotify,
  * \defgroup ulTaskNotifyTakeIndexed ulTaskNotifyTakeIndexed
  * \ingroup TaskNotifications
  */
-uint32_t ulTaskGenericNotifyTake( UBaseType_t uxIndexToWaitOn,
-                                  BaseType_t xClearCountOnExit,
-                                  TickType_t xTicksToWait ) PRIVILEGED_FUNCTION;
-#define ulTaskNotifyTake( xClearCountOnExit, xTicksToWait ) \
-    ulTaskGenericNotifyTake( ( tskDEFAULT_INDEX_TO_NOTIFY ), ( xClearCountOnExit ), ( xTicksToWait ) )
-#define ulTaskNotifyTakeIndexed( uxIndexToWaitOn, xClearCountOnExit, xTicksToWait ) \
-    ulTaskGenericNotifyTake( ( uxIndexToWaitOn ), ( xClearCountOnExit ), ( xTicksToWait ) )
+uint32_t ulTaskGenericNotifyTake(UBaseType_t uxIndexToWaitOn,
+                                 BaseType_t xClearCountOnExit,
+                                 TickType_t xTicksToWait) PRIVILEGED_FUNCTION;
+#define ulTaskNotifyTake(xClearCountOnExit, xTicksToWait)                      \
+  ulTaskGenericNotifyTake((tskDEFAULT_INDEX_TO_NOTIFY), (xClearCountOnExit),   \
+                          (xTicksToWait))
+#define ulTaskNotifyTakeIndexed(uxIndexToWaitOn, xClearCountOnExit,            \
+                                xTicksToWait)                                  \
+  ulTaskGenericNotifyTake((uxIndexToWaitOn), (xClearCountOnExit),              \
+                          (xTicksToWait))
 
 /**
  * task. h
  * @code{c}
- * BaseType_t xTaskNotifyStateClearIndexed( TaskHandle_t xTask, UBaseType_t uxIndexToCLear );
+ * BaseType_t xTaskNotifyStateClearIndexed( TaskHandle_t xTask, UBaseType_t
+ * uxIndexToCLear );
  *
  * BaseType_t xTaskNotifyStateClear( TaskHandle_t xTask );
  * @endcode
@@ -3255,19 +3422,22 @@ uint32_t ulTaskGenericNotifyTake( UBaseType_t uxIndexToWaitOn,
  * \defgroup xTaskNotifyStateClearIndexed xTaskNotifyStateClearIndexed
  * \ingroup TaskNotifications
  */
-BaseType_t xTaskGenericNotifyStateClear( TaskHandle_t xTask,
-                                         UBaseType_t uxIndexToClear ) PRIVILEGED_FUNCTION;
-#define xTaskNotifyStateClear( xTask ) \
-    xTaskGenericNotifyStateClear( ( xTask ), ( tskDEFAULT_INDEX_TO_NOTIFY ) )
-#define xTaskNotifyStateClearIndexed( xTask, uxIndexToClear ) \
-    xTaskGenericNotifyStateClear( ( xTask ), ( uxIndexToClear ) )
+BaseType_t
+xTaskGenericNotifyStateClear(TaskHandle_t xTask,
+                             UBaseType_t uxIndexToClear) PRIVILEGED_FUNCTION;
+#define xTaskNotifyStateClear(xTask)                                           \
+  xTaskGenericNotifyStateClear((xTask), (tskDEFAULT_INDEX_TO_NOTIFY))
+#define xTaskNotifyStateClearIndexed(xTask, uxIndexToClear)                    \
+  xTaskGenericNotifyStateClear((xTask), (uxIndexToClear))
 
 /**
  * task. h
  * @code{c}
- * uint32_t ulTaskNotifyValueClearIndexed( TaskHandle_t xTask, UBaseType_t uxIndexToClear, uint32_t ulBitsToClear );
+ * uint32_t ulTaskNotifyValueClearIndexed( TaskHandle_t xTask, UBaseType_t
+ * uxIndexToClear, uint32_t ulBitsToClear );
  *
- * uint32_t ulTaskNotifyValueClear( TaskHandle_t xTask, uint32_t ulBitsToClear );
+ * uint32_t ulTaskNotifyValueClear( TaskHandle_t xTask, uint32_t ulBitsToClear
+ * );
  * @endcode
  *
  * See https://www.FreeRTOS.org/RTOS-task-notifications.html for details.
@@ -3282,8 +3452,8 @@ BaseType_t xTaskGenericNotifyStateClear( TaskHandle_t xTask,
  * Prior to FreeRTOS V10.4.0 there was only one notification value per task.
  *
  * ulTaskNotifyValueClearIndexed() clears the bits specified by the
- * ulBitsToClear bit mask in the notification value at array index uxIndexToClear
- * of the task referenced by xTask.
+ * ulBitsToClear bit mask in the notification value at array index
+ * uxIndexToClear of the task referenced by xTask.
  *
  * Backward compatibility information:
  * Prior to FreeRTOS V10.4.0 each task had a single "notification value", and
@@ -3308,11 +3478,11 @@ BaseType_t xTaskGenericNotifyStateClear( TaskHandle_t xTask,
  * ulTaskNotifyValueClear() does not have this parameter and always clears bits
  * in the notification value at index 0.
  *
- * @param ulBitsToClear Bit mask of the bits to clear in the notification value of
- * xTask. Set a bit to 1 to clear the corresponding bits in the task's notification
- * value. Set ulBitsToClear to 0xffffffff (UINT_MAX on 32-bit architectures) to clear
- * the notification value to 0.  Set ulBitsToClear to 0 to query the task's
- * notification value without clearing any bits.
+ * @param ulBitsToClear Bit mask of the bits to clear in the notification value
+ * of xTask. Set a bit to 1 to clear the corresponding bits in the task's
+ * notification value. Set ulBitsToClear to 0xffffffff (UINT_MAX on 32-bit
+ * architectures) to clear the notification value to 0.  Set ulBitsToClear to 0
+ * to query the task's notification value without clearing any bits.
  *
  *
  * @return The value of the target task's notification value before the bits
@@ -3320,13 +3490,14 @@ BaseType_t xTaskGenericNotifyStateClear( TaskHandle_t xTask,
  * \defgroup ulTaskNotifyValueClear ulTaskNotifyValueClear
  * \ingroup TaskNotifications
  */
-uint32_t ulTaskGenericNotifyValueClear( TaskHandle_t xTask,
-                                        UBaseType_t uxIndexToClear,
-                                        uint32_t ulBitsToClear ) PRIVILEGED_FUNCTION;
-#define ulTaskNotifyValueClear( xTask, ulBitsToClear ) \
-    ulTaskGenericNotifyValueClear( ( xTask ), ( tskDEFAULT_INDEX_TO_NOTIFY ), ( ulBitsToClear ) )
-#define ulTaskNotifyValueClearIndexed( xTask, uxIndexToClear, ulBitsToClear ) \
-    ulTaskGenericNotifyValueClear( ( xTask ), ( uxIndexToClear ), ( ulBitsToClear ) )
+uint32_t
+ulTaskGenericNotifyValueClear(TaskHandle_t xTask, UBaseType_t uxIndexToClear,
+                              uint32_t ulBitsToClear) PRIVILEGED_FUNCTION;
+#define ulTaskNotifyValueClear(xTask, ulBitsToClear)                           \
+  ulTaskGenericNotifyValueClear((xTask), (tskDEFAULT_INDEX_TO_NOTIFY),         \
+                                (ulBitsToClear))
+#define ulTaskNotifyValueClearIndexed(xTask, uxIndexToClear, ulBitsToClear)    \
+  ulTaskGenericNotifyValueClear((xTask), (uxIndexToClear), (ulBitsToClear))
 
 /**
  * task.h
@@ -3342,12 +3513,13 @@ uint32_t ulTaskGenericNotifyValueClear( TaskHandle_t xTask,
  * \defgroup vTaskSetTimeOutState vTaskSetTimeOutState
  * \ingroup TaskCtrl
  */
-void vTaskSetTimeOutState( TimeOut_t * const pxTimeOut ) PRIVILEGED_FUNCTION;
+void vTaskSetTimeOutState(TimeOut_t *const pxTimeOut) PRIVILEGED_FUNCTION;
 
 /**
  * task.h
  * @code{c}
- * BaseType_t xTaskCheckForTimeOut( TimeOut_t * const pxTimeOut, TickType_t * const pxTicksToWait );
+ * BaseType_t xTaskCheckForTimeOut( TimeOut_t * const pxTimeOut, TickType_t *
+ * const pxTicksToWait );
  * @endcode
  *
  * Determines if pxTicksToWait ticks has passed since a time was captured
@@ -3373,9 +3545,11 @@ void vTaskSetTimeOutState( TimeOut_t * const pxTimeOut ) PRIVILEGED_FUNCTION;
  * @code{c}
  *  // Driver library function used to receive uxWantedBytes from an Rx buffer
  *  // that is filled by a UART interrupt. If there are not enough bytes in the
- *  // Rx buffer then the task enters the Blocked state until it is notified that
+ *  // Rx buffer then the task enters the Blocked state until it is notified
+ * that
  *  // more data has been placed into the buffer. If there is still not enough
- *  // data then the task re-enters the Blocked state, and xTaskCheckForTimeOut()
+ *  // data then the task re-enters the Blocked state, and
+ * xTaskCheckForTimeOut()
  *  // is used to re-calculate the Block time to ensure the total amount of time
  *  // spent in the Blocked state does not exceed MAX_TIME_TO_WAIT. This
  *  // continues until either the buffer contains at least uxWantedBytes bytes,
@@ -3427,8 +3601,9 @@ void vTaskSetTimeOutState( TimeOut_t * const pxTimeOut ) PRIVILEGED_FUNCTION;
  * \defgroup xTaskCheckForTimeOut xTaskCheckForTimeOut
  * \ingroup TaskCtrl
  */
-BaseType_t xTaskCheckForTimeOut( TimeOut_t * const pxTimeOut,
-                                 TickType_t * const pxTicksToWait ) PRIVILEGED_FUNCTION;
+BaseType_t
+xTaskCheckForTimeOut(TimeOut_t *const pxTimeOut,
+                     TickType_t *const pxTicksToWait) PRIVILEGED_FUNCTION;
 
 /**
  * task.h
@@ -3436,9 +3611,9 @@ BaseType_t xTaskCheckForTimeOut( TimeOut_t * const pxTimeOut,
  * BaseType_t xTaskCatchUpTicks( TickType_t xTicksToCatchUp );
  * @endcode
  *
- * This function corrects the tick count value after the application code has held
- * interrupts disabled for an extended period resulting in tick interrupts having
- * been missed.
+ * This function corrects the tick count value after the application code has
+ * held interrupts disabled for an extended period resulting in tick interrupts
+ * having been missed.
  *
  * This function is similar to vTaskStepTick(), however, unlike
  * vTaskStepTick(), xTaskCatchUpTicks() may move the tick count forward past a
@@ -3446,17 +3621,17 @@ BaseType_t xTaskCheckForTimeOut( TimeOut_t * const pxTimeOut,
  * tasks may have to be removed from the blocked state as the tick count is
  * moved.
  *
- * @param xTicksToCatchUp The number of tick interrupts that have been missed due to
- * interrupts being disabled.  Its value is not computed automatically, so must be
- * computed by the application writer.
+ * @param xTicksToCatchUp The number of tick interrupts that have been missed
+ * due to interrupts being disabled.  Its value is not computed automatically,
+ * so must be computed by the application writer.
  *
- * @return pdTRUE if moving the tick count forward resulted in a task leaving the
- * blocked state and a context switch being performed.  Otherwise pdFALSE.
+ * @return pdTRUE if moving the tick count forward resulted in a task leaving
+ * the blocked state and a context switch being performed.  Otherwise pdFALSE.
  *
  * \defgroup xTaskCatchUpTicks xTaskCatchUpTicks
  * \ingroup TaskCtrl
  */
-BaseType_t xTaskCatchUpTicks( TickType_t xTicksToCatchUp ) PRIVILEGED_FUNCTION;
+BaseType_t xTaskCatchUpTicks(TickType_t xTicksToCatchUp) PRIVILEGED_FUNCTION;
 
 /**
  * task.h
@@ -3470,17 +3645,16 @@ BaseType_t xTaskCatchUpTicks( TickType_t xTicksToCatchUp ) PRIVILEGED_FUNCTION;
  * \defgroup vTaskResetState vTaskResetState
  * \ingroup SchedulerControl
  */
-void vTaskResetState( void ) PRIVILEGED_FUNCTION;
-
+void vTaskResetState(void) PRIVILEGED_FUNCTION;
 
 /*-----------------------------------------------------------
-* SCHEDULER INTERNALS AVAILABLE FOR PORTING PURPOSES
-*----------------------------------------------------------*/
+ * SCHEDULER INTERNALS AVAILABLE FOR PORTING PURPOSES
+ *----------------------------------------------------------*/
 
-#if ( configNUMBER_OF_CORES == 1 )
-    #define taskYIELD_WITHIN_API()    portYIELD_WITHIN_API()
+#if (configNUMBER_OF_CORES == 1)
+#define taskYIELD_WITHIN_API() portYIELD_WITHIN_API()
 #else /* #if ( configNUMBER_OF_CORES == 1 ) */
-    #define taskYIELD_WITHIN_API()    vTaskYieldWithinAPI()
+#define taskYIELD_WITHIN_API() vTaskYieldWithinAPI()
 #endif /* #if ( configNUMBER_OF_CORES == 1 ) */
 
 /*
@@ -3498,7 +3672,7 @@ void vTaskResetState( void ) PRIVILEGED_FUNCTION;
  *   + Time slicing is in use and there is a task of equal priority to the
  *     currently running task.
  */
-BaseType_t xTaskIncrementTick( void ) PRIVILEGED_FUNCTION;
+BaseType_t xTaskIncrementTick(void) PRIVILEGED_FUNCTION;
 
 /*
  * THIS FUNCTION MUST NOT BE USED FROM APPLICATION CODE.  IT IS AN
@@ -3531,11 +3705,11 @@ BaseType_t xTaskIncrementTick( void ) PRIVILEGED_FUNCTION;
  * portTICK_PERIOD_MS can be used to convert kernel ticks into a real time
  * period.
  */
-void vTaskPlaceOnEventList( List_t * const pxEventList,
-                            const TickType_t xTicksToWait ) PRIVILEGED_FUNCTION;
-void vTaskPlaceOnUnorderedEventList( List_t * pxEventList,
-                                     const TickType_t xItemValue,
-                                     const TickType_t xTicksToWait ) PRIVILEGED_FUNCTION;
+void vTaskPlaceOnEventList(List_t *const pxEventList,
+                           const TickType_t xTicksToWait) PRIVILEGED_FUNCTION;
+void vTaskPlaceOnUnorderedEventList(
+    List_t *pxEventList, const TickType_t xItemValue,
+    const TickType_t xTicksToWait) PRIVILEGED_FUNCTION;
 
 /*
  * THIS FUNCTION MUST NOT BE USED FROM APPLICATION CODE.  IT IS AN
@@ -3548,9 +3722,9 @@ void vTaskPlaceOnUnorderedEventList( List_t * pxEventList,
  * indefinitely, whereas vTaskPlaceOnEventList() does.
  *
  */
-void vTaskPlaceOnEventListRestricted( List_t * const pxEventList,
-                                      TickType_t xTicksToWait,
-                                      const BaseType_t xWaitIndefinitely ) PRIVILEGED_FUNCTION;
+void vTaskPlaceOnEventListRestricted(
+    List_t *const pxEventList, TickType_t xTicksToWait,
+    const BaseType_t xWaitIndefinitely) PRIVILEGED_FUNCTION;
 
 /*
  * THIS FUNCTION MUST NOT BE USED FROM APPLICATION CODE.  IT IS AN
@@ -3576,9 +3750,11 @@ void vTaskPlaceOnEventListRestricted( List_t * const pxEventList,
  * @return pdTRUE if the task being removed has a higher priority than the task
  * making the call, otherwise pdFALSE.
  */
-BaseType_t xTaskRemoveFromEventList( const List_t * const pxEventList ) PRIVILEGED_FUNCTION;
-void vTaskRemoveFromUnorderedEventList( ListItem_t * pxEventListItem,
-                                        const TickType_t xItemValue ) PRIVILEGED_FUNCTION;
+BaseType_t
+xTaskRemoveFromEventList(const List_t *const pxEventList) PRIVILEGED_FUNCTION;
+void vTaskRemoveFromUnorderedEventList(ListItem_t *pxEventListItem,
+                                       const TickType_t xItemValue)
+    PRIVILEGED_FUNCTION;
 
 /*
  * THIS FUNCTION MUST NOT BE USED FROM APPLICATION CODE.  IT IS ONLY
@@ -3588,51 +3764,55 @@ void vTaskRemoveFromUnorderedEventList( ListItem_t * pxEventListItem,
  * Sets the pointer to the current TCB to the TCB of the highest priority task
  * that is ready to run.
  */
-#if ( configNUMBER_OF_CORES == 1 )
-    portDONT_DISCARD void vTaskSwitchContext( void ) PRIVILEGED_FUNCTION;
+#if (configNUMBER_OF_CORES == 1)
+portDONT_DISCARD void vTaskSwitchContext(void) PRIVILEGED_FUNCTION;
 #else
-    portDONT_DISCARD void vTaskSwitchContext( BaseType_t xCoreID ) PRIVILEGED_FUNCTION;
+portDONT_DISCARD void
+vTaskSwitchContext(BaseType_t xCoreID) PRIVILEGED_FUNCTION;
 #endif
 
 /*
  * THESE FUNCTIONS MUST NOT BE USED FROM APPLICATION CODE.  THEY ARE USED BY
  * THE EVENT BITS MODULE.
  */
-TickType_t uxTaskResetEventItemValue( void ) PRIVILEGED_FUNCTION;
+TickType_t uxTaskResetEventItemValue(void) PRIVILEGED_FUNCTION;
 
 /*
  * Return the handle of the calling task.
  */
-TaskHandle_t xTaskGetCurrentTaskHandle( void ) PRIVILEGED_FUNCTION;
+TaskHandle_t xTaskGetCurrentTaskHandle(void) PRIVILEGED_FUNCTION;
 
 /*
  * Return the handle of the task running on specified core.
  */
-TaskHandle_t xTaskGetCurrentTaskHandleForCore( BaseType_t xCoreID ) PRIVILEGED_FUNCTION;
+TaskHandle_t
+xTaskGetCurrentTaskHandleForCore(BaseType_t xCoreID) PRIVILEGED_FUNCTION;
 
 /*
  * Shortcut used by the queue implementation to prevent unnecessary call to
  * taskYIELD();
  */
-void vTaskMissedYield( void ) PRIVILEGED_FUNCTION;
+void vTaskMissedYield(void) PRIVILEGED_FUNCTION;
 
 /*
  * Returns the scheduler state as taskSCHEDULER_RUNNING,
  * taskSCHEDULER_NOT_STARTED or taskSCHEDULER_SUSPENDED.
  */
-BaseType_t xTaskGetSchedulerState( void ) PRIVILEGED_FUNCTION;
+BaseType_t xTaskGetSchedulerState(void) PRIVILEGED_FUNCTION;
 
 /*
  * Raises the priority of the mutex holder to that of the calling task should
  * the mutex holder have a priority less than the calling task.
  */
-BaseType_t xTaskPriorityInherit( TaskHandle_t const pxMutexHolder ) PRIVILEGED_FUNCTION;
+BaseType_t
+xTaskPriorityInherit(TaskHandle_t const pxMutexHolder) PRIVILEGED_FUNCTION;
 
 /*
  * Set the priority of a task back to its proper priority in the case that it
  * inherited a higher priority while it was holding a semaphore.
  */
-BaseType_t xTaskPriorityDisinherit( TaskHandle_t const pxMutexHolder ) PRIVILEGED_FUNCTION;
+BaseType_t
+xTaskPriorityDisinherit(TaskHandle_t const pxMutexHolder) PRIVILEGED_FUNCTION;
 
 /*
  * If a higher priority task attempting to obtain a mutex caused a lower
@@ -3642,23 +3822,24 @@ BaseType_t xTaskPriorityDisinherit( TaskHandle_t const pxMutexHolder ) PRIVILEGE
  * the highest priority task that is still waiting for the mutex (if there were
  * more than one task waiting for the mutex).
  */
-void vTaskPriorityDisinheritAfterTimeout( TaskHandle_t const pxMutexHolder,
-                                          UBaseType_t uxHighestPriorityWaitingTask ) PRIVILEGED_FUNCTION;
+void vTaskPriorityDisinheritAfterTimeout(
+    TaskHandle_t const pxMutexHolder,
+    UBaseType_t uxHighestPriorityWaitingTask) PRIVILEGED_FUNCTION;
 
 /*
  * Get the uxTaskNumber assigned to the task referenced by the xTask parameter.
  */
-#if ( configUSE_TRACE_FACILITY == 1 )
-    UBaseType_t uxTaskGetTaskNumber( TaskHandle_t xTask ) PRIVILEGED_FUNCTION;
+#if (configUSE_TRACE_FACILITY == 1)
+UBaseType_t uxTaskGetTaskNumber(TaskHandle_t xTask) PRIVILEGED_FUNCTION;
 #endif
 
 /*
  * Set the uxTaskNumber of the task referenced by the xTask parameter to
  * uxHandle.
  */
-#if ( configUSE_TRACE_FACILITY == 1 )
-    void vTaskSetTaskNumber( TaskHandle_t xTask,
-                             const UBaseType_t uxHandle ) PRIVILEGED_FUNCTION;
+#if (configUSE_TRACE_FACILITY == 1)
+void vTaskSetTaskNumber(TaskHandle_t xTask,
+                        const UBaseType_t uxHandle) PRIVILEGED_FUNCTION;
 #endif
 
 /*
@@ -3669,8 +3850,8 @@ void vTaskPriorityDisinheritAfterTimeout( TaskHandle_t const pxMutexHolder,
  * to date with the actual execution time by being skipped forward by a time
  * equal to the idle period.
  */
-#if ( configUSE_TICKLESS_IDLE != 0 )
-    void vTaskStepTick( TickType_t xTicksToJump ) PRIVILEGED_FUNCTION;
+#if (configUSE_TICKLESS_IDLE != 0)
+void vTaskStepTick(TickType_t xTicksToJump) PRIVILEGED_FUNCTION;
 #endif
 
 /*
@@ -3687,107 +3868,115 @@ void vTaskPriorityDisinheritAfterTimeout( TaskHandle_t const pxMutexHolder,
  * critical section between the timer being stopped and the sleep mode being
  * entered to ensure it is ok to proceed into the sleep mode.
  */
-#if ( configUSE_TICKLESS_IDLE != 0 )
-    eSleepModeStatus eTaskConfirmSleepModeStatus( void ) PRIVILEGED_FUNCTION;
+#if (configUSE_TICKLESS_IDLE != 0)
+eSleepModeStatus eTaskConfirmSleepModeStatus(void) PRIVILEGED_FUNCTION;
 #endif
 
 /*
  * For internal use only.  Increment the mutex held count when a mutex is
  * taken and return the handle of the task that has taken the mutex.
  */
-TaskHandle_t pvTaskIncrementMutexHeldCount( void ) PRIVILEGED_FUNCTION;
+TaskHandle_t pvTaskIncrementMutexHeldCount(void) PRIVILEGED_FUNCTION;
 
 /*
- * For internal use only.  Same as vTaskSetTimeOutState(), but without a critical
- * section.
+ * For internal use only.  Same as vTaskSetTimeOutState(), but without a
+ * critical section.
  */
-void vTaskInternalSetTimeOutState( TimeOut_t * const pxTimeOut ) PRIVILEGED_FUNCTION;
+void vTaskInternalSetTimeOutState(TimeOut_t *const pxTimeOut)
+    PRIVILEGED_FUNCTION;
 
 /*
- * For internal use only. Same as portYIELD_WITHIN_API() in single core FreeRTOS.
- * For SMP this is not defined by the port.
+ * For internal use only. Same as portYIELD_WITHIN_API() in single core
+ * FreeRTOS. For SMP this is not defined by the port.
  */
-#if ( configNUMBER_OF_CORES > 1 )
-    void vTaskYieldWithinAPI( void );
+#if (configNUMBER_OF_CORES > 1)
+void vTaskYieldWithinAPI(void);
 #endif
 
 /*
- * This function is only intended for use when implementing a port of the scheduler
- * and is only available when portCRITICAL_NESTING_IN_TCB is set to 1 or configNUMBER_OF_CORES
- * is greater than 1. This function can be used in the implementation of portENTER_CRITICAL
- * if port wants to maintain critical nesting count in TCB in single core FreeRTOS.
- * It should be used in the implementation of portENTER_CRITICAL if port is running a
- * multiple core FreeRTOS.
+ * This function is only intended for use when implementing a port of the
+ * scheduler and is only available when portCRITICAL_NESTING_IN_TCB is set to 1
+ * or configNUMBER_OF_CORES is greater than 1. This function can be used in the
+ * implementation of portENTER_CRITICAL if port wants to maintain critical
+ * nesting count in TCB in single core FreeRTOS. It should be used in the
+ * implementation of portENTER_CRITICAL if port is running a multiple core
+ * FreeRTOS.
  */
-#if ( ( portCRITICAL_NESTING_IN_TCB == 1 ) || ( configNUMBER_OF_CORES > 1 ) )
-    void vTaskEnterCritical( void );
+#if ((portCRITICAL_NESTING_IN_TCB == 1) || (configNUMBER_OF_CORES > 1))
+void vTaskEnterCritical(void);
 #endif
 
 /*
- * This function is only intended for use when implementing a port of the scheduler
- * and is only available when portCRITICAL_NESTING_IN_TCB is set to 1 or configNUMBER_OF_CORES
- * is greater than 1. This function can be used in the implementation of portEXIT_CRITICAL
- * if port wants to maintain critical nesting count in TCB in single core FreeRTOS.
- * It should be used in the implementation of portEXIT_CRITICAL if port is running a
- * multiple core FreeRTOS.
+ * This function is only intended for use when implementing a port of the
+ * scheduler and is only available when portCRITICAL_NESTING_IN_TCB is set to 1
+ * or configNUMBER_OF_CORES is greater than 1. This function can be used in the
+ * implementation of portEXIT_CRITICAL if port wants to maintain critical
+ * nesting count in TCB in single core FreeRTOS. It should be used in the
+ * implementation of portEXIT_CRITICAL if port is running a multiple core
+ * FreeRTOS.
  */
-#if ( ( portCRITICAL_NESTING_IN_TCB == 1 ) || ( configNUMBER_OF_CORES > 1 ) )
-    void vTaskExitCritical( void );
+#if ((portCRITICAL_NESTING_IN_TCB == 1) || (configNUMBER_OF_CORES > 1))
+void vTaskExitCritical(void);
 #endif
 
 /*
- * This function is only intended for use when implementing a port of the scheduler
- * and is only available when configNUMBER_OF_CORES is greater than 1. This function
- * should be used in the implementation of portENTER_CRITICAL_FROM_ISR if port is
- * running a multiple core FreeRTOS.
+ * This function is only intended for use when implementing a port of the
+ * scheduler and is only available when configNUMBER_OF_CORES is greater than 1.
+ * This function should be used in the implementation of
+ * portENTER_CRITICAL_FROM_ISR if port is running a multiple core FreeRTOS.
  */
-#if ( configNUMBER_OF_CORES > 1 )
-    UBaseType_t vTaskEnterCriticalFromISR( void );
+#if (configNUMBER_OF_CORES > 1)
+UBaseType_t vTaskEnterCriticalFromISR(void);
 #endif
 
 /*
- * This function is only intended for use when implementing a port of the scheduler
- * and is only available when configNUMBER_OF_CORES is greater than 1. This function
- * should be used in the implementation of portEXIT_CRITICAL_FROM_ISR if port is
- * running a multiple core FreeRTOS.
+ * This function is only intended for use when implementing a port of the
+ * scheduler and is only available when configNUMBER_OF_CORES is greater than 1.
+ * This function should be used in the implementation of
+ * portEXIT_CRITICAL_FROM_ISR if port is running a multiple core FreeRTOS.
  */
-#if ( configNUMBER_OF_CORES > 1 )
-    void vTaskExitCriticalFromISR( UBaseType_t uxSavedInterruptStatus );
+#if (configNUMBER_OF_CORES > 1)
+void vTaskExitCriticalFromISR(UBaseType_t uxSavedInterruptStatus);
 #endif
 
-#if ( portUSING_MPU_WRAPPERS == 1 )
+#if (portUSING_MPU_WRAPPERS == 1)
 
 /*
  * For internal use only.  Get MPU settings associated with a task.
  */
-    xMPU_SETTINGS * xTaskGetMPUSettings( TaskHandle_t xTask ) PRIVILEGED_FUNCTION;
+xMPU_SETTINGS *xTaskGetMPUSettings(TaskHandle_t xTask) PRIVILEGED_FUNCTION;
 
 #endif /* portUSING_MPU_WRAPPERS */
 
-
-#if ( ( portUSING_MPU_WRAPPERS == 1 ) && ( configUSE_MPU_WRAPPERS_V1 == 0 ) && ( configENABLE_ACCESS_CONTROL_LIST == 1 ) )
-
-/*
- * For internal use only.  Grant/Revoke a task's access to a kernel object.
- */
-    void vGrantAccessToKernelObject( TaskHandle_t xExternalTaskHandle,
-                                     int32_t lExternalKernelObjectHandle ) PRIVILEGED_FUNCTION;
-    void vRevokeAccessToKernelObject( TaskHandle_t xExternalTaskHandle,
-                                      int32_t lExternalKernelObjectHandle ) PRIVILEGED_FUNCTION;
+#if ((portUSING_MPU_WRAPPERS == 1) && (configUSE_MPU_WRAPPERS_V1 == 0) &&      \
+     (configENABLE_ACCESS_CONTROL_LIST == 1))
 
 /*
  * For internal use only.  Grant/Revoke a task's access to a kernel object.
  */
-    void vPortGrantAccessToKernelObject( TaskHandle_t xInternalTaskHandle,
-                                         int32_t lInternalIndexOfKernelObject ) PRIVILEGED_FUNCTION;
-    void vPortRevokeAccessToKernelObject( TaskHandle_t xInternalTaskHandle,
-                                          int32_t lInternalIndexOfKernelObject ) PRIVILEGED_FUNCTION;
+void vGrantAccessToKernelObject(TaskHandle_t xExternalTaskHandle,
+                                int32_t lExternalKernelObjectHandle)
+    PRIVILEGED_FUNCTION;
+void vRevokeAccessToKernelObject(TaskHandle_t xExternalTaskHandle,
+                                 int32_t lExternalKernelObjectHandle)
+    PRIVILEGED_FUNCTION;
 
-#endif /* #if ( ( portUSING_MPU_WRAPPERS == 1 ) && ( configUSE_MPU_WRAPPERS_V1 == 0 ) && ( configENABLE_ACCESS_CONTROL_LIST == 1 ) ) */
+/*
+ * For internal use only.  Grant/Revoke a task's access to a kernel object.
+ */
+void vPortGrantAccessToKernelObject(TaskHandle_t xInternalTaskHandle,
+                                    int32_t lInternalIndexOfKernelObject)
+    PRIVILEGED_FUNCTION;
+void vPortRevokeAccessToKernelObject(TaskHandle_t xInternalTaskHandle,
+                                     int32_t lInternalIndexOfKernelObject)
+    PRIVILEGED_FUNCTION;
+
+#endif /* #if ( ( portUSING_MPU_WRAPPERS == 1 ) && ( configUSE_MPU_WRAPPERS_V1 \
+          == 0 ) && ( configENABLE_ACCESS_CONTROL_LIST == 1 ) ) */
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
-    }
+}
 #endif
 /* *INDENT-ON* */
 #endif /* INC_TASK_H */

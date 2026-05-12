@@ -5,323 +5,331 @@
 #include <rclcpp/serialization.hpp>
 #include <thread>
 
-CanNode::CanNode() : Node("can_node"), can_(this->get_logger()) {
+CanNode::CanNode() : Node("can_node"), can_core(this->get_logger()) {
   RCLCPP_INFO(this->get_logger(), "CAN Node has been initialized");
+
+  hardware_config =
+      YAML::LoadFile(ament_index_cpp::get_package_share_directory("can") +
+                     "/config/hardware_mapping.yaml");
+
+  // Load DBC file
+  {
+    std::ifstream idbc(ament_index_cpp::get_package_share_directory("can") +
+                       "/config/humanoid.dbc");
+    dbc_net = dbcppp::INetwork::LoadDBCFromIs(idbc);
+    if (!dbc_net) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to load DBC file");
+    } else {
+      RCLCPP_INFO(this->get_logger(), "DBC file loaded successfully");
+      // Build the message ID to IMessage* map for quick lookup during decoding
+      for (const auto &msg : dbc_net->Messages()) {
+        RCLCPP_INFO(this->get_logger(), "Loaded DBC message: %s (ID 0x%lX)",
+                    msg.Name().c_str(), msg.Id());
+        can_messages.insert(std::make_pair(msg.Name(), &msg));
+        // Subtraction due to extended can frame
+        can_id_map.insert(std::make_pair(msg.Id() - 0x80000000, &msg));
+      }
+    }
+  }
 
   // Load parameters from config/params.yaml
   this->declare_parameter("can_interface", "can0");
   this->declare_parameter("device_path", "/dev/canable");
   this->declare_parameter("bustype", "slcan");
   this->declare_parameter("bitrate", 500000);
-  this->declare_parameter("receive_poll_interval_ms",
-                          10); // Parameter for polling interval
+  this->declare_parameter("receive_poll_interval_ms", 10);
+  this->declare_parameter("receive_timeout_ms", 10000);
 
   // Get parameter values
   std::string can_interface = this->get_parameter("can_interface").as_string();
   std::string device_path = this->get_parameter("device_path").as_string();
   std::string bustype = this->get_parameter("bustype").as_string();
   int bitrate = this->get_parameter("bitrate").as_int();
-  long receive_poll_interval_ms =
+
+  int receive_poll_interval_ms =
       this->get_parameter("receive_poll_interval_ms").as_int();
 
   RCLCPP_INFO(this->get_logger(),
               "Loaded parameters: interface=%s, bustype=%s, bitrate=%d, "
-              "poll_interval_ms=%ld",
+              "poll_interval_ms=%d",
               can_interface.c_str(), bustype.c_str(), bitrate,
               receive_poll_interval_ms);
 
   // Configure CanCore
-  autonomy::CanConfig config;
+  CanConfig config;
   config.interface_name = can_interface;
   config.device_path = device_path;
   config.bustype = bustype;
   config.bitrate = bitrate;
-  config.receive_timeout_ms = 10000; // This specific timeout in CanConfig might
-                                     // be for other uses or can be reviewed.
+  config.receive_timeout_ms = 10000;
 
   // Initialize the CAN interface
-  if (can_.initialize(config)) {
+  if (can_core.initialize(config)) {
     RCLCPP_INFO(this->get_logger(),
                 "CAN Core interface initialized successfully");
 
     // Setup a timer to periodically call receiveCanMessages
     receive_timer_ = this->create_wall_timer(
         std::chrono::milliseconds(receive_poll_interval_ms),
-        std::bind(&CanNode::receiveCanMessages, this));
-    RCLCPP_INFO(this->get_logger(),
-                "CAN message receive timer started with %ld ms interval.",
-                receive_poll_interval_ms);
+        [this]() { receiveCanMessages(); });
 
   } else {
     RCLCPP_ERROR(this->get_logger(), "Failed to initialize CAN Core");
   }
 
   // Load topic configurations and create subscribers
-  loadTopicConfigurations();
-  createSubscribers();
+  createSubscribersPublishers();
 }
 
-void CanNode::loadTopicConfigurations() {
+void CanNode::createSubscribersPublishers() {
+  _subscribers.clear();
+  _publishers.clear();
+
+  // Create subscribers
+  _subscribers["/interfacing/motorCMD"] =
+      this->create_subscription<common_msgs::msg::MotorCmd>(
+          "/interfacing/motorCMD", rclcpp::QoS(10),
+          std::bind(&CanNode::motorCMDCallback, this, std::placeholders::_1));
+
+  // Create publishers
+  _publishers["/interfacing/motorFeedback"] =
+      this->create_publisher<common_msgs::msg::MotorFeedback>(
+          "/interfacing/motorFeedback", 10);
+  RCLCPP_INFO(this->get_logger(),
+              "Subscribers and publishers created successfully");
+}
+
+// Subscriber callbacks
+const dbcppp::ISignal *
+CanNode::findSignalByName(const dbcppp::IMessage *msg,
+                          const std::string &signal_name) {
+  for (const auto &signal : msg->Signals()) {
+    if (signal.Name() == signal_name) {
+      return const_cast<dbcppp::ISignal *>(&signal);
+    }
+  }
+  RCLCPP_ERROR(rclcpp::get_logger("CanNode"),
+               "Signal '%s' not found in message '%s'", signal_name.c_str(),
+               msg->Name().c_str());
+  return nullptr;
+}
+
+void CanNode::motorCMDCallback(
+    const common_msgs::msg::MotorCmd::SharedPtr msg) {
+  RCLCPP_INFO(this->get_logger(), "Received MotorCMD motor=%d control_type=%d",
+              static_cast<int>(msg->motor_id),
+              static_cast<int>(msg->control_type));
+
+  const dbcppp::IMessage *dbc_msg = nullptr;
+
   try {
-    // Declare and get the topics parameter as a string array
-    this->declare_parameter("topics",
-                            std::vector<std::string>{"/test_controller"});
-    auto topic_names = this->get_parameter("topics").as_string_array();
+    switch (msg->control_type) {
 
-    for (const auto &topic_name : topic_names) {
-      std::string topic_type = discoverTopicType(
-          topic_name); // Discover the message type for a given topic
-
-      if (!topic_type.empty()) {
-        TopicConfig config;
-        config.name = topic_name;
-        config.type = topic_type;
-        topic_configs_.push_back(config);
-
-        RCLCPP_INFO(this->get_logger(), "Loaded topic config: %s (%s)",
-                    topic_name.c_str(), topic_type.c_str());
-      } else {
-        RCLCPP_WARN(this->get_logger(),
-                    "Could not discover message type for topic: %s",
-                    topic_name.c_str());
-      }
+    case common_msgs::msg::MotorCmd::DUTY_CYCLE: {
+      dbc_msg = can_messages["DutyCycleCmd"];
+      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id),
+                         dbc_msg->MessageSize());
+      encodeSignal(findSignalByName(dbc_msg, "DutyCycle"),
+                   static_cast<double>(msg->duty_cycle), can_msg);
+      publishCanMessage(can_msg);
+      break;
     }
 
-    if (topic_configs_.empty()) {
-      RCLCPP_WARN(this->get_logger(),
-                  "No valid topics found in configuration - CAN node will not "
-                  "subscribe to any topics");
+    case common_msgs::msg::MotorCmd::CURRENT_LOOP: {
+      dbc_msg = can_messages["CurrentLoopCmd"];
+      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id),
+                         dbc_msg->MessageSize());
+      encodeSignal(findSignalByName(dbc_msg, "IqCurrent"),
+                   static_cast<double>(msg->current), can_msg);
+      publishCanMessage(can_msg);
+      break;
+    }
+
+    case common_msgs::msg::MotorCmd::CURRENT_BRAKE: {
+      dbc_msg = can_messages["CurrentBrakeCmd"];
+      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id),
+                         dbc_msg->MessageSize());
+      encodeSignal(findSignalByName(dbc_msg, "BrakeCurrent"),
+                   static_cast<double>(msg->current), can_msg);
+      publishCanMessage(can_msg);
+      break;
+    }
+
+    case common_msgs::msg::MotorCmd::VELOCITY_LOOP: {
+      dbc_msg = can_messages["VelocityLoopCmd"];
+      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id),
+                         dbc_msg->MessageSize());
+      encodeSignal(findSignalByName(dbc_msg, "VelocityERPM"),
+                   static_cast<double>(msg->velocity), can_msg);
+      publishCanMessage(can_msg);
+      break;
+    }
+
+    case common_msgs::msg::MotorCmd::POSITION_LOOP: {
+      dbc_msg = can_messages["PositionLoopCmd"];
+      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id),
+                         dbc_msg->MessageSize());
+      encodeSignal(findSignalByName(dbc_msg, "PositionDeg"),
+                   static_cast<double>(msg->position), can_msg);
+      publishCanMessage(can_msg);
+      break;
+    }
+
+    case common_msgs::msg::MotorCmd::SET_ORIGIN: {
+      dbc_msg = can_messages["SetOriginCmd"];
+      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id),
+                         dbc_msg->MessageSize());
+      // 0 = Temporary Origin, 1 = Permanent Origin (from DBC VAL_)
+      double origin_mode = msg->temporary ? 0.0 : 1.0;
+      encodeSignal(findSignalByName(dbc_msg, "OriginMode"), origin_mode,
+                   can_msg);
+      publishCanMessage(can_msg);
+      break;
+    }
+
+    case common_msgs::msg::MotorCmd::POSITION_VELOCITY: {
+      dbc_msg = can_messages["PositionVelocityCmd"];
+      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id),
+                         dbc_msg->MessageSize());
+      encodeSignal(findSignalByName(dbc_msg, "PosVelPosition"),
+                   static_cast<double>(msg->position), can_msg);
+      encodeSignal(findSignalByName(dbc_msg, "PosVelSpeed"),
+                   static_cast<double>(msg->velocity), can_msg);
+      encodeSignal(findSignalByName(dbc_msg, "PosVelAccel"),
+                   static_cast<double>(msg->acceleration), can_msg);
+      publishCanMessage(can_msg);
+      break;
+    }
+
+    case common_msgs::msg::MotorCmd::MIT_CONTROL: {
+      dbc_msg = can_messages["MITControlCmd"];
+      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id),
+                         dbc_msg->MessageSize());
+      // Can additionally add this to the config file reducing network overhead
+      encodeSignal(findSignalByName(dbc_msg, "MIT_KP"),
+                   static_cast<double>(msg->kp), can_msg);
+      encodeSignal(findSignalByName(dbc_msg, "MIT_KD"),
+                   static_cast<double>(msg->kd), can_msg);
+      encodeSignal(findSignalByName(dbc_msg, "MIT_Position"),
+                   static_cast<double>(msg->position), can_msg);
+      encodeSignal(findSignalByName(dbc_msg, "MIT_Velocity"),
+                   static_cast<double>(msg->velocity), can_msg);
+      encodeSignal(findSignalByName(dbc_msg, "MIT_Torque"),
+                   static_cast<double>(msg->torque), can_msg);
+      publishCanMessage(can_msg);
+      break;
+    }
+
+    case common_msgs::msg::MotorCmd::DISABLE: {
+      dbc_msg = can_messages["MotorDisableCmd"];
+      // MotorDisableCmd has no signals, just send the CAN ID
+      CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id),
+                         dbc_msg->MessageSize());
+      publishCanMessage(can_msg);
+      break;
+    }
+
+    default:
+      RCLCPP_WARN(this->get_logger(), "Unknown control_type=%d, ignoring",
+                  static_cast<int>(msg->control_type));
+      return;
     }
 
   } catch (const std::exception &e) {
-    RCLCPP_ERROR(this->get_logger(), "Error loading topic configurations: %s",
+    RCLCPP_ERROR(this->get_logger(), "Failed to encode CAN message: %s",
                  e.what());
+    return;
   }
+
+  RCLCPP_DEBUG(
+      this->get_logger(), "CAN message sent for control_type=%d motor=%d",
+      static_cast<int>(msg->control_type), static_cast<int>(msg->motor_id));
 }
 
-std::string CanNode::discoverTopicType(const std::string &topic_name) {
-  auto topic_names_and_types =
-      this->get_topic_names_and_types(); // get topic information from ROS graph
-
-  for (const auto &topic_info : topic_names_and_types) {
-    if (topic_info.first == topic_name) {
-      if (!topic_info.second.empty()) {
-        return topic_info.second[0];
-      }
-    }
-  }
-
-  // If topic is not found, wait a bit and try again (topic might not be
-  // published yet)
-  RCLCPP_INFO(this->get_logger(),
-              "Topic '%s' not found, waiting for it to become available...",
-              topic_name.c_str());
-
-  // Wait up to 10 seconds for the topic to appear
-  for (int i = 0; i < 100; ++i) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    topic_names_and_types = this->get_topic_names_and_types();
-
-    for (const auto &topic_info : topic_names_and_types) {
-      if (topic_info.first == topic_name) {
-        if (!topic_info.second.empty()) {
-          RCLCPP_INFO(this->get_logger(), "Found topic '%s' with type '%s'",
-                      topic_name.c_str(), topic_info.second[0].c_str());
-          return topic_info.second[0];
-        }
-      }
-    }
-  }
-
-  RCLCPP_ERROR(this->get_logger(),
-               "Timeout waiting for topic '%s' to become available",
-               topic_name.c_str());
-  return "";
+void CanNode::encodeSignal(const dbcppp::ISignal *signal, int64_t phys_value,
+                           CanMessage &can_msg) {
+  auto raw = signal->PhysToRaw(phys_value);
+  signal->Encode(raw, can_msg.data.data());
 }
 
-void CanNode::createSubscribers() {
-  for (const auto &topic_config : topic_configs_) {
-    // Create generic subscriber that can handle any message type
-    auto subscriber = this->create_generic_subscription(
-        topic_config.name, topic_config.type, 10,
-        [this, topic_name = topic_config.name, topic_type = topic_config.type](
-            std::shared_ptr<rclcpp::SerializedMessage> msg) {
-          this->topicCallback(msg, topic_name, topic_type);
-        });
-
-    subscribers_.push_back(subscriber);
-    RCLCPP_INFO(this->get_logger(),
-                "Created generic subscriber for topic: %s (type: %s)",
-                topic_config.name.c_str(), topic_config.type.c_str());
-  }
+void CanNode::encodeSignal(const dbcppp::ISignal *signal, double phys_value,
+                           CanMessage &can_msg) {
+  auto raw = signal->PhysToRaw(phys_value);
+  signal->Encode(raw, can_msg.data.data());
 }
 
-void CanNode::topicCallback(std::shared_ptr<rclcpp::SerializedMessage> msg,
-                            const std::string &topic_name,
-                            [[maybe_unused]] const std::string &topic_type) {
-  std::vector<autonomy::CanMessage> can_messages = createCanMessages(
-      topic_name, msg); // Create CAN message(s) from ROS message
-
-  // Send CAN message
-  int successful_sends = 0;
-  for (const auto &can_message : can_messages) {
-    if (can_.sendMessage(can_message)) {
-      successful_sends++;
-    } else {
-      RCLCPP_ERROR(this->get_logger(),
-                   "Failed to send CAN message for topic '%s' (ID 0x%X)",
-                   topic_name.c_str(), can_message.id);
-    }
-  }
-
-  if (can_messages.size() > 1) {
-    RCLCPP_INFO(this->get_logger(),
-                "Successfully sent %d/%zu CAN frames for topic '%s'",
-                successful_sends, can_messages.size(), topic_name.c_str());
-  }
+int32_t CanNode::getMessageId(const dbcppp::IMessage *msg,
+                              int device_id) const {
+  // CAN ID format: base_id | device_id (lower 2 bits)
+  return (msg->Id() & 0xFFFFFF00) | (device_id & 0xFF);
 }
 
 void CanNode::receiveCanMessages() {
-  autonomy::CanMessage received_msg;
-  // Attempt to receive a message. CanCore::receiveMessage is non-blocking.
-  if (can_.receiveMessage(received_msg)) {
-    // Print the received message details to the console
-    std::stringstream ss;
-    ss << "Received CAN Message: ID=0x" << std::hex << received_msg.id
-       << std::dec << ", DLC=" << static_cast<int>(received_msg.dlc)
-       << ", Extended=" << received_msg.is_extended_id
-       << ", RTR=" << received_msg.is_remote_frame << ", Data=[ ";
-    for (size_t i = 0; i < received_msg.data.size(); ++i) {
-      ss << "0x" << std::hex << static_cast<int>(received_msg.data[i])
-         << (i < received_msg.data.size() - 1 ? " " : "");
-    }
-    ss << std::dec
-       << " ]"; // Switch back to decimal for any further logging if needed
-    RCLCPP_INFO(this->get_logger(), "%s", ss.str().c_str());
-  }
-  // If receiveMessage returns false, it means no message was available at that
-  // moment (non-blocking read) or an error occurred (which CanCore should log).
-  // No action needed here for no-message case.
-}
-
-uint32_t CanNode::generateCanId(const std::string &topic_name) {
-  // Generate a CAN ID from topic name using hash
-  // Use the first 29 bits for extended CAN ID (CAN 2.0B)
-  std::hash<std::string> hasher;
-  uint32_t hash = static_cast<uint32_t>(hasher(topic_name));
-
-  // Mask to 29 bits for extended CAN ID (0x1FFFFFFF)
-  // For CAN-FD, we can use the full extended ID range
-  return hash & 0x1FFFFFFF;
-}
-
-std::vector<autonomy::CanMessage>
-CanNode::createCanMessages(const std::string &topic_name,
-                           std::shared_ptr<rclcpp::SerializedMessage> ros_msg) {
-  std::vector<autonomy::CanMessage> messages_to_send;
-
-  uint32_t can_id = generateCanId(topic_name);
-
-  bool is_extended = true; // Use extended CAN ID (29 bits)
-  bool is_rtr = false;     // Remote Transmission Request
-
-  auto now_chrono = std::chrono::high_resolution_clock::now();
-  uint64_t timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
-                           now_chrono.time_since_epoch())
-                           .count();
-
-  const uint8_t *ros_msg_buffer = ros_msg->get_rcl_serialized_message().buffer;
-  size_t ros_msg_size = ros_msg->size();
-
-  // Determine max data payload per frame
-  // For Classic CAN, it's 8 bytes maximum
-  // But reserve 1 byte for sequence number if fragmentation is needed.
-  const size_t max_data_bytes_per_classic_frame = 8;
-
-  size_t max_payload_per_frame = max_data_bytes_per_classic_frame;
-  size_t data_chunk_size = max_payload_per_frame;
-  bool needs_fragmentation = ros_msg_size > max_payload_per_frame;
-
-  if (needs_fragmentation) {
-    // Reserve 1 byte for sequence number if fragmenting
-    data_chunk_size = max_payload_per_frame - 1;
-    if (data_chunk_size == 0 &&
-        max_payload_per_frame > 0) { // Should not happen with CAN_MAX_DLEN >= 1
-      RCLCPP_ERROR(this->get_logger(),
-                   "Calculated data_chunk_size is 0, this should not happen. "
-                   "Max payload: %zu",
-                   max_payload_per_frame);
-      return messages_to_send; // Return empty, indicates error
-    }
+  std::vector<CanMessage> messages;
+  CanMessage msg;
+  while (can_core.receiveMessage(msg)) {
+    messages.push_back(msg);
   }
 
-  if (!needs_fragmentation) {
-    autonomy::CanMessage can_msg;
-    can_msg.id = can_id;
-    can_msg.is_extended_id = is_extended;
-    can_msg.is_remote_frame = is_rtr;
-    can_msg.timestamp_us = timestamp;
+  for (const auto &message : messages) {
+    // all messages are extended frame CAN ids
+    int device_id = message.id & 0xFF;
+    int base_id = message.id & 0xFFFFFF00;
 
-    can_msg.data.resize(ros_msg_size);
-    std::memcpy(can_msg.data.data(), ros_msg_buffer, ros_msg_size);
+    if (can_id_map.find(base_id) != can_id_map.end()) {
+      // Handling each feedback message on can bus
+      std::string msg_name = can_id_map[base_id]->Name();
+      if (msg_name == "ServoStatusFeedback") {
+        const dbcppp::IMessage *dbc_msg = can_id_map[base_id];
 
-    RCLCPP_DEBUG(this->get_logger(),
-                 "Packaged %zu bytes from topic '%s' into single CAN frame "
-                 "with ID 0x%X (Classic CAN)",
-                 ros_msg_size, topic_name.c_str(), can_msg.id);
-    messages_to_send.push_back(can_msg);
-  } else {
-    RCLCPP_INFO(this->get_logger(),
-                "Message from topic '%s' (%zu bytes) is too large for a single "
-                "CAN frame (max %zu bytes). Fragmenting.",
-                topic_name.c_str(), ros_msg_size, max_payload_per_frame);
+        // Publish to ROS topic
+        auto feedback_msg = common_msgs::msg::MotorFeedback();
+        feedback_msg.motor_id = device_id;
+        feedback_msg.position = findSignalByName(dbc_msg, "FbkPosition")
+                                    ->Decode(message.data.data());
+        feedback_msg.velocity =
+            findSignalByName(dbc_msg, "FbkSpeed")->Decode(message.data.data());
+        feedback_msg.current = findSignalByName(dbc_msg, "FbkCurrent")
+                                   ->Decode(message.data.data());
+        feedback_msg.temperature =
+            static_cast<uint8_t>(findSignalByName(dbc_msg, "FbkTemperature")
+                                     ->Decode(message.data.data()));
+        feedback_msg.error_code =
+            static_cast<uint8_t>(findSignalByName(dbc_msg, "FbkErrorCode")
+                                     ->Decode(message.data.data()));
+        RCLCPP_DEBUG(this->get_logger(),
+                     "Received feedback for motor %d: pos=%.2f vel=%.2f "
+                     "current=%.2f temp=%d error=%d",
+                     feedback_msg.motor_id, feedback_msg.position,
+                     feedback_msg.velocity, feedback_msg.current,
+                     feedback_msg.temperature, feedback_msg.error_code);
+        auto pub = std::dynamic_pointer_cast<
+            rclcpp::Publisher<common_msgs::msg::MotorFeedback>>(
+            _publishers["/interfacing/motorFeedback"]);
 
-    size_t bytes_sent = 0;
-    uint8_t sequence_number = 0;
-
-    while (bytes_sent < ros_msg_size) {
-      autonomy::CanMessage can_fragment;
-      can_fragment.id = can_id; // All fragments share the same ID for now
-      can_fragment.is_extended_id = is_extended;
-      can_fragment.is_remote_frame = is_rtr;
-      can_fragment.timestamp_us =
-          timestamp; // Could also update timestamp per fragment
-
-      size_t current_fragment_payload_size =
-          std::min(data_chunk_size, ros_msg_size - bytes_sent);
-
-      can_fragment.data.resize(
-          1 + current_fragment_payload_size); // 1 byte for sequence number
-      can_fragment.data[0] = sequence_number;
-      std::memcpy(can_fragment.data.data() + 1, ros_msg_buffer + bytes_sent,
-                  current_fragment_payload_size);
-
-      messages_to_send.push_back(can_fragment);
-
-      // This is just logging that fragment creation was successful
-      // RCLCPP_INFO(this->get_logger(), "Created fragment %u for topic '%s' (ID
-      // 0x%X), size %zu (payload %zu)", sequence_number, topic_name.c_str(),
-      // can_fragment.id, can_fragment.data.size(),
-      // current_fragment_payload_size);
-
-      bytes_sent += current_fragment_payload_size;
-      sequence_number++;
-
-      if (sequence_number == 0 &&
-          bytes_sent < ros_msg_size) { // Rollover, too many fragments
-        RCLCPP_ERROR(this->get_logger(),
-                     "Too many fragments for message from topic '%s'. Max 256 "
-                     "fragments supported with 1-byte sequence.",
-                     topic_name.c_str());
-        messages_to_send.clear(); // Indicate error by returning no messages
-        return messages_to_send;
+        if (pub) {
+          pub->publish(feedback_msg);
+        } else {
+          RCLCPP_ERROR(this->get_logger(),
+                       "Publisher for /interfacing/motorFeedback not found");
+        }
       }
+    } else {
+      RCLCPP_WARN(this->get_logger(),
+                  "Received CAN message with unknown ID: 0x%X", base_id);
     }
-    // RCLCPP_INFO(this->get_logger(), "Fragmented message from topic '%s' into
-    // %zu frames.", topic_name.c_str(), messages_to_send.size());
   }
+}
 
-  return messages_to_send;
+void CanNode::publishCanMessage(CanMessage &can_msg) {
+  // Send the CAN message
+  if (can_core.sendMessage(can_msg)) {
+    RCLCPP_INFO(this->get_logger(), "Sent for CAN message: ID=0x%X",
+                can_msg.id);
+  } else {
+    RCLCPP_ERROR(this->get_logger(), "Failed to send CAN message: ID=0x%X",
+                 can_msg.id);
+  }
 }
 
 int main(int argc, char **argv) {

@@ -83,7 +83,8 @@ class WatoUpperBodyMotionControllerRetargeter(RetargeterBase):
         right_wrist_tensor = torch.tensor(
             self._retarget_abs(right_wrist, is_left=False), dtype=torch.float32, device=self._sim_device
         )
-        hand_joints_tensor = torch.tensor(all_hand_joints, dtype=torch.float32, device=self._sim_device)
+        hand_joints_tensor = torch.tensor(
+            all_hand_joints, dtype=torch.float32, device=self._sim_device)
 
         return torch.cat([left_wrist_tensor, right_wrist_tensor, hand_joints_tensor])
 
@@ -167,7 +168,8 @@ class WatoUpperBodyMotionControllerRetargeter(RetargeterBase):
         combined_quat = torch.tensor([0.5358, -0.4619, 0.5358, 0.4619], dtype=torch.float32)
 
         openxr_pose = PoseUtils.make_pose(wrist_pos, PoseUtils.matrix_from_quat(wrist_quat))
-        transform_pose = PoseUtils.make_pose(torch.zeros(3), PoseUtils.matrix_from_quat(combined_quat))
+        transform_pose = PoseUtils.make_pose(torch.zeros(
+            3), PoseUtils.matrix_from_quat(combined_quat))
 
         result_pose = PoseUtils.pose_in_A_to_pose_in_B(transform_pose, openxr_pose)
         pos, rot_mat = PoseUtils.unmake_pose(result_pose)

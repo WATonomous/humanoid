@@ -9,8 +9,7 @@ common_msgs/
 ├── README.md
 └── msg/
     ├── ArmPose.msg
-    ├── HandPose.msg
-    └── JointState.msg
+    ├── ...
 ```
 
 ## Purpose

@@ -4,7 +4,6 @@ set -e
 UDEV_RULE_FILE="/etc/udev/rules.d/99-canable.rules"
 UDEV_VENDOR_ID="16d0"
 UDEV_PRODUCT_ID="117e"
-UDEV_SERIAL_DEFAULT="208B38B43136"
 UDEV_SYMLINK_DEFAULT="canable"
 
 SUDO=""
@@ -15,17 +14,13 @@ if [ "${EUID:-$(id -u)}" -ne 0 ]; then
 fi
 
 usage() {
-    echo "Usage: $0 install [serial] [symlink]"
+    echo "Usage: $0 install [symlink]"
     echo "       $0 remove"
 }
 
 install_rule() {
-    local serial="$1"
-    local symlink="$2"
+    local symlink="$1"
 
-    if [ -z "$serial" ]; then
-        serial="$UDEV_SERIAL_DEFAULT"
-    fi
     if [ -z "$symlink" ]; then
         symlink="$UDEV_SYMLINK_DEFAULT"
     fi
@@ -38,7 +33,7 @@ install_rule() {
     echo "Setting up CANable udev rule..."
 
     cat <<EOF | $SUDO tee "$UDEV_RULE_FILE" > /dev/null
-SUBSYSTEM=="tty", ATTRS{idVendor}=="$UDEV_VENDOR_ID", ATTRS{idProduct}=="$UDEV_PRODUCT_ID", ATTRS{serial}=="$serial", SYMLINK+="$symlink"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="$UDEV_VENDOR_ID", ATTRS{idProduct}=="$UDEV_PRODUCT_ID", SYMLINK+="$symlink"
 EOF
 
     echo "Reloading udev rules..."
@@ -74,7 +69,7 @@ remove_rule() {
 CMD="$1"
 case "$CMD" in
     install)
-        install_rule "$2" "$3"
+        install_rule "$2"
         ;;
     remove)
         remove_rule
