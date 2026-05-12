@@ -1,45 +1,78 @@
-#ifndef CAN_NODE_HPP
-#define CAN_NODE_HPP
+#pragma once
 
 #include "can_core.hpp"
-#include "rclcpp/generic_subscription.hpp"
-#include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/string.hpp"
+
+// Libraries
+#include <ament_index_cpp/get_package_share_directory.hpp>
+#include <dbcppp/Network.h>
+#include <fstream>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
+#include <yaml-cpp/yaml.h>
 
-struct TopicConfig {
-  // name of the topic, and the message type
-  std::string name;
-  std::string type;
-};
+// Messages
+#include "rclcpp/generic_subscription.hpp"
+#include "rclcpp/rclcpp.hpp"
+
+#include "common_msgs/msg/arm_pose.hpp"
+#include "common_msgs/msg/gripper_pose.hpp"
+#include "common_msgs/msg/hand_pose.hpp"
+#include "common_msgs/msg/joint_state.hpp"
+#include "common_msgs/msg/motor_cmd.hpp"
+#include "common_msgs/msg/motor_feedback.hpp"
+#include "std_msgs/msg/string.hpp"
 
 class CanNode : public rclcpp::Node {
 public:
   CanNode();
 
 private:
-  autonomy::CanCore can_;
-  std::vector<TopicConfig> topic_configs_;
-  std::vector<std::shared_ptr<rclcpp::GenericSubscription>> subscribers_;
+  CanCore can_core;
+  YAML::Node hardware_config;
+  // Can messages
+  // Map of CAN message ID to its DBC definition for decoding
+  std::unordered_map<std::string, const dbcppp::IMessage *> can_messages;
+  std::unordered_map<int, const dbcppp::IMessage *>
+      can_id_map; // for programming convience
+  std::unique_ptr<dbcppp::INetwork>
+      dbc_net; // decoding CAN messages using DBC file
+
+  const dbcppp::ISignal *
+  findSignalByName(const dbcppp::IMessage *msg,
+                   const std::string &signal_name); // O(signal_num)
+
+  static constexpr size_t max_payload_per_frame = 8; // CAN frame max bytes
+  static constexpr size_t data_chunk_size = 8;
+
+  void publishCanMessage(CanMessage &can_msg);
+  void encodeSignal(const dbcppp::ISignal *signal, int64_t phys_value,
+                    CanMessage &can_msg);
+  void encodeSignal(const dbcppp::ISignal *signal, double phys_value,
+                    CanMessage &can_msg);
+  int32_t getMessageId(const dbcppp::IMessage *msg, int device_id) const;
+  void receiveCanMessages();
+
+  // Subscribers and publishers
+  std::unordered_map<std::string, rclcpp::SubscriptionBase::SharedPtr>
+      _subscribers;
+
+  std::unordered_map<std::string, rclcpp::PublisherBase::SharedPtr>
+      _publishers; // Map of topic name to its publisher
+
+  // Callbacks
+  void motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg);
+
   rclcpp::TimerBase::SharedPtr
       receive_timer_; // Timer to periodically check for CAN messages
 
   // Methods
-  void loadTopicConfigurations();
-  void createSubscribers();
-  std::string discoverTopicType(const std::string &topic_name);
-  void topicCallback(std::shared_ptr<rclcpp::SerializedMessage> msg,
-                     const std::string &topic_name,
-                     const std::string &topic_type);
-  void receiveCanMessages(); // Method to be called by the timer
+  void createSubscribersPublishers();
 
   // Helper methods
   uint32_t generateCanId(const std::string &topic_name);
-  std::vector<autonomy::CanMessage>
+  std::vector<CanMessage>
   createCanMessages(const std::string &topic_name,
                     std::shared_ptr<rclcpp::SerializedMessage> ros_msg);
 };
-
-#endif // CAN_NODE_HPP

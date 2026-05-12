@@ -1,0 +1,84 @@
+VERSION ""
+NS_ :
+    NS_DESC_
+    CM_
+    BA_DEF_
+    BA_
+    VAL_
+    CAT_DEF_
+    CAT_
+    FILTER
+    BA_DEF_DEF_
+    EV_DATA_
+    ENVVAR_DATA_
+    SGTYPE_
+    SGTYPE_VAL_
+    BA_DEF_SGTYPE_
+    BA_SGTYPE_
+    SIG_TYPE_REF_
+    VAL_TABLE_
+    SIG_GROUP_
+    SIG_VALTYPE_
+    SIGTYPE_VALTYPE_
+    BO_TX_BU_
+    BA_DEF_REL_
+    BA_REL_
+    BA_DEF_DEF_REL_
+    BU_SG_REL_
+    BU_EV_REL_
+    BU_BO_REL_
+    SG_MUL_VAL_
+BS_: 
+BU_: CubeMars Motor Fingers 
+BO_ 2147483648 DutyCycleCmd: 4 CubeMars
+   SG_ DutyCycle : 7|32@0- (1e-05,0) [-0.95|0.95] "" Vector__XXX
+BO_ 2147483904 CurrentLoopCmd: 4 CubeMars
+   SG_ IqCurrent : 7|32@0- (0.001,0) [-60|60] "A" Vector__XXX
+BO_ 2147484160 CurrentBrakeCmd: 4 CubeMars
+   SG_ BrakeCurrent : 7|32@0- (0.001,0) [0|60] "A" Motor
+BO_ 2147484416 VelocityLoopCmd: 4 CubeMars
+   SG_ VelocityERPM : 7|32@0- (1,0) [-100000|100000] "ERPM" Motor
+BO_ 2147484672 PositionLoopCmd: 4 CubeMars
+   SG_ PositionDeg : 7|32@0- (0.0001,0) [-36000|36000] "deg" Vector__XXX
+BO_ 2147484928 SetOriginCmd: 1 CubeMars
+   SG_ OriginMode : 7|8@0+ (1,0) [0|1] "" Motor
+BO_ 2147485184 PositionVelocityCmd: 8 CubeMars
+   SG_ PosVelPosition : 7|32@0- (0.0001,0) [-36000|36000] "deg" Motor
+   SG_ PosVelSpeed : 39|16@0- (10,0) [-327680|327670] "ERPM" Motor
+   SG_ PosVelAccel : 55|16@0- (10,0) [0|327670] "ERPM/s2" Motor
+BO_ 2147485696 MITControlCmd: 8 CubeMars
+   SG_ MIT_KP : 7|12@0+ (1,0) [0|4095] "" Motor
+   SG_ MIT_KD : 11|12@0+ (1,0) [0|4095] "" Motor
+   SG_ MIT_Position : 31|16@0+ (1,0) [0|65535] "rad" Motor
+   SG_ MIT_Velocity : 47|12@0+ (1,0) [0|4095] "rad/s" Motor
+   SG_ MIT_Torque : 51|12@0+ (1,0) [0|4095] "Nm" Motor
+BO_ 2147487488 MotorDisableCmd: 4 CubeMars
+BO_ 2147487744 FeedbackConfigCmd: 8 CubeMars
+   SG_ FbkCfgReserved : 7|48@0+ (1,0) [0|0] "" Motor
+   SG_ FbkCfgParam : 55|16@0+ (1,0) [0|65535] "" Motor
+
+BO_ 2147494144 ServoStatusFeedback: 8 Motor
+   SG_ FbkPosition : 7|16@0- (0.1,0) [-3200|3200] "deg" Vector__XXX
+   SG_ FbkSpeed : 23|16@0- (10,0) [-320000|320000] "ERPM" Vector__XXX
+   SG_ FbkCurrent : 39|16@0- (0.01,0) [-60|60] "A" Vector__XXX
+   SG_ FbkTemperature : 55|8@0- (1,0) [-20|127] "degC" Vector__XXX
+   SG_ FbkErrorCode : 63|8@0+ (1,0) [0|7] "" Vector__XXX
+BO_ 2147494400 ExtPositionFeedback: 4 Motor
+   SG_ ExtPosition : 7|32@0- (0.01,0) [-2.14748e+07|2.14748e+07] "deg" Vector__XXX
+BO_ 2147494912 ServoStartFeedback: 4 Motor
+   SG_ StartByte0 : 7|8@0+ (1,0) [0|255] "" Vector__XXX
+   SG_ StartByte1 : 15|8@0+ (1,0) [0|255] "" Vector__XXX
+   SG_ StartByte2 : 23|8@0+ (1,0) [0|255] "" Vector__XXX
+   SG_ StartByte3 : 31|8@0+ (1,0) [0|255] "" Vector__XXX
+
+BO_ 2147500032 FingerPosLoopCmd: 8 Fingers
+   SG_ MCP_x : 7|16@0+ (0.00549325,0) [0|360] "Degrees" Vector__XXX
+   SG_ MCP_y : 23|16@0+ (0.00549325,0) [0|360] "Degrees" Vector__XXX
+   SG_ PIP_x : 39|16@0+ (0.00549325,0) [0|360] "Degrees" Vector__XXX
+   SG_ DIP_x : 55|16@0+ (0.00549325,0) [0|360] "Degrees" Vector__XXX
+
+
+CM_ BU_ Motor "CubeMars AK-series actuator";
+CM_ BU_ Fingers "STM devices controlling fingers";
+VAL_ 2147484928 OriginMode 0 "Temporary Origin" 1 "Permanent Origin";
+VAL_ 2147494144 FbkErrorCode 0 "No Fault" 1 "Motor Over-Temperature" 2 "Over-Current" 3 "Over-Voltage" 4 "Under-Voltage" 5 "Encoder Fault" 6 "MOSFET Over-Temperature" 7 "Motor Lock-Up";

@@ -38,7 +38,7 @@ class CommandsCfg:
     ee_pose = mdp.UniformPoseCommandCfg(
         asset_name="robot",
         body_name="DIP_INDEX_v1_.*",
-        resampling_time_range=(4.0, 4.0), # target pose changes every sampling time
+        resampling_time_range=(4.0, 4.0),  # target pose changes every sampling time
         debug_vis=True,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
             pos_x=(-0.8, -0.7),
@@ -47,7 +47,7 @@ class CommandsCfg:
             roll=(0.0, 0.0),
             pitch=(0.0, 0.0),
             yaw=(0.0, 0.0),
-        ), # range of position/rotation that the target pose can appear in
+        ),  # range of position/rotation that the target pose can appear in
     )
 
     # ee_pose_2 = mdp.UniformPoseCommandCfg(
@@ -126,7 +126,7 @@ class ObservationsCfg:
         # observation terms (order preserved)
         joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        
+
         pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose"})
         # pose_command_2 = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose_2"})
         # pose_command_3 = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose_3"})
@@ -165,7 +165,8 @@ class RewardsCfg:
     end_effector_position_tracking = RewTerm(
         func=mdp.position_command_error,
         weight=-1.0,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names="DIP_INDEX_v1_.*"), "command_name": "ee_pose"},
+        params={"asset_cfg": SceneEntityCfg(
+            "robot", body_names="DIP_INDEX_v1_.*"), "command_name": "ee_pose"},
     )
     # end_effector_2_position_tracking = RewTerm(
     #     func=mdp.position_command_error,
@@ -191,7 +192,8 @@ class RewardsCfg:
     end_effector_position_tracking_fine_grained = RewTerm(
         func=mdp.position_command_error_tanh,
         weight=0.5,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names="DIP_INDEX_v1_.*"), "std": 0.1, "command_name": "ee_pose"},
+        params={"asset_cfg": SceneEntityCfg(
+            "robot", body_names="DIP_INDEX_v1_.*"), "std": 0.1, "command_name": "ee_pose"},
     )
     # end_effector_2_position_tracking_fine_grained = RewTerm(
     #     func=mdp.position_command_error_tanh,
@@ -259,15 +261,17 @@ class CurriculumCfg:
     # Curriculum modify reward weights during certain time of training
     # Current RL training has around 22000 - 25000 steps in each iterations
 
-    # We increase the action rate and joint velocity penalty in the later half of the training 
-    # such that early in the training, it is incentivized to get near the target first 
+    # We increase the action rate and joint velocity penalty in the later half of the training
+    # such that early in the training, it is incentivized to get near the target first
     # but afterwards slow down and stablize around the target point
     action_rate = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -0.05, "num_steps": 15000}
+        func=mdp.modify_reward_weight, params={
+            "term_name": "action_rate", "weight": -0.05, "num_steps": 15000}
     )
 
     joint_vel = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.15, "num_steps": 15000}
+        func=mdp.modify_reward_weight, params={
+            "term_name": "joint_vel", "weight": -0.15, "num_steps": 15000}
     )
 
 

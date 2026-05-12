@@ -1,31 +1,30 @@
 """21 DOF Humanoid Arm reaching 5 different 5 EE fingertip target positions"""
-import argparse
-from isaaclab.app import AppLauncher
-
-parser = argparse.ArgumentParser(description="Fingertip IK in Isaac Sim: 5 EE targets, 21-DOF arm+hand")
-AppLauncher.add_app_launcher_args(parser)
-args_cli = parser.parse_args()
-
-app_launcher = AppLauncher(args_cli)
-simulation_app = app_launcher.app
-
-import torch
-import numpy as np
-import isaaclab.sim as sim_utils
-from isaaclab.assets import AssetBaseCfg
-from isaaclab.managers import SceneEntityCfg
-from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
-from isaaclab.utils import configclass
-from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg
-
-from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_CFG
-
 from arm_assembly.fingertip_ik import (
     load_model,
     solve_fingertip_ik,
     get_fingertip_positions,
     FINGERTIP_BODIES,
 )
+from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_CFG
+from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg
+from isaaclab.utils import configclass
+from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
+from isaaclab.managers import SceneEntityCfg
+from isaaclab.assets import AssetBaseCfg
+import isaaclab.sim as sim_utils
+import numpy as np
+import torch
+import argparse
+from isaaclab.app import AppLauncher
+
+parser = argparse.ArgumentParser(
+    description="Fingertip IK in Isaac Sim: 5 EE targets, 21-DOF arm+hand")
+AppLauncher.add_app_launcher_args(parser)
+args_cli = parser.parse_args()
+
+app_launcher = AppLauncher(args_cli)
+simulation_app = app_launcher.app
+
 
 @configclass
 class FingertipIKSceneCfg(InteractiveSceneCfg):
@@ -108,7 +107,8 @@ def run_simulator(
 
         joint_pos_tensor = torch.tensor(qpos_interp, dtype=torch.float32, device=sim.device)
         robot.write_joint_state_to_sim(joint_pos_tensor, joint_vel)
-        targets_world = torch.tensor(targets_interp, dtype=torch.float32, device=sim.device) + scene.env_origins[0]
+        targets_world = torch.tensor(targets_interp, dtype=torch.float32,
+                                     device=sim.device) + scene.env_origins[0]
         target_markers.visualize(translations=targets_world)
 
         # Visualize current fingertip locations
@@ -116,7 +116,8 @@ def run_simulator(
         for body_id in fingertip_body_ids:
             pos_w = robot.data.body_pos_w[0, body_id, :]  # world frame
             current_positions.append(pos_w)
-        current_positions_tensor = torch.stack([p for p in current_positions], dim=0,).to(device=sim.device, dtype=torch.float32)
+        current_positions_tensor = torch.stack([p for p in current_positions], dim=0,).to(
+            device=sim.device, dtype=torch.float32)
         current_markers.visualize(translations=current_positions_tensor)
 
         scene.write_data_to_sim()
@@ -177,7 +178,8 @@ def main():
             model, data, targets_mjc,
             damping=5e-4, step=0.25, max_iter=300, tol=5e-3,
         )
-        target_positions_isaac = np.stack([targets_mjc[name] for name in FINGERTIP_BODIES], axis=0).astype(np.float32)
+        target_positions_isaac = np.stack([targets_mjc[name]
+                                          for name in FINGERTIP_BODIES], axis=0).astype(np.float32)
         pose_sequence.append((qpos.copy(), target_positions_isaac, max_err))
         print(f"pose {i + 1}/{n_poses}: IK err {max_err:.4f} m, qpos={qpos}")
 
