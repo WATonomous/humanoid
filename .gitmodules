@@ -1,0 +1,6 @@
+[submodule "autonomy/simulation/FABRICS"]
+	path = autonomy/simulation/FABRICS
+	url = https://github.com/NVlabs/FABRICS.git
+[submodule "autonomy/simulation/fabrics_exploration/FABRICS"]
+	path = autonomy/simulation/fabrics_exploration/FABRICS
+	url = https://github.com/NVlabs/FABRICS.git
