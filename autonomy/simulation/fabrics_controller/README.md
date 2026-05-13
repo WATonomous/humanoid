@@ -23,5 +23,5 @@ cp humanoid_hand_params.yaml FABRICS/src/fabrics_sim/fabric_params/
 
 ```bash
 cd autonomy/simulation/fabrics_controller
-python3 run_example.py --batch_size=1
+python3 run_example.py --batch_size=1 --render
 ```
