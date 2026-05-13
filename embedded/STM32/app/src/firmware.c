@@ -4,8 +4,6 @@
 #include "FreeRTOS.h"
 #include "stm32g4xx.h"
 #include "task.h"
-#include "queue.h"
-QueueHandle_t can_rx_queue;
 
 #define BOOTLOADER_SIZE (0x08008000U)
 
@@ -20,20 +18,6 @@ void blink_led(void *pvParams)
         HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
         // vTaskDelay(pdMS_TO_TICKS(500));
         HAL_Delay(500);
-    }
-}
-void can_rx_task(void *pvParams)
-{
-    CAN_RxMessage_t msg;
-    while (1)
-    {
-        if (xQueueReceive(can_rx_queue, &msg, portMAX_DELAY) == pdTRUE)
-        {
-            printf("ID: 0x%lX | Data: ", msg.header.Identifier);
-            for (int i = 0; i < (int)(msg.header.DataLength >> 16); i++)
-                printf("%02X ", msg.data[i]);
-            printf("\n");
-        }
     }
 }
 
