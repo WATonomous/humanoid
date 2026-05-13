@@ -46,11 +46,16 @@ python run_example.py --batch_size=1
 torch.set_printoptions(precision=4)
 
 # Parse arguments
-parser = argparse.ArgumentParser(description='Wato Humanoid hand fabric example.')
-parser.add_argument('--batch_size', type=int, required=True, help='Specify batch size.')
-parser.add_argument('--render', action='store_true', help='True to render fabric motion.')
-parser.add_argument('--vis_col_spheres', action='store_true', help='True to visualize collision spheres of robot.')
-parser.add_argument('--cuda_graph', action='store_true', help='True to enable graph capture of fabric.')
+parser = argparse.ArgumentParser(
+    description='Wato Humanoid hand fabric example.')
+parser.add_argument('--batch_size', type=int,
+                    required=True, help='Specify batch size.')
+parser.add_argument('--render', action='store_true',
+                    help='True to render fabric motion.')
+parser.add_argument('--vis_col_spheres', action='store_true',
+                    help='True to visualize collision spheres of robot.')
+parser.add_argument('--cuda_graph', action='store_true',
+                    help='True to enable graph capture of fabric.')
 args = parser.parse_args()
 
 # Settings
@@ -87,7 +92,8 @@ timestep = 1./control_rate
 total_time = 60.
 
 # Create Huamnoid Hand fabric palm pose and finger PCA action spaces
-humanoid_fabric = HumanoidHandPoseFabric(batch_size, device, timestep, graph_capturable=cuda_graph)
+humanoid_fabric = HumanoidHandPoseFabric(
+    batch_size, device, timestep, graph_capturable=cuda_graph)
 num_joints = humanoid_fabric.num_joints
 
 # Create integrator for the fabric dynamics.
@@ -111,13 +117,15 @@ qdd = torch.zeros(batch_size, num_joints, device=device)
 
 hand_mins = torch.tensor([-3., -3., -3., -3., -3., -3., -3.], device=device)
 hand_maxs = torch.tensor([3., 3., 3., 3., 3., 3., 3.], device=device)
-hand_targets = (hand_maxs - hand_mins) * torch.rand(batch_size, 7, device=device) + hand_mins
+hand_targets = (hand_maxs - hand_mins) * \
+    torch.rand(batch_size, 7, device=device) + hand_mins
 
 # Get body sphere raddi
 body_sphere_radii = humanoid_fabric.get_sphere_radii()
 
 # Get body sphere locations
-sphere_position, _ = humanoid_fabric.get_taskmap("body_points")(q.detach(), None)
+sphere_position, _ = humanoid_fabric.get_taskmap(
+    "body_points")(q.detach(), None)
 
 # Create visualizer
 robot_visualizer = None
@@ -127,12 +135,12 @@ if use_viz:
     vertical_offset = 0.
     if render_spheres:
         robot_visualizer = RobotVisualizer(robot_dir_name, robot_name, batch_size, device,
-                                    body_sphere_radii, sphere_position,
-                                    world_model, vertical_offset, humanoid_fabric.get_joint_names())
+                                           body_sphere_radii, sphere_position,
+                                           world_model, vertical_offset, humanoid_fabric.get_joint_names())
     else:
         robot_visualizer = RobotVisualizer(robot_dir_name, robot_name, batch_size, device,
-                                    None, None,
-                                    world_model, vertical_offset, humanoid_fabric.get_joint_names())
+                                           None, None,
+                                           world_model, vertical_offset, humanoid_fabric.get_joint_names())
 
 # Graph capture
 g = None
@@ -142,9 +150,11 @@ qdd_new = None
 if cuda_graph:
     # NOTE: elements of inputs must be in the same order as expected in the set_features function
     # of the fabric
-    inputs = [hand_targets, q.detach(), qd.detach(), object_ids, object_indicator]
+    inputs = [hand_targets, q.detach(), qd.detach(), object_ids,
+              object_indicator]
     g, q_new, qd_new, qdd_new =\
-        capture_fabric(humanoid_fabric, q, qd, qdd, timestep, humanoid_integrator, inputs, device)
+        capture_fabric(humanoid_fabric, q, qd, qdd, timestep,
+                       humanoid_integrator, inputs, device)
 
 # Loop stepping the fabric forward in time while updating targets, and optionally, rendering
 start = time.time()
@@ -152,9 +162,8 @@ for i in range(int(control_rate * total_time)):
     # Every two seconds switch targets
     if i % 120 == 0:
         # Update targets for fingers
-        hand_targets.copy_((hand_maxs - hand_mins) * torch.rand(batch_size, 7, device=device) + hand_mins)
-
-    
+        hand_targets.copy_((hand_maxs - hand_mins) *
+                           torch.rand(batch_size, 7, device=device) + hand_mins)
 
     # Save off current joint states for rendering
     q_prev = q.detach()
@@ -169,36 +178,42 @@ for i in range(int(control_rate * total_time)):
         q.copy_(q_new)
         qd.copy_(qd_new)
         qdd.copy_(qdd_new)
-    else: 
+    else:
         # Set the targets
-        humanoid_fabric.set_features(hand_targets, q.detach(), qd.detach(), object_ids, object_indicator)
-        
+        humanoid_fabric.set_features(
+            hand_targets, q.detach(), qd.detach(), object_ids, object_indicator)
+
         # Integrate fabrics one step producing new position and velocity.
-        q, qd, qdd = humanoid_integrator.step(q.detach(), qd.detach(), qdd.detach(), timestep)
-    
+        q, qd, qdd = humanoid_integrator.step(
+            q.detach(), qd.detach(), qdd.detach(), timestep)
+
     # Render, albeit at a lower framerate
     if use_viz and (i % 4 == 0):
         # Get body sphere locations reshape into (batch size x num spheres, 3) tensor
         if render_spheres:
-            sphere_position = humanoid_fabric.get_taskmap_position("body_points").detach().cpu()
+            sphere_position = humanoid_fabric.get_taskmap_position(
+                "body_points").detach().cpu()
             sphere_position =\
-                sphere_position.reshape(batch_size * len(body_sphere_radii), -1).detach().cpu().numpy()
+                sphere_position.reshape(
+                    batch_size * len(body_sphere_radii), -1).detach().cpu().numpy()
         else:
             sphere_position = None
 
         robot_visualizer.render(q_prev.detach().cpu().numpy(),
-                        qd_prev.detach().cpu().numpy() * 0.,
-                        sphere_position)
-    
+                                qd_prev.detach().cpu().numpy() * 0.,
+                                sphere_position)
+
     # Get distances to upper, lower joint limits and collision status
-    dist_to_upper_limit = humanoid_fabric.get_taskmap_position("upper_joint_limit")
-    dist_to_lower_limit = humanoid_fabric.get_taskmap_position("lower_joint_limit")
+    dist_to_upper_limit = humanoid_fabric.get_taskmap_position(
+        "upper_joint_limit")
+    dist_to_lower_limit = humanoid_fabric.get_taskmap_position(
+        "lower_joint_limit")
     collision = humanoid_fabric.collision_status.max().item()
 
     # Print various signals
-    print('time','%.2f' % (i*timestep),
-          'wallclock time','%.2f' % (time.time() - start),
-          'To upper joint limit','%.3f' % dist_to_upper_limit.min().item(),
+    print('time', '%.2f' % (i*timestep),
+          'wallclock time', '%.2f' % (time.time() - start),
+          'To upper joint limit', '%.3f' % dist_to_upper_limit.min().item(),
           'To lower joint limit', '%.3f' % dist_to_lower_limit.min().item(),
           'Collision', collision,
           'min dist', '%.3f' % humanoid_fabric.base_fabric_repulsion.signed_distance.min())
