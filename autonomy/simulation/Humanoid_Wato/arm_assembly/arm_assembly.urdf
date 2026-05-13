@@ -798,6 +798,8 @@
     <parent link="base_link"/>
     <child link="shoulder_link_1_v9_1"/>
     <axis xyz="1.0 0.0 0.0"/>
+    <limit effort="100" lower="-3.14" upper="3.14" velocity="100"/> <!-- FABRICS Controller needs Joint Limits so added this
+    Chose joint limits of -3.14 to 3.14 (rad) to enable full spin in either direction -->
   </joint>
   <joint name="shoulder_abduction_adduction" type="revolute">
     <origin rpy="0 0 0" xyz="-0.065 0.0255 -0.0"/>
@@ -811,6 +813,8 @@
     <parent link="shoulder_link_2_v4_1"/>
     <child link="elbow_link_1_v6_1"/>
     <axis xyz="0.0 0.0 -1.0"/>
+    <limit effort="100" lower="-3.14" upper="3.14" velocity="100"/> <!-- FABRICS Controller needs Joint Limits so added this
+    Chose joint limits of -3.14 to 3.14 (rad) to enable full spin in either direction -->
   </joint>
   <joint name="elbow_flexion_extension" type="revolute">
     <origin rpy="0 0 0" xyz="-0.025375 0.0 0.1055"/>
