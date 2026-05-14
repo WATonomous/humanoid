@@ -11,22 +11,25 @@ JOINT_NAMES = [
 
 MAX_CURL_RAD = 2.2
 
+# (extended_angle, fully_curled_angle) per joint, calibrated against Isaac sliders
+# with the hand visually closed. Curled value = slider position when hand is fisted;
+# extended = the opposite end of that joint's URDF limit range.
 JOINT_MAP = {
-    "mcp_index":  (0.0, -1.5708),
-    "pip_index":  (0.0,  1.5708),
-    "dip_index":  (0.0, -1.5708),
-    "mcp_middle": (0.0, -1.5708),
-    "pip_middle": (0.0,  1.5708),
-    "dip_middle": (0.0,  1.5708),
-    "mcp_ring":   (0.0,  1.5708),
-    "pip_ring":   (0.0, -1.5708),
-    "dip_ring":   (0.0, -1.5708),
-    "mcp_pinky":  (0.0,  1.5708),
-    "pip_pinky":  (0.0, -1.5708),
-    "dip_pinky":  (0.0,  1.5708),
-    "cmc_thumb":  (-0.3491, 2.0944),
-    "mcp_thumb":  (0.7854,  2.5307),
-    "ip_thumb":   (0.0,     1.5708),
+    "mcp_index":  (0.0,     -1.5708),
+    "pip_index":  (1.5708,   0.0),
+    "dip_index":  (0.0,     -1.5708),
+    "mcp_middle": (0.0,     -1.5708),
+    "pip_middle": (1.5708,   0.0),
+    "dip_middle": (1.5708,   0.0),
+    "mcp_ring":   (1.5708,   0.0),
+    "pip_ring":   (0.0,     -1.5708),
+    "dip_ring":   (0.0,     -1.5708),
+    "mcp_pinky":  (1.5708,   0.0),
+    "pip_pinky":  (0.0,     -1.5708),
+    "dip_pinky":  (1.5708,   0.0),
+    "cmc_thumb":  (-0.3491,  2.0944),
+    "mcp_thumb":  (2.5307,   0.7854),
+    "ip_thumb":   (0.0,      1.5708),
 }
 
 

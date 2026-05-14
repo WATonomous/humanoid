@@ -5,9 +5,10 @@ FROM ${BASE_IMAGE} AS source
 
 WORKDIR ${AMENT_WS}/src
 
-# Copy in source code 
+# Copy in source code
 COPY autonomy/samples/cpp/aggregator aggregator
 COPY autonomy/wato_msgs/sample_msgs sample_msgs
+COPY autonomy/teleop/quest_teleop quest_teleop
 
 # Scan for rosdeps
 RUN apt-get -qq update && rosdep update && \
