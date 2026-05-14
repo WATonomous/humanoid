@@ -7,9 +7,7 @@ services:
         - "${TELEOP_IMAGE:?}:${TAG}"
         - "${TELEOP_IMAGE:?}:main"
     image: "${TELEOP_IMAGE:?}:${TAG}"
-    ports:
-      - "8443:8443"   # static HTTPS
-      - "9090:9090"   # WSS
+    network_mode: host
     profiles: [deploy, develop]
     command: sleep infinity
     volumes:

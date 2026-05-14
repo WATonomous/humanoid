@@ -18,7 +18,7 @@ from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.utils import configclass
 
 from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import LEFT_ARM_CFG
-from autonomy.simulation.Teleop.quest_teleop.quest_calc import compute_all_targets
+from quest_calc import compute_all_targets
 
 
 FINGER_JOINTS = [
