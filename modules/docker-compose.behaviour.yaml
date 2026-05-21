@@ -40,6 +40,33 @@ services:
       - ${MONO_DIR}/autonomy/behaviour/voxel_grid:/root/ament_ws/src/voxel_grid
     command: tail -F anything
 
+  joint_command:
+    build: &joint_command_build
+      context: ..
+      dockerfile: docker/behaviour/joint_command/joint_command.Dockerfile
+      cache_from:
+        - "${BEHAVIOUR_JOINT_COMMAND_IMAGE:?}:${TAG}"
+        - "${BEHAVIOUR_JOINT_COMMAND_IMAGE:?}:main"
+      args:
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
+    image: "${BEHAVIOUR_JOINT_COMMAND_IMAGE:?}:${TAG}"
+    profiles: [deploy]
+    network_mode: host
+    working_dir: /root/ament_ws
+    command: /bin/bash -c "ros2 launch joint_command joint_command.launch.py"
+    volumes:
+      - ${MONO_DIR}/autonomy/behaviour/joint_command:/root/ament_ws/src/joint_command
+
+  joint_command_dev:
+    build: *joint_command_build
+    image: "${BEHAVIOUR_JOINT_COMMAND_IMAGE:?}:dev_${TAG}"
+    profiles: [develop]
+    network_mode: host
+    working_dir: /root/ament_ws
+    volumes:
+      - ${MONO_DIR}/autonomy/behaviour/joint_command:/root/ament_ws/src/joint_command
+    command: tail -F anything
+
   # octo_map:
   #   build:
   #     context: ..
