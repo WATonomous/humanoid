@@ -10,7 +10,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <yaml-cpp/yaml.h>
 
 // Messages
 #include "rclcpp/generic_subscription.hpp"
@@ -30,7 +29,6 @@ public:
 
 private:
   CanCore can_core;
-  YAML::Node hardware_config;
   // Can messages
   // Map of CAN message ID to its DBC definition for decoding
   std::unordered_map<std::string, const dbcppp::IMessage *> can_messages;

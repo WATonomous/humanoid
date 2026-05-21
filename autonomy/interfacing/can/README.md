@@ -22,7 +22,6 @@ can/
     └── test_can.cpp
 ```
 
-TODO: Move hardware_mapping to behaviour
 TODO: Define can messages for hand - ideally reuse 
 
 #### Inputs & Outputs
