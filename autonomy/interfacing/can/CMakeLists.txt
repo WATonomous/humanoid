@@ -16,8 +16,6 @@ find_package(ament_cmake REQUIRED) # ROS2 build tool
 find_package(rclcpp REQUIRED) # ROS2 C++ package
 find_package(std_msgs REQUIRED) # ROS2 message package
 find_package(Boost REQUIRED) # Boost libraries
-find_package(yaml-cpp REQUIRED)
-find_package(ament_index_cpp REQUIRED)
 
 find_package(common_msgs REQUIRED)
 
@@ -51,7 +49,6 @@ ament_target_dependencies(can_lib
 
 target_link_libraries(can_lib
   /usr/local/lib/libdbcppp.so   
-  yaml-cpp
   ament_index_cpp::ament_index_cpp
 )
 
