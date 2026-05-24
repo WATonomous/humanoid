@@ -115,10 +115,13 @@ q = q.unsqueeze(0).repeat(batch_size, 1).contiguous()
 qd = torch.zeros(batch_size, num_joints, device=device)
 qdd = torch.zeros(batch_size, num_joints, device=device)
 
-hand_mins = torch.tensor([-3., -3., -3., -3., -3., -3., -3.], device=device)
-hand_maxs = torch.tensor([3., 3., 3., 3., 3., 3., 3.], device=device)
+_score_dir = os.path.dirname(os.path.abspath(__file__))
+hand_mins = torch.tensor(np.load(os.path.join(_score_dir, "pca_score_mins.npy")),
+                         dtype=torch.float32, device=device)
+hand_maxs = torch.tensor(np.load(os.path.join(_score_dir, "pca_score_maxs.npy")),
+                         dtype=torch.float32, device=device)
 hand_targets = (hand_maxs - hand_mins) * \
-    torch.rand(batch_size, 7, device=device) + hand_mins
+    torch.rand(batch_size, humanoid_fabric.pca_matrix.shape[0], device=device) + hand_mins
 
 # Get body sphere raddi
 body_sphere_radii = humanoid_fabric.get_sphere_radii()
@@ -258,7 +261,7 @@ for i in range(int(control_rate * total_time)):
     if i % 120 == 0:
         # Update targets for fingers
         hand_targets.copy_((hand_maxs - hand_mins) *
-                           torch.rand(batch_size, 7, device=device) + hand_mins)
+                           torch.rand(batch_size, humanoid_fabric.pca_matrix.shape[0], device=device) + hand_mins)
 
     # Save off current joint states for rendering
     q_prev = q.detach()
