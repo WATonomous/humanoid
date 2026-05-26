@@ -26,6 +26,7 @@ from fabrics_sim.utils.utils import initialize_warp, capture_fabric
 from fabrics_sim.visualization.robot_visualizer import RobotVisualizer
 from fabrics_sim.worlds.world_mesh_model import WorldMeshesModel
 
+
 """
 This example demonstrates how to create and use wato humanoid hand fabric with palm pose and
 PCA action spaces. Additional options include:
@@ -154,6 +155,7 @@ class HumanoidRobotVisualizer(RobotVisualizer):
         from omni.isaac.core.articulations import ArticulationView
         from omni.isaac.core.prims import XFormPrimView
         import omni.kit.commands
+        from isaacsim.core.utils.viewports import set_camera_view # utility to set the camera view in Isaac Sim
 
         self.device = device
         self.vertical_offset = vertical_offset
@@ -216,6 +218,7 @@ class HumanoidRobotVisualizer(RobotVisualizer):
             self.world.scene.add(self.objects_view)
 
         self.simulation_context.play()
+        set_camera_view(eye=np.array([-1.757, -0.423, 0.535]), target=np.array([0.0, 0.0, 0.0]))
 
         self.joint_indices = [self.fabric_joint_names.index(joint_name)
                               for joint_name in self.robots_view.dof_names]
@@ -226,7 +229,7 @@ class HumanoidRobotVisualizer(RobotVisualizer):
 # Create visualizer
 robot_visualizer = None
 if use_viz:
-    vertical_offset = 0.
+    vertical_offset = 0.25
     if render_spheres:
         robot_visualizer = HumanoidRobotVisualizer(_OUR_URDF, "humanoid_sim", "humanoid_sim",
                                                    batch_size, device,
@@ -239,9 +242,6 @@ if use_viz:
                                                    None, None,
                                                    None, vertical_offset,
                                                    humanoid_fabric.get_joint_names())
-
-# Graph capture
-g = None
 q_new = None
 qd_new = None
 qdd_new = None
