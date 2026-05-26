@@ -263,6 +263,7 @@ for i in range(int(control_rate * total_time)):
         hand_targets.copy_((hand_maxs - hand_mins) *
                            torch.rand(batch_size, humanoid_fabric.pca_matrix.shape[0], device=device) + hand_mins)
 
+
     # Save off current joint states for rendering
     q_prev = q.detach()
     qd_prev = qd.detach()
