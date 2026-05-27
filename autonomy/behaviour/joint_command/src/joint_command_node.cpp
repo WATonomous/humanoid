@@ -4,6 +4,7 @@
 #include <chrono>
 #include <functional>
 #include <stdexcept>
+#include <string>
 #include <yaml-cpp/yaml.h>
 
 JointCommandNode::JointCommandNode() : Node("joint_command_node") {
@@ -30,6 +31,16 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
   if (!core_.loadFromYaml(hardware_config, arm_side)) {
     throw std::runtime_error("Failed to load 6-joint mapping for arm side '" +
                              arm_side + "'");
+  }
+
+  const std::string safety_config_path =
+      ament_index_cpp::get_package_share_directory("joint_command") +
+      "/config/safety_limits.yaml";
+  const YAML::Node safety_config = YAML::LoadFile(safety_config_path);
+  const YAML::Node safety_root = safety_config["safety"];
+  if (!core_.loadSafetyFromYaml(safety_root, control_rate_hz_)) {
+    throw std::runtime_error("Failed to load safety config from '" +
+                             safety_config_path + "'");
   }
 
   motor_cmd_pub_ = this->create_publisher<common_msgs::msg::MotorCmd>(
