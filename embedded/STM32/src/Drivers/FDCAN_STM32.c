@@ -1,28 +1,37 @@
 /* USER CODE BEGIN PFP */
 
 #include "FDCAN_STM32.h"
-#include <SimpleFOC.h>
+#include <string.h>
+#include "stm32g4xx_hal.h"
+#include "FreeRTOS.h"
+#include "queue.h"
 FDCAN_HandleTypeDef hfdcan2;
 
-static void check_can_bus(FDCAN_HandleTypeDef *hfdcan) {
+static void check_can_bus(FDCAN_HandleTypeDef *hfdcan)
+{
   FDCAN_ProtocolStatusTypeDef protocolStatus = {};
 
   HAL_FDCAN_GetProtocolStatus(hfdcan, &protocolStatus);
-  if (protocolStatus.BusOff) {
+  if (protocolStatus.BusOff)
+  {
     CLEAR_BIT(hfdcan->Instance->CCCR, FDCAN_CCCR_INIT);
   }
 }
 
 void HAL_FDCAN_ErrorStatusCallback(FDCAN_HandleTypeDef *hfdcan,
-                                   uint32_t ErrorStatusITs) {
-  if (hfdcan == &hfdcan2) {
-    if ((ErrorStatusITs & FDCAN_IT_BUS_OFF) != RESET) {
+                                   uint32_t ErrorStatusITs)
+{
+  if (hfdcan == &hfdcan2)
+  {
+    if ((ErrorStatusITs & FDCAN_IT_BUS_OFF) != RESET)
+    {
       check_can_bus(hfdcan);
     }
   }
 }
 
-void MX_FDCAN2_Init(void) {
+void MX_FDCAN2_Init(void)
+{
 
   /* USER CODE BEGIN FDCAN2_Init 0 */
 
@@ -49,7 +58,8 @@ void MX_FDCAN2_Init(void) {
   hfdcan2.Init.StdFiltersNbr = 1;
   hfdcan2.Init.ExtFiltersNbr = 0;
   hfdcan2.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
-  if (HAL_FDCAN_Init(&hfdcan2) != HAL_OK) {
+  if (HAL_FDCAN_Init(&hfdcan2) != HAL_OK)
+  {
     Error_Handler();
   }
   /* USER CODE BEGIN FDCAN2_Init 2 */
@@ -59,11 +69,13 @@ void MX_FDCAN2_Init(void) {
 
 static uint32_t HAL_RCC_FDCAN_CLK_ENABLED = 0;
 
-void HAL_FDCAN_MspInit(FDCAN_HandleTypeDef *fdcanHandle) {
+void HAL_FDCAN_MspInit(FDCAN_HandleTypeDef *fdcanHandle)
+{
 
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
-  if (fdcanHandle->Instance == FDCAN2) {
+  if (fdcanHandle->Instance == FDCAN2)
+  {
     /* USER CODE BEGIN FDCAN2_MspInit 0 */
 
     /* USER CODE END FDCAN2_MspInit 0 */
@@ -72,13 +84,15 @@ void HAL_FDCAN_MspInit(FDCAN_HandleTypeDef *fdcanHandle) {
      */
     PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_FDCAN;
     PeriphClkInit.FdcanClockSelection = RCC_FDCANCLKSOURCE_PLL;
-    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
+    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+    {
       Error_Handler();
     }
 
     /* FDCAN2 clock enable */
     HAL_RCC_FDCAN_CLK_ENABLED++;
-    if (HAL_RCC_FDCAN_CLK_ENABLED == 1) {
+    if (HAL_RCC_FDCAN_CLK_ENABLED == 1)
+    {
       __HAL_RCC_FDCAN_CLK_ENABLE();
     }
 
@@ -105,15 +119,18 @@ void HAL_FDCAN_MspInit(FDCAN_HandleTypeDef *fdcanHandle) {
   }
 }
 
-void HAL_FDCAN_MspDeInit(FDCAN_HandleTypeDef *fdcanHandle) {
+void HAL_FDCAN_MspDeInit(FDCAN_HandleTypeDef *fdcanHandle)
+{
 
-  if (fdcanHandle->Instance == FDCAN2) {
+  if (fdcanHandle->Instance == FDCAN2)
+  {
     /* USER CODE BEGIN FDCAN2_MspDeInit 0 */
 
     /* USER CODE END FDCAN2_MspDeInit 0 */
     /* Peripheral clock disable */
     HAL_RCC_FDCAN_CLK_ENABLED--;
-    if (HAL_RCC_FDCAN_CLK_ENABLED == 0) {
+    if (HAL_RCC_FDCAN_CLK_ENABLED == 0)
+    {
       __HAL_RCC_FDCAN_CLK_DISABLE();
     }
 
@@ -131,3 +148,36 @@ void HAL_FDCAN_MspDeInit(FDCAN_HandleTypeDef *fdcanHandle) {
     /* USER CODE END FDCAN2_MspDeInit 1 */
   }
 }
+
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
+{
+
+  // check if rx interrupt line was set
+  if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE)
+  {
+    FDCAN_RxHeaderTypeDef rxHeader;
+    uint8_t rxData[8];
+
+    // check rx fifo level
+    while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0)
+    {
+
+      HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rxHeader, rxData);
+      CAN_RxMessage_t msg;
+      msg.header = rxHeader;
+      memcpy(msg.data, rxData, 8);
+      BaseType_t higher_priority_task_woken = pdFALSE;
+      xQueueSendFromISR(can_rx_queue, &msg, &higher_priority_task_woken);
+      portYIELD_FROM_ISR(higher_priority_task_woken);
+    }
+  }
+}
+
+/*
+
+Build callback function for whenever a message is recieved via RXFifo0
+check amount of data in FIFO
+if(fifo > 0) -> read the message
+push message into queue (build queue in firmware.c)
+
+*/
