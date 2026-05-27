@@ -7,7 +7,8 @@
 # without an express license agreement from NVIDIA CORPORATION or
 # its affiliates is strictly prohibited.
 
-# THIS CODE IS JUST A MODIFIED VERSION OF THE KUKA-ALLEGRO VERSION IN THE FABRICS REPO FOR OUR ARM
+# THIS CODE IS JUST A MODIFIED VERSION OF THE KUKA-ALLEGRO VERSION IN THE
+# FABRICS REPO FOR OUR ARM
 
 import torch
 import os
@@ -89,8 +90,10 @@ class HumanoidHandPoseFabric(BaseFabric):
         self.construct_fabric()
 
     # This is already a method in the base class but we need to override it to load our specific roboT
-    # The original file only looks for files in the FABRICS folder. This function overrides it to allow it to point to our URDF file
-    def load_robot(self, robot_dir_name=None, robot_name=None, batch_size=None):
+    # The original file only looks for files in the FABRICS folder. This
+    # function overrides it to allow it to point to our URDF file
+    def load_robot(self, robot_dir_name=None,
+                   robot_name=None, batch_size=None):
         import warp as wp
         import warp.sim
         from urdfpy import URDF
@@ -221,13 +224,18 @@ class HumanoidHandPoseFabric(BaseFabric):
         # sklearn PCA mean-centers data before fitting, so the correct PCA encoding is
         # W^T @ (q - mu). The LinearMap only computes W^T @ q, so we precompute
         # W^T @ mu and add it to every target in set_features to recover the correct
-        # equilibrium (q* = W @ hand_target + mu instead of q* = W @ hand_target).
+        # equilibrium (q* = W @ hand_target + mu instead of q* = W @
+        # hand_target).
         mu_path = os.path.join(os.path.dirname(
             os.path.abspath(__file__)), "pca_mean.npy")
-        mu = torch.tensor(np.load(mu_path), device=self.device, dtype=torch.float32)
+        mu = torch.tensor(
+            np.load(mu_path),
+            device=self.device,
+            dtype=torch.float32)
         self._encoded_mean = self._pca_matrix @ mu  # (7,)
 
-        # Pad with 6 zeros for arm joints (PCA only controls the hand, not the arm)
+        # Pad with 6 zeros for arm joints (PCA only controls the hand, not the
+        # arm)
         pca_matrix = torch.cat([
             torch.zeros(pca_matrix.shape[0], 6, device=self.device),
             pca_matrix
@@ -253,7 +261,8 @@ class HumanoidHandPoseFabric(BaseFabric):
         Creates body spheres and repulsion between body spheres (self-collision) and also between
         body spheres and environment objects.
         """
-        # Create list of frames that will be used to place body spheres at their origins
+        # Create list of frames that will be used to place body spheres at
+        # their origins
         collision_sphere_frames = self.fabric_params['body_repulsion']['collision_sphere_frames']
 
         # List of sphere radii, one for each frame origin
@@ -270,9 +279,11 @@ class HumanoidHandPoseFabric(BaseFabric):
                                        device=self.device)
 
         # If frames for collision sphere pairs were not manually specified, then look for the
-        # link prefix pairs so that spheres associated with one link can avoid spheres of the other link
+        # link prefix pairs so that spheres associated with one link can avoid
+        # spheres of the other link
         if len(collision_sphere_pairs) == 0:
-            # Find links via prefixes to gather collision spheres for self collision avoidance.
+            # Find links via prefixes to gather collision spheres for self
+            # collision avoidance.
             collision_link_prefix_pairs = self.fabric_params[
                 'body_repulsion']['collision_link_prefix_pairs']
             frames_for_prefix1 = None
@@ -353,7 +364,8 @@ class HumanoidHandPoseFabric(BaseFabric):
 
         # Add multi-point gripper attractor
         # self.add_palm_points_attractor()
-        # This line was commented out since it is not compatible with our URDF file
+        # This line was commented out since it is not compatible with our URDF
+        # file
 
         # Add collision avoidance
         self.add_body_repulsion()
@@ -404,7 +416,8 @@ class HumanoidHandPoseFabric(BaseFabric):
                                  of a Warp mesh in object_ids at corresponding index
                                  0=no mesh, 1=mesh
         """
-        self.fabrics_features["pca_hand"]["hand_attractor"] = hand_target + self._encoded_mean
+        self.fabrics_features["pca_hand"]["hand_attractor"] = hand_target + \
+            self._encoded_mean
         self.fabrics_features["identity"]["cspace_attractor"] = self.default_config
 
         # Calculate current location of body sphere origins and their velocity
@@ -415,7 +428,8 @@ class HumanoidHandPoseFabric(BaseFabric):
 
         # Calculate signed distance and repulsion response based on body sphere origin
         # position and velocity and objects in the world
-        # NOTE: this calculates both self-collision and robot-world collision response
+        # NOTE: this calculates both self-collision and robot-world collision
+        # response
         self.base_fabric_repulsion.calculate_response(body_point_pos,
                                                       body_point_vel,
                                                       object_ids,

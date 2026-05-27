@@ -7,7 +7,8 @@
 # without an express license agreement from NVIDIA CORPORATION or
 # its affiliates is strictly prohibited.
 
-# THIS CODE IS JUST A MODIFIED VERSION OF THE KUKA-ALLEGRO EXAMPLE SCRIPT IN THE FABRICS REPO FOR OUR ARM
+# THIS CODE IS JUST A MODIFIED VERSION OF THE KUKA-ALLEGRO EXAMPLE SCRIPT
+# IN THE FABRICS REPO FOR OUR ARM
 
 # Standard Library
 import os
@@ -89,7 +90,7 @@ object_ids, object_indicator = world_model.get_object_ids()
 
 # Control rate and time settings
 control_rate = 60.
-timestep = 1./control_rate
+timestep = 1. / control_rate
 total_time = 60.
 
 # Create Huamnoid Hand fabric palm pose and finger PCA action spaces
@@ -122,7 +123,10 @@ hand_mins = torch.tensor(np.load(os.path.join(_score_dir, "pca_score_mins.npy"))
 hand_maxs = torch.tensor(np.load(os.path.join(_score_dir, "pca_score_maxs.npy")),
                          dtype=torch.float32, device=device)
 hand_targets = (hand_maxs - hand_mins) * \
-    torch.rand(batch_size, humanoid_fabric.pca_matrix.shape[0], device=device) + hand_mins
+    torch.rand(
+    batch_size,
+    humanoid_fabric.pca_matrix.shape[0],
+    device=device) + hand_mins
 
 # Get body sphere raddi
 body_sphere_radii = humanoid_fabric.get_sphere_radii()
@@ -132,7 +136,7 @@ sphere_position, _ = humanoid_fabric.get_taskmap(
     "body_points")(q.detach(), None)
 
 _OUR_URDF = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "../Humanoid_Wato/arm_assembly/arm_assembly.urdf"))
+                                          "../Humanoid_Wato/arm_assembly/arm_assembly.urdf"))
 
 
 class HumanoidRobotVisualizer(RobotVisualizer):
@@ -155,7 +159,8 @@ class HumanoidRobotVisualizer(RobotVisualizer):
         from omni.isaac.core.articulations import ArticulationView
         from omni.isaac.core.prims import XFormPrimView
         import omni.kit.commands
-        from isaacsim.core.utils.viewports import set_camera_view # utility to set the camera view in Isaac Sim
+        # utility to set the camera view in Isaac Sim
+        from isaacsim.core.utils.viewports import set_camera_view
 
         self.device = device
         self.vertical_offset = vertical_offset
@@ -195,10 +200,13 @@ class HumanoidRobotVisualizer(RobotVisualizer):
 
         self.simulation_context.initialize_physics()
 
-        self.robots_view = ArticulationView(prim_paths_expr=robot_prim_path, name="robots_view")
+        self.robots_view = ArticulationView(
+            prim_paths_expr=robot_prim_path, name="robots_view")
         self.robots_view.initialize()
-        self.robots_view.set_enabled_self_collisions(np.array([False] * batch_size))
-        self.robots_view.set_body_disable_gravity(np.zeros((batch_size, self.robots_view.num_bodies)))
+        self.robots_view.set_enabled_self_collisions(
+            np.array([False] * batch_size))
+        self.robots_view.set_body_disable_gravity(
+            np.zeros((batch_size, self.robots_view.num_bodies)))
 
         self.world.scene.add(self.robots_view)
 
@@ -218,7 +226,8 @@ class HumanoidRobotVisualizer(RobotVisualizer):
             self.world.scene.add(self.objects_view)
 
         self.simulation_context.play()
-        set_camera_view(eye=np.array([-1.757, -0.423, 0.535]), target=np.array([0.0, 0.0, 0.0]))
+        set_camera_view(eye=np.array(
+            [-1.757, -0.423, 0.535]), target=np.array([0.0, 0.0, 0.0]))
 
         self.joint_indices = [self.fabric_joint_names.index(joint_name)
                               for joint_name in self.robots_view.dof_names]
@@ -254,7 +263,8 @@ if cuda_graph:
         capture_fabric(humanoid_fabric, q, qd, qdd, timestep,
                        humanoid_integrator, inputs, device)
 
-# Loop stepping the fabric forward in time while updating targets, and optionally, rendering
+# Loop stepping the fabric forward in time while updating targets, and
+# optionally, rendering
 start = time.time()
 for i in range(int(control_rate * total_time)):
     # Every two seconds switch targets
@@ -262,7 +272,6 @@ for i in range(int(control_rate * total_time)):
         # Update targets for fingers
         hand_targets.copy_((hand_maxs - hand_mins) *
                            torch.rand(batch_size, humanoid_fabric.pca_matrix.shape[0], device=device) + hand_mins)
-
 
     # Save off current joint states for rendering
     q_prev = q.detach()
@@ -288,7 +297,8 @@ for i in range(int(control_rate * total_time)):
 
     # Render, albeit at a lower framerate
     if use_viz and (i % 4 == 0):
-        # Get body sphere locations reshape into (batch size x num spheres, 3) tensor
+        # Get body sphere locations reshape into (batch size x num spheres, 3)
+        # tensor
         if render_spheres:
             sphere_position = humanoid_fabric.get_taskmap_position(
                 "body_points").detach().cpu()
@@ -311,7 +321,7 @@ for i in range(int(control_rate * total_time)):
     collision = humanoid_fabric.collision_status.max().item()
 
     # Print various signals
-    print('time', '%.2f' % (i*timestep),
+    print('time', '%.2f' % (i * timestep),
           'wallclock time', '%.2f' % (time.time() - start),
           'To upper joint limit', '%.3f' % dist_to_upper_limit.min().item(),
           'To lower joint limit', '%.3f' % dist_to_lower_limit.min().item(),
