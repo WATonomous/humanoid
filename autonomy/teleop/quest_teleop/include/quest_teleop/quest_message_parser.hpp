@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <string>
 
-#include "quest_teleop/msg/quest_hand_pose.hpp"
+#include "common_msgs/msg/quest_hand_pose.hpp"
 
 class QuestMessageParser {
 public:
@@ -11,7 +11,7 @@ public:
   static constexpr std::size_t XYZ_VALUES_PER_JOINT = 3;
   static constexpr std::size_t HAND_ARRAY_SIZE = WEBXR_JOINT_COUNT * XYZ_VALUES_PER_JOINT;
 
-  static quest_teleop::msg::QuestHandPose parse(const std::string& json_text);
+  static common_msgs::msg::QuestHandPose parse(const std::string& json_text);
 
-  static quest_teleop::msg::QuestHandPose make_empty_message();
+  static common_msgs::msg::QuestHandPose make_empty_message();
 };

@@ -21,6 +21,7 @@ set(msg_files
     msg/GripperPose.msg
     msg/MotorCmd.msg
     msg/MotorFeedback.msg
+    msg/QuestHandPose.msg
     )
 
 rosidl_generate_interfaces(${PROJECT_NAME}

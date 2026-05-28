@@ -8,16 +8,11 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(rosidl_default_generators REQUIRED)
 
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenSSL REQUIRED)
 find_package(nlohmann_json REQUIRED)
-
-rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/QuestHandPose.msg"
-  DEPENDENCIES geometry_msgs
-)
+find_package(common_msgs REQUIRED)
 
 add_executable(quest_teleop_node
   src/quest_teleop_node.cpp
@@ -33,15 +28,10 @@ target_include_directories(quest_teleop_node PUBLIC
 ament_target_dependencies(quest_teleop_node
   rclcpp
   geometry_msgs
-)
-
-rosidl_get_typesupport_target(cpp_typesupport_target
-  ${PROJECT_NAME}
-  rosidl_typesupport_cpp
+  common_msgs
 )
 
 target_link_libraries(quest_teleop_node
-  "${cpp_typesupport_target}"
   Boost::system
   OpenSSL::SSL
   OpenSSL::Crypto
@@ -59,7 +49,5 @@ install(DIRECTORY include/
 install(DIRECTORY scripts static
   DESTINATION share/${PROJECT_NAME}
 )
-
-ament_export_dependencies(rosidl_default_runtime)
 
 ament_package()

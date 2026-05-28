@@ -6,7 +6,7 @@
 #include "quest_teleop/quest_message_parser.hpp"
 
 QuestTeleopNode::QuestTeleopNode() : Node("quest_teleop_node") {
-  publisher_ = create_publisher<quest_teleop::msg::QuestHandPose>("/quest_teleop", 1);
+  publisher_ = create_publisher<common_msgs::msg::QuestHandPose>("/quest_teleop", 1);
 
   wss_server_ = std::make_unique<WssServer>(
       9090, "/certs", [this](const std::string& json_text) { handle_quest_message(json_text); });
@@ -24,7 +24,7 @@ QuestTeleopNode::~QuestTeleopNode() {
 
 void QuestTeleopNode::handle_quest_message(const std::string& json_text) {
   try {
-    quest_teleop::msg::QuestHandPose msg = QuestMessageParser::parse(json_text);
+    common_msgs::msg::QuestHandPose msg = QuestMessageParser::parse(json_text);
 
     publisher_->publish(msg);
   } catch (const std::exception& e) {

@@ -11,9 +11,6 @@ JOINT_NAMES = [
 
 MAX_CURL_RAD = 2.2
 
-# (extended_angle, fully_curled_angle) per joint, calibrated against Isaac sliders
-# with the hand visually closed. Curled value = slider position when hand is fisted;
-# extended = the opposite end of that joint's URDF limit range.
 JOINT_MAP = {
     "mcp_index":  (0.0,     -1.5708),
     "pip_index":  (1.5708,   0.0),
@@ -91,16 +88,17 @@ def curl_to_joint_angle(angle_rad, joint_name):
 def compute_all_targets(hand_array, side):
     points = parse_hand_array(hand_array)
     targets = {}
+    prefix = f"{side}_" if side else ""
 
     for finger in ["index", "middle", "ring", "pinky"]:
         mcp, pip, dip = finger_curl_angles(points, finger)
-        targets[f"{side}_mcp_{finger}"] = curl_to_joint_angle(mcp, f"mcp_{finger}")
-        targets[f"{side}_pip_{finger}"] = curl_to_joint_angle(pip, f"pip_{finger}")
-        targets[f"{side}_dip_{finger}"] = curl_to_joint_angle(dip, f"dip_{finger}")
+        targets[f"{prefix}mcp_{finger}"] = curl_to_joint_angle(mcp, f"mcp_{finger}")
+        targets[f"{prefix}pip_{finger}"] = curl_to_joint_angle(pip, f"pip_{finger}")
+        targets[f"{prefix}dip_{finger}"] = curl_to_joint_angle(dip, f"dip_{finger}")
 
     cmc, mcp, ip = thumb_curl_angles(points)
-    targets[f"{side}_cmc_thumb"] = curl_to_joint_angle(cmc, "cmc_thumb")
-    targets[f"{side}_mcp_thumb"] = curl_to_joint_angle(mcp, "mcp_thumb")
-    targets[f"{side}_ip_thumb"]  = curl_to_joint_angle(ip,  "ip_thumb")
+    targets[f"{prefix}cmc_thumb"] = curl_to_joint_angle(cmc, "cmc_thumb")
+    targets[f"{prefix}mcp_thumb"] = curl_to_joint_angle(mcp, "mcp_thumb")
+    targets[f"{prefix}ip_thumb"]  = curl_to_joint_angle(ip,  "ip_thumb")
 
     return targets
