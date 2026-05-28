@@ -1,19 +1,8 @@
 """
-Task space controller on only the 6 DOF of the humanoid arm, there is a cube which represent the target arm ee position, 
+Task space controller on only the 6 DOF of the humanoid arm, there is a cube which represent the target arm ee position,
 user can move the cube's position and see the arm's IK controller react to it and follow the cube around
 """
 
-from humanoid_arm_only import ARM_CFG
-import isaaclab.sim as sim_utils
-from isaaclab.assets import AssetBaseCfg
-from isaaclab.controllers import DifferentialIKController, DifferentialIKControllerCfg
-from isaaclab.managers import SceneEntityCfg
-from isaaclab.markers import VisualizationMarkers
-from isaaclab.markers.config import FRAME_MARKER_CFG
-from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
-from isaaclab.utils import configclass
-from isaaclab.utils.math import subtract_frame_transforms
-import torch
 import argparse
 import sys
 import os
@@ -28,9 +17,21 @@ args_cli = parser.parse_args()
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
-
+# All Isaac Sim / Isaac Lab imports must come after SimulationApp is instantiated
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
                                              "../../Humanoid_Wato/HumanoidRL/HumanoidRLPackage/HumanoidRLSetup/modelCfg")))
+
+from humanoid_arm_only import ARM_CFG
+import isaaclab.sim as sim_utils
+from isaaclab.assets import AssetBaseCfg
+from isaaclab.controllers import DifferentialIKController, DifferentialIKControllerCfg
+from isaaclab.managers import SceneEntityCfg
+from isaaclab.markers import VisualizationMarkers
+from isaaclab.markers.config import FRAME_MARKER_CFG
+from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
+from isaaclab.utils import configclass
+from isaaclab.utils.math import subtract_frame_transforms
+import torch
 
 
 @configclass
@@ -106,10 +107,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     joint_position = robot.data.default_joint_pos.clone()
     joint_vel = robot.data.default_joint_vel.clone()
     robot.write_joint_state_to_sim(joint_position, joint_vel)
+    scene.write_data_to_sim()
+    sim.step()
+    scene.update(sim_dt)
+
+    diff_ik_controller.reset(env_ids=torch.arange(scene.num_envs, device=sim.device))
 
     while simulation_app.is_running():
         position, quaternion = scene["cube"].get_world_poses()
-        ik_commands = torch.cat([position, quaternion], dim=1)
+        root_pose_w = robot.data.root_state_w[:, 0:7]
+        cube_pos_b, cube_quat_b = subtract_frame_transforms(
+            root_pose_w[:, 0:3], root_pose_w[:, 3:7], position, quaternion
+        )
+        ik_commands = torch.cat([cube_pos_b, cube_quat_b], dim=1)
 
         diff_ik_controller.set_command(ik_commands)
 
@@ -117,7 +127,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             :, ee_jacobi_idx, :, robot_entity_cfg.joint_ids]
         ee_pose_w = robot.data.body_state_w[:,
                                             robot_entity_cfg.body_ids[0], 0:7]
-        root_pose_w = robot.data.root_state_w[:, 0:7]
         joint_pos = robot.data.joint_pos[:, robot_entity_cfg.joint_ids]
 
         ee_pos_b, ee_quat_b = subtract_frame_transforms(
