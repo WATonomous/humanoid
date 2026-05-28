@@ -9,13 +9,17 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 find_package(rosidl_default_generators REQUIRED)
 >>>>>>> cbcbea1d (new changes)
+=======
+>>>>>>> 625f189a (new changes)
 
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenSSL REQUIRED)
 find_package(nlohmann_json REQUIRED)
+<<<<<<< HEAD
 <<<<<<< HEAD
 find_package(common_msgs REQUIRED)
 =======
@@ -25,6 +29,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   DEPENDENCIES geometry_msgs
 )
 >>>>>>> cbcbea1d (new changes)
+=======
+find_package(common_msgs REQUIRED)
+>>>>>>> 625f189a (new changes)
 
 add_executable(quest_teleop_node
   src/quest_teleop_node.cpp
@@ -41,6 +48,7 @@ ament_target_dependencies(quest_teleop_node
   rclcpp
   geometry_msgs
 <<<<<<< HEAD
+<<<<<<< HEAD
   common_msgs
 )
 
@@ -56,6 +64,12 @@ rosidl_get_typesupport_target(cpp_typesupport_target
 target_link_libraries(quest_teleop_node
   "${cpp_typesupport_target}"
 >>>>>>> cbcbea1d (new changes)
+=======
+  common_msgs
+)
+
+target_link_libraries(quest_teleop_node
+>>>>>>> 625f189a (new changes)
   Boost::system
   OpenSSL::SSL
   OpenSSL::Crypto
@@ -75,8 +89,11 @@ install(DIRECTORY scripts static
 )
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 ament_export_dependencies(rosidl_default_runtime)
 
 >>>>>>> cbcbea1d (new changes)
+=======
+>>>>>>> 625f189a (new changes)
 ament_package()

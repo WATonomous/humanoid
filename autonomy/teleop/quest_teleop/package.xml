@@ -11,9 +11,12 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
   <buildtool_depend>rosidl_default_generators</buildtool_depend>
 >>>>>>> cbcbea1d (new changes)
+=======
+>>>>>>> 625f189a (new changes)
 
   <depend>rclcpp</depend>
   <depend>geometry_msgs</depend>
@@ -21,12 +24,16 @@
   <depend>openssl</depend>
   <depend>nlohmann-json3-dev</depend>
 <<<<<<< HEAD
+<<<<<<< HEAD
   <depend>common_msgs</depend>
 =======
 
   <exec_depend>rosidl_default_runtime</exec_depend>
   <member_of_group>rosidl_interface_packages</member_of_group>
 >>>>>>> cbcbea1d (new changes)
+=======
+  <depend>common_msgs</depend>
+>>>>>>> 625f189a (new changes)
 
   <export>
     <build_type>ament_cmake</build_type>

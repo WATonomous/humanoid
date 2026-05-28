@@ -11,10 +11,14 @@ watod-config.local.sh
 utils/voxel/spconv
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 625f189a (new changes)
 build/
 install/
 log/
 
+<<<<<<< HEAD
 **/certs/*
 
 autonomy/teleop/quest_teleop_server/certs/*
@@ -23,3 +27,7 @@ outputs/
 =======
 autonomy/teleop/quest_teleop_server/certs/*
 >>>>>>> cbcbea1d (new changes)
+=======
+autonomy/teleop/quest_teleop_server/certs/*
+ros_ws/
+>>>>>>> 625f189a (new changes)

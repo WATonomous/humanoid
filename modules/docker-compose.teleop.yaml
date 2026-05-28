@@ -7,11 +7,17 @@ services:
         - "${TELEOP_IMAGE:?}:${TAG}"
         - "${TELEOP_IMAGE:?}:main"
     image: "${TELEOP_IMAGE:?}:${TAG}"
+<<<<<<< HEAD
     ports:
       - "8443:8443"   # static HTTPS
       - "9090:9090"   # WSS
+=======
+    network_mode: host
+    ipc: host
+>>>>>>> 625f189a (new changes)
     profiles: [deploy, develop]
     command: sleep infinity
     volumes:
       - ${MONO_DIR}/autonomy/teleop:/root/ament_ws/src/teleop
+      - ${MONO_DIR}/autonomy/wato_msgs/common_msgs:/root/ament_ws/src/common_msgs
       - ${MONO_DIR}/autonomy/teleop/quest_teleop/certs:/certs:ro
