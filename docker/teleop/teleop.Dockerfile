@@ -7,6 +7,7 @@ WORKDIR ${AMENT_WS}/src
 
 # Copy source code
 COPY autonomy/teleop teleop
+COPY autonomy/wato_msgs/common_msgs common_msgs
 COPY autonomy/wato_msgs/sample_msgs sample_msgs
 
 # Install rosdep if not present, update package lists

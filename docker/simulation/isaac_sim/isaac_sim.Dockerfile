@@ -8,14 +8,14 @@ WORKDIR ${AMENT_WS}/src
 # Copy in source code
 COPY autonomy/samples/cpp/aggregator aggregator
 COPY autonomy/wato_msgs/sample_msgs sample_msgs
-COPY autonomy/teleop/quest_teleop quest_teleop
+COPY autonomy/wato_msgs/common_msgs common_msgs
 
 # Scan for rosdeps
 RUN apt-get -qq update && rosdep update && \
     rosdep install --from-paths . --ignore-src -r -s \
         | grep 'apt-get install' \
         | awk '{print $3}' \
-        | sort  > /tmp/colcon_install_list
+        | sort  > /tmp/colcon_install_list || true
 
 ################################# Dependencies ################################
 FROM ${BASE_IMAGE} AS dependencies

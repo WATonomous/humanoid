@@ -11,7 +11,7 @@ services:
       args:
         BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
     image: "${SIMULATION_IMAGE:?}:${TAG}"
-    runtime: nvidia
+    gpus: all
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
@@ -29,6 +29,7 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
       - ${MONO_DIR}/autonomy/simulation:/root/ament_ws/src/simulation
+      - ${MONO_DIR}/autonomy/wato_msgs/common_msgs:/root/ament_ws/src/common_msgs
     network_mode: host
     stdin_open: true
     tty: true
@@ -37,7 +38,7 @@ services:
   simulation_dev:
     build: *simulation_build
     image: "${SIMULATION_IMAGE:?}:dev_${TAG}"
-    runtime: nvidia
+    gpus: all
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
@@ -49,6 +50,7 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
       - ${MONO_DIR}/autonomy/simulation:/root/ament_ws/src/simulation
+      - ${MONO_DIR}/autonomy/wato_msgs/common_msgs:/root/ament_ws/src/common_msgs
     network_mode: host
     stdin_open: true
     tty: true
