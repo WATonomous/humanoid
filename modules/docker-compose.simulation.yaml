@@ -29,6 +29,8 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
       - ${MONO_DIR}/autonomy/simulation:/root/ament_ws/src/simulation
+      - ${MONO_DIR}/autonomy/simulation/Humanoid_Wato:/root/ament_ws/src/Humanoid_Wato
+      - ${MONO_DIR}/autonomy/simulation/quest_isaac_teleop:/root/ament_ws/src/quest_isaac_teleop
       - ${MONO_DIR}/autonomy/wato_msgs/common_msgs:/root/ament_ws/src/common_msgs
     network_mode: host
     stdin_open: true
@@ -50,6 +52,8 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
       - ${MONO_DIR}/autonomy/simulation:/root/ament_ws/src/simulation
+      - ${MONO_DIR}/autonomy/simulation/Humanoid_Wato:/root/ament_ws/src/Humanoid_Wato
+      - ${MONO_DIR}/autonomy/simulation/quest_isaac_teleop:/root/ament_ws/src/quest_isaac_teleop
       - ${MONO_DIR}/autonomy/wato_msgs/common_msgs:/root/ament_ws/src/common_msgs
     network_mode: host
     stdin_open: true
