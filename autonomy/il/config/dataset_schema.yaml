@@ -1,0 +1,36 @@
+robot_id: humanoid_left_arm_v1
+repo_id: humanoid/local_left_arm
+fps: 30
+state_unit: rad
+
+joint_names:
+  - left_shoulder_pitch
+  - left_shoulder_roll
+  - left_shoulder_yaw
+  - left_elbow_pitch
+  - left_elbow_roll
+  - left_wrist_pitch
+
+images:
+  wrist_rgb:
+    enabled: true
+    topic: /camera/color/image_raw
+    height: 480
+    width: 640
+  # top_rgb:
+  #   enabled: false
+  #   topic: /camera_top/color/image_raw
+  #   height: 480
+  #   width: 640
+
+ros:
+  action_topic: /behaviour/arm_pose
+  # When null, observation.state mirrors action (until motor feedback exists).
+  state_topic: null
+  arm_pose_unit: deg
+
+record:
+  root: datasets/record
+  use_videos: true
+  image_writer_threads: 4
+  image_writer_processes: 0
