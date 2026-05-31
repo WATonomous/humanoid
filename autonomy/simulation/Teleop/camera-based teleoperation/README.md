@@ -83,14 +83,14 @@ ros2 launch rosbridge_example rosbridge_example.launch.py
 ### Terminal 2 — ROS2 landmark-to-joints node
 ```bash
 source /opt/ros/humble/setup.bash
-cd /workspace/isaaclab/final_repo/humanoid/autonomy/simulation/Teleop/camera-based\ teleoperation
+cd "/workspace/isaaclab/final_repo/humanoid/autonomy/simulation/Teleop/camera-based teleoperation"
 python wato_hand_ros2_node.py
 ```
 
 ### Terminal 3 — Isaac Lab simulation
 ```bash
 source /opt/ros/humble/setup.bash
-cd /workspace/isaaclab/final_repo/humanoid/autonomy/simulation/Teleop/camera-based\ teleoperation
+cd "/workspace/isaaclab/final_repo/humanoid/autonomy/simulation/Teleop/camera-based teleoperation"
 /workspace/isaaclab/isaaclab.sh -p wato_hand_isaaclab_teleop.py
 ```
 
@@ -98,10 +98,11 @@ cd /workspace/isaaclab/final_repo/humanoid/autonomy/simulation/Teleop/camera-bas
 > are now local to this folder and resolve all paths via `__file__`.
 
 ### Windows PC — webcam publisher
-```bat
-cd autonomy\simulation\Teleop\camera-based teleoperation
-venv\Scripts\activate
-pip install mediapipe==0.10.3 roslibpy opencv-python
+```powershell
+# PowerShell — activate venv from root first, then cd
+.\myenv\Scripts\Activate.ps1
+cd "autonomy\simulation\Teleop\camera-based teleoperation"
+pip install mediapipe==0.10.35 roslibpy opencv-python
 python hand_recorder.py
 ```
 
