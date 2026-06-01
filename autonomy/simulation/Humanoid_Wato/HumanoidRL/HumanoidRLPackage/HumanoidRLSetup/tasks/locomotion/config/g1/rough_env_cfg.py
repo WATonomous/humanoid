@@ -3,7 +3,7 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils import configclass
 
 from ... import mdp
-from ...velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
+from ...locomotion_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
 
 from isaaclab_assets import G1_MINIMAL_CFG  # isort: skip
 
