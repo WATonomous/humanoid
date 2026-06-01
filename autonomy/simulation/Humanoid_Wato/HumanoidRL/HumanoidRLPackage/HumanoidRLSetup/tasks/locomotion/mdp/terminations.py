@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
 
+<<<<<<< HEAD
 def base_tilt_over_limit(
     env: ManagerBasedRLEnv, limit: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
 ) -> torch.Tensor:
@@ -18,6 +19,8 @@ def base_tilt_over_limit(
     return torch.linalg.norm(asset.data.projected_gravity_b[:, :2], dim=1) > limit
 
 
+=======
+>>>>>>> f3902ba0 (modify-locomotion-rl)
 def terrain_out_of_bounds(
     env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"), distance_buffer: float = 3.0
 ) -> torch.Tensor:

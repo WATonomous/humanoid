@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
 
+<<<<<<< HEAD
 def _phase(env: ManagerBasedRLEnv, period: float) -> torch.Tensor:
     return torch.remainder(env.episode_length_buf.float() * env.step_dt, period) / period
 
@@ -39,6 +40,8 @@ def _body_rel_lin_vel_yaw_frame(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCf
     return quat_rotate_inverse(yaw_quat_w, rel_vel_w.reshape(-1, 3)).reshape(rel_vel_w.shape)
 
 
+=======
+>>>>>>> f3902ba0 (modify-locomotion-rl)
 def feet_air_time(
     env: ManagerBasedRLEnv, command_name: str, sensor_cfg: SceneEntityCfg, threshold: float
 ) -> torch.Tensor:
@@ -100,6 +103,7 @@ def feet_slide(env, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg = Scen
     return reward
 
 
+<<<<<<< HEAD
 def feet_clearance_biped(
     env,
     command_name: str,
@@ -405,6 +409,8 @@ def double_support_penalty(
     return penalty
 
 
+=======
+>>>>>>> f3902ba0 (modify-locomotion-rl)
 def track_lin_vel_xy_yaw_frame_exp(
     env, std: float, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
 ) -> torch.Tensor:
@@ -418,6 +424,7 @@ def track_lin_vel_xy_yaw_frame_exp(
     return torch.exp(-lin_vel_error / std**2)
 
 
+<<<<<<< HEAD
 def track_lin_vel_xy_yaw_frame_upright_exp(
     env,
     std: float,
@@ -480,6 +487,8 @@ def heading_yaw_l2(env, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> 
     return torch.square(yaw)
 
 
+=======
+>>>>>>> f3902ba0 (modify-locomotion-rl)
 def track_ang_vel_z_world_exp(
     env, command_name: str, std: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
 ) -> torch.Tensor:

@@ -15,6 +15,7 @@ Legacy aliases `Isaac-Velocity-*` register the same configs for backward compati
 
 ## Train & play
 
+<<<<<<< HEAD
 Run inside the **`simulation_isaac`** container (Isaac Lab 2.3.2 / Sim 5.1). Host setup: [`docker/simulation/isaac_lab/QUICKSTART.md`](../../../../../../../../docker/simulation/isaac_lab/QUICKSTART.md) §0–2.
 
 ```bash
@@ -34,10 +35,26 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play
 
 # Play — specific checkpoint
 PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
+=======
+Run from `HumanoidRL/` (the directory that contains `HumanoidRLPackage/`):
+
+```bash
+# Train — flat terrain
+PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py \
+  --task=Isaac-Locomotion-Flat-G1-v0 --headless
+
+# Play — loads latest checkpoint from logs/rsl_rl/g1_flat/
+PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
+  --task=Isaac-Locomotion-Flat-G1-Play-v0 --num_envs=1
+
+# Play — specific checkpoint
+PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
+>>>>>>> f3902ba0 (modify-locomotion-rl)
   --task=Isaac-Locomotion-Flat-G1-Play-v0 --num_envs=1 \
   --checkpoint logs/rsl_rl/g1_flat/<run>/model_<iter>.pt
 ```
 
+<<<<<<< HEAD
 Shorthand aliases (after image rebuild): `rl-train --task=...` / `rl-play --task=... --num_envs=1`.
 
 Rough-terrain variants: replace `Flat` with `Rough` and use experiment dir `logs/rsl_rl/g1_rough/`.
@@ -87,6 +104,10 @@ PowerShell play with the D3D12 experience:
 & "$env:ISAACLAB_ROOT\isaaclab.bat" -p HumanoidRLPackage\rsl_rl_scripts\play.py --task Isaac-Locomotion-Flat-LEGR-Play-v0 --num_envs 1 --checkpoint logs\rsl_rl\legr_flat\<run>\model_<iter>.pt --experience "$env:ISAACLAB_ROOT\apps\isaaclab.python.d3d12.kit" --rendering_mode performance
 ```
 
+=======
+Rough-terrain variants: replace `Flat` with `Rough` and use experiment dir `logs/rsl_rl/g1_rough/`.
+
+>>>>>>> f3902ba0 (modify-locomotion-rl)
 ## Reward (G1 flat)
 
 Total reward is the weighted sum of all terms below. Config: `config/g1/flat_env_cfg.py`.

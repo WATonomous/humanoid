@@ -51,6 +51,12 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.push_robot = None
 
 
+<<<<<<< HEAD
 # PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Locomotion-Flat-G1-v0 --headless
 #
 # PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py --task=Isaac-Locomotion-Flat-G1-Play-v0 --num_envs=1
+=======
+# PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Locomotion-Flat-G1-v0 --headless
+#
+# PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py --task=Isaac-Locomotion-Flat-G1-Play-v0 --num_envs=1
+>>>>>>> f3902ba0 (modify-locomotion-rl)
