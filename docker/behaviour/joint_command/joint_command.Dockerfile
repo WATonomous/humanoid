@@ -3,7 +3,6 @@ ARG BASE_IMAGE=ghcr.io/watonomous/robot_base/base:humble-ubuntu22.04
 ################################ Source ################################
 FROM ${BASE_IMAGE} AS source
 
-ARG AMENT_WS=/root/ament_ws
 WORKDIR ${AMENT_WS}/src
 
 COPY autonomy/behaviour/joint_command joint_command
