@@ -1,3 +1,12 @@
+<<<<<<< HEAD
+=======
+"""Common functions that can be used to activate certain terminations for the lift task.
+
+The functions can be passed to the :class:`isaaclab.managers.TerminationTermCfg` object to enable
+the termination introduced by the function.
+"""
+
+>>>>>>> eff69ae8 (refine-rl-and-add-rl-env)
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

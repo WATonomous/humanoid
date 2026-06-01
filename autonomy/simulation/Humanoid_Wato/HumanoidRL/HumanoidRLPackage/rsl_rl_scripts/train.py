@@ -49,7 +49,10 @@ simulation_app = app_launcher.app
 
 import gymnasium as gym
 import os
+<<<<<<< HEAD
 import pickle
+=======
+>>>>>>> eff69ae8 (refine-rl-and-add-rl-env)
 import torch
 from datetime import datetime
 
@@ -63,7 +66,11 @@ from isaaclab.envs import (
     multi_agent_to_single_agent,
 )
 from isaaclab.utils.dict import print_dict
+<<<<<<< HEAD
 from isaaclab.utils.io import dump_yaml
+=======
+from isaaclab.utils.io import dump_pickle, dump_yaml
+>>>>>>> eff69ae8 (refine-rl-and-add-rl-env)
 
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper
 

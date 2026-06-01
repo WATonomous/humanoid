@@ -177,13 +177,21 @@ ARM_CFG = ArticulationCfg(
     },
 )
 
+<<<<<<< HEAD
 LEFT_ARM_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
         usd_path=_LEFT_ARM_USD_PATH,
+=======
+# Same as ARM_CFG but with contact reporters enabled (required for force/contact RL).
+ARM_FORCE_CFG = ArticulationCfg(
+    spawn=sim_utils.UsdFileCfg(
+        usd_path=_ARM_USD_PATH,
+>>>>>>> eff69ae8 (refine-rl-and-add-rl-env)
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             max_depenetration_velocity=5.0,
         ),
+<<<<<<< HEAD
         activate_contact_sensors=False,
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=True
@@ -303,4 +311,13 @@ LEFT_ARM_CFG = ArticulationCfg(
             velocity_limit_sim=3.0,
         ),
     },
+=======
+        activate_contact_sensors=True,
+        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+            enabled_self_collisions=False
+        ),
+    ),
+    init_state=ARM_CFG.init_state,
+    actuators=ARM_CFG.actuators,
+>>>>>>> eff69ae8 (refine-rl-and-add-rl-env)
 )

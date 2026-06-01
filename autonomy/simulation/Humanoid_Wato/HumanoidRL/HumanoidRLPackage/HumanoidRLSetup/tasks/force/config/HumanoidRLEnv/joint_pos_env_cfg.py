@@ -17,6 +17,12 @@ class HumanoidArmForceEnvCfg_PLAY(HumanoidArmForceEnvCfg):
         self.observations.policy.enable_corruption = False
 
 
+<<<<<<< HEAD
 # PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Force-Impulse-Humanoid-Arm-v0 --headless
 
 # PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py --task=Isaac-Force-Impulse-Humanoid-Arm-Play-v0 --num_envs=1
+=======
+# PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Force-Impulse-Humanoid-Arm-v0 --headless
+
+# PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py --task=Isaac-Force-Impulse-Humanoid-Arm-Play-v0 --num_envs=1
+>>>>>>> eff69ae8 (refine-rl-and-add-rl-env)
