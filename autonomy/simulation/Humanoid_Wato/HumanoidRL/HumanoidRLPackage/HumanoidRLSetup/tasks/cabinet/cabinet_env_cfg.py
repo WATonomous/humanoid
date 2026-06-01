@@ -4,8 +4,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 
-from dataclasses import MISSING
-
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
@@ -23,6 +21,7 @@ from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
 from . import mdp
+from HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_CFG
 
 ##
 # Pre-defined configs
@@ -47,17 +46,17 @@ class CabinetSceneCfg(InteractiveSceneCfg):
     which need to set the robot and end-effector frames
     """
 
-    # robots, Will be populated by agent env cfg
-    robot: ArticulationCfg = MISSING
+    robot = ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
     cabinet = ArticulationCfg(
         prim_path="{ENV_REGEX_NS}/Cabinet",
         spawn=sim_utils.UsdFileCfg(
             usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd",
             activate_contact_sensors=False,
+            scale=(1.15, 1.15, 1.15),
         ),
         init_state=ArticulationCfg.InitialStateCfg(
-            pos=(0.8, 0, 0.4),
+            pos=(0.75, 0.0, 0.35),
             rot=(0.0, 0.0, 0.0, 1.0),
             joint_pos={
                 "door_left_joint": 0.0,
@@ -123,8 +122,18 @@ class CabinetSceneCfg(InteractiveSceneCfg):
 class ActionsCfg:
     """Action specifications for the MDP."""
 
-    arm_action: mdp.JointPositionActionCfg = MISSING
-    gripper_action: mdp.BinaryJointPositionActionCfg = MISSING
+    arm_action = mdp.JointPositionActionCfg(
+        asset_name="robot",
+        joint_names=[".*"],
+        scale=0.5,
+        use_default_offset=True,
+    )
+    gripper_action = mdp.BinaryJointPositionActionCfg(
+        asset_name="robot",
+        joint_names=["mcp_.*"],
+        open_command_expr={"mcp_.*": 0.5},
+        close_command_expr={"mcp_.*": 0.0},
+    )
 
 
 @configclass
@@ -207,15 +216,15 @@ class RewardsCfg:
 
     # 2. Grasp the handle
     approach_gripper_handle = RewTerm(
-        func=mdp.approach_gripper_handle, weight=5.0, params={"offset": MISSING})
+        func=mdp.approach_gripper_handle, weight=5.0, params={"offset": 0.04})
     align_grasp_around_handle = RewTerm(func=mdp.align_grasp_around_handle, weight=0.125)
     grasp_handle = RewTerm(
         func=mdp.grasp_handle,
         weight=0.5,
         params={
             "threshold": 0.03,
-            "open_joint_pos": MISSING,
-            "asset_cfg": SceneEntityCfg("robot", joint_names=MISSING),
+            "open_joint_pos": 0.5,
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["mcp_index", "mcp_middle", "mcp_ring", "mcp_pinky"]),
         },
     )
 
@@ -275,6 +284,7 @@ class CabinetEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.physx.bounce_threshold_velocity = 0.2
         self.sim.physx.bounce_threshold_velocity = 0.01
         self.sim.physx.friction_correlation_distance = 0.00625
+        self.scene.robot.init_state.pos = (-0.1, 0.0, 0.4)
 
 
 # PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Open-Drawer-Humanoid-Arm-v0 --headless
