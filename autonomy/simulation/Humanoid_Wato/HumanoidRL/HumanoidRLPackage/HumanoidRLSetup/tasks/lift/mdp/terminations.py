@@ -1,8 +1,3 @@
-# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
-# All rights reserved.
-#
-# SPDX-License-Identifier: BSD-3-Clause
-
 """Common functions that can be used to activate certain terminations for the lift task.
 
 The functions can be passed to the :class:`isaaclab.managers.TerminationTermCfg` object to enable
