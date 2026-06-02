@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 """Common functions that can be used to activate certain terminations for the lift task.
 
@@ -7,6 +8,8 @@ the termination introduced by the function.
 """
 
 >>>>>>> eff69ae8 (refine-rl-and-add-rl-env)
+=======
+>>>>>>> 0b589f1c (lerobot-pick-rl)
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

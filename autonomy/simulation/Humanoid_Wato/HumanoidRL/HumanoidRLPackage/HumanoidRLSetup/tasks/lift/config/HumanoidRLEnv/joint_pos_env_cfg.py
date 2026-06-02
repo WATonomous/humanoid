@@ -1,19 +1,32 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 from isaaclab.markers.config import FRAME_MARKER_CFG
 from isaaclab.sensors import FrameTransformerCfg
 from isaaclab.sensors.frame_transformer.frame_transformer_cfg import OffsetCfg
 =======
 >>>>>>> eff69ae8 (refine-rl-and-add-rl-env)
+=======
+from isaaclab.markers.config import FRAME_MARKER_CFG
+from isaaclab.sensors import FrameTransformerCfg
+from isaaclab.sensors.frame_transformer.frame_transformer_cfg import OffsetCfg
+>>>>>>> 0b589f1c (lerobot-pick-rl)
 from isaaclab.utils import configclass
 
 from HumanoidRLPackage.HumanoidRLSetup.tasks.lift.lift_env_cfg import LiftEnvCfg
 
+<<<<<<< HEAD
 # assets/lerobot/so101_new_calib.urdf: gripper_frame_joint (parent gripper_link -> USD body "gripper")
+=======
+# so101_new_calib.urdf: gripper_frame_joint (parent gripper_link -> USD body "gripper")
+>>>>>>> 0b589f1c (lerobot-pick-rl)
 _GRIPPER_FRAME_POS = (-0.0079, -0.000218121, -0.07)
 # rpy="0 3.14159 0" on that joint -> quaternion (w, x, y, z)
 _GRIPPER_FRAME_ROT = (0.0, 0.0, 1.0, 0.0)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 0b589f1c (lerobot-pick-rl)
 
 def _so101_ee_frame_cfg(*, debug_vis: bool) -> FrameTransformerCfg:
     marker_cfg = FRAME_MARKER_CFG.replace(prim_path="/Visuals/FrameTransformer/ee_tcp")
@@ -30,12 +43,15 @@ def _so101_ee_frame_cfg(*, debug_vis: bool) -> FrameTransformerCfg:
             ),
         ],
     )
+<<<<<<< HEAD
 =======
 @configclass
 class HumanoidArmLiftEnvCfg(LiftEnvCfg):
     """Lift-cube task for the humanoid arm (mu robot)."""
     pass
 >>>>>>> eff69ae8 (refine-rl-and-add-rl-env)
+=======
+>>>>>>> 0b589f1c (lerobot-pick-rl)
 
 
 @configclass

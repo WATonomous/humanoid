@@ -1,9 +1,14 @@
 import math
 <<<<<<< HEAD
+<<<<<<< HEAD
 from dataclasses import MISSING
 
 =======
 >>>>>>> eff69ae8 (refine-rl-and-add-rl-env)
+=======
+from dataclasses import MISSING
+
+>>>>>>> 0b589f1c (lerobot-pick-rl)
 import isaaclab.sim as sim_utils
 from isaaclab.assets import AssetBaseCfg, RigidObjectCfg
 from isaaclab.sensors import FrameTransformerCfg
@@ -93,26 +98,37 @@ class CommandsCfg:
     object_pose = mdp.UniformPoseCommandCfg(
         asset_name="robot",
 <<<<<<< HEAD
+<<<<<<< HEAD
         body_name="gripper",
         # One goal per episode (matches episode_length_s); marker only changes on env reset.
 =======
         body_name="DIP_INDEX_v1_.*",
 >>>>>>> eff69ae8 (refine-rl-and-add-rl-env)
+=======
+        body_name="gripper",
+        # One goal per episode (matches episode_length_s); marker only changes on env reset.
+>>>>>>> 0b589f1c (lerobot-pick-rl)
         resampling_time_range=(5.0, 5.0),
         debug_vis=False,
         goal_pose_visualizer_cfg=_GOAL_POSE_MARKER_CFG,
         current_pose_visualizer_cfg=_CURRENT_POSE_MARKER_CFG,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 0b589f1c (lerobot-pick-rl)
             pos_x=(-0.4, -0.2),  # target cube position (min, max) in robot base frame [m]
             pos_y=(-0.15, 0.15),
             pos_z=(0.1, 0.2),  # lifted goal height, above table grasp (~0.03–0.05 m)
             roll=(0.0, 0.0),
             pitch=(0.0, 0.0),
             yaw=(0.0, 0.0),
+<<<<<<< HEAD
 =======
             pos_x=(0.4, 0.6), pos_y=(-0.25, 0.25), pos_z=(0.25, 0.5), roll=(0.0, 0.0), pitch=(math.pi / 2, math.pi / 2), yaw=(0.0, 0.0)
 >>>>>>> eff69ae8 (refine-rl-and-add-rl-env)
+=======
+>>>>>>> 0b589f1c (lerobot-pick-rl)
         ),
     )
 
@@ -122,15 +138,20 @@ class ActionsCfg:
     arm_action = mdp.JointPositionActionCfg(
         asset_name="robot",
 <<<<<<< HEAD
+<<<<<<< HEAD
         joint_names=["shoulder_.*", "elbow_flex", "wrist_.*"],
 =======
         joint_names=[".*"],
 >>>>>>> eff69ae8 (refine-rl-and-add-rl-env)
+=======
+        joint_names=["shoulder_.*", "elbow_flex", "wrist_.*"],
+>>>>>>> 0b589f1c (lerobot-pick-rl)
         scale=0.5,
         use_default_offset=True,
     )
     gripper_action = mdp.BinaryJointPositionActionCfg(
         asset_name="robot",
+<<<<<<< HEAD
 <<<<<<< HEAD
         joint_names=["gripper"],
         open_command_expr={"gripper": 0.5},
@@ -140,6 +161,11 @@ class ActionsCfg:
         open_command_expr={"mcp_.*": 0.5},
         close_command_expr={"mcp_.*": 0.0},
 >>>>>>> eff69ae8 (refine-rl-and-add-rl-env)
+=======
+        joint_names=["gripper"],
+        open_command_expr={"gripper": 0.5},
+        close_command_expr={"gripper": 0.0},
+>>>>>>> 0b589f1c (lerobot-pick-rl)
     )
 
 
@@ -263,6 +289,7 @@ class LiftEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.physx.gpu_heap_capacity = 2**26
         self.sim.physx.friction_correlation_distance = 0.00625
 <<<<<<< HEAD
+<<<<<<< HEAD
         self.scene.robot.init_state.pos = (0.0, 0.0, 0.0)
 =======
         self.scene.robot.init_state.pos = (0.0, 0.0, 0.1)
@@ -271,3 +298,10 @@ class LiftEnvCfg(ManagerBasedRLEnvCfg):
 # PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Lift-Cube-SO101-v0 --headless
 
 # PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py --task=Isaac-Lift-Cube-SO101-Play-v0 --num_envs=1
+=======
+        self.scene.robot.init_state.pos = (0.0, 0.0, 0.0)
+
+# PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Lift-Cube-SO101-v0 --headless
+
+# PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py --task=Isaac-Lift-Cube-SO101-Play-v0 --num_envs=1
+>>>>>>> 0b589f1c (lerobot-pick-rl)

@@ -39,6 +39,8 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play
 Run from `HumanoidRL/` (the directory that contains `HumanoidRLPackage/`):
 
 ```bash
+# Replace with your path below
+
 # Train — flat terrain
 PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py \
   --task=Isaac-Locomotion-Flat-G1-v0 --headless

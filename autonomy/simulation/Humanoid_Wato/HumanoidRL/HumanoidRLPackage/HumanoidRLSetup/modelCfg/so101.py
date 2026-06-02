@@ -9,7 +9,11 @@ _HUMANOID_WATO_ROOT = os.path.abspath(
 )
 _REPO_ROOT = os.path.abspath(os.path.join(_HUMANOID_WATO_ROOT, "..", "..", ".."))
 _SO101_FOLLOWER_USD = os.path.join(
+<<<<<<< HEAD
     _REPO_ROOT, "assets", "lerobot", "so101", "so101_follower_good.usd"
+=======
+    _REPO_ROOT, "assets", "robots", "lerobot", "so101_follower_good.usd"
+>>>>>>> 0b589f1c (lerobot-pick-rl)
 )
 
 SO101_FOLLOWER_CFG = ArticulationCfg(
