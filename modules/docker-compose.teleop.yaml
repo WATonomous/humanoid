@@ -9,6 +9,9 @@ services:
     image: "${TELEOP_IMAGE:?}:${TAG}"
     network_mode: host
     ipc: host
+    environment:
+      - ROS_DOMAIN_ID=0
+      - FASTDDS_BUILTIN_TRANSPORTS=UDPv4
     profiles: [deploy, develop]
     command: sleep infinity
     volumes:
