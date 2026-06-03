@@ -66,6 +66,13 @@ RUN rm -rf src build log
 # Pass udev symlinks into container
 ENV UDEV=1
 
+# Auto-source ROS, build quest_teleop against live source, and source the overlay
+# in every interactive shell (watod -t bypasses the ENTRYPOINT).
+# /opt/watonomous/setup.bash provides ROS + the baked common_msgs dependency.
+RUN echo 'source /opt/watonomous/setup.bash' >> /root/.bashrc && \
+    echo 'cd /root/ament_ws && colcon build --packages-select quest_teleop' >> /root/.bashrc && \
+    echo 'source /root/ament_ws/install/setup.bash' >> /root/.bashrc
+
 # Entrypoint
 COPY docker/wato_ros_entrypoint.sh ${AMENT_WS}/wato_ros_entrypoint.sh
 ENTRYPOINT ["./wato_ros_entrypoint.sh"]
