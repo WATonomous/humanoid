@@ -14,7 +14,13 @@ services:
 =======
     network_mode: host
     ipc: host
+<<<<<<< HEAD
 >>>>>>> 625f189a (new changes)
+=======
+    environment:
+      - ROS_DOMAIN_ID=0
+      - FASTDDS_BUILTIN_TRANSPORTS=UDPv4
+>>>>>>> 7a51f411 (new changes)
     profiles: [deploy, develop]
     command: sleep infinity
     volumes:

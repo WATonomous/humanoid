@@ -8,8 +8,6 @@ services:
       cache_from:
         - "${SIMULATION_IMAGE:?}:${TAG}"
         - "${SIMULATION_IMAGE:?}:main"
-      args:
-        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
     image: "${SIMULATION_IMAGE:?}:${TAG}"
     gpus: all
     environment:
@@ -18,6 +16,8 @@ services:
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
       - XAUTHORITY=/tmp/.docker.xauth
+      - ROS_DOMAIN_ID=0
+      - FASTDDS_BUILTIN_TRANSPORTS=UDPv4
     profiles: [deploy]
     deploy:
       resources:
@@ -45,6 +45,8 @@ services:
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
       - XAUTHORITY=/tmp/.docker.xauth
+      - ROS_DOMAIN_ID=0
+      - FASTDDS_BUILTIN_TRANSPORTS=UDPv4
     profiles: [develop]
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
