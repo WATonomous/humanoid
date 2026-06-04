@@ -1,8 +1,8 @@
 # Badminton: timed intercept (Wato arm)
 
-Timed 3D intercept for the Wato hand-arm (`ModelAssets/arm.usd`) in Isaac Lab. The policy receives **privileged** intercept timing (no vision): where to hit, seconds until shuttle arrival, and a one-step contact pulse. **Play/train with `debug_vis=True`** shows shrinking concentric rings (visual only); rings flash at min size on contact, then hide until the next resample.
+Timed EE intercept for the Wato hand-arm (`ModelAssets/arm.usd`) in Isaac Lab. The policy receives **privileged** swing targets (no vision): EE position, orientation, linear velocity at impact, seconds until arrival, and a one-step contact pulse. **Play/train with `debug_vis=True`** shows shrinking concentric rings (visual only); rings use the commanded orientation and flash at min size on contact, then hide until the next resample.
 
-**No shuttlecock in scene yet** — contact is proxied by racket link position + body velocity at the intercept instant. No extra sensors required for swing rewards (`body_lin_vel_w` from articulation state).
+**No shuttlecock in scene yet** — contact is proxied by racket link pose + velocity vs the commanded swing state at the intercept instant.
 
 **Environments**
 
@@ -41,8 +41,10 @@ Checkpoints: `logs/rsl_rl/badminton_intercept_humanoid_arm/`. PPO defaults: `max
 | Intercept resample | Every **5 s** |
 | Intercept position (base frame) | `x ∈ [-0.55, -0.15]`, `y ∈ [-0.45, 0.45]`, `z ∈ [0.15, 0.75]` m |
 | Lead time (shuttle arrival) | Uniform **1.5–3.5 s** after each resample |
-| Hit moment (reward pulse) | **One env step** (~67 ms) when lead time reaches 0 |
-| Privileged command (5-D) | `[target_xyz, hit_moment_pulse, time_to_hit]` |
+| Hit moment (pulse in command) | **`hit_moment_duration_s=0.13`** (~2 env steps) when lead time reaches 0 |
+| Privileged command (12-D) | `[pos_xyz, quat_wxyz, vel_xyz, hit_pulse, time_to_hit]` — layout in `mdp/intercept_layout.py` |
+| Impact orientation (base) | `roll ∈ [-0.15, 0.15]`, `pitch ∈ [0.45, 0.65]`, `yaw ∈ [-0.35, 0.35]` rad |
+| Impact speed | Uniform **0.4–1.5 m/s** along base → intercept (arm-reachable) |
 
 ### Debug visualization (rings)
 
@@ -54,19 +56,46 @@ Checkpoints: `logs/rsl_rl/badminton_intercept_humanoid_arm/`. PPO defaults: `max
 
 Ring colors (center → outer): red, yellow, green, blue + white center dot. Config: `mdp/ring_marker_utils.py`.
 
-## Reward
+## EE end-state tracking (reward design)
 
-Total reward is the weighted sum of all terms below. Config: `badminton_env_cfg.py`.
+Paper-style target: commanded **EE position, orientation, and velocity at impact time** (not game outcome, no shuttle in scene yet). Implementation:
 
-| Category | Reward Function | Weight | Description |
-| :--- | :--- | :--- | :--- |
-| **Prep** | Intercept proximity (`intercept_proximity_tanh`) | 0.25 | Tanh reward for moving toward intercept ($\sigma = 0.15$), always on. |
-| **Contact** | Timed intercept (`timed_intercept_proximity`) | 2.0 | Proximity gated on hit-moment pulse ($\sigma = 0.10$). |
-| | Timed hit (`timed_hit_bonus`) | 6.0 | Binary bonus inside **8 cm** sweet spot on hit pulse. |
-| **Swing** | Timed swing speed (`timed_swing_speed`) | 3.0 | Racket speed at contact: $\tanh(\|v\| / 1.5\,\text{m/s})$ (no contact sensor). |
-| | Timed swing through (`timed_swing_through_target`) | 4.0 | Forward speed along base→intercept axis, gated on sweet spot + hit pulse. |
-| **Penalties** | Action rate L2 | −0.03 | Ramps to **−0.05** over 15k steps (curriculum). |
-| | Joint velocity L2 (arm only) | −0.003 | Ramps to **−0.15** over 15k steps (curriculum). |
+- **Command** samples that 4D swing target + `time_to_hit` + hit pulse (`UniformInterceptCommand`).
+- **Tracking errors** (world frame, best racket proxy link): `mdp/ee_tracking.py`.
+- **Impact rewards** only on the hit pulse (and in-zone for ori/vel/swing-through).
+
+**Intended behavior:** stay near a **ready** configuration while $t_{hit} > 0.55$ s (weak aim cue only), **launch** in the last **0.55 s**, then match the commanded **end state** on the hit pulse — not “reach the intercept early and hold.”
+
+| Term | Weight | Description |
+| :--- | :--- | :--- |
+| `early_at_target_penalty` | −0.5 | Penalty for **camping at the intercept** while $t_{hit} > 0.25$ s. |
+| `coarse_aim_toward_intercept_tanh` | 0.6 | Weak aim while $t_{hit} > 0.55$ s (`std=0.45`). |
+| `timed_swing_approach_exp` | 4.0 | Launch window: strike-speed toward target × $\exp(-(d/0.4)^2)$, `hit_radius=0.13` m. |
+| `ee_impact_position_hit_exp` | 10.0 | $\exp(-\|e_{pos}\|^2/\sigma^2)$ on hit pulse (`pos_std=0.10`). |
+| `ee_impact_swing_through_hit_exp` | 0→12 | On hit + in zone: position × speed along **commanded strike axis** (`speed_std=0.6`). |
+| `ee_impact_orientation_hit_exp` | 0→4 | On hit + in zone (optional; fingertip vs racket tilt). |
+| `racket_speed_penalty_outside_swing_window` | −0.08 | Jitter when far and outside launch window. |
+| Action rate / joint vel | −0.05 / −0.01 | Smoothness (curriculum ramps to −0.08 / −0.02). |
+
+**Removed** (taught reach-and-hold): always-on `intercept_proximity`, urgency-gated position approach, product EE tracking with `prep_floor`.
+
+### Curriculum (`mdp/curriculum.py`, `ramp_reward_weight`)
+
+`common_step_counter` += 1 per sim step (~**24** per PPO iteration at `num_steps_per_env=24`).
+
+| Term | Sim steps | ~Iter @ 300 max |
+| :--- | :--- | :--- |
+| `ee_impact_swing_through` 0→12 | 800–4500 | 33–188 |
+| `ee_impact_orientation` 0→4 | 2500–6000 | 104–250 |
+
+### Logged metrics (`UniformInterceptCommand._update_metrics`)
+
+| Metric | Meaning |
+| :--- | :--- |
+| `Metrics/intercept/position_error` | Closest proxy link ↔ commanded intercept [m] |
+| `Metrics/intercept/orientation_error` | Quaternion error [rad] |
+| `Metrics/intercept/velocity_error` | $\|v - v_{cmd}\|$ [m/s] |
+| `Metrics/intercept/hit_in_moment` | In **13 cm** zone on hit pulse |
 
 ## Terminations
 
@@ -87,12 +116,15 @@ No success/failure termination on hit or miss.
 
 ## Training notes
 
-- Timed rewards are **sparse** (one step per intercept). Expect `intercept_proximity` to learn first; timing/swing may stay at zero without curriculum (e.g. fixed `lead_time`, wider hit pulse early).
+- Watch **`ee_impact_position`** / **`ee_impact_swing_through`** and **`hit_in_moment`** — prep terms alone can look good while timing stays poor.
+- Typical end of **300** iters: `position_error` ~0.30 m, `hit_in_moment` ~1–3%, impact rewards ~0.06 each; play to verify **late launch** vs early hold.
+- If `position_error` stalls **> 0.25 m**, try fixed `lead_time=(2.0, 2.5)` early or slightly higher `coarse_aim` weight.
 - Last intercept in an episode can be **cut off** if `10 s + 3.5 s lead > 12 s` episode length.
-- Retrain after reward/command changes; obs dim is **53** (5-D intercept command + joint state + last action).
+- Obs dim **60** (12-D command + joints + last action). **Retrain** after reward/command changes.
 
 ## Future (phase 3+)
 
-- Shuttlecock rigid body + contact sensor on racket
+- Shuttlecock rigid body + trajectory-derived commands
+- Perception / estimated intercept in obs (drop privileged pose)
 - Contact-force reward (see `tasks/force/`)
 - Replace racket proxy body names in `mdp/rewards.py`
