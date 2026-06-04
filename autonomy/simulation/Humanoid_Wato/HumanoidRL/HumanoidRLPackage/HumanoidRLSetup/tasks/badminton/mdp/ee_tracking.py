@@ -99,6 +99,37 @@ def best_racket_tracking_errors_from_env(
     return pos_err, ori_err, vel_err
 
 
+def best_racket_state_w(
+    command: torch.Tensor,
+    asset: Articulation,
+    body_ids: list[int],
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """World-frame position and linear velocity of the closest racket proxy link."""
+    pos_err, _, _, body_idx = best_racket_tracking_errors(command, asset, body_ids)
+    env_ids = torch.arange(command.shape[0], device=command.device)
+    body_pos_w = _body_positions_w(asset, body_ids)
+    body_vel_w = _body_lin_vel_w(asset, body_ids)
+    return body_pos_w[env_ids, body_idx], body_vel_w[env_ids, body_idx], pos_err
+
+
+def best_racket_state_from_env(
+    env: ManagerBasedRLEnv,
+    command_name: str,
+    asset_cfg: SceneEntityCfg,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    asset: Articulation = env.scene[asset_cfg.name]
+    command = env.command_manager.get_command(command_name)
+    return best_racket_state_w(command, asset, asset_cfg.body_ids)  # type: ignore[arg-type]
+
+
+def strike_axis_w(command: torch.Tensor, asset: Articulation) -> tuple[torch.Tensor, torch.Tensor]:
+    """Unit strike direction and commanded speed magnitude [m/s] in world frame."""
+    _, _, des_vel_w, _, _ = command_targets_w(command, asset)
+    cmd_speed = torch.norm(des_vel_w, dim=-1)
+    strike_dir = des_vel_w / cmd_speed.unsqueeze(-1).clamp(min=1.0e-6)
+    return strike_dir, cmd_speed
+
+
 def impact_urgency_weight(lead_time_left: torch.Tensor, urgency_time_constant: float, prep_floor: float) -> torch.Tensor:
     """Weight in [prep_floor, 1]; always some signal during countdown, peak at impact."""
     urgency = torch.exp(-lead_time_left / max(urgency_time_constant, 1.0e-3))
