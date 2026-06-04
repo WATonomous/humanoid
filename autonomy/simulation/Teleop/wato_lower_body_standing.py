@@ -1,3 +1,14 @@
+"""
+wato_lower_body_standing.py
+===========================
+Defines a simple lower-body "standing" retargeter for the Wato humanoid.
+Instead of computing motion from controller data, this retargeter always
+outputs zeros for forward/lateral/rotational movement and a fixed hip
+height, keeping the robot stationary in the standing pose.
+
+It is used when the operator is only teleoperating the arms/hands and
+the legs should stay still.
+"""
 from __future__ import annotations
 from dataclasses import dataclass
 import torch
@@ -24,4 +35,4 @@ class WatoLowerBodyStandingRetargeter(RetargeterBase):
 @dataclass
 class WatoLowerBodyStandingRetargeterCfg(RetargeterCfg):
     hip_height: float = 0.72
-    retargeter_type: type[RetargeterBase] = G1LowerBodyStandingRetargeter
+    retargeter_type: type[RetargeterBase] = WatoLowerBodyStandingRetargeter

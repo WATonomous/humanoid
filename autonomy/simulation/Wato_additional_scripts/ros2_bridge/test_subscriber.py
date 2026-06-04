@@ -1,4 +1,12 @@
+"""
+test_subscriber.py
+==================
+A test ROS2 subscriber node. It subscribes to the /hand_joint_positions topic,
+validates that received Float32MultiArray messages contain exactly 15 values (matching Wato's 15 hand DOFs),
+and caches the latest values for retrieval by simulation scripts.
+"""
 import rclpy
+
 from rclpy.node import Node
 from std_msgs.msg import Float32MultiArray
 

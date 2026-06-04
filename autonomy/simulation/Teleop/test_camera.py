@@ -1,3 +1,19 @@
+"""
+test_camera.py
+==============
+This script runs on a Windows PC (or any machine with a webcam).
+It is a simplified version of hand_recorder.py — useful for quickly
+testing whether the webcam, MediaPipe, and rosbridge connection are
+all working before running the full teleoperation pipeline.
+
+Process:
+  1. Connect to rosbridge on localhost:9090
+  2. Open the webcam
+  3. Detect hand landmarks with MediaPipe HandLandmarker
+  4. Check for a fist gesture (all 4 non-thumb fingers curled)
+  5. Publish landmarks to /wato/hand_landmarks and fist state to
+     /wato/fist_state so the Isaac Lab simulation can read them
+"""
 import cv2
 import mediapipe as mp
 from mediapipe.tasks import python
@@ -8,8 +24,10 @@ import math
 import roslibpy
 import json
 
-# ── Model download ────────────────────────────────────────────────
-model_path = "hand_landmarker.task"
+# Resolve the model file relative to this script's own directory so the
+# script works regardless of the current working directory.
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+model_path = os.path.join(_SCRIPT_DIR, "hand_landmarker.task")
 if not os.path.exists(model_path):
     print("Downloading hand landmarker model...")
     urllib.request.urlretrieve(
