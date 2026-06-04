@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 """
 arm_hand_test.py
@@ -14,8 +15,9 @@ Process:
   4. Step through each configuration in the physics loop, holding each for 1.0 second,
      to visually verify movement in Isaac Sim.
 """
+=======
+>>>>>>> db86318c (Reorganized the files)
 from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_CFG
-
 from isaaclab.utils import configclass
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.managers import SceneEntityCfg

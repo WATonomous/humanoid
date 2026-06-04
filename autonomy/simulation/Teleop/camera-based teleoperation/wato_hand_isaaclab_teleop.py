@@ -526,14 +526,16 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         print("[INFO] Headless mode: call recorder.start_episode() / recorder.end_episode() programmatically")
     # ───────────────────────────────────────────────────────────────────────
 
-    # ── Resolve URDF path relative to this script (works in any layout) ──────────
-    # camera-based teleoperation/ -> Teleop/ -> simulation/ -> Humanoid_Wato/arm_assembly/
+    # ── Resolve URDF paths relative to this script (works in any layout) ────────
+    # arm_assembly_fixed.urdf is now in camera-based arm/ (same folder as camera-based teleoperation/)
+    # arm_assembly.urdf (MuJoCo fallback) remains in Humanoid_Wato/arm_assembly/
     import os as _os
     _THIS_SCRIPT_DIR = _os.path.abspath(_os.path.dirname(__file__))
+    _CAM_ARM_DIR = _os.path.join(_THIS_SCRIPT_DIR, "camera-based arm")
     _ARM_ASSEMBLY_DIR = _os.path.abspath(
         _os.path.join(_THIS_SCRIPT_DIR, "..", "..", "Humanoid_Wato", "arm_assembly")
     )
-    _ARM_ASSEMBLY_FIXED_URDF = _os.path.join(_ARM_ASSEMBLY_DIR, "arm_assembly_fixed.urdf")
+    _ARM_ASSEMBLY_FIXED_URDF = _os.path.join(_CAM_ARM_DIR, "arm_assembly_fixed.urdf")
 
     # Initialize IK DexRetargeting Solver (primary), fingertip_ik2 (fallback)
     retargeter = None
@@ -583,6 +585,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         print(f"[WARNING] Could not load DexRetargeting IK Solver: {e}")
         # ── Fallback: load fingertip_ik2 (MuJoCo gradient IK) ───────────────────
         try:
+            import sys as _sys
+            if _CAM_ARM_DIR not in _sys.path:
+                _sys.path.insert(0, _CAM_ARM_DIR)
             from fingertip_ik2 import load_model as _ik2_load, solve_fingertip_ik as _ik2_solve
             import mujoco as _mujoco
             _arm_urdf = _os.path.join(_ARM_ASSEMBLY_DIR, "arm_assembly.urdf")

@@ -1,18 +1,15 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers.
+# SPDX-License-Identifier: BSD-3-Clause
 """
-run_dex_retargeting_test.py
-===========================
-This test script captures video from a webcam, detects hand landmarks
-using MediaPipe, and uses the dex_retargeting library to map those
-landmarks to the 15-joint angles of the Wato robot hand.
+Test the dex_retargeting library (WatoHandDexRetargeting) for the custom Wato arm/hand.
+No Isaac Lab / XR required — only dex_retargeting, torch, wato_dex_retargeting_utils, and arm_assembly URDF.
 
-Process:
-  1. Initialize the WatoHandDexRetargeting wrapper and a webcam hand detector
-  2. Open the local camera feed
-  3. For each video frame:
-     a. Detect hand keypoints in the frame
-     b. Convert the detected MediaPipe landmarks (21 joints) into the 26-joint OpenXR structure expected by the retargeter
-     c. Run the Inverse Kinematics solver in dex_retargeting to compute the corresponding 15-DOF robot hand joint angles
-     d. Print the joint angle values to the console and display the webcam overlay
+Usage:
+  cd /path/to/autonomy/simulation/Teleop/wato_hand
+  python run_dex_retargeting_test.py
+
+Requires: torch, dex_retargeting, scipy, pyyaml (e.g. conda env with isaac lab deps).
+Uses synthetic OpenXR-style hand poses to run left/right retargeting and print 15-DOF output.
 """
 
 from __future__ import annotations

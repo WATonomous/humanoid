@@ -1,19 +1,5 @@
-"""
-hand_test.py
-============
-A simple simulation script that loads and tests the 15-joint Wato robot hand assembly in Isaac Sim.
-It commands all fingers to flex to a target position (1.0 radian) to verify joint limits,
-collision configurations, and simulation stability.
-
-Process:
-  1. Load the HAND_CFG configuration representing the Wato hand assembly
-  2. Setup the simulation scene (ground plane, lights, and hand model)
-  3. Commands all 15 hand joints to active flexion (1.0 radian targets)
-  4. Run the simulation loop and update the physics engine to visual confirmation
-"""
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import HAND_CFG
-
 from isaaclab.utils import configclass
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.managers import SceneEntityCfg

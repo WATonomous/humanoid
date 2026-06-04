@@ -5,6 +5,7 @@ This script runs on a Windows PC (or any machine with a webcam).
 It is a simplified version of hand_recorder.py — useful for quickly
 testing whether the webcam, MediaPipe, and rosbridge connection are
 all working before running the full teleoperation pipeline.
+This file lives in camera-based teleoperation/utils/.
 
 Process:
   1. Connect to rosbridge on localhost:9090
@@ -24,10 +25,11 @@ import math
 import roslibpy
 import json
 
-# Resolve the model file relative to this script's own directory so the
-# script works regardless of the current working directory.
+# Resolve the model file relative to the parent folder (camera-based teleoperation/).
+# This file lives in utils/, so the model is one level up.
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(_SCRIPT_DIR, "hand_landmarker.task")
+model_path = os.path.join(_SCRIPT_DIR, "..", "hand_landmarker.task")
+model_path = os.path.normpath(model_path)
 if not os.path.exists(model_path):
     print("Downloading hand landmarker model...")
     urllib.request.urlretrieve(

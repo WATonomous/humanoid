@@ -3,23 +3,6 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""
-wato_upper_body_motion_ctrl_retargeter.py
-=========================================
-Maps VR motion controller button/trigger signals to joint commands for the
-Wato arm/hand. It reads squeeze/trigger levels on Left and Right VR controllers
-and projects them to proportional finger joint actions.
-
-Process:
-  1. Extract the hand position (wrist pose) and raw joystick/button values
-     from left and right VR controllers
-  2. Map analog trigger pressure to Index finger flexion
-  3. Map analog squeeze pressure to Middle/Ring/Pinky finger flexions
-  4. Map thumb CMC/MCP/IP joint flexions to the max of trigger and squeeze pressures
-  5. Combine left and right hand joints into a 30-element joint angle vector
-  6. Return the target wrist poses and joint angles to drive the Isaac Lab simulation
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
