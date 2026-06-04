@@ -1,10 +1,19 @@
 <package format="2">
+<<<<<<< HEAD
   <name>bimanual_arm</name>
   <version>1.0.0</version>
   <description>
     <p>URDF Description package for bimanual_arm</p>
     <p>This package contains configuration data, 3D models and launch files
 for bimanual_arm robot</p>
+=======
+  <name>armDouble.SLDASM</name>
+  <version>1.0.0</version>
+  <description>
+    <p>URDF Description package for armDouble.SLDASM</p>
+    <p>This package contains configuration data, 3D models and launch files
+for armDouble.SLDASM robot</p>
+>>>>>>> 00aee69e (improve-badminton-rl)
   </description>
   <author>TODO</author>
   <maintainer email="TODO@email.com" />

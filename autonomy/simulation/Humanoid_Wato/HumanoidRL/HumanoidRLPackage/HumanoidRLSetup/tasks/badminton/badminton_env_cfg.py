@@ -116,6 +116,7 @@ class RewardsCfg:
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     # Only penalty that references pre-impact position: don't camp at the intercept.
     early_at_target = RewTerm(
         func=mdp.early_at_target_penalty,
@@ -172,33 +173,62 @@ class RewardsCfg:
             "urgency_time_constant": 0.8,
         },
     )
+=======
+    # Ready pose elsewhere is fine; penalize camping at the intercept long before impact.
+>>>>>>> 00aee69e (improve-badminton-rl)
     early_at_target = RewTerm(
         func=mdp.early_at_target_penalty,
-        weight=-0.4,
+        weight=-0.5,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
             "command_name": "intercept",
             "zone_radius": 0.13,
-            "min_lead_time_remaining": 0.35,
+            "min_lead_time_remaining": 0.25,
         },
     )
-    # Phase B — impact (position on hit pulse; vel/ori ramp in via curriculum).
+    # Outside launch window: weak aim cue only (ready pose, know where to strike).
+    coarse_aim = RewTerm(
+        func=mdp.coarse_aim_toward_intercept_tanh,
+        weight=0.6,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
+            "std": 0.45,
+            "command_name": "intercept",
+            "approach_window_s": 0.55,
+        },
+    )
+    # Launch window: strike-speed approach, gated by distance (must actually close in).
+    timed_swing_approach = RewTerm(
+        func=mdp.timed_swing_approach_exp,
+        weight=4.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
+            "command_name": "intercept",
+            "approach_window_s": 0.55,
+            "speed_std": 0.6,
+            "hit_radius": 0.13,
+            "range_std": 0.40,
+        },
+    )
+    # Impact instant: position at the point.
     ee_impact_position = RewTerm(
         func=mdp.ee_impact_position_hit_exp,
-        weight=8.0,
+        weight=10.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
             "command_name": "intercept",
             "pos_std": 0.10,
         },
     )
-    ee_impact_velocity = RewTerm(
-        func=mdp.ee_impact_velocity_hit_exp,
+    # Impact instant: pass through with commanded strike speed (curriculum-ramped).
+    ee_impact_swing_through = RewTerm(
+        func=mdp.ee_impact_swing_through_hit_exp,
         weight=0.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
             "command_name": "intercept",
-            "vel_std": 0.5,
+            "pos_std": 0.10,
+            "speed_std": 0.6,
             "hit_radius": 0.13,
         },
     )
@@ -212,13 +242,14 @@ class RewardsCfg:
             "hit_radius": 0.13,
         },
     )
-    racket_speed_far = RewTerm(
-        func=mdp.racket_speed_penalty_far_from_target,
-        weight=-0.15,
+    racket_speed_idle = RewTerm(
+        func=mdp.racket_speed_penalty_outside_swing_window,
+        weight=-0.08,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
             "command_name": "intercept",
-            "distance_threshold": 0.13,
+            "distance_threshold": 0.20,
+            "approach_window_s": 0.55,
         },
     )
 
@@ -284,12 +315,12 @@ class TerminationsCfg:
 class CurriculumCfg:
     # After ~12 m mean position error, ramp swing speed matching at impact.
     # common_step_counter += 1 per sim step (~24 per PPO iter → 300 iter ≈ 7200 steps).
-    ee_impact_velocity = CurrTerm(
+    ee_impact_swing_through = CurrTerm(
         func=mdp.ramp_reward_weight,
         params={
-            "term_name": "ee_impact_velocity",
+            "term_name": "ee_impact_swing_through",
             "start_weight": 0.0,
-            "end_weight": 10.0,
+            "end_weight": 12.0,
             "start_step": 800,
             "end_step": 4500,
         },

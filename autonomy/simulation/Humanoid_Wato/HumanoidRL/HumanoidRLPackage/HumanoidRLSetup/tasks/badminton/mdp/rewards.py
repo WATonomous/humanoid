@@ -30,9 +30,10 @@ from isaaclab.utils.math import combine_frame_transforms
 
 from HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp.ee_tracking import (
     DEFAULT_RACKET_BODY_NAMES,
+    best_racket_state_from_env,
     best_racket_tracking_errors_from_env,
-    impact_urgency_weight,
     parse_intercept_command,
+    strike_axis_w,
 )
 >>>>>>> bfee0731 (improve-badminton-rl)
 
@@ -111,45 +112,9 @@ DEFAULT_RACKET_BODY_NAMES = [
 =======
 >>>>>>> bfee0731 (improve-badminton-rl)
 
-def _racket_proxy_speed(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    asset: Articulation = env.scene[asset_cfg.name]
-    lin_vel_w = asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :]  # type: ignore[index]
-    return torch.norm(lin_vel_w, dim=-1).max(dim=1).values
-
-
-def intercept_proximity_timed_tanh(
-    env: ManagerBasedRLEnv,
-    std: float,
-    command_name: str,
-    asset_cfg: SceneEntityCfg,
-    urgency_time_constant: float = 0.8,
-    prep_floor: float = 0.15,
-) -> torch.Tensor:
-    """Move toward intercept; strongest reward as ``time_to_hit → 0`` (discourages arriving early)."""
-    command = env.command_manager.get_command(command_name)
-    pos_err, _, _ = best_racket_tracking_errors_from_env(env, command_name, asset_cfg)
-    _, _, _, _, lead_time_left = parse_intercept_command(command)
-
-    proximity = 1.0 - torch.tanh(pos_err / std)
-    weight = impact_urgency_weight(lead_time_left, urgency_time_constant, prep_floor)
-    return proximity * weight
-
-
-def ee_position_approach_exp(
-    env: ManagerBasedRLEnv,
-    command_name: str,
-    asset_cfg: SceneEntityCfg,
-    pos_std: float,
-    urgency_time_constant: float = 0.8,
-) -> torch.Tensor:
-    """Fine position tracking with urgency peaking at impact."""
-    command = env.command_manager.get_command(command_name)
-    pos_err, _, _ = best_racket_tracking_errors_from_env(env, command_name, asset_cfg)
-    _, _, _, _, lead_time_left = parse_intercept_command(command)
-
-    pos_term = torch.exp(-torch.square(pos_err / max(pos_std, 1.0e-6)))
-    weight = impact_urgency_weight(lead_time_left, urgency_time_constant, prep_floor=0.0)
-    return pos_term * weight
+def _in_swing_window(lead_time_left: torch.Tensor, approach_window_s: float) -> torch.Tensor:
+    """1.0 only during the timed launch window before impact (not while waiting at intercept)."""
+    return ((lead_time_left > 0.0) & (lead_time_left <= approach_window_s)).float()
 
 
 def early_at_target_penalty(
@@ -159,6 +124,7 @@ def early_at_target_penalty(
     zone_radius: float,
     min_lead_time_remaining: float,
 ) -> torch.Tensor:
+<<<<<<< HEAD
 <<<<<<< HEAD
     """Large bonus for being in the sweet spot on the exact shuttle-arrival step."""
     asset: Articulation = env.scene[asset_cfg.name]
@@ -172,6 +138,9 @@ def early_at_target_penalty(
     return in_sweet_spot * (hit_moment_active > 0.5).float()
 =======
     """Penalize sitting at the intercept while there is still time on the countdown."""
+=======
+    """Penalize camping at the intercept long before impact (ready pose elsewhere is fine)."""
+>>>>>>> 00aee69e (improve-badminton-rl)
     command = env.command_manager.get_command(command_name)
     pos_err, _, _ = best_racket_tracking_errors_from_env(env, command_name, asset_cfg)
     _, _, _, _, lead_time_left = parse_intercept_command(command)
@@ -182,13 +151,59 @@ def early_at_target_penalty(
 >>>>>>> bfee0731 (improve-badminton-rl)
 
 
+def coarse_aim_toward_intercept_tanh(
+    env: ManagerBasedRLEnv,
+    std: float,
+    command_name: str,
+    asset_cfg: SceneEntityCfg,
+    approach_window_s: float,
+) -> torch.Tensor:
+    """Weak aim hint while waiting (outside launch window): where to strike, not go there yet."""
+    command = env.command_manager.get_command(command_name)
+    pos_err, _, _ = best_racket_tracking_errors_from_env(env, command_name, asset_cfg)
+    _, _, _, _, lead_time_left = parse_intercept_command(command)
+
+    outside_window = (lead_time_left > approach_window_s).float()
+    proximity = 1.0 - torch.tanh(pos_err / std)
+    return proximity * outside_window
+
+
+def timed_swing_approach_exp(
+    env: ManagerBasedRLEnv,
+    command_name: str,
+    asset_cfg: SceneEntityCfg,
+    approach_window_s: float,
+    speed_std: float,
+    hit_radius: float,
+    range_std: float,
+) -> torch.Tensor:
+    """Reward strike-speed motion toward the intercept during the launch window.
+
+    Must be closing distance (``range_std``) — not reward for waving toward the target from far away.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    command = env.command_manager.get_command(command_name)
+    _, curr_vel_w, pos_err = best_racket_state_from_env(env, command_name, asset_cfg)
+    _, _, _, _, lead_time_left = parse_intercept_command(command)
+
+    strike_dir, cmd_speed = strike_axis_w(command, asset)
+    speed_along = (curr_vel_w * strike_dir).sum(dim=-1).clamp(min=0.0)
+
+    in_window = _in_swing_window(lead_time_left, approach_window_s)
+    still_approaching = (pos_err > hit_radius).float()
+    # Suppress reward when still far: avoids "twitch toward target" without arriving.
+    range_gate = torch.exp(-torch.square(pos_err / max(range_std, 1.0e-6)))
+    speed_term = torch.exp(-torch.square((speed_along - cmd_speed) / max(speed_std, 1.0e-6)))
+    return speed_term * range_gate * in_window * still_approaching
+
+
 def ee_impact_position_hit_exp(
     env: ManagerBasedRLEnv,
     command_name: str,
     asset_cfg: SceneEntityCfg,
     pos_std: float,
 ) -> torch.Tensor:
-    """Reward being at the intercept on the hit pulse (position only)."""
+    """Reward being at the intercept on the hit pulse."""
     command = env.command_manager.get_command(command_name)
     pos_err, _, _ = best_racket_tracking_errors_from_env(env, command_name, asset_cfg)
     _, _, _, hit_moment_active, _ = parse_intercept_command(command)
@@ -198,18 +213,21 @@ def ee_impact_position_hit_exp(
     return pos_term * at_hit
 
 
-def ee_impact_velocity_hit_exp(
+def ee_impact_swing_through_hit_exp(
     env: ManagerBasedRLEnv,
     command_name: str,
     asset_cfg: SceneEntityCfg,
-    vel_std: float,
-    hit_radius: float = 0.13,
+    pos_std: float,
+    speed_std: float,
+    hit_radius: float,
 ) -> torch.Tensor:
-    """Reward matching commanded swing speed on the hit pulse, only when at the intercept."""
+    """At impact: at the intercept with commanded speed along the strike axis."""
+    asset: Articulation = env.scene[asset_cfg.name]
     command = env.command_manager.get_command(command_name)
-    pos_err, _, vel_err = best_racket_tracking_errors_from_env(env, command_name, asset_cfg)
+    _, curr_vel_w, pos_err = best_racket_state_from_env(env, command_name, asset_cfg)
     _, _, _, hit_moment_active, _ = parse_intercept_command(command)
 
+<<<<<<< HEAD
 <<<<<<< HEAD
     Uses world-frame body linear velocity and a privileged strike axis (base → intercept).
     """
@@ -222,10 +240,16 @@ def ee_impact_velocity_hit_exp(
     return torch.tanh(forward_swing / speed_std) * in_zone * (hit_moment_active > 0.5).float()
 >>>>>>> bf63d8b3 (rl-badminton)
 =======
+=======
+    strike_dir, cmd_speed = strike_axis_w(command, asset)
+    speed_along = (curr_vel_w * strike_dir).sum(dim=-1)
+
+>>>>>>> 00aee69e (improve-badminton-rl)
     at_hit = (hit_moment_active > 0.5).float()
     in_zone = (pos_err < hit_radius).float()
-    vel_term = torch.exp(-torch.square(vel_err / max(vel_std, 1.0e-6)))
-    return vel_term * at_hit * in_zone
+    pos_term = torch.exp(-torch.square(pos_err / max(pos_std, 1.0e-6)))
+    speed_term = torch.exp(-torch.square((speed_along - cmd_speed) / max(speed_std, 1.0e-6)))
+    return pos_term * speed_term * at_hit * in_zone
 
 
 def ee_impact_orientation_hit_exp(
@@ -235,7 +259,7 @@ def ee_impact_orientation_hit_exp(
     ori_std: float,
     hit_radius: float = 0.13,
 ) -> torch.Tensor:
-    """Reward matching commanded orientation on the hit pulse, only when at the intercept."""
+    """Optional: orientation match at impact when already in the zone."""
     command = env.command_manager.get_command(command_name)
     pos_err, ori_err, _ = best_racket_tracking_errors_from_env(env, command_name, asset_cfg)
     _, _, _, hit_moment_active, _ = parse_intercept_command(command)
@@ -246,15 +270,27 @@ def ee_impact_orientation_hit_exp(
     return ori_term * at_hit * in_zone
 
 
-def racket_speed_penalty_far_from_target(
+def racket_speed_penalty_outside_swing_window(
     env: ManagerBasedRLEnv,
     command_name: str,
     asset_cfg: SceneEntityCfg,
     distance_threshold: float,
+    approach_window_s: float,
 ) -> torch.Tensor:
-    """Penalize fast racket motion when not near the intercept."""
+    """Penalize idle jitter when far from the intercept and outside the launch window."""
+    asset: Articulation = env.scene[asset_cfg.name]
+    command = env.command_manager.get_command(command_name)
     pos_err, _, _ = best_racket_tracking_errors_from_env(env, command_name, asset_cfg)
-    speed = _racket_proxy_speed(env, asset_cfg)
+    _, _, _, _, lead_time_left = parse_intercept_command(command)
+
+    lin_vel_w = asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :]  # type: ignore[index]
+    speed = torch.norm(lin_vel_w, dim=-1).max(dim=1).values
+
     far = (pos_err > distance_threshold).float()
+<<<<<<< HEAD
     return speed * far
 >>>>>>> bfee0731 (improve-badminton-rl)
+=======
+    outside_window = (lead_time_left > approach_window_s).float()
+    return speed * far * outside_window
+>>>>>>> 00aee69e (improve-badminton-rl)

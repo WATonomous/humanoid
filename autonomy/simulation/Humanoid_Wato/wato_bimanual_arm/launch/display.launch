@@ -3,7 +3,11 @@
     name="model" />
   <param
     name="robot_description"
+<<<<<<< HEAD
     textfile="$(find bimanual_arm)/urdf/bimanual_arm.urdf" />
+=======
+    textfile="$(find armDouble.SLDASM)/urdf/armDouble.SLDASM.urdf" />
+>>>>>>> 00aee69e (improve-badminton-rl)
   <node
     name="joint_state_publisher_gui"
     pkg="joint_state_publisher_gui"
@@ -16,5 +20,9 @@
     name="rviz"
     pkg="rviz"
     type="rviz"
+<<<<<<< HEAD
     args="-d $(find bimanual_arm)/urdf.rviz" />
+=======
+    args="-d $(find armDouble.SLDASM)/urdf.rviz" />
+>>>>>>> 00aee69e (improve-badminton-rl)
 </launch>

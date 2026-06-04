@@ -92,12 +92,17 @@ Checkpoints: `logs/rsl_rl/badminton_intercept_humanoid_arm/`. PPO defaults: `max
 | Intercept position (base frame) | `x ∈ [-0.55, -0.15]`, `y ∈ [-0.45, 0.45]`, `z ∈ [0.15, 0.75]` m |
 | Lead time (shuttle arrival) | Uniform **1.5–3.5 s** after each resample |
 <<<<<<< HEAD
+<<<<<<< HEAD
 | Hit moment (reward pulse) | **One env step** (~67 ms) when lead time reaches 0 |
 | Privileged command (5-D) | `[target_xyz, hit_moment_pulse, time_to_hit]` |
 >>>>>>> bf63d8b3 (rl-badminton)
 =======
 | Hit moment (pulse in command) | **One env step** (~67 ms) when lead time reaches 0 |
 | Privileged command (12-D) | `[pos_xyz, quat_wxyz, vel_xyz, hit_pulse, time_to_hit]` |
+=======
+| Hit moment (pulse in command) | **`hit_moment_duration_s=0.13`** (~2 env steps) when lead time reaches 0 |
+| Privileged command (12-D) | `[pos_xyz, quat_wxyz, vel_xyz, hit_pulse, time_to_hit]` — layout in `mdp/intercept_layout.py` |
+>>>>>>> 00aee69e (improve-badminton-rl)
 | Impact orientation (base) | `roll ∈ [-0.15, 0.15]`, `pitch ∈ [0.45, 0.65]`, `yaw ∈ [-0.35, 0.35]` rad |
 | Impact speed | Uniform **0.4–1.5 m/s** along base → intercept (arm-reachable) |
 >>>>>>> bfee0731 (improve-badminton-rl)
@@ -112,6 +117,7 @@ Checkpoints: `logs/rsl_rl/badminton_intercept_humanoid_arm/`. PPO defaults: `max
 
 Ring colors (center → outer): red, yellow, green, blue + white center dot. Config: `mdp/ring_marker_utils.py`.
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 ## EE end-state tracking (reward design)
 
@@ -151,8 +157,17 @@ Hit window: `hit_moment_duration_s=0.20` s.
 | `Metrics/intercept/hit_in_moment` | In **13 cm** zone on hit pulse |
 =======
 ## Reward
+=======
+## EE end-state tracking (reward design)
+>>>>>>> 00aee69e (improve-badminton-rl)
 
-Phased prep → impact; velocity/orientation at hit are **curriculum-ramped** after position is learned. Config: `badminton_env_cfg.py`.
+Paper-style target: commanded **EE position, orientation, and velocity at impact time** (not game outcome, no shuttle in scene yet). Implementation:
+
+- **Command** samples that 4D swing target + `time_to_hit` + hit pulse (`UniformInterceptCommand`).
+- **Tracking errors** (world frame, best racket proxy link): `mdp/ee_tracking.py`.
+- **Impact rewards** only on the hit pulse (and in-zone for ori/vel/swing-through).
+
+**Intended behavior:** stay near a **ready** configuration while $t_{hit} > 0.55$ s (weak aim cue only), **launch** in the last **0.55 s**, then match the commanded **end state** on the hit pulse — not “reach the intercept early and hold.”
 
 <<<<<<< HEAD
 | Category | Reward Function | Weight | Description |
@@ -168,17 +183,39 @@ Phased prep → impact; velocity/orientation at hit are **curriculum-ramped** af
 =======
 | Term | Weight | Description |
 | :--- | :--- | :--- |
-| `intercept_proximity_timed_tanh` | 2.0 | Move toward intercept; scaled by urgency (less reward if early). |
-| `ee_position_approach_exp` | 1.5 | Fine position, urgency peaks at impact. |
-| `early_at_target_penalty` | −0.4 | Penalty for waiting in the zone while $t_{hit} > 0.35$ s. |
-| `ee_impact_position_hit_exp` | 8.0 | Position on hit pulse (~0.13 s window). |
-| `ee_impact_velocity_hit_exp` | 0→10 | **Curriculum** sim steps 800–4500 (~iter 33–188 @ 300 max). |
-| `ee_impact_orientation_hit_exp` | 0→4 | **Curriculum** sim steps 2500–6000 (~iter 104–250). |
-| `racket_speed_penalty_far_from_target` | −0.15 | Fast motion when $>13$ cm from intercept. |
-| Action rate / joint vel | −0.05 / −0.01 | Smoothness (curriculum ramps penalties). |
+| `early_at_target_penalty` | −0.5 | Penalty for **camping at the intercept** while $t_{hit} > 0.25$ s. |
+| `coarse_aim_toward_intercept_tanh` | 0.6 | Weak aim while $t_{hit} > 0.55$ s (`std=0.45`). |
+| `timed_swing_approach_exp` | 4.0 | Launch window: strike-speed toward target × $\exp(-(d/0.4)^2)$, `hit_radius=0.13` m. |
+| `ee_impact_position_hit_exp` | 10.0 | $\exp(-\|e_{pos}\|^2/\sigma^2)$ on hit pulse (`pos_std=0.10`). |
+| `ee_impact_swing_through_hit_exp` | 0→12 | On hit + in zone: position × speed along **commanded strike axis** (`speed_std=0.6`). |
+| `ee_impact_orientation_hit_exp` | 0→4 | On hit + in zone (optional; fingertip vs racket tilt). |
+| `racket_speed_penalty_outside_swing_window` | −0.08 | Jitter when far and outside launch window. |
+| Action rate / joint vel | −0.05 / −0.01 | Smoothness (curriculum ramps to −0.08 / −0.02). |
 
+<<<<<<< HEAD
 Hit window: `hit_moment_duration_s=0.13` (~2 env steps). Watch `hit_in_moment` and `ee_impact_position` in logs.
 >>>>>>> bfee0731 (improve-badminton-rl)
+=======
+**Removed** (taught reach-and-hold): always-on `intercept_proximity`, urgency-gated position approach, product EE tracking with `prep_floor`.
+
+### Curriculum (`mdp/curriculum.py`, `ramp_reward_weight`)
+
+`common_step_counter` += 1 per sim step (~**24** per PPO iteration at `num_steps_per_env=24`).
+
+| Term | Sim steps | ~Iter @ 300 max |
+| :--- | :--- | :--- |
+| `ee_impact_swing_through` 0→12 | 800–4500 | 33–188 |
+| `ee_impact_orientation` 0→4 | 2500–6000 | 104–250 |
+
+### Logged metrics (`UniformInterceptCommand._update_metrics`)
+
+| Metric | Meaning |
+| :--- | :--- |
+| `Metrics/intercept/position_error` | Closest proxy link ↔ commanded intercept [m] |
+| `Metrics/intercept/orientation_error` | Quaternion error [rad] |
+| `Metrics/intercept/velocity_error` | $\|v - v_{cmd}\|$ [m/s] |
+| `Metrics/intercept/hit_in_moment` | In **13 cm** zone on hit pulse |
+>>>>>>> 00aee69e (improve-badminton-rl)
 
 ## Terminations
 
@@ -201,10 +238,17 @@ No success/failure termination on hit or miss.
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 - Watch **`ee_state_tracking`**, **`velocity_error`**, **`orientation_error`**, and **`hit_in_moment`** together — position alone can look OK while swing vector/ori stay wrong.
 - Product reward is strict: all three must be reasonable near impact for high return.
 - If learning stalls, try looser `ori_std` (1.0) or fixed `lead_time=(2.0, 2.5)` for early training.
 - Lead time is **clamped to remaining episode time** so rings always finish shrinking before reset.
+=======
+- Watch **`ee_impact_position`** / **`ee_impact_swing_through`** and **`hit_in_moment`** — prep terms alone can look good while timing stays poor.
+- Typical end of **300** iters: `position_error` ~0.30 m, `hit_in_moment` ~1–3%, impact rewards ~0.06 each; play to verify **late launch** vs early hold.
+- If `position_error` stalls **> 0.25 m**, try fixed `lead_time=(2.0, 2.5)` early or slightly higher `coarse_aim` weight.
+- Last intercept in an episode can be **cut off** if `10 s + 3.5 s lead > 12 s` episode length.
+>>>>>>> 00aee69e (improve-badminton-rl)
 - Obs dim **60** (12-D command + joints + last action). **Retrain** after reward/command changes.
 
 ## Future (phase 3+)
