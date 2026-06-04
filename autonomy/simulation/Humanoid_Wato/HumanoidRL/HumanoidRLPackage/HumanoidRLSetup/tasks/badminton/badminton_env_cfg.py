@@ -13,7 +13,11 @@ from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp as mdp
+<<<<<<< HEAD
 from HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid_arm_hand import ARM_CFG
+=======
+from HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_CFG
+>>>>>>> 97ddcbcd (rl-badminton)
 from HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp.events import ARM_JOINT_NAMES
 from HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp.rewards import DEFAULT_RACKET_BODY_NAMES
 
@@ -38,16 +42,25 @@ class BadmintonSceneCfg(InteractiveSceneCfg):
 class CommandsCfg:
     intercept = mdp.UniformInterceptCommandCfg(
         asset_name="robot",
+<<<<<<< HEAD
         # Ignored by UniformInterceptCommand: resample is cycle-aligned (lead_time + hit window).
         resampling_time_range=(5.0, 5.0),
         hit_moment_duration_s=0.20,
         debug_vis=True,
+=======
+        resampling_time_range=(5.0, 5.0),
+        debug_vis=True,
+        window_duration_s=0.4,
+>>>>>>> 97ddcbcd (rl-badminton)
         ranges=mdp.UniformInterceptCommandCfg.Ranges(
             pos_x=(-0.55, -0.15),
             pos_y=(-0.45, 0.45),
             pos_z=(0.15, 0.75),
             lead_time=(1.5, 3.5),
+<<<<<<< HEAD
             speed=(0.4, 1.5),
+=======
+>>>>>>> 97ddcbcd (rl-badminton)
         ),
     )
 
@@ -92,6 +105,7 @@ class EventCfg:
 
 @configclass
 class RewardsCfg:
+<<<<<<< HEAD
     # Only penalty that references pre-impact position: don't camp at the intercept.
     early_at_target = RewTerm(
         func=mdp.early_at_target_penalty,
@@ -119,6 +133,40 @@ class RewardsCfg:
     )
 
     action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.05)
+=======
+    # Phase 1: always-on spatial tracking toward the intercept point.
+    intercept_proximity = RewTerm(
+        func=mdp.intercept_proximity_tanh,
+        weight=0.5,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
+            "std": 0.15,
+            "command_name": "intercept",
+        },
+    )
+
+    # Phase 2: timed swing — reward being at the target during the hit window.
+    timed_intercept = RewTerm(
+        func=mdp.timed_intercept_proximity,
+        weight=1.5,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
+            "std": 0.10,
+            "command_name": "intercept",
+        },
+    )
+    timed_hit = RewTerm(
+        func=mdp.timed_hit_bonus,
+        weight=5.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
+            "hit_radius": 0.08,
+            "command_name": "intercept",
+        },
+    )
+
+    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.03)
+>>>>>>> 97ddcbcd (rl-badminton)
     joint_vel = RewTerm(
         func=mdp.joint_vel_l2,
         weight=-0.01,
@@ -135,11 +183,19 @@ class TerminationsCfg:
 class CurriculumCfg:
     action_rate = CurrTerm(
         func=mdp.modify_reward_weight,
+<<<<<<< HEAD
         params={"term_name": "action_rate", "weight": -0.08, "num_steps": 25000},
     )
     joint_vel = CurrTerm(
         func=mdp.modify_reward_weight,
         params={"term_name": "joint_vel", "weight": -0.02, "num_steps": 25000},
+=======
+        params={"term_name": "action_rate", "weight": -0.05, "num_steps": 15000},
+    )
+    joint_vel = CurrTerm(
+        func=mdp.modify_reward_weight,
+        params={"term_name": "joint_vel", "weight": -0.15, "num_steps": 15000},
+>>>>>>> 97ddcbcd (rl-badminton)
     )
 
 
