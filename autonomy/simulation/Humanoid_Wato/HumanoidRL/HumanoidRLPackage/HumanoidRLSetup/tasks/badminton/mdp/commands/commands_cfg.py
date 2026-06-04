@@ -14,24 +14,24 @@ from .intercept_command import UniformInterceptCommand
 
 @configclass
 class UniformInterceptCommandCfg(CommandTermCfg):
-    """Configuration for a timed EE intercept (badminton shuttle arrival) command."""
+    """Configuration for a timed 3D intercept (badminton hit target) command."""
 
     class_type: type = UniformInterceptCommand
 
     asset_name: str = MISSING
     """Robot asset used to transform commands into the world frame."""
 
-    tracking_body_names: list[str] | str = "DIP_INDEX_v1_.*"
-    """Body name(s) used for command metrics (closest link if multiple)."""
-
-    hit_moment_duration_s: float = 0.0
-    """How long the hit-moment pulse stays active [s]. 0 = one env step (~67 ms)."""
-
-    post_hit_ring_hidden: bool = True
-    """After the contact flash, hide rings until the next resample (visualization only)."""
+    window_duration_s: float = 0.4
+    """Duration of the hit window once it opens [s]."""
 
     min_ring_scale: float = 0.35
-    """Debug-vis ring scale on the one-step shuttle-contact flash."""
+    """Ring scale at the moment the hit window opens (timing shrink effect)."""
+
+    target_tilt_pitch_rad: float = 0.55
+    """Pitch tilt applied to the flat target disk [rad]."""
+
+    target_tilt_yaw_rad: float = 0.15
+    """Yaw tilt applied to the flat target disk [rad]."""
 
     @configclass
     class Ranges:
@@ -41,15 +41,7 @@ class UniformInterceptCommandCfg(CommandTermCfg):
         pos_y: tuple[float, float] = MISSING
         pos_z: tuple[float, float] = MISSING
         lead_time: tuple[float, float] = MISSING
-        """Seconds after resample until the shuttle arrives at the intercept point."""
-        roll: tuple[float, float] = (-0.15, 0.15)
-        """Desired EE roll at impact [rad] (base frame)."""
-        pitch: tuple[float, float] = (0.45, 0.65)
-        """Desired EE pitch at impact [rad] (base frame, ~racket face tilt)."""
-        yaw: tuple[float, float] = (-0.35, 0.35)
-        """Desired EE yaw at impact [rad] (base frame)."""
-        speed: tuple[float, float] = (0.4, 1.5)
-        """Desired EE linear speed at impact [m/s] along base→intercept axis."""
+        """Seconds after resample before the hit window opens."""
 
     ranges: Ranges = MISSING
 
