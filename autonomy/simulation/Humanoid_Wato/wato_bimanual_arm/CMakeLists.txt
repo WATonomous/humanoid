@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 
-project(bimanual_arm)
+project(armDouble.SLDASM)
 
 find_package(catkin REQUIRED)
 
