@@ -50,8 +50,11 @@ class CommandsCfg:
 =======
         resampling_time_range=(5.0, 5.0),
         debug_vis=True,
+<<<<<<< HEAD
         window_duration_s=0.4,
 >>>>>>> 97ddcbcd (rl-badminton)
+=======
+>>>>>>> bf63d8b3 (rl-badminton)
         ranges=mdp.UniformInterceptCommandCfg.Ranges(
             pos_x=(-0.55, -0.15),
             pos_y=(-0.45, 0.45),
@@ -106,6 +109,7 @@ class EventCfg:
 @configclass
 class RewardsCfg:
 <<<<<<< HEAD
+<<<<<<< HEAD
     # Only penalty that references pre-impact position: don't camp at the intercept.
     early_at_target = RewTerm(
         func=mdp.early_at_target_penalty,
@@ -135,9 +139,12 @@ class RewardsCfg:
     action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.05)
 =======
     # Phase 1: always-on spatial tracking toward the intercept point.
+=======
+    # Prep: move toward intercept before shuttle arrives (low weight — timing matters more).
+>>>>>>> bf63d8b3 (rl-badminton)
     intercept_proximity = RewTerm(
         func=mdp.intercept_proximity_tanh,
-        weight=0.5,
+        weight=0.25,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
             "std": 0.15,
@@ -145,10 +152,10 @@ class RewardsCfg:
         },
     )
 
-    # Phase 2: timed swing — reward being at the target during the hit window.
+    # Contact instant: reward only on the shuttle-arrival pulse (rings at min size).
     timed_intercept = RewTerm(
         func=mdp.timed_intercept_proximity,
-        weight=1.5,
+        weight=2.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
             "std": 0.10,
@@ -157,9 +164,29 @@ class RewardsCfg:
     )
     timed_hit = RewTerm(
         func=mdp.timed_hit_bonus,
-        weight=5.0,
+        weight=6.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
+            "hit_radius": 0.08,
+            "command_name": "intercept",
+        },
+    )
+    # Swing at contact — from articulation body velocity (no contact/force sensor).
+    timed_swing_speed = RewTerm(
+        func=mdp.timed_swing_speed,
+        weight=3.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
+            "speed_std": 1.5,
+            "command_name": "intercept",
+        },
+    )
+    timed_swing_through = RewTerm(
+        func=mdp.timed_swing_through_target,
+        weight=4.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
+            "speed_std": 1.5,
             "hit_radius": 0.08,
             "command_name": "intercept",
         },
@@ -169,7 +196,7 @@ class RewardsCfg:
 >>>>>>> 97ddcbcd (rl-badminton)
     joint_vel = RewTerm(
         func=mdp.joint_vel_l2,
-        weight=-0.01,
+        weight=-0.003,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=ARM_JOINT_NAMES)},
     )
 

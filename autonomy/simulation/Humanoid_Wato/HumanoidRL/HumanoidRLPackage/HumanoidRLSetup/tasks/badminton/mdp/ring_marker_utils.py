@@ -17,9 +17,12 @@ from isaaclab.sim.spawners.meshes.meshes_cfg import MeshCfg
 from isaaclab.utils import configclass
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 # Ring bands from center outward, matching the reference photo palette.
 >>>>>>> 97ddcbcd (rl-badminton)
+=======
+>>>>>>> bf63d8b3 (rl-badminton)
 INTERCEPT_RING_SPECS: tuple[tuple[str, float, float, tuple[float, float, float]], ...] = (
     ("ring_red", 0.0, 0.035, (1.0, 0.0, 0.0)),
     ("ring_yellow", 0.035, 0.070, (1.0, 1.0, 0.0)),
@@ -113,8 +116,11 @@ def build_intercept_target_visualizer_cfg() -> VisualizationMarkersCfg:
 
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 # Marker prototype order in VisualizationMarkers (must match dict insertion order above).
 >>>>>>> 97ddcbcd (rl-badminton)
+=======
+>>>>>>> bf63d8b3 (rl-badminton)
 INTERCEPT_MARKER_NAMES: tuple[str, ...] = tuple(name for name, _, _, _ in INTERCEPT_RING_SPECS) + ("center_dot",)
 NUM_INTERCEPT_MARKERS = len(INTERCEPT_MARKER_NAMES)
