@@ -1,3 +1,20 @@
+"""
+hand_recorder.py
+================
+This script runs on a Windows PC (or any machine with a webcam).
+It reads video from the webcam, uses Google MediaPipe to detect hand
+landmarks in real-time, and streams those landmarks over a WebSocket
+(rosbridge) to the Docker container running the Isaac Lab simulation.
+
+Process:
+  1. Connect to rosbridge on localhost:9090 (via SSH tunnel from Docker)
+  2. Open the webcam with OpenCV
+  3. For every video frame, detect hand joint positions using MediaPipe
+  4. Check whether the hand is making a fist (all 4 fingers curled)
+  5. Publish the 21 hand landmark positions to the ROS2 topic
+     /wato/hand_landmarks so the ROS2 node inside Docker can convert
+     them into robot joint angles
+"""
 import cv2
 import mediapipe as mp
 from mediapipe.tasks import python
@@ -8,8 +25,11 @@ import math
 import roslibpy
 import json
 
-# ── Model download ────────────────────────────────────────────────
-model_path = "hand_landmarker.task"
+# Resolve the MediaPipe model file relative to this script's directory,
+# so the script works regardless of the current working directory.
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+model_path = os.path.join(_SCRIPT_DIR, "hand_landmarker.task")
+
 if not os.path.exists(model_path):
     print("Downloading hand landmarker model...")
     urllib.request.urlretrieve(

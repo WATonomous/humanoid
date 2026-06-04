@@ -3,6 +3,25 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+"""
+wato_dex_retargeting_utils.py
+==============================
+Provides utility classes and functions to load the dex_retargeting library
+for the custom Wato robot hand. It reads raw human hand keypoint positions
+and performs optimization (Inverse Kinematics) to solve for the target
+joint angles of the Wato hand.
+
+Process:
+  1. Parse the Wato arm_assembly URDF and automatically convert continuous
+     joints to revolute joints to satisfy dex_retargeting constraints
+  2. Load dex_retargeting config files (like wato_hand_right_dexpilot.yml)
+     defining joint mapping target linkages
+  3. Preprocess OpenXR-format hand poses: convert the coordinate system,
+     wrist-center the positions, and rotate by wrist orientation
+  4. Perform optimization using Pinocchio to compute the joint angles (15 DOF)
+     that minimize positioning error of the fingertips
+"""
+
 import logging
 import os
 import re

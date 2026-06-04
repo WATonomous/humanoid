@@ -1,0 +1,80 @@
+"""
+debug_dex.py
+============
+A diagnostic script to verify the behavior of the dex_retargeting optimizer.
+It constructs a target hand pose vector configuration for a flat hand and a curled hand,
+feeds it to the RetargetingConfig optimizer, and prints the resolved joint angles.
+This is used to verify that the joint angles map correctly and that finger joints curl in the expected directions.
+
+Process:
+  1. Determine the path to the arm_assembly_fixed.urdf relative to this script
+  2. Create a configuration dictionary defining joint target mappings for vector retargeting
+  3. Instantiate the RetargetingConfig solver
+  4. Test flat hand targets and curled hand targets, printing computed joint angles (radians and degrees)
+"""
+import os
+import numpy as np
+from dex_retargeting.retargeting_config import RetargetingConfig
+
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+urdf_path = os.path.join(_SCRIPT_DIR, "arm_assembly", "arm_assembly_fixed.urdf")
+
+config_dict = {
+    "type": "vector",
+    "urdf_path": urdf_path,
+    "wrist_link_name": "PALM_GAVIN_1DoF_Hinge_v2_1",
+    "target_origin_link_names": [
+        "CMC_THUMB_v1_1", "MCP_THUMB_v1_1",
+        "MCP_INDEX_v1_1", "PIP_INDEX_v1_1",
+        "MCP_MIDDLE_v1_1", "PIP_MIDDLE_v1_1",
+        "MCP_RING_v1_1", "PIP_RING_v1_1",
+        "MCP_PINKY_v1_1", "PIP_PINKY_v1_1"
+    ],
+    "target_task_link_names": [
+        "MCP_THUMB_v1_1", "IP_THUMB_v1_1",
+        "PIP_INDEX_v1_1", "DIP_INDEX_v1_1",
+        "PIP_MIDDLE_v1_1", "DIP_MIDDLE_v1_1",
+        "PIP_RING_v1_1", "DIP_RING_v1_1",
+        "PIP_PINKY_v1_1", "DIP_PINKY_v1_1"
+    ],
+    "target_link_human_indices": np.array([
+        [1, 2, 5, 6, 9, 10, 13, 14, 17, 18],
+        [2, 3, 6, 7, 10, 11, 14, 15, 18, 19]
+    ])
+}
+
+retargeter = RetargetingConfig.from_dict(config_dict).build()
+
+# Get the rest pose directions mathematically determined by Pinocchio
+print("--- ROBOT REST POSE VECTORS IN URDF ---")
+print("DexRetargeting Booted Successfully!")
+
+print("\n--- TEST: HAND FLAT (+Y FOR ALL FINGERS) ---")
+target_vectors_flat = np.zeros((10, 3))
+for i in range(2, 10):
+    target_vectors_flat[i] = [0.0, 1.0, 0.0]  # Straight +Y
+# Set thumb arbitrarily
+target_vectors_flat[0] = [1.0, 0.0, 0.0]
+target_vectors_flat[1] = [1.0, 0.0, 0.0]
+
+for _ in range(20):
+    action_flat = retargeter.retarget(target_vectors_flat)
+print("ACTION FOR FLAT HAND:")
+for i, j_name in enumerate(retargeter.joint_names):
+    if "index" in j_name or "middle" in j_name or "ring" in j_name:
+        print(f"{j_name}: {action_flat[i]:.3f} rad ({action_flat[i]*180/np.pi:.1f} deg)")
+
+print("\n--- TEST: HAND CURLED (-Z FOR ALL FINGERS) ---")
+target_vectors_curled = np.zeros((10, 3))
+for i in range(2, 10):
+    target_vectors_curled[i] = [0.0, 0.0, -1.0]  # Curled down -Z
+# Set thumb arbitrarily
+target_vectors_curled[0] = [1.0, 0.0, 0.0]
+target_vectors_curled[1] = [1.0, 0.0, 0.0]
+
+for _ in range(20):
+    action_curled = retargeter.retarget(target_vectors_curled)
+print("ACTION FOR CURLED HAND:")
+for i, j_name in enumerate(retargeter.joint_names):
+    if "index" in j_name or "middle" in j_name or "ring" in j_name:
+        print(f"{j_name}: {action_curled[i]:.3f} rad ({action_curled[i]*180/np.pi:.1f} deg)")

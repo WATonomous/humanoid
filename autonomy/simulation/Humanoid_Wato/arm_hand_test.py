@@ -1,3 +1,28 @@
+<<<<<<< HEAD
+=======
+"""
+arm_hand_test.py
+================
+Runs a simulation test for the 21-DOF Wato arm + hand assembly.
+It steps through a sequence of pre-defined joint angle target positions
+to verify joint limits, actuation direction, and joint configuration.
+
+Process:
+  1. Load the ARM_CFG configuration representing the Wato arm+hand assembly
+  2. Setup the simulation scene (ground plane, lights, and the robot)
+  3. Define 7 test configurations (moving arm joints from index 0 to 5)
+  4. Step through each configuration in the physics loop, holding each for 1.0 second,
+     to visually verify movement in Isaac Sim.
+"""
+from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_CFG
+
+from isaaclab.utils import configclass
+from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
+from isaaclab.managers import SceneEntityCfg
+from isaaclab.assets import AssetBaseCfg
+import isaaclab.sim as sim_utils
+import torch
+>>>>>>> f888469f (File Cleaup and Commenting)
 import argparse
 from isaaclab.app import AppLauncher
 

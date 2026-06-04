@@ -3,6 +3,21 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+"""
+wato_motion_controller_locomotion.py
+=====================================
+Retargeter that maps VR motion-controller thumbstick inputs to lower-body
+locomotion commands for the Wato humanoid in Isaac Lab.
+
+Process:
+  1. Read left and right thumbstick (X/Y) values from the VR controller
+  2. Scale them by movement_scale to set forward/lateral velocity commands
+  3. Adjust hip height in real-time from the right thumbstick's Y axis
+     (clamped between 0.4 m and 1.0 m)
+  4. Return a 4-element tensor: [forward, lateral, rotation, hip_height]
+     that the Isaac Lab locomotion policy consumes each simulation step
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

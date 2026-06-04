@@ -1,3 +1,22 @@
+"""
+wato_hand_ros2_node.py (camera-based teleoperation)
+===================================================
+This ROS2 node runs inside the Docker container.
+It subscribes to raw hand landmark data published by hand_recorder.py
+(running on the Windows PC), converts the 21 landmark positions into
+concrete robot joint angles for the Wato arm+hand, and writes the result
+to a shared JSON file that the Isaac Lab simulation reads each frame.
+
+Process:
+  1. Subscribe to /wato/hand_landmarks (MediaPipe 21-joint payload)
+  2. Compute per-finger curl amounts from 3D world landmark distances
+  3. Compute wrist orientation (forearm rotation, wrist extension)
+  4. Apply exponential smoothing to remove jitter
+  5. Write the joint dictionary to a temporary JSON file
+     and publish it to /wato/hand_joint_angles for the simulation
+"""
+import os
+import tempfile
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
@@ -5,7 +24,9 @@ import json
 import math
 import time
 
-JOINT_FILE = "/tmp/wato_joints.json"
+# Path for the shared joint-angle file that Isaac Lab reads every frame.
+# Using the system temp directory works on both Linux (Docker) and Windows.
+JOINT_FILE = os.path.join(tempfile.gettempdir(), "wato_joints.json")
 
 # ── Finger curl calibration ───────────────────────────────────────────────────
 # OPEN_RATIOS — tip/mcp distance ratio when finger is fully extended
@@ -121,10 +142,10 @@ def landmarks_to_joints(landmarks, world):
 
     thumb_curl = finger_curl(world, tip_idx=4, mcp_idx=2)
 
-    # DEBUG: dump raw curl ratios to /tmp/curl_debug.txt (set DEBUG_CURL=True to enable)
+    # DEBUG: dump raw curl ratios to a temp file (set DEBUG_CURL=True to enable)
     DEBUG_CURL = False
     if DEBUG_CURL:
-        with open("/tmp/curl_debug.txt", "w") as f:
+        with open(os.path.join(tempfile.gettempdir(), "curl_debug.txt"), "w") as f:
             def get_ratio(w, t, m):
                 td = math.sqrt((w[t]["x"]-w[0]["x"])**2 + (w[t]["y"]-w[0]["y"])**2 + (w[t]["z"]-w[0]["z"])**2)
                 md = math.sqrt((w[m]["x"]-w[0]["x"])**2 + (w[m]["y"]-w[0]["y"])**2 + (w[m]["z"]-w[0]["z"])**2)
