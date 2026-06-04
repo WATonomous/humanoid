@@ -49,6 +49,7 @@ class CommandsCfg:
         debug_vis=True,
 =======
         resampling_time_range=(5.0, 5.0),
+        hit_moment_duration_s=0.13,
         debug_vis=True,
 <<<<<<< HEAD
         window_duration_s=0.4,
@@ -61,9 +62,13 @@ class CommandsCfg:
             pos_z=(0.15, 0.75),
             lead_time=(1.5, 3.5),
 <<<<<<< HEAD
+<<<<<<< HEAD
             speed=(0.4, 1.5),
 =======
 >>>>>>> 97ddcbcd (rl-badminton)
+=======
+            speed=(0.4, 1.5),
+>>>>>>> bfee0731 (improve-badminton-rl)
         ),
     )
 
@@ -110,6 +115,7 @@ class EventCfg:
 class RewardsCfg:
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     # Only penalty that references pre-impact position: don't camp at the intercept.
     early_at_target = RewTerm(
         func=mdp.early_at_target_penalty,
@@ -142,16 +148,81 @@ class RewardsCfg:
 =======
     # Prep: move toward intercept before shuttle arrives (low weight — timing matters more).
 >>>>>>> bf63d8b3 (rl-badminton)
+=======
+    # Phase A — timing + position (urgency-gated so arriving early pays less).
+>>>>>>> bfee0731 (improve-badminton-rl)
     intercept_proximity = RewTerm(
-        func=mdp.intercept_proximity_tanh,
-        weight=0.25,
+        func=mdp.intercept_proximity_timed_tanh,
+        weight=2.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
             "std": 0.15,
             "command_name": "intercept",
+            "urgency_time_constant": 0.8,
+            "prep_floor": 0.15,
+        },
+    )
+    ee_position_approach = RewTerm(
+        func=mdp.ee_position_approach_exp,
+        weight=1.5,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
+            "command_name": "intercept",
+            "pos_std": 0.12,
+            "urgency_time_constant": 0.8,
+        },
+    )
+    early_at_target = RewTerm(
+        func=mdp.early_at_target_penalty,
+        weight=-0.4,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
+            "command_name": "intercept",
+            "zone_radius": 0.13,
+            "min_lead_time_remaining": 0.35,
+        },
+    )
+    # Phase B — impact (position on hit pulse; vel/ori ramp in via curriculum).
+    ee_impact_position = RewTerm(
+        func=mdp.ee_impact_position_hit_exp,
+        weight=8.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
+            "command_name": "intercept",
+            "pos_std": 0.10,
+        },
+    )
+    ee_impact_velocity = RewTerm(
+        func=mdp.ee_impact_velocity_hit_exp,
+        weight=0.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
+            "command_name": "intercept",
+            "vel_std": 0.5,
+            "hit_radius": 0.13,
+        },
+    )
+    ee_impact_orientation = RewTerm(
+        func=mdp.ee_impact_orientation_hit_exp,
+        weight=0.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
+            "command_name": "intercept",
+            "ori_std": 0.8,
+            "hit_radius": 0.13,
+        },
+    )
+    racket_speed_far = RewTerm(
+        func=mdp.racket_speed_penalty_far_from_target,
+        weight=-0.15,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
+            "command_name": "intercept",
+            "distance_threshold": 0.13,
         },
     )
 
+<<<<<<< HEAD
     # Contact instant: reward only on the shuttle-arrival pulse (rings at min size).
     timed_intercept = RewTerm(
         func=mdp.timed_intercept_proximity,
@@ -194,9 +265,12 @@ class RewardsCfg:
 
     action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.03)
 >>>>>>> 97ddcbcd (rl-badminton)
+=======
+    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.05)
+>>>>>>> bfee0731 (improve-badminton-rl)
     joint_vel = RewTerm(
         func=mdp.joint_vel_l2,
-        weight=-0.003,
+        weight=-0.01,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=ARM_JOINT_NAMES)},
     )
 
@@ -208,8 +282,31 @@ class TerminationsCfg:
 
 @configclass
 class CurriculumCfg:
+    # After ~12 m mean position error, ramp swing speed matching at impact.
+    # common_step_counter += 1 per sim step (~24 per PPO iter → 300 iter ≈ 7200 steps).
+    ee_impact_velocity = CurrTerm(
+        func=mdp.ramp_reward_weight,
+        params={
+            "term_name": "ee_impact_velocity",
+            "start_weight": 0.0,
+            "end_weight": 10.0,
+            "start_step": 800,
+            "end_step": 4500,
+        },
+    )
+    ee_impact_orientation = CurrTerm(
+        func=mdp.ramp_reward_weight,
+        params={
+            "term_name": "ee_impact_orientation",
+            "start_weight": 0.0,
+            "end_weight": 4.0,
+            "start_step": 2500,
+            "end_step": 6000,
+        },
+    )
     action_rate = CurrTerm(
         func=mdp.modify_reward_weight,
+<<<<<<< HEAD
 <<<<<<< HEAD
         params={"term_name": "action_rate", "weight": -0.08, "num_steps": 25000},
     )
@@ -223,6 +320,13 @@ class CurriculumCfg:
         func=mdp.modify_reward_weight,
         params={"term_name": "joint_vel", "weight": -0.15, "num_steps": 15000},
 >>>>>>> 97ddcbcd (rl-badminton)
+=======
+        params={"term_name": "action_rate", "weight": -0.08, "num_steps": 15000},
+    )
+    joint_vel = CurrTerm(
+        func=mdp.modify_reward_weight,
+        params={"term_name": "joint_vel", "weight": -0.02, "num_steps": 15000},
+>>>>>>> bfee0731 (improve-badminton-rl)
     )
 
 

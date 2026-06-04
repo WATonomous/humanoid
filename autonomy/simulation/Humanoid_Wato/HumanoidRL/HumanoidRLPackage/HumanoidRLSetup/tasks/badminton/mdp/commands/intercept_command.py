@@ -8,6 +8,7 @@ from isaaclab.assets import Articulation
 from isaaclab.managers import CommandTerm
 from isaaclab.markers import VisualizationMarkers
 <<<<<<< HEAD
+<<<<<<< HEAD
 from isaaclab.utils.math import combine_frame_transforms, quat_from_euler_xyz, quat_mul, quat_rotate_inverse
 
 from HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp.ee_tracking import best_racket_tracking_errors
@@ -15,6 +16,11 @@ from HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp.ee_tracking import be
 from isaaclab.utils.math import combine_frame_transforms, quat_from_euler_xyz
 
 >>>>>>> 97ddcbcd (rl-badminton)
+=======
+from isaaclab.utils.math import combine_frame_transforms, quat_from_euler_xyz, quat_mul, quat_rotate_inverse
+
+from HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp.ee_tracking import best_racket_tracking_errors
+>>>>>>> bfee0731 (improve-badminton-rl)
 from HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp.ring_marker_utils import NUM_INTERCEPT_MARKERS
 
 if TYPE_CHECKING:
@@ -24,6 +30,7 @@ if TYPE_CHECKING:
 
 
 class UniformInterceptCommand(CommandTerm):
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
     """Timed EE intercept: position, orientation, and velocity at shuttle arrival.
@@ -38,10 +45,14 @@ class UniformInterceptCommand(CommandTerm):
 =======
     """Command generator for a timed 3D intercept point (badminton shuttle arrival).
 >>>>>>> bf63d8b3 (rl-badminton)
+=======
+    """Timed EE intercept: position, orientation, and velocity at shuttle arrival.
+>>>>>>> bfee0731 (improve-badminton-rl)
 
-    Privileged timing (for the policy): intercept position, time-to-hit, ring scale,
-    and a short hit-moment pulse when the shuttle would arrive.
+    Privileged timing for the policy: full swing target, time-to-hit, and a short
+    hit-moment pulse when the shuttle would arrive.
 
+<<<<<<< HEAD
 <<<<<<< HEAD
     Debug visualization: flat, tilted concentric rings (pink/orange/teal/purple)
     with a white center dot. Rings shrink as the lead-time countdown reaches zero.
@@ -53,6 +64,9 @@ class UniformInterceptCommand(CommandTerm):
 >>>>>>> 97ddcbcd (rl-badminton)
 =======
     Debug visualization only: rings shrink during countdown, flash at min size for one
+=======
+    Debug visualization: rings shrink during countdown, flash at min size for one
+>>>>>>> bfee0731 (improve-badminton-rl)
     step at contact, then hide until the next resample.
 >>>>>>> bf63d8b3 (rl-badminton)
     """
@@ -63,6 +77,7 @@ class UniformInterceptCommand(CommandTerm):
         super().__init__(cfg, env)
 
         self.robot: Articulation = env.scene[cfg.asset_name]
+<<<<<<< HEAD
 <<<<<<< HEAD
         self._body_ids, _ = self.robot.find_bodies(cfg.tracking_body_names)
 
@@ -83,25 +98,32 @@ class UniformInterceptCommand(CommandTerm):
         self.metrics["velocity_error"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["hit_in_moment"] = torch.zeros(self.num_envs, device=self.device)
 =======
+=======
+        self._body_ids, _ = self.robot.find_bodies(cfg.tracking_body_names)
+>>>>>>> bfee0731 (improve-badminton-rl)
 
         self.pos_command_b = torch.zeros(self.num_envs, 3, device=self.device)
+        self.quat_command_b = torch.zeros(self.num_envs, 4, device=self.device)
+        self.quat_command_b[:, 0] = 1.0
+        self.vel_command_b = torch.zeros(self.num_envs, 3, device=self.device)
         self.lead_time_left = torch.zeros(self.num_envs, device=self.device)
         self.lead_time_total = torch.ones(self.num_envs, device=self.device)
         self.hit_moment_time_left = torch.zeros(self.num_envs, device=self.device)
         self.hit_moment_active = torch.zeros(self.num_envs, device=self.device)
 
         self.pos_command_w = torch.zeros_like(self.pos_command_b)
-        self._target_tilt_quat = quat_from_euler_xyz(
-            torch.tensor([0.0], device=self.device),
-            torch.tensor([self.cfg.target_tilt_pitch_rad], device=self.device),
-            torch.tensor([self.cfg.target_tilt_yaw_rad], device=self.device),
-        ).repeat(self.num_envs, 1)
+        self.quat_command_w = torch.zeros(self.num_envs, 4, device=self.device)
 
         self.metrics["position_error"] = torch.zeros(self.num_envs, device=self.device)
+<<<<<<< HEAD
 <<<<<<< HEAD
         self.metrics["hit_in_window"] = torch.zeros(self.num_envs, device=self.device)
 >>>>>>> 97ddcbcd (rl-badminton)
 =======
+=======
+        self.metrics["orientation_error"] = torch.zeros(self.num_envs, device=self.device)
+        self.metrics["velocity_error"] = torch.zeros(self.num_envs, device=self.device)
+>>>>>>> bfee0731 (improve-badminton-rl)
         self.metrics["hit_in_moment"] = torch.zeros(self.num_envs, device=self.device)
 >>>>>>> bf63d8b3 (rl-badminton)
 
@@ -123,6 +145,7 @@ class UniformInterceptCommand(CommandTerm):
 
     @property
     def command(self) -> torch.Tensor:
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
         """Privileged intercept command. Shape is (num_envs, 12). See module-level slices."""
@@ -149,9 +172,14 @@ class UniformInterceptCommand(CommandTerm):
         Ring scale is debug-visualization only and is not part of the policy obs
         (keeps obs dim compatible with earlier checkpoints).
         """
+=======
+        """Privileged intercept command. Shape is (num_envs, 12). See module-level slices."""
+>>>>>>> bfee0731 (improve-badminton-rl)
         return torch.cat(
             [
                 self.pos_command_b,
+                self.quat_command_b,
+                self.vel_command_b,
                 self.hit_moment_active.unsqueeze(-1),
 >>>>>>> bf63d8b3 (rl-badminton)
                 self.lead_time_left.unsqueeze(-1),
@@ -227,6 +255,9 @@ class UniformInterceptCommand(CommandTerm):
             self.pos_command_b,
         )
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> bfee0731 (improve-badminton-rl)
         self.quat_command_w = quat_mul(self.robot.data.root_quat_w, self.quat_command_b)
 
         pos_err, ori_err, vel_err, _ = best_racket_tracking_errors(self.command, self.robot, self._body_ids)
@@ -234,8 +265,11 @@ class UniformInterceptCommand(CommandTerm):
         self.metrics["orientation_error"] = ori_err
         self.metrics["velocity_error"] = vel_err
         self.metrics["hit_in_moment"] = ((self.hit_moment_active > 0.5) & (pos_err < 0.13)).float()
+<<<<<<< HEAD
 =======
 >>>>>>> 97ddcbcd (rl-badminton)
+=======
+>>>>>>> bfee0731 (improve-badminton-rl)
 
     def _resample_command(self, env_ids: Sequence[int]):
         r = torch.empty(len(env_ids), device=self.device)
@@ -244,6 +278,9 @@ class UniformInterceptCommand(CommandTerm):
         self.pos_command_b[env_ids, 2] = r.uniform_(*self.cfg.ranges.pos_z)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> bfee0731 (improve-badminton-rl)
         roll = r.uniform_(*self.cfg.ranges.roll)
         pitch = r.uniform_(*self.cfg.ranges.pitch)
         yaw = r.uniform_(*self.cfg.ranges.yaw)
@@ -263,6 +300,7 @@ class UniformInterceptCommand(CommandTerm):
         des_vel_w = strike_dir_w * speed.unsqueeze(-1)
         self.vel_command_b[env_ids] = quat_rotate_inverse(root_quat_w, des_vel_w)
 
+<<<<<<< HEAD
         env_ids_t = torch.tensor(list(env_ids), device=self.device, dtype=torch.long)
         episode_time_left = self._episode_time_remaining(env_ids_t)
         hit_duration = self._hit_moment_duration()
@@ -271,6 +309,9 @@ class UniformInterceptCommand(CommandTerm):
         lo, hi = self.cfg.ranges.lead_time
         sampled_lead = lo + (hi - lo) * r.uniform_(0.0, 1.0)
         sampled_lead = torch.minimum(sampled_lead, max_lead)
+=======
+        sampled_lead = r.uniform_(*self.cfg.ranges.lead_time)
+>>>>>>> bfee0731 (improve-badminton-rl)
         self.lead_time_left[env_ids] = sampled_lead
         self.lead_time_total[env_ids] = sampled_lead
         self.hit_moment_time_left[env_ids] = 0.0
@@ -343,6 +384,7 @@ class UniformInterceptCommand(CommandTerm):
             return
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         self._update_metrics()
 
         num_markers = self.num_envs * NUM_INTERCEPT_MARKERS
@@ -358,9 +400,13 @@ class UniformInterceptCommand(CommandTerm):
         center_scale = torch.where(env_ring_scale > 0.0, 0.45, 0.0).repeat_interleave(NUM_INTERCEPT_MARKERS)
         scales[center_mask] = center_scale[center_mask].unsqueeze(-1).expand(-1, 3)
 =======
+=======
+        self._update_metrics()
+
+>>>>>>> bfee0731 (improve-badminton-rl)
         num_markers = self.num_envs * NUM_INTERCEPT_MARKERS
         translations = self.pos_command_w.repeat_interleave(NUM_INTERCEPT_MARKERS, dim=0)
-        orientations = self._target_tilt_quat.repeat_interleave(NUM_INTERCEPT_MARKERS, dim=0)
+        orientations = self.quat_command_w.repeat_interleave(NUM_INTERCEPT_MARKERS, dim=0)
 
         env_ring_scale = self._ring_scale()
         ring_scale = env_ring_scale.repeat_interleave(NUM_INTERCEPT_MARKERS)

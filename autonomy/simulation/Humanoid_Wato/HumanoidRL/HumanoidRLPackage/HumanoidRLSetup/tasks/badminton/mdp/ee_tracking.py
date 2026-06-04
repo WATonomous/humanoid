@@ -99,6 +99,7 @@ def best_racket_tracking_errors_from_env(
     return pos_err, ori_err, vel_err
 
 
+<<<<<<< HEAD
 def best_racket_state_w(
     command: torch.Tensor,
     asset: Articulation,
@@ -130,6 +131,8 @@ def strike_axis_w(command: torch.Tensor, asset: Articulation) -> tuple[torch.Ten
     return strike_dir, cmd_speed
 
 
+=======
+>>>>>>> bfee0731 (improve-badminton-rl)
 def impact_urgency_weight(lead_time_left: torch.Tensor, urgency_time_constant: float, prep_floor: float) -> torch.Tensor:
     """Weight in [prep_floor, 1]; always some signal during countdown, peak at impact."""
     urgency = torch.exp(-lead_time_left / max(urgency_time_constant, 1.0e-3))

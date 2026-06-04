@@ -16,6 +16,7 @@ from .intercept_command import UniformInterceptCommand
 class UniformInterceptCommandCfg(CommandTermCfg):
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     """Configuration for a timed EE intercept (badminton shuttle arrival) command."""
 =======
     """Configuration for a timed 3D intercept (badminton hit target) command."""
@@ -23,12 +24,16 @@ class UniformInterceptCommandCfg(CommandTermCfg):
 =======
     """Configuration for a timed 3D intercept (badminton shuttle arrival) command."""
 >>>>>>> bf63d8b3 (rl-badminton)
+=======
+    """Configuration for a timed EE intercept (badminton shuttle arrival) command."""
+>>>>>>> bfee0731 (improve-badminton-rl)
 
     class_type: type = UniformInterceptCommand
 
     asset_name: str = MISSING
     """Robot asset used to transform commands into the world frame."""
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
     tracking_body_names: list[str] | str = "DIP_INDEX_v1_.*"
@@ -46,8 +51,13 @@ class UniformInterceptCommandCfg(CommandTermCfg):
     window_duration_s: float = 0.4
     """Duration of the hit window once it opens [s]."""
 =======
+=======
+    tracking_body_names: list[str] | str = "DIP_INDEX_v1_.*"
+    """Body name(s) used for command metrics (closest link if multiple)."""
+
+>>>>>>> bfee0731 (improve-badminton-rl)
     hit_moment_duration_s: float = 0.0
-    """How long the hit-moment reward pulse stays active [s]. 0 = one env step (~67 ms)."""
+    """How long the hit-moment pulse stays active [s]. 0 = one env step (~67 ms)."""
 
     post_hit_ring_hidden: bool = True
     """After the contact flash, hide rings until the next resample (visualization only)."""
@@ -56,6 +66,7 @@ class UniformInterceptCommandCfg(CommandTermCfg):
     min_ring_scale: float = 0.35
     """Debug-vis ring scale on the one-step shuttle-contact flash."""
 
+<<<<<<< HEAD
     target_tilt_pitch_rad: float = 0.55
     """Pitch tilt applied to the flat target disk [rad] (visualization only)."""
 
@@ -67,6 +78,8 @@ class UniformInterceptCommandCfg(CommandTermCfg):
     """Yaw tilt applied to the flat target disk [rad] (visualization only)."""
 >>>>>>> bf63d8b3 (rl-badminton)
 
+=======
+>>>>>>> bfee0731 (improve-badminton-rl)
     @configclass
     class Ranges:
         """Uniform distribution ranges for intercept commands."""
@@ -86,12 +99,15 @@ class UniformInterceptCommandCfg(CommandTermCfg):
         """Desired EE yaw at impact [rad] (base frame)."""
         speed: tuple[float, float] = (0.4, 1.5)
         """Desired EE linear speed at impact [m/s] along base→intercept axis."""
+<<<<<<< HEAD
 =======
         """Seconds after resample before the hit window opens."""
 >>>>>>> 97ddcbcd (rl-badminton)
 =======
         """Seconds after resample until the shuttle arrives at the intercept point."""
 >>>>>>> bf63d8b3 (rl-badminton)
+=======
+>>>>>>> bfee0731 (improve-badminton-rl)
 
     ranges: Ranges = MISSING
 
