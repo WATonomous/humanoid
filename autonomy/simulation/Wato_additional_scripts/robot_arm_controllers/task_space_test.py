@@ -1,6 +1,18 @@
 """
-Task space controller on only the 6 DOF of the humanoid arm, there is a cube which represent the target arm ee position,
-user can move the cube's position and see the arm's IK controller react to it and follow the cube around
+task_space_test.py
+==================
+Runs a simulation where the 6-DOF Wato humanoid arm is controlled in task space.
+A virtual target cube is spawned in the scene. The robot arm uses a Differential Inverse Kinematics
+controller to calculate target joint angles so its end effector follows the target cube around in real-time.
+
+Process:
+  1. Initialize the simulation launcher and resolve the path to the modelCfg directory
+  2. Load the arm-only configuration (humanoid_arm_only) and construct the scene (ground, lights, table, target cube)
+  3. Instantiate a Differential IK Controller
+  4. Run the physics loop:
+     a. Read the target cube's current position and orientation in space
+     b. Compute the required joint angles using the Jacobian matrix and IK solver
+     c. Command the robot's arm joints to move toward the computed angles
 """
 
 import argparse

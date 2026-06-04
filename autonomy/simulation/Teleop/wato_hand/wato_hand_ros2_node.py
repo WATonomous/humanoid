@@ -1,3 +1,23 @@
+"""
+wato_hand_ros2_node.py (Teleop/wato_hand)
+=========================================
+ROS2 node that converts MediaPipe hand landmarks into joint angles for the Wato robot.
+It subscribes to the /wato/hand_landmarks topic, calculates the joint positions
+using trigonometric ratios of the keypoints, applies Exponential Moving Average
+(EMA) smoothing to reduce jitter, publishes the joint angles to the
+/wato/hand_joint_angles topic, and saves the current joint angles to a local
+shared JSON file for the simulation.
+
+Process:
+  1. Initialize ROS2 node, subscribing to landmark topic and advertising joint angles
+  2. For each incoming landmark message:
+     a. Compute joint angle limits and ratios (thumb and fingers)
+     b. Compute wrist orientation and roll
+     c. Damp high-frequency noise with an EMA filter
+     d. Write the joint angles to a temporary JSON file and publish them
+"""
+import os
+import tempfile
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
@@ -5,7 +25,7 @@ import json
 import math
 import time
 
-JOINT_FILE = "/tmp/wato_joints.json"
+JOINT_FILE = os.path.join(tempfile.gettempdir(), "wato_joints.json")
 
 # ── Finger curl calibration ───────────────────────────────────────────────────
 # OPEN_RATIOS — tip/mcp distance ratio when finger is fully extended
@@ -122,12 +142,15 @@ def landmarks_to_joints(landmarks, world):
     thumb_curl = finger_curl(world, tip_idx=4, mcp_idx=2)
 
     # DEBUG: dump raw ratios to see what MediaPipe actually outputs for metric 3D fingers!
-    with open("/tmp/curl_debug.txt", "w") as f:
-        def get_ratio(w, t, m):
-            td = math.sqrt((w[t]["x"]-w[0]["x"])**2 + (w[t]["y"]-w[0]["y"])**2 + (w[t]["z"]-w[0]["z"])**2)
-            md = math.sqrt((w[m]["x"]-w[0]["x"])**2 + (w[m]["y"]-w[0]["y"])**2 + (w[m]["z"]-w[0]["z"])**2)
-            return td/md if md > 0 else 0
-        f.write(f"Ratios: idx={get_ratio(world,8,5):.2f}, mid={get_ratio(world,12,9):.2f}, rng={get_ratio(world,16,13):.2f}, pnk={get_ratio(world,20,17):.2f}\n")
+    DEBUG_CURL = False
+    if DEBUG_CURL:
+        _debug_file = os.path.join(tempfile.gettempdir(), "curl_debug.txt")
+        with open(_debug_file, "w") as f:
+            def get_ratio(w, t, m):
+                td = math.sqrt((w[t]["x"]-w[0]["x"])**2 + (w[t]["y"]-w[0]["y"])**2 + (w[t]["z"]-w[0]["z"])**2)
+                md = math.sqrt((w[m]["x"]-w[0]["x"])**2 + (w[m]["y"]-w[0]["y"])**2 + (w[m]["z"]-w[0]["z"])**2)
+                return td/md if md > 0 else 0
+            f.write(f"Ratios: idx={get_ratio(world,8,5):.2f}, mid={get_ratio(world,12,9):.2f}, rng={get_ratio(world,16,13):.2f}, pnk={get_ratio(world,20,17):.2f}\n")
 
     # Wrist flexion/extension & Forearm rotation using 3D world coordinates (invariant to 2D perspective scaling jumps when clenching)
     w_wrist = world[0]

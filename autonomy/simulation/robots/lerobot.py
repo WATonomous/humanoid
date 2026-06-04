@@ -1,4 +1,16 @@
+"""
+lerobot.py
+==========
+Defines the articulation configurations (stiffness, damping, collision parameters, and joint limits)
+for the SO-ARM (so101 follower) robot in the Isaac Lab simulation.
+
+Process:
+  1. Resolve USD asset file paths relative to the global ASSETS_ROOT
+  2. Declare the articulation configuration (SO101_FOLLOWER_CFG and SO101_KINFE_CFG) defining joint limits, starting poses, and actuator dynamics (implicit actuators)
+  3. Specify physical joint limits (in degrees) and device motor limits (normalized ranges) for the arm segments and gripper
+"""
 from pathlib import Path
+
 
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg

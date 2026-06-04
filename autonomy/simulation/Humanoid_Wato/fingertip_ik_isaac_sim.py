@@ -1,4 +1,20 @@
-"""21 DOF Humanoid Arm reaching 5 different 5 EE fingertip target positions"""
+"""
+fingertip_ik_isaac_sim.py
+==========================
+Runs a simulation where the robot hand is directed to reach target fingertip coordinates in space.
+It precomputes a sequence of joint angles using a MuJoCo-based damped least-squares Inverse Kinematics solver
+and then feeds those trajectories into the Isaac Sim environment to visualize the robot's fingers reaching the targets.
+
+Process:
+  1. Load the hand model and query default fingertip positions using MuJoCo
+  2. Define a set of target endpoint offsets (X, Y, Z, and diagonal motion)
+  3. For each offset step:
+     a. Compute target fingertip coordinates
+     b. Run a local MuJoCo IK optimizer to resolve joint angles (21-DOF qpos)
+     c. Store the joint angles and target positions
+  4. Launch Isaac Sim and build the tabletop scene
+  5. Step through the precomputed trajectories, interpolating smoothly, and visualize target spheres vs actual fingertips
+"""
 from arm_assembly.fingertip_ik import (
     load_model,
     solve_fingertip_ik,

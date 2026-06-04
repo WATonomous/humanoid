@@ -1,5 +1,12 @@
 # Camera-Based Teleoperation — Launch Guide
 
+> [!NOTE]
+> **This folder is location-independent.** Every script resolves its own file and model paths
+> dynamically based on where it lives in the repository — no hardcoded absolute paths.
+> You can clone or move the `humanoid` repository to any directory on your host machine or
+> inside the Docker container and everything will still work, as long as the internal
+> folder structure of the repo is unchanged.
+
 ## System Architecture
 
 ```

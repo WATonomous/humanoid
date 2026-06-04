@@ -2,17 +2,17 @@
 wato_hand_isaaclab_teleop.py
 ============================
 Isaac Lab simulation that drives the arm_assembly hand joints in real-time
-by reading /tmp/wato_joints.json written by wato_hand_ros2_node.py.
+by reading a shared JSON file written by wato_hand_ros2_node.py.
 
 No rclpy required — works with isaaclab.sh's own Python interpreter.
 
 Usage (in the Docker container):
   # Terminal 1: rosbridge already running
-  # Terminal 2: wato_hand_ros2_node.py already running (writes /tmp/wato_joints.json)
-  # Terminal 3:
-  cd /workspace/isaaclab/humanoid/autonomy/simulation/Humanoid_Wato
-  PYTHONPATH=/workspace/isaaclab/humanoid/autonomy/simulation/Humanoid_Wato \
-    /workspace/isaaclab/isaaclab.sh -p wato_hand_isaaclab_teleop.py
+  # Terminal 2: wato_hand_ros2_node.py already running (writes wato_joints.json)
+  # Terminal 3 — run from the repo root:
+  PYTHONPATH=<repo_root>/autonomy/simulation/Humanoid_Wato \
+    /workspace/isaaclab/isaaclab.sh -p \
+    <repo_root>/autonomy/simulation/Teleop/camera-based\ teleoperation/wato_hand_isaaclab_teleop.py
 """
 
 import argparse
@@ -375,8 +375,10 @@ class DemonstrationRecorder:
         self.episodes.clear()
 
 
-# ── Shared file written by wato_hand_ros2_node.py ────────────────────────────
-JOINT_FILE = "/tmp/wato_joints.json"
+# Shared file written by wato_hand_ros2_node.py.
+# tempfile.gettempdir() returns /tmp on Linux/Docker and %TEMP% on Windows.
+import tempfile
+JOINT_FILE = os.path.join(tempfile.gettempdir(), "wato_joints.json")
 HAND_TIMEOUT = 2.0  # seconds before hand is considered lost
 
 
@@ -607,7 +609,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             joint_pos_target[0, name_to_sim_idx[joint_name]] = float(angle)
 
     import json
-    with open("/tmp/joint_limits.json", "w") as f:
+    _joint_limits_file = os.path.join(tempfile.gettempdir(), "joint_limits.json")
+    with open(_joint_limits_file, "w") as f:
         l = robot.data.soft_joint_pos_limits[0].cpu().numpy().tolist()
         json.dump({"names": robot.data.joint_names, "limits": l}, f)
 

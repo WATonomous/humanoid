@@ -1,4 +1,18 @@
+"""
+joint_space_test.py
+===================
+Runs a simulation where a UR10 robot arm is controlled directly in joint space.
+It cycles through a hardcoded list of 4 different joint-angle configurations (targets),
+holding each for 1.5 seconds, to verify that the robot joints actuate correctly in Isaac Sim.
+
+Process:
+  1. Load the UR10 configuration and build the tabletop scene in Isaac Sim
+  2. Declare the 4 test joint configurations
+  3. Step through the configurations in the simulation loop, sending position targets
+     to the joints and rendering their motion
+"""
 from isaaclab_assets import UR10_CFG
+
 from isaaclab.utils.math import subtract_frame_transforms
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.utils import configclass

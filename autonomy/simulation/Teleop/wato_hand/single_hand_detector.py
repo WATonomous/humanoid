@@ -1,4 +1,20 @@
+"""
+single_hand_detector.py
+=======================
+Wraps Google MediaPipe's hand tracking API to detect a single hand
+(Left or Right) from RGB camera frames. It estimates the 3D position
+of all 21 hand landmarks, and calculates the 3D rotation matrix
+of the wrist to orient the robot hand model correctly.
+
+Process:
+  1. Initialize MediaPipe Hands solution with detection/tracking confidence thresholds
+  2. For an input RGB frame, query MediaPipe for all detected hands
+  3. Filter the results to isolate the specific target hand (Left or Right)
+  4. Orthonormalize vectors from palm points using SVD to estimate the wrist coordinate frame
+  5. Project and return the 3D joint landmarks in the estimated wrist coordinate space
+"""
 # Adapted from the dex-retargeting library at dex-retargeting/example/vector_retargeting/single_hand_detector.py
+
 
 import mediapipe as mp
 import numpy as np

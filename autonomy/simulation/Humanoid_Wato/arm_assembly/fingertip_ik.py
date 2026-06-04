@@ -1,7 +1,19 @@
 """
-IK for the 21 DOF humanoid arm-hand, with iterative jacobian least damped square method
+fingertip_ik.py
+===============
+Provides a MuJoCo-based damped least-squares Inverse Kinematics solver for the Wato robot's fingers.
+It calculates the exact joint configuration (21-DOF qpos) required to bring the 5 fingertips
+to desired 3D coordinates.
 
-Details in IK.md
+Process:
+  1. Load the arm_assembly.urdf file and mesh geometry into a MuJoCo physics model
+  2. Clamp joint positions within their limits, skipping continuous joints that have range [0, 0]
+  3. Run an iterative solver loop:
+     a. Compute current fingertip positions and 3D positioning errors
+     b. Compute the body Jacobian matrix for each fingertip
+     c. Resolve the joint velocity deltas using damped least-squares (Levenberg-Marquardt style)
+     d. Update joint positions and clamp them
+     e. Stop and return if error is below the tolerance threshold
 """
 import os
 import mujoco
