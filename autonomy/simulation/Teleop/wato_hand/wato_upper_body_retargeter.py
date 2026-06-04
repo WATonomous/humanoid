@@ -3,24 +3,6 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""
-wato_upper_body_retargeter.py
-==============================
-Retargets full OpenXR-tracked hand joint structures to the Wato robot's upper body.
-Unlike the motion controller retargeter, this script uses full hand keypoint tracking
-from a device (like Quest or other XR tracker) and utilizes the dex_retargeting library
-to calculate exact joint rotations for both robot hands in real-time.
-
-Process:
-  1. Retrieve OpenXR hand tracking joint datasets for Left and Right hands
-  2. Extract raw wrist position and quaternion rotation vectors
-  3. Call the WatoHandDexRetargeting controller to calculate the optimal 15-joint angles
-     for both the left and right robot hands
-  4. Perform absolute coordinate frame rotation adjustments on the wrists so that
-     motion in the user's space maps correctly to the simulation's coordinate frame
-  5. Pack and return a combined target tensor of wrist poses and hand joints
-"""
-
 from __future__ import annotations
 
 import contextlib

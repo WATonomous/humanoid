@@ -1,22 +1,3 @@
-"""
-task_space_test.py
-==================
-This script runs a simulation where a robot arm (e.g. Franka Panda or UR10)
-is controlled in task space (End Effector position/orientation) rather than
-joint space. The user can control the robot via keyboard keys (WASDQE) in GUI mode,
-or run it in headless mode with pre-scripted sinusoidal movements.
-
-Process:
-  1. Initialize the Isaac Lab simulation application (AppLauncher)
-  2. Build a tabletop scene containing a ground plane, lights, a table, and the robot
-  3. Instantiate a DemonstrationRecorder to record joint trajectories, camera images,
-     and actions into HDF5 and MP4 files
-  4. Run a simulation loop where:
-     a. Keyboard inputs (or scripted path signals) are converted into task-space command deltas
-     b. A Differential IK controller computes the target joint angles required to achieve the desired End Effector movement
-     c. Target joint angles (and gripper signals) are sent to the simulation
-     d. Current state transitions are appended to the DemonstrationRecorder
-"""
 import argparse
 from isaaclab.app import AppLauncher
 import h5py
@@ -25,6 +6,7 @@ from pathlib import Path
 from datetime import datetime
 from isaaclab.utils.math import subtract_frame_transforms, quat_mul, quat_from_euler_xyz
 
+"""Robot Arm Teleoperation (headless-compatible) with Task Space IK Control"""
 
 parser = argparse.ArgumentParser(description="Robot Arm Teleoperation with Task Space IK Control")
 parser.add_argument("--robot", type=str, default="franka_panda", help="Name of the robot.")

@@ -1,26 +1,3 @@
-"""
-hand_test.py (ros2_bridge)
-==========================
-Tests the Wato humanoid hand model's ROS2 connectivity inside the Isaac Sim environment.
-It initializes a ROS2 Subscriber to listen for joint angles published over the bridge,
-and applies those target values directly to the simulated hand model joints in real-time.
-
-Process:
-  1. Add the path to Humanoid_Wato to system path so HumanoidRL can be imported
-  2. Setup the ROS2 node and subscriber for hand joint messages
-  3. Load the HAND_CFG configuration representing the Wato hand assembly
-  4. Spawn the hand in Isaac Sim tabletop scene
-  5. In the simulation loop:
-     a. Spin ROS2 to receive incoming messages
-     b. Read the latest joint angle array (15 values)
-     c. Target the robot hand joints with the received values, or fallback to 1.0 rad target if none received
-     d. Perform simulation steps
-"""
-import os
-import sys
-# Resolve the path to Humanoid_Wato to import HumanoidRL model configurations
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../Humanoid_Wato")))
-
 from test_subscriber import HandPoseSubscriber
 from test_publisher import TestFloatPublisher
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
@@ -34,7 +11,6 @@ import rclpy
 import torch
 import argparse
 from isaaclab.app import AppLauncher
-
 
 parser = argparse.ArgumentParser(description="Humanoid Hand Testing")
 AppLauncher.add_app_launcher_args(parser)

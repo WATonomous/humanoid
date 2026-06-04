@@ -1,12 +1,4 @@
-"""
-test_publisher.py
-=================
-A test ROS2 publisher node. It publishes a mock Float32MultiArray array representing
-15 robot hand joint positions to the /hand_joint_positions topic at 10 Hz (every 0.1s).
-This is used to verify the ROS2 bridge connection and message subscription behavior.
-"""
 import rclpy
-
 from rclpy.node import Node
 from std_msgs.msg import Float32MultiArray
 
