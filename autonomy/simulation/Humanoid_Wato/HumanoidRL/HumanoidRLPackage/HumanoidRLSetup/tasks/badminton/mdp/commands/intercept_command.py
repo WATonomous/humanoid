@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING
 from isaaclab.assets import Articulation
 from isaaclab.managers import CommandTerm
 from isaaclab.markers import VisualizationMarkers
-from isaaclab.utils.math import combine_frame_transforms, quat_from_euler_xyz
+from isaaclab.utils.math import combine_frame_transforms, quat_from_euler_xyz, quat_mul, quat_rotate_inverse
 
+from HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp.ee_tracking import best_racket_tracking_errors
 from HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp.ring_marker_utils import NUM_INTERCEPT_MARKERS
 
 if TYPE_CHECKING:
@@ -18,12 +19,12 @@ if TYPE_CHECKING:
 
 
 class UniformInterceptCommand(CommandTerm):
-    """Command generator for a timed 3D intercept point (badminton shuttle arrival).
+    """Timed EE intercept: position, orientation, and velocity at shuttle arrival.
 
-    Privileged timing (for the policy): intercept position, time-to-hit, ring scale,
-    and a short hit-moment pulse when the shuttle would arrive.
+    Privileged timing for the policy: full swing target, time-to-hit, and a short
+    hit-moment pulse when the shuttle would arrive.
 
-    Debug visualization only: rings shrink during countdown, flash at min size for one
+    Debug visualization: rings shrink during countdown, flash at min size for one
     step at contact, then hide until the next resample.
     """
 
@@ -33,21 +34,23 @@ class UniformInterceptCommand(CommandTerm):
         super().__init__(cfg, env)
 
         self.robot: Articulation = env.scene[cfg.asset_name]
+        self._body_ids, _ = self.robot.find_bodies(cfg.tracking_body_names)
 
         self.pos_command_b = torch.zeros(self.num_envs, 3, device=self.device)
+        self.quat_command_b = torch.zeros(self.num_envs, 4, device=self.device)
+        self.quat_command_b[:, 0] = 1.0
+        self.vel_command_b = torch.zeros(self.num_envs, 3, device=self.device)
         self.lead_time_left = torch.zeros(self.num_envs, device=self.device)
         self.lead_time_total = torch.ones(self.num_envs, device=self.device)
         self.hit_moment_time_left = torch.zeros(self.num_envs, device=self.device)
         self.hit_moment_active = torch.zeros(self.num_envs, device=self.device)
 
         self.pos_command_w = torch.zeros_like(self.pos_command_b)
-        self._target_tilt_quat = quat_from_euler_xyz(
-            torch.tensor([0.0], device=self.device),
-            torch.tensor([self.cfg.target_tilt_pitch_rad], device=self.device),
-            torch.tensor([self.cfg.target_tilt_yaw_rad], device=self.device),
-        ).repeat(self.num_envs, 1)
+        self.quat_command_w = torch.zeros(self.num_envs, 4, device=self.device)
 
         self.metrics["position_error"] = torch.zeros(self.num_envs, device=self.device)
+        self.metrics["orientation_error"] = torch.zeros(self.num_envs, device=self.device)
+        self.metrics["velocity_error"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["hit_in_moment"] = torch.zeros(self.num_envs, device=self.device)
 
     def __str__(self) -> str:
@@ -59,18 +62,12 @@ class UniformInterceptCommand(CommandTerm):
 
     @property
     def command(self) -> torch.Tensor:
-        """Privileged intercept command. Shape is (num_envs, 5).
-
-        - [:3] target position in robot base frame
-        - [3] hit-moment pulse (1.0 on the shuttle-arrival step, else 0.0)
-        - [4] seconds until shuttle arrival (0.0 once the moment has passed)
-
-        Ring scale is debug-visualization only and is not part of the policy obs
-        (keeps obs dim compatible with earlier checkpoints).
-        """
+        """Privileged intercept command. Shape is (num_envs, 12). See module-level slices."""
         return torch.cat(
             [
                 self.pos_command_b,
+                self.quat_command_b,
+                self.vel_command_b,
                 self.hit_moment_active.unsqueeze(-1),
                 self.lead_time_left.unsqueeze(-1),
             ],
@@ -105,12 +102,38 @@ class UniformInterceptCommand(CommandTerm):
             self.robot.data.root_quat_w,
             self.pos_command_b,
         )
+        self.quat_command_w = quat_mul(self.robot.data.root_quat_w, self.quat_command_b)
+
+        pos_err, ori_err, vel_err, _ = best_racket_tracking_errors(self.command, self.robot, self._body_ids)
+        self.metrics["position_error"] = pos_err
+        self.metrics["orientation_error"] = ori_err
+        self.metrics["velocity_error"] = vel_err
+        self.metrics["hit_in_moment"] = ((self.hit_moment_active > 0.5) & (pos_err < 0.13)).float()
 
     def _resample_command(self, env_ids: Sequence[int]):
         r = torch.empty(len(env_ids), device=self.device)
         self.pos_command_b[env_ids, 0] = r.uniform_(*self.cfg.ranges.pos_x)
         self.pos_command_b[env_ids, 1] = r.uniform_(*self.cfg.ranges.pos_y)
         self.pos_command_b[env_ids, 2] = r.uniform_(*self.cfg.ranges.pos_z)
+
+        roll = r.uniform_(*self.cfg.ranges.roll)
+        pitch = r.uniform_(*self.cfg.ranges.pitch)
+        yaw = r.uniform_(*self.cfg.ranges.yaw)
+        self.quat_command_b[env_ids] = quat_from_euler_xyz(roll, pitch, yaw)
+
+        # Strike velocity: world-frame direction base → intercept, magnitude from range.
+        root_pos_w = self.robot.data.root_pos_w[env_ids]
+        root_quat_w = self.robot.data.root_quat_w[env_ids]
+        des_pos_w, _ = combine_frame_transforms(
+            root_pos_w,
+            root_quat_w,
+            self.pos_command_b[env_ids],
+        )
+        strike_dir_w = des_pos_w - root_pos_w
+        strike_dir_w = strike_dir_w / torch.norm(strike_dir_w, dim=-1, keepdim=True).clamp(min=1.0e-6)
+        speed = r.uniform_(*self.cfg.ranges.speed)
+        des_vel_w = strike_dir_w * speed.unsqueeze(-1)
+        self.vel_command_b[env_ids] = quat_rotate_inverse(root_quat_w, des_vel_w)
 
         sampled_lead = r.uniform_(*self.cfg.ranges.lead_time)
         self.lead_time_left[env_ids] = sampled_lead
@@ -149,9 +172,11 @@ class UniformInterceptCommand(CommandTerm):
         if not self.robot.is_initialized:
             return
 
+        self._update_metrics()
+
         num_markers = self.num_envs * NUM_INTERCEPT_MARKERS
         translations = self.pos_command_w.repeat_interleave(NUM_INTERCEPT_MARKERS, dim=0)
-        orientations = self._target_tilt_quat.repeat_interleave(NUM_INTERCEPT_MARKERS, dim=0)
+        orientations = self.quat_command_w.repeat_interleave(NUM_INTERCEPT_MARKERS, dim=0)
 
         env_ring_scale = self._ring_scale()
         ring_scale = env_ring_scale.repeat_interleave(NUM_INTERCEPT_MARKERS)
