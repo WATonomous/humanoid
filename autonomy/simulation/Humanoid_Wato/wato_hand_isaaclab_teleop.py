@@ -1,24 +1,18 @@
 """
 wato_hand_isaaclab_teleop.py
 ============================
-Isaac Lab simulation that drives the Wato arm and hand joints in real-time.
-It reads joint commands from a shared file (written by the camera ROS2 node),
-calculates joint space Inverse Kinematics for the fingers, and publishes targets to the simulation.
-It also includes programmatic physics forces to push/pull a simulated door and allows
-recording demonstrations (obs, actions, camera frames) to HDF5 and MP4 formats.
+Isaac Lab simulation that drives the arm_assembly hand joints in real-time
+by reading /tmp/wato_joints.json written by wato_hand_ros2_node.py.
 
-Process:
-  1. Parse arguments, initialize AppLauncher to build the simulation application
-  2. Setup the tabletop scene including the ground plane, lights, table, door, cameras, and the Wato robot
-  3. Load the Dex-Retargeting IK Solver using a local URDF file
-  4. Wait for the first hand landmark file from the camera node, and teleport the robot to that start pose
-  5. Enter the simulation loop:
-     a. Read the fresh joint targets from the shared file
-     b. Compute the wrist orientation (azimuth/elevation) and scale-based arm position tracking
-     c. Run the Cartesian IK solver for fingers, coupling the DIP joints biologically
-     d. Calculate spatial door touch/push/pull physics forces and apply them
-     e. Send joint position targets to the robot in simulation
-     f. Record observations and camera images if the demonstration recorder is active
+No rclpy required — works with isaaclab.sh's own Python interpreter.
+
+Usage (in the Docker container):
+  # Terminal 1: rosbridge already running
+  # Terminal 2: wato_hand_ros2_node.py already running (writes /tmp/wato_joints.json)
+  # Terminal 3:
+  cd /workspace/isaaclab/humanoid/autonomy/simulation/Humanoid_Wato
+  PYTHONPATH=/workspace/isaaclab/humanoid/autonomy/simulation/Humanoid_Wato \
+    /workspace/isaaclab/isaaclab.sh -p wato_hand_isaaclab_teleop.py
 """
 
 import argparse
@@ -299,8 +293,7 @@ class DemonstrationRecorder:
 
 
 # ── Shared file written by wato_hand_ros2_node.py ────────────────────────────
-import tempfile
-JOINT_FILE = os.path.join(tempfile.gettempdir(), "wato_joints.json")
+JOINT_FILE = "/tmp/wato_joints.json"
 HAND_TIMEOUT = 2.0  # seconds before hand is considered lost
 
 
@@ -517,11 +510,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     try:
         from dex_retargeting.retargeting_config import RetargetingConfig
         import numpy as np
-        _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-        _urdf_path = os.path.join(_SCRIPT_DIR, "arm_assembly", "arm_assembly_fixed.urdf")
         ik_config = {
             "type": "vector",
-            "urdf_path": _urdf_path,
+            "urdf_path": "/workspace/isaaclab/humanoid/autonomy/simulation/Humanoid_Wato/arm_assembly/arm_assembly_fixed.urdf",
             "wrist_link_name": "PALM_GAVIN_1DoF_Hinge_v2_1",
             "target_origin_link_names": [
                 # Thumb (2 vectors)
@@ -576,8 +567,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             joint_pos_target[0, name_to_sim_idx[joint_name]] = float(angle)
 
     import json
-    _joint_limits_path = os.path.join(tempfile.gettempdir(), "joint_limits.json")
-    with open(_joint_limits_path, "w") as f:
+    with open("/tmp/joint_limits.json", "w") as f:
         l = robot.data.soft_joint_pos_limits[0].cpu().numpy().tolist()
         json.dump({"names": robot.data.joint_names, "limits": l}, f)
 
