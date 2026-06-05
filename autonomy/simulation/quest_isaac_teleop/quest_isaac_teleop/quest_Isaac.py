@@ -91,7 +91,7 @@ LEFT_FINGER_JOINTS = [
     "left_mcp_thumb",
     "left_ip_thumb",
 ]
-
+git add .
 RIGHT_FINGER_JOINTS = [
     "mcp_index",
     "pip_index",
@@ -166,7 +166,7 @@ class ArmWristIK:
     commanded to its startup pose plus the (frame-mapped, scaled) position
     delta and the relative rotation the real wrist has undergone since the
     first message. Matching orientation as well as position constrains the
-    6-DOF arm so the elbow settles into a human-like configuration.
+    6-DOF arm so the elbow settgit add .les into a human-like configuration.
 
     No second physics/kinematics model is loaded -- it reuses the
     articulation's PhysX Jacobian, so there's no MuJoCo/Omniverse conflict.
