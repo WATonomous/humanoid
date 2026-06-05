@@ -1,4 +1,5 @@
 import argparse
+import os
 from isaaclab.app import AppLauncher
 import h5py
 import numpy as np
@@ -9,7 +10,6 @@ from isaaclab.utils.math import subtract_frame_transforms, quat_mul, quat_from_e
 """Robot Arm Teleoperation (headless-compatible) with Task Space IK Control"""
 
 parser = argparse.ArgumentParser(description="Robot Arm Teleoperation with Task Space IK Control")
-parser.add_argument("--robot", type=str, default="franka_panda", help="Name of the robot.")
 # AppLauncher adds --enable_cameras, so we don't need to add it manually here
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
@@ -51,7 +51,82 @@ try:
 except ImportError:
     pass
 
-from isaaclab_assets import UR10_CFG, FRANKA_PANDA_HIGH_PD_CFG
+from isaaclab.actuators import ImplicitActuatorCfg
+from isaaclab.assets.articulation import ArticulationCfg
+
+# ---- WATO Bimanual Arm Config (loaded from URDF) ----
+_BIMANUAL_URDF_PATH = os.path.join(
+    os.path.dirname(__file__),
+    "..", "..",
+    "Humanoid_Wato", "wato_bimanual_arm", "urdf", "armDouble.SLDASM.urdf",
+)
+_BIMANUAL_URDF_PATH = os.path.abspath(_BIMANUAL_URDF_PATH)
+
+# Right arm: joints joint1-joint6 (arm), joint7/8 (gripper fingers)
+# Left arm:  joints joint1L-joint6l (arm), joint7l/8l (gripper fingers)
+# EE for right arm = link6  |  EE for left arm = link6l
+WATO_BIMANUAL_ARM_CFG = ArticulationCfg(
+    spawn=sim_utils.UrdfFileCfg(
+        asset_path=_BIMANUAL_URDF_PATH,
+        fix_base=True,
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            disable_gravity=False,
+            max_depenetration_velocity=5.0,
+        ),
+        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+            enabled_self_collisions=False,
+        ),
+    ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        pos=(0.0, 0.0, 0.0),
+        joint_pos={
+            # Right arm
+            "joint1": 0.0,
+            "joint2": 0.0,
+            "joint3": 0.0,
+            "joint4": 0.0,
+            "joint5": 0.0,
+            "joint6": 0.0,
+            "joint7": 0.0,
+            "joint8": 0.0,
+            # Left arm
+            "joint1L": 0.0,
+            "joint2l": 0.0,
+            "joint3l": 0.0,
+            "joint4l": 0.0,
+            "joint5l": 0.0,
+            "joint6l": 0.0,
+            "joint7l": 0.0,
+            "joint8l": 0.0,
+        },
+    ),
+    actuators={
+        "right_arm": ImplicitActuatorCfg(
+            joint_names_expr=["joint[1-6]"],
+            stiffness=400.0,
+            damping=40.0,
+            velocity_limit_sim=3.0,
+        ),
+        "right_gripper": ImplicitActuatorCfg(
+            joint_names_expr=["joint[7-8]"],
+            stiffness=200.0,
+            damping=20.0,
+            velocity_limit_sim=1.0,
+        ),
+        "left_arm": ImplicitActuatorCfg(
+            joint_names_expr=["joint[1-6]L", "joint[2-6]l"],
+            stiffness=400.0,
+            damping=40.0,
+            velocity_limit_sim=3.0,
+        ),
+        "left_gripper": ImplicitActuatorCfg(
+            joint_names_expr=["joint[7-8]l"],
+            stiffness=200.0,
+            damping=20.0,
+            velocity_limit_sim=1.0,
+        ),
+    },
+)
 
 # Video recording imports
 try:
@@ -418,12 +493,8 @@ class TableTopSceneCfg(InteractiveSceneCfg):
         init_state=AssetBaseCfg.InitialStateCfg(pos=(0.8, 0, 0.23)),  # On top of table, matching table position
     )
 
-    if args_cli.robot == "franka_panda":
-        robot = FRANKA_PANDA_HIGH_PD_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-    elif args_cli.robot == "ur10":
-        robot = UR10_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-    else:
-        raise ValueError(f"Robot {args_cli.robot} is not supported. Valid: franka_panda, ur10")
+    # WATO bimanual arm (right arm controlled, left arm locked at zero)
+    robot = WATO_BIMANUAL_ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
     
     # Main Camera (Camera 1 position - user's preferred angle)
     # Position: 36 degrees around circle, radius 1.5m from (0.5, 0), height 1.0m
@@ -531,24 +602,21 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     ee_marker = VisualizationMarkers(frame_marker_cfg.replace(prim_path="/Visuals/ee_current"))
     goal_marker = VisualizationMarkers(frame_marker_cfg.replace(prim_path="/Visuals/ee_goal"))
 
-    if args_cli.robot == "franka_panda":
-        robot_entity_cfg = SceneEntityCfg("robot", joint_names=["panda_joint.*"], body_names=["panda_hand"])
-    elif args_cli.robot == "ur10":
-        robot_entity_cfg = SceneEntityCfg("robot", joint_names=[".*"], body_names=["ee_link"])
+    # WATO bimanual arm: control right arm (joint1-joint6), EE = link6
+    robot_entity_cfg = SceneEntityCfg(
+        "robot",
+        joint_names=["joint[1-6]$"],   # right arm revolute joints only
+        body_names=["link6"],           # right arm wrist / EE body
+    )
     robot_entity_cfg.resolve(scene)
 
     ee_jacobi_idx = robot_entity_cfg.body_ids[0] - 1 if robot.is_fixed_base else robot_entity_cfg.body_ids[0]
     sim_dt = 0.01
 
-    # Initialize joint states
-    if args_cli.robot == "franka_panda":
-        joint_position = robot.data.default_joint_pos.clone()
-        joint_vel = robot.data.default_joint_vel.clone()
-        robot.write_joint_state_to_sim(joint_position, joint_vel)
-    else:
-        joint_position = torch.zeros((1, 6), device=sim.device)
-        joint_vel = robot.data.default_joint_vel.clone()
-        robot.write_joint_state_to_sim(joint_position, joint_vel)
+    # Initialize joint states to defaults (all zeros per URDF)
+    joint_position = robot.data.default_joint_pos.clone()
+    joint_vel = robot.data.default_joint_vel.clone()
+    robot.write_joint_state_to_sim(joint_position, joint_vel)
 
     # -----------------------
     # GRIPPER SETUP
