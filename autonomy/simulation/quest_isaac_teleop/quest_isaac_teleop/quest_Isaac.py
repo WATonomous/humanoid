@@ -91,7 +91,6 @@ LEFT_FINGER_JOINTS = [
     "left_mcp_thumb",
     "left_ip_thumb",
 ]
-git add .
 RIGHT_FINGER_JOINTS = [
     "mcp_index",
     "pip_index",
