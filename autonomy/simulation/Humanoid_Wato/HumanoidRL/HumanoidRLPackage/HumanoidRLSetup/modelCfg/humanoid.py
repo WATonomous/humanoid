@@ -66,10 +66,10 @@ ARM_CFG = ArticulationCfg(
     ),
     init_state=ArticulationCfg.InitialStateCfg(
         joint_pos={
-            "shoulder_flexion_extension": 0.0,
-            "shoulder_abduction_adduction": 0.0,
-            "shoulder_rotation": 0.0,
-            "elbow_flexion_extension": 0.0,
+            "shoulder_flexion_extension": 1.11,
+            "shoulder_abduction_adduction": -0.05,
+            "shoulder_rotation": -0.22,
+            "elbow_flexion_extension": 1.86,
             "forearm_rotation": 0.0,
             "wrist_extension": 0.0,
             "mcp_index": 0.0,
@@ -191,10 +191,10 @@ LEFT_ARM_CFG = ArticulationCfg(
     ),
     init_state=ArticulationCfg.InitialStateCfg(
         joint_pos={
-            "left_shoulder_flexion_extension": 0.0,
-            "left_shoulder_abduction_adduction": 0.0,
-            "left_shoulder_rotation": 0.0,
-            "left_elbow_flexion_extension": 0.0,
+            "left_shoulder_flexion_extension": 1.31,
+            "left_shoulder_abduction_adduction": 0.07,
+            "left_shoulder_rotation": -0.03,
+            "left_elbow_flexion_extension": 1.80,
             "left_forearm_rotation": 0.0,
             "left_wrist_extension": 0.0,
             "left_mcp_index": 0.0,
