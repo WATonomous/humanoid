@@ -69,6 +69,14 @@ WATO_BIMANUAL_ARM_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(
         asset_path=_BIMANUAL_URDF_PATH,
         fix_base=True,
+        joint_drive=sim_utils.UrdfFileCfg.JointDriveCfg(
+            drive_type="force",
+            target_type="position",
+            gains=sim_utils.UrdfFileCfg.JointDriveCfg.PDGainsCfg(
+                stiffness=400.0,
+                damping=40.0,
+            ),
+        ),
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             max_depenetration_velocity=5.0,
