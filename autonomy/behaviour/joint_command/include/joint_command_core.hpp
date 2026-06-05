@@ -29,21 +29,22 @@ struct JointSafetyConfig {
 
 class JointCommandCore {
 public:
-  bool loadFromYaml(const YAML::Node &config, const std::string &arm_side);
-  bool loadSafetyFromYaml(const YAML::Node &safety_cfg, double control_rate_hz);
+  bool loadFromYaml(const YAML::Node& config, const std::string& arm_side);
+  bool loadSafetyFromYaml(const YAML::Node& safety_cfg, double control_rate_hz);
 
-  std::vector<common_msgs::msg::MotorCmd>
-  armPoseToMotorCmds(const common_msgs::msg::ArmPose &pose,
-                     int8_t control_type);
+  std::vector<common_msgs::msg::MotorCmd> armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
+                                                             int8_t control_type);
 
-  size_t jointCount() const { return joints_.size(); }
+  size_t jointCount() const {
+    return joints_.size();
+  }
 
 private:
-  static JointConfig loadJointConfig(const YAML::Node &joint_node);
-  static JointSafetyConfig loadJointSafetyConfig(const YAML::Node &joint_node,
-                                                 const JointSafetyConfig &base);
-  static double clampAngle(double angle, const JointConfig &joint);
-  static double applyCalibration(double angle, const JointConfig &joint);
+  static JointConfig loadJointConfig(const YAML::Node& joint_node);
+  static JointSafetyConfig loadJointSafetyConfig(const YAML::Node& joint_node,
+                                                 const JointSafetyConfig& base);
+  static double clampAngle(double angle, const JointConfig& joint);
+  static double applyCalibration(double angle, const JointConfig& joint);
   static double clampStep(double target, double previous, double delta_max);
   static double applyLowPass(double target, double previous, double alpha);
 

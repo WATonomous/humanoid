@@ -1,18 +1,20 @@
-version: "3.8"
-
 services:
   teleop:
-    build: &teleop
+    build:
       context: ..
       dockerfile: docker/teleop/teleop.Dockerfile
       cache_from:
         - "${TELEOP_IMAGE:?}:${TAG}"
         - "${TELEOP_IMAGE:?}:main"
     image: "${TELEOP_IMAGE:?}:${TAG}"
-    ports:
-      - "9090:9090"
+    network_mode: host
+    ipc: host
+    environment:
+      - ROS_DOMAIN_ID=0
+      - FASTDDS_BUILTIN_TRANSPORTS=UDPv4
     profiles: [deploy, develop]
-    command: /bin/bash -c "ros2 launch rosbridge_example rosbridge_example.launch.py"
+    command: sleep infinity
     volumes:
       - ${MONO_DIR}/autonomy/teleop:/root/ament_ws/src/teleop
-      
+      - ${MONO_DIR}/autonomy/wato_msgs/common_msgs:/root/ament_ws/src/common_msgs
+      - ${MONO_DIR}/autonomy/teleop/quest_teleop/certs:/certs:ro

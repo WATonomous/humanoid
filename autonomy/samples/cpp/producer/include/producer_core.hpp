@@ -49,7 +49,7 @@ public:
    *
    * @param[out] msg an unfiltered message with empty data field
    */
-  void serialize_coordinates(sample_msgs::msg::Unfiltered &msg) const;
+  void serialize_coordinates(sample_msgs::msg::Unfiltered& msg) const;
 
 private:
   // Coordinate values

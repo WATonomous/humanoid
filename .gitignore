@@ -5,5 +5,13 @@ __pycache__
 
 watod-config.local.sh
 utils/voxel/spconv
+
+build/
+install/
+log/
+
+**/certs/*
+
+autonomy/teleop/quest_teleop_server/certs/*
 datasets/
 outputs/

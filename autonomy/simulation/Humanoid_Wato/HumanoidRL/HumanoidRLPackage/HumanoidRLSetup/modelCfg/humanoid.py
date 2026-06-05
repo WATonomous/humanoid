@@ -49,6 +49,9 @@ HAND_CFG = ArticulationCfg(
 
 # Hand Arm
 _ARM_USD_PATH = os.path.join(_MODEL_ASSETS, "arm.usd")
+_LEFT_ARM_USD_PATH = os.path.join(
+    _MODEL_ASSETS, "left_arm", "left_arm_assembly", "left_arm_assembly.usd"
+)
 ARM_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
         usd_path=_ARM_USD_PATH,
@@ -63,10 +66,10 @@ ARM_CFG = ArticulationCfg(
     ),
     init_state=ArticulationCfg.InitialStateCfg(
         joint_pos={
-            "shoulder_flexion_extension": 0.0,
-            "shoulder_abduction_adduction": 0.0,
-            "shoulder_rotation": 0.0,
-            "elbow_flexion_extension": 0.0,
+            "shoulder_flexion_extension": 1.11,
+            "shoulder_abduction_adduction": -0.05,
+            "shoulder_rotation": -0.22,
+            "elbow_flexion_extension": 1.86,
             "forearm_rotation": 0.0,
             "wrist_extension": 0.0,
             "mcp_index": 0.0,
@@ -169,6 +172,134 @@ ARM_CFG = ArticulationCfg(
             joint_names_expr=["ip_thumb"],
             stiffness=10.0,
             damping=0.8,
+            velocity_limit_sim=3.0,
+        ),
+    },
+)
+
+LEFT_ARM_CFG = ArticulationCfg(
+    spawn=sim_utils.UsdFileCfg(
+        usd_path=_LEFT_ARM_USD_PATH,
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            disable_gravity=False,
+            max_depenetration_velocity=5.0,
+        ),
+        activate_contact_sensors=False,
+        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+            enabled_self_collisions=True
+        ),
+    ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        joint_pos={
+            "left_shoulder_flexion_extension": 1.31,
+            "left_shoulder_abduction_adduction": 0.07,
+            "left_shoulder_rotation": -0.03,
+            "left_elbow_flexion_extension": 1.80,
+            "left_forearm_rotation": 0.0,
+            "left_wrist_extension": 0.0,
+            "left_mcp_index": 0.0,
+            "left_pip_index": 0.0,
+            "left_dip_index": 0.0,
+            "left_mcp_middle": 0.0,
+            "left_pip_middle": 0.0,
+            "left_dip_middle": 0.0,
+            "left_mcp_ring": 0.0,
+            "left_pip_ring": 0.0,
+            "left_dip_ring": 0.0,
+            "left_mcp_pinky": 0.0,
+            "left_pip_pinky": 0.0,
+            "left_dip_pinky": 0.0,
+            "left_cmc_thumb": 0.0,
+            "left_mcp_thumb": 0.79,  # within limits [0.785, 2.531]
+            "left_ip_thumb": 0.0,
+        }
+    ),
+    actuators={
+        "left_shoulder_fe": ImplicitActuatorCfg(
+            joint_names_expr=["left_shoulder_flexion_extension"],
+            stiffness=757.6,
+            damping=60.3,
+            velocity_limit_sim=3.0,
+        ),
+        "left_shoulder_aa": ImplicitActuatorCfg(
+            joint_names_expr=["left_shoulder_abduction_adduction"],
+            stiffness=600.0,
+            damping=47.7,
+            velocity_limit_sim=3.0,
+        ),
+        "left_shoulder_rot": ImplicitActuatorCfg(
+            joint_names_expr=["left_shoulder_rotation"],
+            stiffness=615.5,
+            damping=43.5,
+            velocity_limit_sim=3.0,
+        ),
+        "left_elbow": ImplicitActuatorCfg(
+            joint_names_expr=["left_elbow_flexion_extension"],
+            stiffness=615.5,
+            damping=43.5,
+            velocity_limit_sim=3.0,
+        ),
+        "left_forearm": ImplicitActuatorCfg(
+            joint_names_expr=["left_forearm_rotation"],
+            stiffness=444.1,
+            damping=28.3,
+            velocity_limit_sim=3.0,
+        ),
+        "left_wrist": ImplicitActuatorCfg(
+            joint_names_expr=["left_wrist_extension"],
+            stiffness=170.5,
+            damping=9.0,
+            velocity_limit_sim=3.0,
+        ),
+        "left_finger_mcp": ImplicitActuatorCfg(
+            joint_names_expr=[
+                "left_mcp_index",
+                "left_mcp_middle",
+                "left_mcp_ring",
+                "left_mcp_pinky",
+            ],
+            stiffness=3.0,
+            damping=0.12,
+            velocity_limit_sim=3.0,
+        ),
+        "left_finger_pip": ImplicitActuatorCfg(
+            joint_names_expr=[
+                "left_pip_index",
+                "left_pip_middle",
+                "left_pip_ring",
+                "left_pip_pinky",
+            ],
+            stiffness=1.5,
+            damping=0.06,
+            velocity_limit_sim=3.0,
+        ),
+        "left_finger_dip": ImplicitActuatorCfg(
+            joint_names_expr=[
+                "left_dip_index",
+                "left_dip_middle",
+                "left_dip_ring",
+                "left_dip_pinky",
+            ],
+            stiffness=0.5,
+            damping=0.02,
+            velocity_limit_sim=3.0,
+        ),
+        "left_thumb_cmc": ImplicitActuatorCfg(
+            joint_names_expr=["left_cmc_thumb"],
+            stiffness=7.6,
+            damping=0.30,
+            velocity_limit_sim=3.0,
+        ),
+        "left_thumb_mcp": ImplicitActuatorCfg(
+            joint_names_expr=["left_mcp_thumb"],
+            stiffness=2.5,
+            damping=0.10,
+            velocity_limit_sim=3.0,
+        ),
+        "left_thumb_ip": ImplicitActuatorCfg(
+            joint_names_expr=["left_ip_thumb"],
+            stiffness=0.5,
+            damping=0.02,
             velocity_limit_sim=3.0,
         ),
     },

@@ -29,18 +29,18 @@ struct CanConfig {
 
 class CanCore {
 public:
-  CanCore(const rclcpp::Logger &logger);
+  CanCore(const rclcpp::Logger& logger);
 
   // CAN Interface Management
-  bool initialize(const CanConfig &config);
+  bool initialize(const CanConfig& config);
   bool shutdown();
   bool isInitialized() const;
 
   // Message Transmission
-  bool sendMessage(const CanMessage &message);
+  bool sendMessage(const CanMessage& message);
 
   // Message Reception
-  bool receiveMessage(CanMessage &message);
+  bool receiveMessage(CanMessage& message);
 
 private:
   rclcpp::Logger logger_;

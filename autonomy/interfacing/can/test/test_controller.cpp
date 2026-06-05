@@ -6,13 +6,11 @@ class TestControllerNode : public rclcpp::Node {
 public:
   TestControllerNode() : Node("test_controller") {
     // Create publisher for test controller messages
-    publisher_ =
-        this->create_publisher<std_msgs::msg::String>("/test_controller", 10);
+    publisher_ = this->create_publisher<std_msgs::msg::String>("/test_controller", 10);
 
     // Create timer to publish messages at 1 Hz
-    timer_ = this->create_wall_timer(
-        std::chrono::seconds(1),
-        std::bind(&TestControllerNode::publish_test_data, this));
+    timer_ = this->create_wall_timer(std::chrono::seconds(1),
+                                     std::bind(&TestControllerNode::publish_test_data, this));
 
     RCLCPP_INFO(this->get_logger(), "Test Controller Node started - publishing "
                                     "to /test_controller at 1 Hz");
@@ -27,8 +25,7 @@ private:
     auto time_t = std::chrono::system_clock::to_time_t(now);
 
     message.data =
-        "Hello from WATonomous! Timestamp: " + std::to_string(time_t) +
-        " Status: Active";
+        "Hello from WATonomous! Timestamp: " + std::to_string(time_t) + " Status: Active";
 
     // Publish the message
     publisher_->publish(message);
@@ -40,7 +37,7 @@ private:
   rclcpp::TimerBase::SharedPtr timer_;
 };
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
 
   auto node = std::make_shared<TestControllerNode>();
@@ -49,9 +46,8 @@ int main(int argc, char **argv) {
 
   try {
     rclcpp::spin(node);
-  } catch (const std::exception &e) {
-    RCLCPP_ERROR(node->get_logger(), "Exception in test controller: %s",
-                 e.what());
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(node->get_logger(), "Exception in test controller: %s", e.what());
   }
 
   rclcpp::shutdown();
