@@ -1,13 +1,13 @@
 """
-fingertip_ik2.py  (local copy for camera-based teleoperation)
-=============================================================
+fingertip_ik2.py  (camera-based teleoperation/camera-based arm/)
+================================================================
 Standalone gradient-based IK for arm_assembly (6-DOF arm + 15-DOF hand).
 Solves for joint angles so that 5 fingertips reach desired world positions
 using damped least-squares (no dependencies on other scripts in this repo).
 
-This copy lives in camera-based teleoperation/ and resolves the URDF path
-relative to its own location, pointing to:
-  ../../Humanoid_Wato/arm_assembly/arm_assembly.urdf
+This file lives in camera-based teleoperation/camera-based arm/ and resolves
+the URDF path relative to its own location, pointing to:
+  ../../../Humanoid_Wato/arm_assembly/arm_assembly.urdf
 
 Joint 0 (shoulder_flexion_extension) issue:
   MuJoCo's URDF importer can set continuous joints to range [0,0], which would
@@ -21,9 +21,9 @@ import numpy as np
 from pathlib import Path
 
 # Resolve URDF relative to THIS file, not cwd:
-# camera-based teleoperation/ -> Teleop/ -> simulation/ -> Humanoid_Wato/arm_assembly/
+# camera-based arm/ -> camera-based teleoperation/ -> Teleop/ -> simulation/ -> Humanoid_Wato/arm_assembly/
 _THIS_DIR = Path(__file__).resolve().parent
-_ARM_ASSEMBLY_DIR = _THIS_DIR / ".." / ".." / "Humanoid_Wato" / "arm_assembly"
+_ARM_ASSEMBLY_DIR = _THIS_DIR / ".." / ".." / ".." / "Humanoid_Wato" / "arm_assembly"
 URDF_PATH = (_ARM_ASSEMBLY_DIR / "arm_assembly.urdf").resolve()
 
 # Fingertip body names (distal link of each finger in arm_assembly.urdf)

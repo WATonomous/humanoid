@@ -1,5 +1,12 @@
 # Camera-Based Teleoperation — Launch Guide
 
+> [!NOTE]
+> **This folder is location-independent.** Every script resolves its own file and model paths
+> dynamically based on where it lives in the repository — no hardcoded absolute paths.
+> You can clone or move the `humanoid` repository to any directory on your host machine or
+> inside the Docker container and everything will still work, as long as the internal
+> folder structure of the repo is unchanged.
+
 ## System Architecture
 
 ```
@@ -94,8 +101,8 @@ cd "/workspace/isaaclab/final_repo/humanoid/autonomy/simulation/Teleop/camera-ba
 /workspace/isaaclab/isaaclab.sh -p wato_hand_isaaclab_teleop.py
 ```
 
-> **Note:** No `PYTHONPATH` export required — `arm_cfg.py` and `fingertip_ik2.py`
-> are now local to this folder and resolve all paths via `__file__`.
+> **Note:** No `PYTHONPATH` export required — `arm_cfg.py` is local to this folder,
+> and `fingertip_ik2.py` (in `camera-based arm/`) is loaded via `sys.path` at runtime.
 
 ### Windows PC — webcam publisher
 ```powershell
@@ -124,13 +131,30 @@ ros2 topic echo /wato/hand_joint_angles
 
 ## File Overview
 
+### Main scripts (run directly)
+
 | File | Where it runs | Purpose |
 |------|--------------|---------|
 | `hand_recorder.py` | Windows (webcam host) | Reads webcam via MediaPipe, publishes landmarks over rosbridge |
-| `wato_hand_ros2_node.py` | Docker (ROS2) | Converts landmarks → joint angles, writes `/tmp/wato_joints.json` |
+| `wato_hand_ros2_node.py` | Docker (ROS2) | Converts landmarks → joint angles, writes `wato_joints.json` to temp dir |
 | `wato_hand_isaaclab_teleop.py` | Docker (Isaac Lab Python) | Reads JSON, drives arm+hand sim via DexRetargeting (or `fingertip_ik2` fallback) |
 | `arm_cfg.py` | Docker (local import) | `ARM_CFG` articulation config — local copy, no PYTHONPATH needed |
-| `fingertip_ik2.py` | Docker (local import) | MuJoCo IK fallback when `dex-retargeting` is unavailable |
+
+### `utils/` — diagnostic / test scripts
+
+| File | Where it runs | Purpose |
+|------|--------------|---------|
+| `utils/test_camera.py` | Windows (webcam host) | Simplified webcam + rosbridge connectivity test |
+| `utils/camera_messages.py` | Windows (webcam host) | Streams raw webcam frames over rosbridge to Docker |
+| `utils/websocket_test.py` | Windows | Raw WebSocket ping to confirm SSH tunnel is active |
+
+### `camera-based arm/` — URDF and IK support files
+
+| File | Purpose |
+|------|---------|
+| `camera-based arm/arm_assembly_fixed.urdf` | URDF with fixed joint limits used by DexRetargeting IK solver |
+| `camera-based arm/simple_door.urdf` | Optional door articulation for the sim scene (currently disabled) |
+| `camera-based arm/fingertip_ik2.py` | MuJoCo gradient-based IK fallback when `dex-retargeting` is unavailable |
 
 ---
 
@@ -138,8 +162,8 @@ ros2 topic echo /wato/hand_joint_angles
 
 | Problem | Fix |
 |---------|-----|
-| `arm_cfg` import error | Check you're running from `camera-based teleoperation/` |
-| `arm_assembly_fixed.urdf not found` | Verify `Humanoid_Wato/arm_assembly/` exists in the repo |
+| `arm_cfg` import error | Check you are running from `camera-based teleoperation/` |
+| `arm_assembly_fixed.urdf not found` | Verify `camera-based arm/arm_assembly_fixed.urdf` exists in this folder |
 | rosbridge connection refused | Check Terminal 1 is running and SSH tunnel is active (`-L 9090:localhost:9090`) |
 | Hand landmarks not appearing | Run `ros2 topic echo /wato/hand_landmarks` to confirm `hand_recorder.py` is publishing |
-| Enable curl debug output | Set `DEBUG_CURL = True` in `wato_hand_ros2_node.py` — outputs to `/tmp/curl_debug.txt` |
+| Enable curl debug output | Set `DEBUG_CURL = True` in `wato_hand_ros2_node.py` — outputs to temp dir `curl_debug.txt` |

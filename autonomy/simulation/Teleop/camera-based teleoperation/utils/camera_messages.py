@@ -1,4 +1,18 @@
+"""
+camera_messages.py
+==================
+This script streams live webcam video to the Isaac Lab Docker container
+over a rosbridge WebSocket connection.
+
+Process:
+  1. Connect to rosbridge on localhost:9090 (via SSH tunnel from Docker)
+  2. Capture frames from the local webcam using OpenCV
+  3. JPEG-compress and base64-encode each frame
+  4. Publish each encoded frame to the ROS2 topic
+     /camera/image_raw_compressed so the simulation can receive video
+"""
 import cv2
+
 import roslibpy
 import base64
 import json
