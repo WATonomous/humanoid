@@ -13,4 +13,5 @@ log/
 **/certs/*
 
 autonomy/teleop/quest_teleop_server/certs/*
-ros_ws/
+datasets/
+outputs/

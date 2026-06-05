@@ -8,10 +8,6 @@
 CanNode::CanNode() : Node("can_node"), can_core(this->get_logger()) {
   RCLCPP_INFO(this->get_logger(), "CAN Node has been initialized");
 
-  hardware_config =
-      YAML::LoadFile(ament_index_cpp::get_package_share_directory("can") +
-                     "/config/hardware_mapping.yaml");
-
   // Load DBC file
   {
     std::ifstream idbc(ament_index_cpp::get_package_share_directory("can") +

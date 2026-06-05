@@ -1,0 +1,7 @@
+joint_command_node:
+  ros__parameters:
+    arm_side: "left"
+    control_rate_hz: 50.0
+    input_topic: "/behaviour/arm_pose"
+    motor_cmd_topic: "/interfacing/motorCMD"
+    control_type: 4  # POSITION_LOOP
