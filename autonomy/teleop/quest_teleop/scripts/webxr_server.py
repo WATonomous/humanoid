@@ -19,18 +19,19 @@ KEY_FILE = CERT_DIR / "key.pem"
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(STATIC_DIR), **kwargs) # Servers file in teh static directory over the https
+        # Serves files in the static directory over HTTPS.
+        super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
 
 
 if __name__ == "__main__":
-    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER) # Change http to https
-    ctx.load_cert_chain( # Certs to make it secure
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)  # Change HTTP to HTTPS.
+    ctx.load_cert_chain(  # Certs to make it secure.
         certfile=str(CERT_FILE),
         keyfile=str(KEY_FILE),
     )
 
-    server = http.server.ThreadingHTTPServer(("0.0.0.0", PORT), Handler) # Creates http server
-    server.socket = ctx.wrap_socket(server.socket, server_side=True) # uses TLS to change http -> https
+    server = http.server.ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+    server.socket = ctx.wrap_socket(server.socket, server_side=True)
 
     print(f"Serving at https://0.0.0.0:{PORT}")
     server.serve_forever()
