@@ -1,25 +1,3 @@
-"""
-Delta-control wrist IK for Quest teleop.
-
-Zero the solver once (on first message or explicit call) to record the Quest
-"home" wrist position. Every subsequent call returns 6 arm joint angles that
-move the simulated palm by the same delta the user's wrist moved in the real
-world.
-
-Frame notes
------------
-WebXR "local" space  : Y-up, X-right, -Z-forward (right-handed)
-MuJoCo / URDF space  : Z-up, X-forward (standard URDF convention)
-
-Mapping (applied to delta vectors only, so the origin mismatch doesn't matter):
-  arm +x  ←  quest -z  (forward)
-  arm +y  ←  quest +x  (right)
-  arm +z  ←  quest +y  (up)
-
-If motion directions feel inverted, flip the sign of the corresponding row
-in _R_QUEST_TO_ARM.
-"""
-
 from pathlib import Path
 from types import ModuleType
 
@@ -95,12 +73,6 @@ def _load_model(urdf_path: Path, mujoco_module: ModuleType):
         raise FileNotFoundError(f"Arm URDF not found: {urdf_path}")
 
     xml = urdf_path.read_text()
-
-    # Wrist IK only needs the kinematic tree (links, joints, frames, Jacobians).
-    # Strip <visual> and <collision> geometry so MuJoCo never loads the dense
-    # STL meshes -- compiling convex hulls for ~20 high-poly meshes (some >19k
-    # triangles) at load time can take minutes or appear to hang. Every link
-    # carries an explicit <inertial>/<mass>, so removing geometry is safe.
     xml = re.sub(r"<visual\b.*?</visual>", "", xml, flags=re.DOTALL)
     xml = re.sub(r"<collision\b.*?</collision>", "", xml, flags=re.DOTALL)
 
