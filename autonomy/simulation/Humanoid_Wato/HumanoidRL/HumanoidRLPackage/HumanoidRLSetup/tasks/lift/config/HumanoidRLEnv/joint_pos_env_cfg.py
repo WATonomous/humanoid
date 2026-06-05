@@ -1,46 +1,51 @@
-import math
-
+from isaaclab.markers.config import FRAME_MARKER_CFG
+from isaaclab.sensors import FrameTransformerCfg
+from isaaclab.sensors.frame_transformer.frame_transformer_cfg import OffsetCfg
 from isaaclab.utils import configclass
 
-from HumanoidRLPackage.HumanoidRLSetup.tasks.lift import mdp
 from HumanoidRLPackage.HumanoidRLSetup.tasks.lift.lift_env_cfg import LiftEnvCfg
 
+# so101_new_calib.urdf: gripper_frame_joint (parent gripper_link -> USD body "gripper")
+_GRIPPER_FRAME_POS = (-0.0079, -0.000218121, -0.07)
+# rpy="0 3.14159 0" on that joint -> quaternion (w, x, y, z)
+_GRIPPER_FRAME_ROT = (0.0, 0.0, 1.0, 0.0)
 
-@configclass
-class HumanoidArmLiftEnvCfg(LiftEnvCfg):
-    """Lift-cube task for the humanoid arm (mu robot)."""
 
-    def __post_init__(self):
-        super().__post_init__()
-
-        self.scene.robot.init_state.pos = (0.0, 0.0, 0.1)
-
-        # Arm action: all joints (arm + hand), same as manipulation
-        self.actions.arm_action = mdp.JointPositionActionCfg(
-            asset_name="robot",
-            joint_names=[".*"],
-            scale=0.5,
-            use_default_offset=True,
-        )
-        # Gripper: MCP finger joints for open/close
-        self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
-            asset_name="robot",
-            joint_names=["mcp_.*"],
-            open_command_expr={"mcp_.*": 0.5},
-            close_command_expr={"mcp_.*": 0.0},
-        )
-
-        # Command generator: target pose relative to end-effector body (DIP_INDEX = index fingertip)
-        self.commands.object_pose.body_name = "DIP_INDEX_v1_.*"
-        self.commands.object_pose.ranges.pitch = (math.pi / 2, math.pi / 2)
-
-        # ee_frame removed: object_ee_distance uses robot body (DIP_INDEX_v1_.*) when no ee_frame in scene
+def _so101_ee_frame_cfg(*, debug_vis: bool) -> FrameTransformerCfg:
+    marker_cfg = FRAME_MARKER_CFG.replace(prim_path="/Visuals/FrameTransformer/ee_tcp")
+    marker_cfg.markers["frame"].scale = (0.03, 0.03, 0.03)
+    return FrameTransformerCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/base",
+        debug_vis=debug_vis,
+        visualizer_cfg=marker_cfg,
+        target_frames=[
+            FrameTransformerCfg.FrameCfg(
+                prim_path="{ENV_REGEX_NS}/Robot/gripper",
+                name="ee_tcp",
+                offset=OffsetCfg(pos=_GRIPPER_FRAME_POS, rot=_GRIPPER_FRAME_ROT),
+            ),
+        ],
+    )
 
 
 @configclass
-class HumanoidArmLiftEnvCfg_PLAY(HumanoidArmLiftEnvCfg):
+class SO101LiftEnvCfg(LiftEnvCfg):
+    """Lift-cube task for the SO101 follower arm."""
+
     def __post_init__(self):
         super().__post_init__()
-        self.scene.num_envs = 50
+        # SO101 USD is not instanceable; physics replication can corrupt GPU buffers.
+        self.scene.replicate_physics = False
+        self.scene.ee_frame = _so101_ee_frame_cfg(debug_vis=False)
+
+
+@configclass
+class SO101LiftEnvCfg_PLAY(SO101LiftEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 1
         self.scene.env_spacing = 2.5
         self.observations.policy.enable_corruption = False
+        # Green cuboid = commanded object goal; RGB axes = URDF gripper_frame TCP on link "gripper".
+        self.commands.object_pose.debug_vis = True
+        self.scene.ee_frame = _so101_ee_frame_cfg(debug_vis=True)

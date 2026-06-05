@@ -304,3 +304,20 @@ LEFT_ARM_CFG = ArticulationCfg(
         ),
     },
 )
+
+# Same as ARM_CFG but with contact reporters enabled (required for force/contact RL).
+ARM_FORCE_CFG = ArticulationCfg(
+    spawn=sim_utils.UsdFileCfg(
+        usd_path=_ARM_USD_PATH,
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            disable_gravity=False,
+            max_depenetration_velocity=5.0,
+        ),
+        activate_contact_sensors=True,
+        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+            enabled_self_collisions=False
+        ),
+    ),
+    init_state=ARM_CFG.init_state,
+    actuators=ARM_CFG.actuators,
+)

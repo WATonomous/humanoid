@@ -7,11 +7,11 @@ from isaaclab_rl.rsl_rl import (
 
 
 @configclass
-class HumanoidArmLiftPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+class SO101LiftPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 2000
     save_interval = 50
-    experiment_name = "lift_humanoid_arm"
+    experiment_name = "lift_so101"
     empirical_normalization = False
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,

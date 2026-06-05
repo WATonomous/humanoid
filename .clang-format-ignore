@@ -1,0 +1,2 @@
+# Isaac Sim / RL simulation code — excluded from CI clang-format
+autonomy/simulation/**
