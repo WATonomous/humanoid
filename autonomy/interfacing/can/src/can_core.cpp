@@ -7,20 +7,19 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h> // Core socket functions for SocketCAN [socket(), bind(), send(), recv()]
-#include <sys/stat.h> // checking if script files exist
+#include <sys/stat.h>   // checking if script files exist
 #include <unistd.h>
 
-#include "ament_index_cpp/get_package_prefix.hpp" // defines PackageNotFoundError
+#include "ament_index_cpp/get_package_prefix.hpp"          // defines PackageNotFoundError
 #include "ament_index_cpp/get_package_share_directory.hpp" // to load the bash scripts
 
-CanCore::CanCore(const rclcpp::Logger &logger)
+CanCore::CanCore(const rclcpp::Logger& logger)
     : logger_(logger), socket_fd_(-1), initialized_(false), connected_(false) {
   RCLCPP_INFO(logger_, "CAN Core initialized");
 }
 
-bool CanCore::initialize(const CanConfig &config) {
-  RCLCPP_INFO(logger_, "Initializing CAN interface: %s",
-              config.interface_name.c_str());
+bool CanCore::initialize(const CanConfig& config) {
+  RCLCPP_INFO(logger_, "Initializing CAN interface: %s", config.interface_name.c_str());
 
   config_ = config;
 
@@ -48,9 +47,11 @@ bool CanCore::shutdown() {
   return true;
 }
 
-bool CanCore::isInitialized() const { return initialized_; }
+bool CanCore::isInitialized() const {
+  return initialized_;
+}
 
-bool CanCore::sendMessage(const CanMessage &message) {
+bool CanCore::sendMessage(const CanMessage& message) {
   if (!initialized_ || socket_fd_ < 0) {
     RCLCPP_ERROR(logger_, "CAN interface not initialized or socket not valid. "
                           "Cannot send message.");
@@ -102,23 +103,20 @@ bool CanCore::sendMessage(const CanMessage &message) {
   bytes_written = write(socket_fd_, &frame, expected_frame_size);
 
   if (bytes_written < 0) {
-    RCLCPP_ERROR(logger_, "Failed to write CAN frame to socket: %s",
-                 strerror(errno));
+    RCLCPP_ERROR(logger_, "Failed to write CAN frame to socket: %s", strerror(errno));
     return false;
   }
 
   if (static_cast<size_t>(bytes_written) < expected_frame_size) {
-    RCLCPP_WARN(
-        logger_,
-        "Could not send full CAN frame. Sent %zd bytes, expected %zu bytes.",
-        bytes_written, expected_frame_size);
+    RCLCPP_WARN(logger_, "Could not send full CAN frame. Sent %zd bytes, expected %zu bytes.",
+                bytes_written, expected_frame_size);
     return false;
   }
 
   return true;
 }
 
-bool CanCore::receiveMessage(CanMessage &message) {
+bool CanCore::receiveMessage(CanMessage& message) {
   if (!initialized_ || socket_fd_ < 0) {
     RCLCPP_ERROR(logger_, "CAN interface not initialized or socket not valid. "
                           "Cannot receive message.");
@@ -133,8 +131,7 @@ bool CanCore::receiveMessage(CanMessage &message) {
       // No data available right now (non-blocking mode)
       return false;
     }
-    RCLCPP_ERROR(logger_, "Failed to read CAN frame from socket: %s",
-                 strerror(errno));
+    RCLCPP_ERROR(logger_, "Failed to read CAN frame from socket: %s", strerror(errno));
     return false;
   }
 
@@ -148,10 +145,8 @@ bool CanCore::receiveMessage(CanMessage &message) {
   }
 
   if (static_cast<size_t>(bytes_read) < sizeof(struct can_frame)) {
-    RCLCPP_WARN(
-        logger_,
-        "Incomplete CAN frame received. Read %zd bytes, expected %zu bytes.",
-        bytes_read, sizeof(struct can_frame));
+    RCLCPP_WARN(logger_, "Incomplete CAN frame received. Read %zd bytes, expected %zu bytes.",
+                bytes_read, sizeof(struct can_frame));
     return false;
   }
 
@@ -175,21 +170,19 @@ bool CanCore::receiveMessage(CanMessage &message) {
   }
 
   // This is to log received message details for debugging
-  RCLCPP_DEBUG(logger_, "CAN frame received: ID=0x%X, Extended=%d, RTR=%d",
-               message.id, message.is_extended_id, message.is_remote_frame);
+  RCLCPP_DEBUG(logger_, "CAN frame received: ID=0x%X, Extended=%d, RTR=%d", message.id,
+               message.is_extended_id, message.is_remote_frame);
 
   return true;
 }
 
 bool CanCore::setupSocketCan() {
-  RCLCPP_INFO(logger_, "Setting up SocketCAN interface: %s",
-              config_.interface_name.c_str());
+  RCLCPP_INFO(logger_, "Setting up SocketCAN interface: %s", config_.interface_name.c_str());
 
   // Create socket
   socket_fd_ = socket(PF_CAN, SOCK_RAW, CAN_RAW);
   if (socket_fd_ < 0) {
-    RCLCPP_ERROR(logger_, "Failed to create SocketCAN socket: %s",
-                 strerror(errno));
+    RCLCPP_ERROR(logger_, "Failed to create SocketCAN socket: %s", strerror(errno));
     return false;
   }
 
@@ -202,8 +195,7 @@ bool CanCore::setupSocketCan() {
     return false;
   }
   if (fcntl(socket_fd_, F_SETFL, flags | O_NONBLOCK) == -1) {
-    RCLCPP_ERROR(logger_, "Failed to set socket to non-blocking: %s",
-                 strerror(errno));
+    RCLCPP_ERROR(logger_, "Failed to set socket to non-blocking: %s", strerror(errno));
     close(socket_fd_);
     socket_fd_ = -1;
     return false;
@@ -227,7 +219,7 @@ bool CanCore::setupSocketCan() {
   addr.can_family = AF_CAN;
   addr.can_ifindex = ifr.ifr_ifindex;
 
-  if (bind(socket_fd_, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+  if (bind(socket_fd_, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
     RCLCPP_ERROR(logger_, "Failed to bind SocketCAN socket to %s: %s",
                  config_.interface_name.c_str(), strerror(errno));
     close(socket_fd_);
@@ -238,26 +230,23 @@ bool CanCore::setupSocketCan() {
   initialized_ = true;
   connected_ = true;
 
-  RCLCPP_INFO(
-      logger_,
-      "SocketCAN interface %s setup completed successfully (Classic CAN mode).",
-      config_.interface_name.c_str());
+  RCLCPP_INFO(logger_, "SocketCAN interface %s setup completed successfully (Classic CAN mode).",
+              config_.interface_name.c_str());
   return true;
 }
 
 bool CanCore::setupSlcan() {
   RCLCPP_INFO(logger_, "Setting up SLCAN interface '%s' via external script.",
               config_.interface_name.c_str());
-  RCLCPP_INFO(logger_, "  Device path for script: %s",
-              config_.device_path.c_str());
+  RCLCPP_INFO(logger_, "  Device path for script: %s", config_.device_path.c_str());
   RCLCPP_INFO(logger_, "  Bitrate for script: %u", config_.bitrate);
 
   // Run the slcand daemon to initialize the CAN bus
   std::string package_share_directory;
   try {
-    package_share_directory = ament_index_cpp::get_package_share_directory(
-        "can"); // the package we're in is can
-  } catch (const ament_index_cpp::PackageNotFoundError &e) {
+    package_share_directory =
+        ament_index_cpp::get_package_share_directory("can"); // the package we're in is can
+  } catch (const ament_index_cpp::PackageNotFoundError& e) {
     RCLCPP_ERROR(logger_, "Package not found for script path: %s", e.what());
     return false;
   }
@@ -292,13 +281,12 @@ bool CanCore::setupSlcan() {
   else if (config_.bitrate == 1000000)
     bitrate_code = "-s8";
   else {
-    RCLCPP_ERROR(logger_, "Unsupported bitrate for slcan script: %u",
-                 config_.bitrate);
+    RCLCPP_ERROR(logger_, "Unsupported bitrate for slcan script: %u", config_.bitrate);
     return false;
   }
 
-  std::string command = "sudo " + script_path + " " + config_.device_path +
-                        " " + config_.interface_name + " " + bitrate_code;
+  std::string command = "sudo " + script_path + " " + config_.device_path + " " +
+                        config_.interface_name + " " + bitrate_code;
 
   RCLCPP_INFO(logger_, "Executing CAN setup script: %s", command.c_str());
   int result = std::system(command.c_str());
