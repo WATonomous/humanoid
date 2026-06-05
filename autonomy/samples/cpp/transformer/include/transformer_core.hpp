@@ -43,8 +43,7 @@ public:
    * @param unfiltered a raw message
    * @returns whether message's 'valid' field is set
    */
-  bool
-  validate_message(const sample_msgs::msg::Unfiltered::SharedPtr unfiltered);
+  bool validate_message(const sample_msgs::msg::Unfiltered::SharedPtr unfiltered);
 
   /**
    * Enqueue message into an array of processed messages to "filtered" topic.
@@ -53,7 +52,7 @@ public:
    * @param msg a processed message to be published
    * @returns whether buffer is full after adding new message
    */
-  bool enqueue_message(const sample_msgs::msg::Filtered &msg);
+  bool enqueue_message(const sample_msgs::msg::Filtered& msg);
 
   /**
    * Deserializes the data field of the unfiltered ROS2 message.
@@ -63,9 +62,8 @@ public:
    * @param[out] filtered the processed message containing deserialized data
    * @returns whether deserialization was successful
    */
-  bool deserialize_coordinate(
-      const sample_msgs::msg::Unfiltered::SharedPtr unfiltered,
-      sample_msgs::msg::Filtered &filtered);
+  bool deserialize_coordinate(const sample_msgs::msg::Unfiltered::SharedPtr unfiltered,
+                              sample_msgs::msg::Filtered& filtered);
 
 private:
   // Buffer storing processed messages until BUFFER_CAPACITY. Clear after

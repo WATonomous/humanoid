@@ -6,7 +6,7 @@
 #include "common_msgs/msg/quest_hand_pose.hpp"
 #include "rclcpp/rclcpp.hpp"
 
-#include "quest_teleop/wss_server.hpp" 
+#include "quest_teleop/wss_server.hpp"
 
 class QuestTeleopNode : public rclcpp::Node {
 public:

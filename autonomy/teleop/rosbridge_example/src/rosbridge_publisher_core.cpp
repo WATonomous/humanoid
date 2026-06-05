@@ -5,8 +5,7 @@
 
 ROSbridgePublisherCore::ROSbridgePublisherCore() {}
 
-std::string ROSbridgePublisherCore::hand_pose_to_string(
-    const sample_msgs::msg::VRHandPose pose) {
+std::string ROSbridgePublisherCore::hand_pose_to_string(const sample_msgs::msg::VRHandPose pose) {
   std::string s;
   std::vector<float> positions = pose.positions;
   s += "[";
