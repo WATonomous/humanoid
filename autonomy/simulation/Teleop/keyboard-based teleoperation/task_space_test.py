@@ -618,6 +618,17 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     )
     robot_entity_cfg.resolve(scene)
 
+    # ── DEBUG: confirm resolved IDs ──────────────────────────────────────────
+    print(f"[DEBUG] All robot joint names : {robot.data.joint_names}")
+    print(f"[DEBUG] Controlled joint IDs  : {robot_entity_cfg.joint_ids}")
+    print(f"[DEBUG] Controlled joint names: {[robot.data.joint_names[i] for i in robot_entity_cfg.joint_ids]}")
+    print(f"[DEBUG] EE body IDs           : {robot_entity_cfg.body_ids}")
+    print(f"[DEBUG] All body names        : {robot.data.body_names}")
+    print(f"[DEBUG] EE body names         : {[robot.data.body_names[i] for i in robot_entity_cfg.body_ids]}")
+    print(f"[DEBUG] is_fixed_base         : {robot.is_fixed_base}")
+    print(f"[DEBUG] ee_jacobi_idx         : {robot_entity_cfg.body_ids[0] - 1 if robot.is_fixed_base else robot_entity_cfg.body_ids[0]}")
+    # ─────────────────────────────────────────────────────────────────────────
+
     ee_jacobi_idx = robot_entity_cfg.body_ids[0] - 1 if robot.is_fixed_base else robot_entity_cfg.body_ids[0]
     sim_dt = 0.01
 
@@ -625,6 +636,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     joint_position = robot.data.default_joint_pos.clone()
     joint_vel = robot.data.default_joint_vel.clone()
     robot.write_joint_state_to_sim(joint_position, joint_vel)
+    print(f"[DEBUG] default_joint_pos shape: {joint_position.shape}")
+    print(f"[DEBUG] default_joint_pos      : {joint_position}")
 
     # -----------------------
     # GRIPPER SETUP
@@ -725,6 +738,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     #previous_smooth_pose = smooth_target_pose.clone()
 
     ee_command = torch.zeros(1, 3, device=sim.device)
+    _debug_step_counter = 0   # throttle per-step debug output
 
     # Main simulation loop
     while simulation_app.is_running():
@@ -797,8 +811,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         smooth_target_pose[:, 3:7] = smooth_target_pose[:, 3:7] / torch.norm(smooth_target_pose[:, 3:7], dim=1, keepdim=True)
         previous_smooth_pose = smooth_target_pose.clone()'''
 
-        # IK computation
-        # diff_ik_controller.set_command(smooth_target_pose)
         # IK computation — compute EE pose FIRST, then set command
         ee_pose_w = robot.data.body_state_w[:, robot_entity_cfg.body_ids[0], 0:7]
         root_pose_w = robot.data.root_state_w[:, 0:7]
@@ -814,6 +826,21 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
         jacobian = robot.root_physx_view.get_jacobians()[:, ee_jacobi_idx, :, robot_entity_cfg.joint_ids]
         joint_pos_des = diff_ik_controller.compute(ee_pos_b, ee_quat_b, jacobian, joint_pos)
+
+        # ── DEBUG: print every step where a non-zero command is sent (capped at 5) ──
+        _cmd_norm = float(ee_command.norm())
+        if _cmd_norm > 1e-6 and _debug_step_counter < 5:
+            _debug_step_counter += 1
+            print(f"[DEBUG step {_debug_step_counter}] ee_command      : {ee_command.cpu().numpy()}")
+            print(f"[DEBUG step {_debug_step_counter}] ee_pos_b        : {ee_pos_b.cpu().numpy()}")
+            print(f"[DEBUG step {_debug_step_counter}] joint_pos (cur) : {joint_pos.cpu().numpy()}")
+            print(f"[DEBUG step {_debug_step_counter}] joint_pos_des   : {joint_pos_des.cpu().numpy()}")
+            _jac_norm = float(jacobian.norm())
+            print(f"[DEBUG step {_debug_step_counter}] jacobian norm   : {_jac_norm:.6f}  (0 = IK has no effect)")
+        elif _cmd_norm < 1e-6:
+            _debug_step_counter = 0  # reset counter when keys released
+        # ──────────────────────────────────────────────────────────────────────────
+
         # Set arm joint targets
         robot.set_joint_position_target(joint_pos_des, joint_ids=robot_entity_cfg.joint_ids)
 
