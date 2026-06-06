@@ -6,7 +6,7 @@ can be run directly from the camera-based teleoperation/ folder without
 requiring PYTHONPATH to include Humanoid_Wato/.
 
 Original source:
-  Humanoid_Wato/HumanoidRL/HumanoidRLPackage/HumanoidRLSetup/modelCfg/humanoid.py
+  Humanoid_Wato/HumanoidRL/HumanoidRLPackage/HumanoidRLSetup/modelCfg/humanoid_arm_hand.py
 """
 import os
 
@@ -14,17 +14,19 @@ import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
-# Resolve ModelAssets relative to THIS file:
-# camera-based teleoperation/ -> Teleop/ -> simulation/ -> Humanoid_Wato/ModelAssets/
+# Resolve UsdModelAssets relative to THIS file:
+# camera-based teleoperation/ -> Teleop/ -> simulation/ -> Humanoid_Wato/UsdModelAssets/
 _THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 _HUMANOID_WATO_ROOT = os.path.abspath(os.path.join(_THIS_DIR, "..", "..", "Humanoid_Wato"))
-_MODEL_ASSETS = os.path.join(_HUMANOID_WATO_ROOT, "ModelAssets")
+_MODEL_ASSETS = os.path.join(_HUMANOID_WATO_ROOT, "UsdModelAssets")
 
 # Hand Arm (6 DOF arm + 15 DOF hand)
-_ARM_USD_PATH = os.path.join(_MODEL_ASSETS, "arm.usd")
+_RIGHT_ARM_USD_PATH = os.path.join(
+    _MODEL_ASSETS, "right_arm", "right_arm_assembly", "right_arm_assembly.usd"
+)
 ARM_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=_ARM_USD_PATH,
+        usd_path=_RIGHT_ARM_USD_PATH,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             max_depenetration_velocity=5.0,

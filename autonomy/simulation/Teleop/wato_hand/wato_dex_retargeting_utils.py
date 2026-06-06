@@ -109,7 +109,7 @@ class WatoHandDexRetargeting:
         # Local Wato arm_assembly.urdf path (relative to this package)
         default_urdf = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", "..",
-                         "Humanoid_Wato", "arm_assembly", "arm_assembly.urdf")
+                         "Humanoid_Wato", "arm_assembly", "right_arm_assembly.urdf")
         )
         local_left_urdf_path = left_hand_urdf_path if left_hand_urdf_path else default_urdf
         local_right_urdf_path = right_hand_urdf_path if right_hand_urdf_path else default_urdf

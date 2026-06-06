@@ -1,4 +1,4 @@
-a# Utils
+# Utils
 
 ## `create-package.bash`
 
