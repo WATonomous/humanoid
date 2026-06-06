@@ -38,8 +38,9 @@ class BadmintonSceneCfg(InteractiveSceneCfg):
 class CommandsCfg:
     intercept = mdp.UniformInterceptCommandCfg(
         asset_name="robot",
+        # Ignored by UniformInterceptCommand: resample is cycle-aligned (lead_time + hit window).
         resampling_time_range=(5.0, 5.0),
-        hit_moment_duration_s=0.13,
+        hit_moment_duration_s=0.20,
         debug_vis=True,
         ranges=mdp.UniformInterceptCommandCfg.Ranges(
             pos_x=(-0.55, -0.15),
@@ -91,10 +92,10 @@ class EventCfg:
 
 @configclass
 class RewardsCfg:
-    # Ready pose elsewhere is fine; penalize camping at the intercept long before impact.
+    # Only penalty that references pre-impact position: don't camp at the intercept.
     early_at_target = RewTerm(
         func=mdp.early_at_target_penalty,
-        weight=-0.5,
+        weight=-0.3,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
             "command_name": "intercept",
@@ -102,70 +103,18 @@ class RewardsCfg:
             "min_lead_time_remaining": 0.25,
         },
     )
-    # Outside launch window: weak aim cue only (ready pose, know where to strike).
-    coarse_aim = RewTerm(
-        func=mdp.coarse_aim_toward_intercept_tanh,
-        weight=0.6,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
-            "std": 0.45,
-            "command_name": "intercept",
-            "approach_window_s": 0.55,
-        },
-    )
-    # Launch window: strike-speed approach, gated by distance (must actually close in).
-    timed_swing_approach = RewTerm(
-        func=mdp.timed_swing_approach_exp,
-        weight=4.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
-            "command_name": "intercept",
-            "approach_window_s": 0.55,
-            "speed_std": 0.6,
-            "hit_radius": 0.13,
-            "range_std": 0.40,
-        },
-    )
-    # Impact instant: position at the point.
-    ee_impact_position = RewTerm(
-        func=mdp.ee_impact_position_hit_exp,
-        weight=10.0,
+    # End-state tracking × urgency(t): strong near impact, ~0 if far or early (not proximity shaping).
+    ee_state_tracking = RewTerm(
+        func=mdp.ee_state_tracking_timed_exp,
+        weight=12.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
             "command_name": "intercept",
             "pos_std": 0.10,
-        },
-    )
-    # Impact instant: pass through with commanded strike speed (curriculum-ramped).
-    ee_impact_swing_through = RewTerm(
-        func=mdp.ee_impact_swing_through_hit_exp,
-        weight=0.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
-            "command_name": "intercept",
-            "pos_std": 0.10,
-            "speed_std": 0.6,
-            "hit_radius": 0.13,
-        },
-    )
-    ee_impact_orientation = RewTerm(
-        func=mdp.ee_impact_orientation_hit_exp,
-        weight=0.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
-            "command_name": "intercept",
+            "vel_std": 0.6,
             "ori_std": 0.8,
-            "hit_radius": 0.13,
-        },
-    )
-    racket_speed_idle = RewTerm(
-        func=mdp.racket_speed_penalty_outside_swing_window,
-        weight=-0.08,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=DEFAULT_RACKET_BODY_NAMES),
-            "command_name": "intercept",
-            "distance_threshold": 0.20,
-            "approach_window_s": 0.55,
+            "timing_std": 0.45,
+            "hit_bonus": 2.0,
         },
     )
 
@@ -184,35 +133,13 @@ class TerminationsCfg:
 
 @configclass
 class CurriculumCfg:
-    # After ~12 m mean position error, ramp swing speed matching at impact.
-    # common_step_counter += 1 per sim step (~24 per PPO iter → 300 iter ≈ 7200 steps).
-    ee_impact_swing_through = CurrTerm(
-        func=mdp.ramp_reward_weight,
-        params={
-            "term_name": "ee_impact_swing_through",
-            "start_weight": 0.0,
-            "end_weight": 12.0,
-            "start_step": 800,
-            "end_step": 4500,
-        },
-    )
-    ee_impact_orientation = CurrTerm(
-        func=mdp.ramp_reward_weight,
-        params={
-            "term_name": "ee_impact_orientation",
-            "start_weight": 0.0,
-            "end_weight": 4.0,
-            "start_step": 2500,
-            "end_step": 6000,
-        },
-    )
     action_rate = CurrTerm(
         func=mdp.modify_reward_weight,
-        params={"term_name": "action_rate", "weight": -0.08, "num_steps": 15000},
+        params={"term_name": "action_rate", "weight": -0.08, "num_steps": 25000},
     )
     joint_vel = CurrTerm(
         func=mdp.modify_reward_weight,
-        params={"term_name": "joint_vel", "weight": -0.02, "num_steps": 15000},
+        params={"term_name": "joint_vel", "weight": -0.02, "num_steps": 25000},
     )
 
 

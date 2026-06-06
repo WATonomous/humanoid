@@ -57,7 +57,7 @@ class UniformInterceptCommand(CommandTerm):
         msg = "UniformInterceptCommand:\n"
         msg += f"\tCommand dimension: {tuple(self.command.shape[1:])}\n"
         msg += f"\tHit moment duration: {self.cfg.hit_moment_duration_s} s (0 = one env step)\n"
-        msg += f"\tResampling time range: {self.cfg.resampling_time_range}\n"
+        msg += f"\tResampling: cycle-aligned (lead_time + hit window)\n"
         return msg
 
     @property
@@ -95,6 +95,36 @@ class UniformInterceptCommand(CommandTerm):
         if self.cfg.hit_moment_duration_s > 0.0:
             return self.cfg.hit_moment_duration_s
         return self._env.step_dt
+
+    def _episode_time_remaining(self, env_ids: Sequence[int] | torch.Tensor) -> torch.Tensor:
+        """Seconds until episode timeout for the given env indices."""
+        if not isinstance(env_ids, torch.Tensor):
+            env_ids = torch.tensor(list(env_ids), device=self.device, dtype=torch.long)
+        steps_left = self._env.max_episode_length - self._env.episode_length_buf[env_ids]
+        return steps_left.float() * self._env.step_dt
+
+    def _resample(self, env_ids: Sequence[int]):
+        """Resample after each intercept cycle; skip if the episode cannot fit a full countdown."""
+        if len(env_ids) == 0:
+            return
+
+        env_ids_t = torch.tensor(list(env_ids), device=self.device, dtype=torch.long)
+        hit_duration = self._hit_moment_duration()
+        episode_time_left = self._episode_time_remaining(env_ids_t)
+        min_cycle = hit_duration + self._env.step_dt
+
+        can_resample = episode_time_left >= min_cycle
+        resample_ids = env_ids_t[can_resample]
+        skip_ids = env_ids_t[~can_resample]
+
+        if len(resample_ids) > 0:
+            self.command_counter[resample_ids] += 1
+            self._resample_command(resample_ids.tolist())
+            self.time_left[resample_ids] = self.lead_time_total[resample_ids] + hit_duration
+
+        if len(skip_ids) > 0:
+            # Not enough episode time for another countdown — hold idle until reset.
+            self.time_left[skip_ids] = episode_time_left[skip_ids]
 
     def _update_metrics(self):
         self.pos_command_w, _ = combine_frame_transforms(
@@ -135,7 +165,14 @@ class UniformInterceptCommand(CommandTerm):
         des_vel_w = strike_dir_w * speed.unsqueeze(-1)
         self.vel_command_b[env_ids] = quat_rotate_inverse(root_quat_w, des_vel_w)
 
-        sampled_lead = r.uniform_(*self.cfg.ranges.lead_time)
+        env_ids_t = torch.tensor(list(env_ids), device=self.device, dtype=torch.long)
+        episode_time_left = self._episode_time_remaining(env_ids_t)
+        hit_duration = self._hit_moment_duration()
+        max_lead = (episode_time_left - hit_duration).clamp(min=self._env.step_dt)
+
+        lo, hi = self.cfg.ranges.lead_time
+        sampled_lead = lo + (hi - lo) * r.uniform_(0.0, 1.0)
+        sampled_lead = torch.minimum(sampled_lead, max_lead)
         self.lead_time_left[env_ids] = sampled_lead
         self.lead_time_total[env_ids] = sampled_lead
         self.hit_moment_time_left[env_ids] = 0.0
