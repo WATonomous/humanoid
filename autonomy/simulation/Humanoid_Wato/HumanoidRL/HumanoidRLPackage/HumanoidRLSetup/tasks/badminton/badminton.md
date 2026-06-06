@@ -1,6 +1,6 @@
 # Badminton: timed intercept (Wato arm)
 
-Timed EE intercept for the Wato hand-arm (`ModelAssets/arm.usd`) in Isaac Lab. The policy receives **privileged** swing targets (no vision): EE position, orientation, linear velocity at impact, seconds until arrival, and a one-step contact pulse. **Play/train with `debug_vis=True`** shows shrinking concentric rings (visual only); rings use the commanded orientation and flash at min size on contact, then hide until the next resample.
+Timed EE intercept for the Wato hand-arm (`UsdModelAssets/right_arm/right_arm_assembly/right_arm_assembly.usd`) in Isaac Lab. The policy receives **privileged** swing targets (no vision): EE position, orientation, linear velocity at impact, seconds until arrival, and a one-step contact pulse. **Play/train with `debug_vis=True`** shows shrinking concentric rings (visual only); rings use the commanded orientation and flash at min size on contact, then hide until the next resample.
 
 **No shuttlecock in scene yet** — contact is proxied by racket link pose + velocity vs the commanded swing state at the intercept instant.
 
@@ -37,7 +37,7 @@ Checkpoints: `logs/rsl_rl/badminton_intercept_humanoid_arm/`. PPO defaults: `max
 | Item | Value |
 | :--- | :--- |
 | Robot | `ARM_CFG` — 6-DOF arm actuated; fingers locked in racket-grip pose on reset |
-| Racket proxy (rewards) | `forearm_v8_.*`, `DIP_INDEX_v1_.*` until a racket link exists in `arm.usd` |
+| Racket proxy (rewards) | `forearm_v8_.*`, `DIP_INDEX_v1_.*` until a racket link exists in `right_arm_assembly.usd` |
 | Intercept resample | After each cycle (**lead_time + hit window**); skipped if episode time is too short |
 | Intercept position (base frame) | `x ∈ [-0.55, -0.15]`, `y ∈ [-0.45, 0.45]`, `z ∈ [0.15, 0.75]` m |
 | Lead time (shuttle arrival) | Uniform **1.5–3.5 s** after each resample |

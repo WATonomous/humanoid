@@ -10,7 +10,7 @@ app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 import isaaclab.sim as sim_utils
-from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import (
+from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid_arm_hand import (
     ARM_CFG,
     LEFT_ARM_CFG,
 )
