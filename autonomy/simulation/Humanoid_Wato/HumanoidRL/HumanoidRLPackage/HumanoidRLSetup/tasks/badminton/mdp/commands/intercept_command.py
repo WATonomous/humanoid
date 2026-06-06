@@ -134,6 +134,7 @@ class UniformInterceptCommand(CommandTerm):
 <<<<<<< HEAD
         msg += f"\tHit moment duration: {self.cfg.hit_moment_duration_s} s (0 = one env step)\n"
         msg += f"\tResampling: cycle-aligned (lead_time + hit window)\n"
+<<<<<<< HEAD
 =======
         msg += f"\tHit window duration: {self.cfg.window_duration_s} s\n"
 =======
@@ -141,6 +142,8 @@ class UniformInterceptCommand(CommandTerm):
 >>>>>>> bf63d8b3 (rl-badminton)
         msg += f"\tResampling time range: {self.cfg.resampling_time_range}\n"
 >>>>>>> 97ddcbcd (rl-badminton)
+=======
+>>>>>>> cd302498 (add-dextrahrgb-and-modify-badminton-rl)
         return msg
 
     @property
@@ -214,6 +217,9 @@ class UniformInterceptCommand(CommandTerm):
         return self._env.step_dt
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> cd302498 (add-dextrahrgb-and-modify-badminton-rl)
     def _episode_time_remaining(self, env_ids: Sequence[int] | torch.Tensor) -> torch.Tensor:
         """Seconds until episode timeout for the given env indices."""
         if not isinstance(env_ids, torch.Tensor):
@@ -244,10 +250,13 @@ class UniformInterceptCommand(CommandTerm):
             # Not enough episode time for another countdown — hold idle until reset.
             self.time_left[skip_ids] = episode_time_left[skip_ids]
 
+<<<<<<< HEAD
 =======
 >>>>>>> 97ddcbcd (rl-badminton)
 =======
 >>>>>>> bf63d8b3 (rl-badminton)
+=======
+>>>>>>> cd302498 (add-dextrahrgb-and-modify-badminton-rl)
     def _update_metrics(self):
         self.pos_command_w, _ = combine_frame_transforms(
             self.robot.data.root_pos_w,
@@ -301,6 +310,9 @@ class UniformInterceptCommand(CommandTerm):
         self.vel_command_b[env_ids] = quat_rotate_inverse(root_quat_w, des_vel_w)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> cd302498 (add-dextrahrgb-and-modify-badminton-rl)
         env_ids_t = torch.tensor(list(env_ids), device=self.device, dtype=torch.long)
         episode_time_left = self._episode_time_remaining(env_ids_t)
         hit_duration = self._hit_moment_duration()
@@ -309,9 +321,12 @@ class UniformInterceptCommand(CommandTerm):
         lo, hi = self.cfg.ranges.lead_time
         sampled_lead = lo + (hi - lo) * r.uniform_(0.0, 1.0)
         sampled_lead = torch.minimum(sampled_lead, max_lead)
+<<<<<<< HEAD
 =======
         sampled_lead = r.uniform_(*self.cfg.ranges.lead_time)
 >>>>>>> bfee0731 (improve-badminton-rl)
+=======
+>>>>>>> cd302498 (add-dextrahrgb-and-modify-badminton-rl)
         self.lead_time_left[env_ids] = sampled_lead
         self.lead_time_total[env_ids] = sampled_lead
         self.hit_moment_time_left[env_ids] = 0.0
