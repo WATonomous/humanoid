@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-This script requires **Isaac Lab** to be installed and accessible at `/workspace/isaaclab`.
+This script requires **Isaac Lab** to be installed and accessible at `<path>/IsaacLab`, with the `env_isaaclab` conda environment activated.
 
 ---
 
@@ -11,7 +11,7 @@ This script requires **Isaac Lab** to be installed and accessible at `/workspace
 Isaac Sim requires `warp-lang==1.5.0`. Run this once to install the correct version:
 
 ```bash
-/workspace/isaaclab/_isaac_sim/kit/python/bin/python3 -m pip install warp-lang==1.5.0
+<path>/IsaacLab/isaaclab.sh -p -m pip install warp-lang==1.5.0
 ```
 
 > **Why?** Isaac Sim bundles `omni.warp 1.5.0`, and newer versions of `warp-lang` removed APIs that Isaac Sim depends on (`warp.types.array`, `warp.context`). This will cause startup failures if not pinned correctly.
@@ -20,17 +20,16 @@ Isaac Sim requires `warp-lang==1.5.0`. Run this once to install the correct vers
 
 ## Step 2: Run the Script
 
-From the `/workspace/isaaclab` directory, run:
+From this directory (`keyboard-based teleoperation/`), run:
 
 ```bash
-cd /workspace/isaaclab
-./isaaclab.sh -p "final_repo/humanoid/autonomy/simulation/Teleop/keyboard-based teleoperation/task_space_test.py"
+PYTHONPATH=$(pwd) <path>/IsaacLab/isaaclab.sh -p task_space_test.py
 ```
 
 ---
 
 ## Notes
 
-- Always run from `/workspace/isaaclab` — the `./isaaclab.sh` script must be invoked from that directory.
-- Step 1 only needs to be run **once** per container session (or after a container rebuild).
+- Run from this directory so `demonstrations/` and `recordings/` are created here.
+- Step 1 only needs to be run **once** (or after an Isaac Sim / Isaac Lab reinstall).
 - If you see errors like `AttributeError: module 'warp.types' has no attribute 'array'`, repeat Step 1.
