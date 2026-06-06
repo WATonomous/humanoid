@@ -136,7 +136,7 @@ sphere_position, _ = humanoid_fabric.get_taskmap(
     "body_points")(q.detach(), None)
 
 _OUR_URDF = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                          "../Humanoid_Wato/arm_assembly/arm_assembly.urdf"))
+                                          "../Humanoid_Wato/arm_assembly/right_arm_assembly.urdf"))
 
 
 class HumanoidRobotVisualizer(RobotVisualizer):
@@ -185,7 +185,7 @@ class HumanoidRobotVisualizer(RobotVisualizer):
 
         # Import URDF directly onto the current Isaac Sim stage (dest_path="" = in-memory
         # on the open stage). This is the standard path and correctly creates visual meshes.
-        # The robot lands at /<robot_name> (e.g. /arm_assembly).
+        # The robot lands at /<robot_name> (e.g. /right_arm_assembly).
         print('Importing URDF onto stage:', urdf_path)
         _, import_config = omni.kit.commands.execute("URDFCreateImportConfig")
         import_config.merge_fixed_joints = False

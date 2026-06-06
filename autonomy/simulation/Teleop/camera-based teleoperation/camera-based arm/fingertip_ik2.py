@@ -7,7 +7,7 @@ using damped least-squares (no dependencies on other scripts in this repo).
 
 This file lives in camera-based teleoperation/camera-based arm/ and resolves
 the URDF path relative to its own location, pointing to:
-  ../../../Humanoid_Wato/arm_assembly/arm_assembly.urdf
+  ../../../Humanoid_Wato/arm_assembly/right_arm_assembly.urdf
 
 Joint 0 (shoulder_flexion_extension) issue:
   MuJoCo's URDF importer can set continuous joints to range [0,0], which would
@@ -24,7 +24,7 @@ from pathlib import Path
 # camera-based arm/ -> camera-based teleoperation/ -> Teleop/ -> simulation/ -> Humanoid_Wato/arm_assembly/
 _THIS_DIR = Path(__file__).resolve().parent
 _ARM_ASSEMBLY_DIR = _THIS_DIR / ".." / ".." / ".." / "Humanoid_Wato" / "arm_assembly"
-URDF_PATH = (_ARM_ASSEMBLY_DIR / "arm_assembly.urdf").resolve()
+URDF_PATH = (_ARM_ASSEMBLY_DIR / "right_arm_assembly.urdf").resolve()
 
 # Fingertip body names (distal link of each finger in arm_assembly.urdf)
 FINGERTIP_BODIES = [
@@ -46,13 +46,22 @@ def load_model(urdf_path=None):
     mesh_dir = path.parent / "meshes"
     if not mesh_dir.is_dir():
         raise FileNotFoundError(f"Mesh directory not found: {mesh_dir}")
-    # MuJoCo's URDF importer keeps only mesh basename and opens from cwd.
-    # Use mesh filenames without "meshes/" and chdir to meshes so they are found.
+    # MuJoCo's URDF importer keeps only mesh basenames; chdir to the side subfolder.
     xml = path.read_text()
-    xml = xml.replace('filename="meshes/', 'filename="')
+    if 'filename="meshes/left_arm/' in xml:
+        mesh_subdir = mesh_dir / "left_arm"
+        xml = xml.replace('filename="meshes/left_arm/', 'filename="')
+    elif 'filename="meshes/right_arm/' in xml:
+        mesh_subdir = mesh_dir / "right_arm"
+        xml = xml.replace('filename="meshes/right_arm/', 'filename="')
+    else:
+        mesh_subdir = mesh_dir
+        xml = xml.replace('filename="meshes/', 'filename="')
+    if not mesh_subdir.is_dir():
+        raise FileNotFoundError(f"Mesh directory not found: {mesh_subdir}")
     old_cwd = os.getcwd()
     try:
-        os.chdir(mesh_dir)
+        os.chdir(mesh_subdir)
         return mujoco.MjModel.from_xml_string(xml)
     finally:
         os.chdir(old_cwd)

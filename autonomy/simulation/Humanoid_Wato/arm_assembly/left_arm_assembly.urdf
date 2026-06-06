@@ -358,14 +358,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
       <geometry>
-        <mesh filename="meshes/left/left_base_link.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_base_link.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
       <geometry>
-        <mesh filename="meshes/left/left_base_link.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_base_link.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -378,14 +378,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.0505 0.0 0.0" />
       <geometry>
-        <mesh filename="meshes/left/left_shoulder_link_1_v9_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_shoulder_link_1_v9_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.0505 0.0 0.0" />
       <geometry>
-        <mesh filename="meshes/left/left_shoulder_link_1_v9_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_shoulder_link_1_v9_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -398,14 +398,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.1155 0.0255 0.0" />
       <geometry>
-        <mesh filename="meshes/left/left_shoulder_link_2_v4_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_shoulder_link_2_v4_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.1155 0.0255 0.0" />
       <geometry>
-        <mesh filename="meshes/left/left_shoulder_link_2_v4_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_shoulder_link_2_v4_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -418,14 +418,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.1155 -0.024 -0.2112" />
       <geometry>
-        <mesh filename="meshes/left/left_elbow_link_1_v6_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_elbow_link_1_v6_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.1155 -0.024 -0.2112" />
       <geometry>
-        <mesh filename="meshes/left/left_elbow_link_1_v6_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_elbow_link_1_v6_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -438,14 +438,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.140875 -0.024 -0.3167" />
       <geometry>
-        <mesh filename="meshes/left/left_elbow_link_2_v7_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_elbow_link_2_v7_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.140875 -0.024 -0.3167" />
       <geometry>
-        <mesh filename="meshes/left/left_elbow_link_2_v7_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_elbow_link_2_v7_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -458,14 +458,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.091375 0.0872 -0.3167" />
       <geometry>
-        <mesh filename="meshes/left/left_forearm_v8_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_forearm_v8_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.091375 0.0872 -0.3167" />
       <geometry>
-        <mesh filename="meshes/left/left_forearm_v8_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_forearm_v8_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -478,14 +478,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.066375 0.3582 -0.3167" />
       <geometry>
-        <mesh filename="meshes/left/left_PALM_GAVIN_1DoF_Hinge_v2_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_PALM_GAVIN_1DoF_Hinge_v2_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.066375 0.3582 -0.3167" />
       <geometry>
-        <mesh filename="meshes/left/left_PALM_GAVIN_1DoF_Hinge_v2_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_PALM_GAVIN_1DoF_Hinge_v2_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -498,14 +498,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.047125 0.4652 -0.3172" />
       <geometry>
-        <mesh filename="meshes/left/left_MCP_INDEX_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_MCP_INDEX_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.047125 0.4652 -0.3172" />
       <geometry>
-        <mesh filename="meshes/left/left_MCP_INDEX_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_MCP_INDEX_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -518,14 +518,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.047125 0.500608 -0.3172" />
       <geometry>
-        <mesh filename="meshes/left/left_PIP_INDEX_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_PIP_INDEX_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.047125 0.500608 -0.3172" />
       <geometry>
-        <mesh filename="meshes/left/left_PIP_INDEX_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_PIP_INDEX_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -538,14 +538,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.056625 0.500608 -0.3472" />
       <geometry>
-        <mesh filename="meshes/left/left_DIP_INDEX_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_DIP_INDEX_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.056625 0.500608 -0.3472" />
       <geometry>
-        <mesh filename="meshes/left/left_DIP_INDEX_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_DIP_INDEX_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -558,14 +558,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.073125 0.4752 -0.3172" />
       <geometry>
-        <mesh filename="meshes/left/left_MCP_MIDDLE_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_MCP_MIDDLE_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.073125 0.4752 -0.3172" />
       <geometry>
-        <mesh filename="meshes/left/left_MCP_MIDDLE_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_MCP_MIDDLE_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -578,14 +578,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.073125 0.5102 -0.3172" />
       <geometry>
-        <mesh filename="meshes/left/left_PIP_MIDDLE_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_PIP_MIDDLE_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.073125 0.5102 -0.3172" />
       <geometry>
-        <mesh filename="meshes/left/left_PIP_MIDDLE_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_PIP_MIDDLE_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -598,14 +598,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.082625 0.5102 -0.3472" />
       <geometry>
-        <mesh filename="meshes/left/left_DIP_MIDDLE_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_DIP_MIDDLE_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.082625 0.5102 -0.3472" />
       <geometry>
-        <mesh filename="meshes/left/left_DIP_MIDDLE_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_DIP_MIDDLE_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -618,14 +618,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.108625 0.4652 -0.3172" />
       <geometry>
-        <mesh filename="meshes/left/left_MCP_RING_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_MCP_RING_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.108625 0.4652 -0.3172" />
       <geometry>
-        <mesh filename="meshes/left/left_MCP_RING_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_MCP_RING_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -638,14 +638,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.097625 0.4652 -0.3522" />
       <geometry>
-        <mesh filename="meshes/left/left_PIP_RING_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_PIP_RING_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.097625 0.4652 -0.3522" />
       <geometry>
-        <mesh filename="meshes/left/left_PIP_RING_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_PIP_RING_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -658,14 +658,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.097625 0.4652 -0.3822" />
       <geometry>
-        <mesh filename="meshes/left/left_DIP_RING_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_DIP_RING_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.097625 0.4652 -0.3822" />
       <geometry>
-        <mesh filename="meshes/left/left_DIP_RING_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_DIP_RING_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -678,14 +678,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.125125 0.4502 -0.3172" />
       <geometry>
-        <mesh filename="meshes/left/left_MCP_PINKY_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_MCP_PINKY_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.125125 0.4502 -0.3172" />
       <geometry>
-        <mesh filename="meshes/left/left_MCP_PINKY_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_MCP_PINKY_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -698,14 +698,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.125125 0.4502 -0.3522" />
       <geometry>
-        <mesh filename="meshes/left/left_PIP_PINKY_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_PIP_PINKY_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.125125 0.4502 -0.3522" />
       <geometry>
-        <mesh filename="meshes/left/left_PIP_PINKY_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_PIP_PINKY_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -718,14 +718,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.134625 0.4502 -0.3822" />
       <geometry>
-        <mesh filename="meshes/left/left_DIP_PINKY_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_DIP_PINKY_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.134625 0.4502 -0.3822" />
       <geometry>
-        <mesh filename="meshes/left/left_DIP_PINKY_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_DIP_PINKY_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -738,14 +738,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.046875 0.4132 -0.3472" />
       <geometry>
-        <mesh filename="meshes/left/left_CMC_THUMB_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_CMC_THUMB_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.046875 0.4132 -0.3472" />
       <geometry>
-        <mesh filename="meshes/left/left_CMC_THUMB_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_CMC_THUMB_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -758,14 +758,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.024611 0.415171 -0.343493" />
       <geometry>
-        <mesh filename="meshes/left/left_MCP_THUMB_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_MCP_THUMB_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.024611 0.415171 -0.343493" />
       <geometry>
-        <mesh filename="meshes/left/left_MCP_THUMB_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_MCP_THUMB_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
@@ -778,14 +778,14 @@
     <visual>
       <origin rpy="0 0 0" xyz="0.042442 0.426802 -0.36463" />
       <geometry>
-        <mesh filename="meshes/left/left_IP_THUMB_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_IP_THUMB_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
       <material name="silver" />
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0.042442 0.426802 -0.36463" />
       <geometry>
-        <mesh filename="meshes/left/left_IP_THUMB_v1_1.stl" scale="0.001 0.001 0.001" />
+        <mesh filename="meshes/left_arm/left_IP_THUMB_v1_1.stl" scale="0.001 0.001 0.001" />
       </geometry>
     </collision>
   </link>
