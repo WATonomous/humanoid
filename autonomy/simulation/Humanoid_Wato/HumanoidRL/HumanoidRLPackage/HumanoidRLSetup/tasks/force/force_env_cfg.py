@@ -15,10 +15,14 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import HumanoidRLPackage.HumanoidRLSetup.tasks.force.mdp as mdp
 <<<<<<< HEAD
+<<<<<<< HEAD
 from HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid_arm_hand import ARM_FORCE_CFG
 =======
 from HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_FORCE_CFG
 >>>>>>> eff69ae8 (refine-rl-and-add-rl-env)
+=======
+from HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid_arm_hand import ARM_FORCE_CFG
+>>>>>>> 7d0879a4 (refactor-and-organize-assets-and-folder)
 
 _CONTACT_BODIES = mdp.DEFAULT_CONTACT_BODY_NAMES
 

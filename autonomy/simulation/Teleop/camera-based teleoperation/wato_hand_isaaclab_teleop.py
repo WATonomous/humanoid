@@ -527,15 +527,13 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     # ───────────────────────────────────────────────────────────────────────
 
     # ── Resolve URDF paths relative to this script (works in any layout) ────────
-    # arm_assembly_fixed.urdf is now in camera-based arm/ (same folder as camera-based teleoperation/)
-    # arm_assembly.urdf (MuJoCo fallback) remains in Humanoid_Wato/arm_assembly/
     import os as _os
     _THIS_SCRIPT_DIR = _os.path.abspath(_os.path.dirname(__file__))
     _CAM_ARM_DIR = _os.path.join(_THIS_SCRIPT_DIR, "camera-based arm")
     _ARM_ASSEMBLY_DIR = _os.path.abspath(
         _os.path.join(_THIS_SCRIPT_DIR, "..", "..", "Humanoid_Wato", "arm_assembly")
     )
-    _ARM_ASSEMBLY_FIXED_URDF = _os.path.join(_CAM_ARM_DIR, "arm_assembly_fixed.urdf")
+    _ARM_ASSEMBLY_URDF = _os.path.join(_ARM_ASSEMBLY_DIR, "right_arm_assembly.urdf")
 
     # Initialize IK DexRetargeting Solver (primary), fingertip_ik2 (fallback)
     retargeter = None
@@ -546,7 +544,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         import numpy as np
         ik_config = {
             "type": "vector",
-            "urdf_path": _ARM_ASSEMBLY_FIXED_URDF,
+            "urdf_path": _ARM_ASSEMBLY_URDF,
             "wrist_link_name": "PALM_GAVIN_1DoF_Hinge_v2_1",
             "target_origin_link_names": [
                 # Thumb (2 vectors)
@@ -590,7 +588,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                 _sys.path.insert(0, _CAM_ARM_DIR)
             from fingertip_ik2 import load_model as _ik2_load, solve_fingertip_ik as _ik2_solve
             import mujoco as _mujoco
-            _arm_urdf = _os.path.join(_ARM_ASSEMBLY_DIR, "arm_assembly.urdf")
+            _arm_urdf = _ARM_ASSEMBLY_URDF
             _ik2_model = _ik2_load(_arm_urdf)
             _ik2_data  = _mujoco.MjData(_ik2_model)
             print(f"[INFO] fingertip_ik2 MuJoCo fallback loaded from {_arm_urdf}")

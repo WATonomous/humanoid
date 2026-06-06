@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # WATonomous Humanoid - UWaterloo's First Humanoid Robot 
 
 Dockerized ROS 2 stack for controlling and interfacing with the humanoid robot, plus Isaac Lab / MuJoCo simulation, teleop, and imitation learning.
@@ -33,6 +34,11 @@ cp watod-config.sh watod-config.local.sh
 **Isaac Lab sim (recommended):** see [docker/simulation/isaac_lab/QUICKSTART.md](docker/simulation/isaac_lab/QUICKSTART.md).
 
 ## Repo map
+=======
+# WATonomous + UWRL Humanoid Project
+Dockerized ROS2 setup controlling and interfacing with Humanoid Robot
+https://watonomous.github.io/humanoid-docs/index.html 
+>>>>>>> 7d0879a4 (refactor-and-organize-assets-and-folder)
 
 ```
 humanoid

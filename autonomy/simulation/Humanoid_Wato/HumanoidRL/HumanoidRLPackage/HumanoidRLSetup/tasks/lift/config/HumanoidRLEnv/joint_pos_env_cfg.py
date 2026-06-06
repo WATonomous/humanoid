@@ -15,10 +15,14 @@ from isaaclab.utils import configclass
 from HumanoidRLPackage.HumanoidRLSetup.tasks.lift.lift_env_cfg import LiftEnvCfg
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 # assets/lerobot/so101_new_calib.urdf: gripper_frame_joint (parent gripper_link -> USD body "gripper")
 =======
 # so101_new_calib.urdf: gripper_frame_joint (parent gripper_link -> USD body "gripper")
 >>>>>>> 0b589f1c (lerobot-pick-rl)
+=======
+# assets/lerobot/so101_new_calib.urdf: gripper_frame_joint (parent gripper_link -> USD body "gripper")
+>>>>>>> 7d0879a4 (refactor-and-organize-assets-and-folder)
 _GRIPPER_FRAME_POS = (-0.0079, -0.000218121, -0.07)
 # rpy="0 3.14159 0" on that joint -> quaternion (w, x, y, z)
 _GRIPPER_FRAME_ROT = (0.0, 0.0, 1.0, 0.0)

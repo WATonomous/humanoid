@@ -22,10 +22,14 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
 from . import mdp
 <<<<<<< HEAD
+<<<<<<< HEAD
 from HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid_arm_hand import ARM_CFG
 =======
 from HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_CFG
 >>>>>>> eff69ae8 (refine-rl-and-add-rl-env)
+=======
+from HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid_arm_hand import ARM_CFG
+>>>>>>> 7d0879a4 (refactor-and-organize-assets-and-folder)
 
 ##
 # Pre-defined configs

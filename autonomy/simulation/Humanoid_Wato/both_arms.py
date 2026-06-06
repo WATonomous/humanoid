@@ -11,10 +11,14 @@ simulation_app = app_launcher.app
 
 import isaaclab.sim as sim_utils
 <<<<<<< HEAD
+<<<<<<< HEAD
 from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid_arm_hand import (
 =======
 from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import (
 >>>>>>> ac22f6fa (new changes)
+=======
+from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid_arm_hand import (
+>>>>>>> 7d0879a4 (refactor-and-organize-assets-and-folder)
     ARM_CFG,
     LEFT_ARM_CFG,
 )

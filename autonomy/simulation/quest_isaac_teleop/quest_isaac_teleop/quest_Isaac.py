@@ -29,7 +29,7 @@ from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.math import quat_rotate_inverse, subtract_frame_transforms
 
-from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid import ARM_CFG, LEFT_ARM_CFG
+from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid_arm_hand import ARM_CFG, LEFT_ARM_CFG
 
 from quest_isaac_teleop.quest_calc import compute_all_targets
 

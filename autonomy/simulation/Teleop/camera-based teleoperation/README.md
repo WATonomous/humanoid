@@ -152,7 +152,7 @@ ros2 topic echo /wato/hand_joint_angles
 
 | File | Purpose |
 |------|---------|
-| `camera-based arm/arm_assembly_fixed.urdf` | URDF with fixed joint limits used by DexRetargeting IK solver |
+| `Humanoid_Wato/arm_assembly/right_arm_assembly.urdf` | URDF used by DexRetargeting and MuJoCo IK solvers |
 | `camera-based arm/simple_door.urdf` | Optional door articulation for the sim scene (currently disabled) |
 | `camera-based arm/fingertip_ik2.py` | MuJoCo gradient-based IK fallback when `dex-retargeting` is unavailable |
 
@@ -163,7 +163,7 @@ ros2 topic echo /wato/hand_joint_angles
 | Problem | Fix |
 |---------|-----|
 | `arm_cfg` import error | Check you are running from `camera-based teleoperation/` |
-| `arm_assembly_fixed.urdf not found` | Verify `camera-based arm/arm_assembly_fixed.urdf` exists in this folder |
+| `right_arm_assembly.urdf not found` | Verify `Humanoid_Wato/arm_assembly/right_arm_assembly.urdf` exists |
 | rosbridge connection refused | Check Terminal 1 is running and SSH tunnel is active (`-L 9090:localhost:9090`) |
 | Hand landmarks not appearing | Run `ros2 topic echo /wato/hand_landmarks` to confirm `hand_recorder.py` is publishing |
 | Enable curl debug output | Set `DEBUG_CURL = True` in `wato_hand_ros2_node.py` — outputs to temp dir `curl_debug.txt` |

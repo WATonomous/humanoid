@@ -30,7 +30,7 @@ import numpy as np
 
 _SIMULATION_DIR = Path(__file__).resolve().parents[2]
 _ARM_ASSEMBLY_DIR = _SIMULATION_DIR / "Humanoid_Wato" / "arm_assembly"
-_RIGHT_URDF = _ARM_ASSEMBLY_DIR / "arm_assembly.urdf"
+_RIGHT_URDF = _ARM_ASSEMBLY_DIR / "right_arm_assembly.urdf"
 _LEFT_URDF = _ARM_ASSEMBLY_DIR / "left_arm_assembly.urdf"
 
 _RIGHT_ARM_JOINTS = [
