@@ -217,7 +217,7 @@ def resolve_joint_name(robot, name: str) -> str:
     raise KeyError(f"Joint '{name}' not found in {names}")
 
 
-_ARM_URDF_PATH = os.path.join(_BIMANUAL_ROOT, "urdf", "armDouble.SLDASM", "armDouble.SLDASM.urdf")
+_ARM_URDF_PATH = os.path.join(_BIMANUAL_ROOT, "urdf", "armDouble.SLDASM.urdf")
 
 BIMANUAL_ARM_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(
