@@ -224,6 +224,14 @@ BIMANUAL_ARM_CFG = ArticulationCfg(
         asset_path=_ARM_URDF_PATH,
         fix_base=True,
         make_instanceable=True,
+        joint_drive=sim_utils.UrdfFileCfg.JointDriveCfg(
+            drive_type="force",
+            target_type="position",
+            gains=sim_utils.UrdfFileCfg.JointDriveCfg.PDGainsCfg(
+                stiffness=400.0,
+                damping=40.0,
+            ),
+        ),
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             max_depenetration_velocity=5.0,
