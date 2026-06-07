@@ -784,6 +784,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                         torch.stack([    2*(_x*_z - _w*_y),     2*(_y*_z + _w*_x), 1 - 2*(_x*_x + _y*_y)])
                     ], dim=0)  # (3, 3)
                     _delta_base = _R @ _delta_ee  # rotate into base frame
+                    # ---------------------------------------------------------
+                    # CLAMP to a safe per-step magnitude.
+                    # Se3Keyboard with pos_sensitivity=0.15 outputs 0.15 m per
+                    # physics step while a key is held, which at 100 Hz equals
+                    # 15 m/s — far too fast for the IK solver and causes joint
+                    # targets to explode.  We cap the step here so the maximum
+                    # commanded EE speed is MAX_EE_STEP_M / dt = 0.5 m/s.
+                    # pos_sensitivity can stay at 0.15 for key-detection feel.
+                    MAX_EE_STEP_M = 0.005  # metres per physics step (= 0.5 m/s at 100 Hz)
+                    _step_norm = float(_delta_base.norm())
+                    if _step_norm > MAX_EE_STEP_M:
+                        _delta_base = _delta_base * (MAX_EE_STEP_M / _step_norm)
+                    # ---------------------------------------------------------
                     ee_command[0, 0:3] = _delta_base
                 # else: command stays zero
             gripper_open_bool = gripper_state["open"]
@@ -851,6 +864,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
         jacobian = robot.root_physx_view.get_jacobians()[:, ee_jacobi_idx, :, robot_entity_cfg.joint_ids]
         joint_pos_des = diff_ik_controller.compute(ee_pos_b, ee_quat_b, jacobian, joint_pos)
+
+        # Clamp joint targets to ±2π to prevent runaway solutions near singularities.
+        joint_pos_des = torch.clamp(joint_pos_des, min=-2 * torch.pi, max=2 * torch.pi)
 
         # ── DEBUG: print every step where a non-zero command is sent (capped at 5) ──
         _cmd_norm = float(ee_command.norm())
