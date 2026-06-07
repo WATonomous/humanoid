@@ -124,15 +124,22 @@ class ActionsCfg:
 
     arm_action = mdp.JointPositionActionCfg(
         asset_name="robot",
-        joint_names=["^joint[1-6]$"],  # Control right arm (joints 1-6)
-        scale=0.5,
+        joint_names=["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"],
+        scale=0.8,
         use_default_offset=True,
     )
     gripper_action = mdp.BinaryJointPositionActionCfg(
         asset_name="robot",
-        joint_names=["^joint[78]$"],  # Control right gripper (joints 7, 8)
-        open_command_expr={"joint7": -0.05, "joint8": 0.05},
+        joint_names=["joint7", "joint8"],
+        open_command_expr={"joint7": -0.06, "joint8": 0.06},
         close_command_expr={"joint7": 0.0, "joint8": 0.0},
+    )
+    # Dummy action to actively hold the left arm at its resting pose
+    left_arm_hold = mdp.JointPositionActionCfg(
+        asset_name="robot",
+        joint_names=["joint1L", "joint2l", "joint3l", "joint4l", "joint5l", "joint6l", "joint7l", "joint8l"],
+        scale=0.0,  # Neural network output is multiplied by zero
+        use_default_offset=True,  # Always targets the default resting position
     )
 
 
@@ -200,7 +207,10 @@ class EventCfg:
         func=mdp.reset_joints_by_offset,
         mode="reset",
         params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=["^joint[1-8]$"]),
+            "asset_cfg": SceneEntityCfg(
+                "robot", 
+                joint_names=["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7", "joint8"]
+            ),
             "position_range": (-0.1, 0.1),
             "velocity_range": (0.0, 0.0),
         },
