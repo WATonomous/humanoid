@@ -31,30 +31,24 @@ private:
   CanCore can_core;
   // Can messages
   // Map of CAN message ID to its DBC definition for decoding
-  std::unordered_map<std::string, const dbcppp::IMessage *> can_messages;
-  std::unordered_map<int, const dbcppp::IMessage *>
-      can_id_map; // for programming convience
-  std::unique_ptr<dbcppp::INetwork>
-      dbc_net; // decoding CAN messages using DBC file
+  std::unordered_map<std::string, const dbcppp::IMessage*> can_messages;
+  std::unordered_map<int, const dbcppp::IMessage*> can_id_map; // for programming convience
+  std::unique_ptr<dbcppp::INetwork> dbc_net; // decoding CAN messages using DBC file
 
-  const dbcppp::ISignal *
-  findSignalByName(const dbcppp::IMessage *msg,
-                   const std::string &signal_name); // O(signal_num)
+  const dbcppp::ISignal* findSignalByName(const dbcppp::IMessage* msg,
+                                          const std::string& signal_name); // O(signal_num)
 
   static constexpr size_t max_payload_per_frame = 8; // CAN frame max bytes
   static constexpr size_t data_chunk_size = 8;
 
-  void publishCanMessage(CanMessage &can_msg);
-  void encodeSignal(const dbcppp::ISignal *signal, int64_t phys_value,
-                    CanMessage &can_msg);
-  void encodeSignal(const dbcppp::ISignal *signal, double phys_value,
-                    CanMessage &can_msg);
-  int32_t getMessageId(const dbcppp::IMessage *msg, int device_id) const;
+  void publishCanMessage(CanMessage& can_msg);
+  void encodeSignal(const dbcppp::ISignal* signal, int64_t phys_value, CanMessage& can_msg);
+  void encodeSignal(const dbcppp::ISignal* signal, double phys_value, CanMessage& can_msg);
+  int32_t getMessageId(const dbcppp::IMessage* msg, int device_id) const;
   void receiveCanMessages();
 
   // Subscribers and publishers
-  std::unordered_map<std::string, rclcpp::SubscriptionBase::SharedPtr>
-      _subscribers;
+  std::unordered_map<std::string, rclcpp::SubscriptionBase::SharedPtr> _subscribers;
 
   std::unordered_map<std::string, rclcpp::PublisherBase::SharedPtr>
       _publishers; // Map of topic name to its publisher
@@ -62,15 +56,13 @@ private:
   // Callbacks
   void motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg);
 
-  rclcpp::TimerBase::SharedPtr
-      receive_timer_; // Timer to periodically check for CAN messages
+  rclcpp::TimerBase::SharedPtr receive_timer_; // Timer to periodically check for CAN messages
 
   // Methods
   void createSubscribersPublishers();
 
   // Helper methods
-  uint32_t generateCanId(const std::string &topic_name);
-  std::vector<CanMessage>
-  createCanMessages(const std::string &topic_name,
-                    std::shared_ptr<rclcpp::SerializedMessage> ros_msg);
+  uint32_t generateCanId(const std::string& topic_name);
+  std::vector<CanMessage> createCanMessages(const std::string& topic_name,
+                                            std::shared_ptr<rclcpp::SerializedMessage> ros_msg);
 };

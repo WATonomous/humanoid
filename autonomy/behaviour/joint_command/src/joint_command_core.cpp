@@ -4,7 +4,7 @@
 #include <cmath>
 #include <stdexcept>
 
-JointConfig JointCommandCore::loadJointConfig(const YAML::Node &joint_node) {
+JointConfig JointCommandCore::loadJointConfig(const YAML::Node& joint_node) {
   JointConfig joint;
   joint.motor_id = static_cast<int8_t>(joint_node["can_id"].as<int>());
   joint.lower_limit = joint_node["lower_limit"].as<double>();
@@ -15,8 +15,7 @@ JointConfig JointCommandCore::loadJointConfig(const YAML::Node &joint_node) {
   return joint;
 }
 
-bool JointCommandCore::loadFromYaml(const YAML::Node &config,
-                                    const std::string &arm_side) {
+bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string& arm_side) {
   joints_.clear();
 
   if (!config[arm_side]) {
@@ -29,7 +28,7 @@ bool JointCommandCore::loadFromYaml(const YAML::Node &config,
       {"elbow", "pitch"},    {"elbow", "roll"},    {"wrist", "pitch"},
   };
 
-  for (const auto &[group, joint_name] : joint_paths) {
+  for (const auto& [group, joint_name] : joint_paths) {
     const YAML::Node joint_node = arm[group][joint_name];
     if (!joint_node) {
       return false;
@@ -48,20 +47,19 @@ bool JointCommandCore::loadFromYaml(const YAML::Node &config,
   return true;
 }
 
-double JointCommandCore::clampAngle(double angle, const JointConfig &joint) {
+double JointCommandCore::clampAngle(double angle, const JointConfig& joint) {
   if (!joint.limit_range) {
     return angle;
   }
   return std::clamp(angle, joint.lower_limit, joint.upper_limit);
 }
 
-double JointCommandCore::applyCalibration(double angle,
-                                          const JointConfig &joint) {
+double JointCommandCore::applyCalibration(double angle, const JointConfig& joint) {
   return static_cast<double>(joint.direction) * (angle - joint.zero_offset);
 }
 
-JointSafetyConfig JointCommandCore::loadJointSafetyConfig(
-    const YAML::Node &joint_node, const JointSafetyConfig &base) {
+JointSafetyConfig JointCommandCore::loadJointSafetyConfig(const YAML::Node& joint_node,
+                                                          const JointSafetyConfig& base) {
   JointSafetyConfig cfg = base;
   if (!joint_node) {
     return cfg;
@@ -92,8 +90,7 @@ JointSafetyConfig JointCommandCore::loadJointSafetyConfig(
   return cfg;
 }
 
-bool JointCommandCore::loadSafetyFromYaml(const YAML::Node &safety_cfg,
-                                          double control_rate_hz) {
+bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double control_rate_hz) {
   if (joints_.empty()) {
     return false;
   }
@@ -111,40 +108,35 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node &safety_cfg,
 
   safety_.assign(joints_.size(), defaults);
   for (size_t i = 0; i < joint_paths.size(); ++i) {
-    const auto &[group, joint_name] = joint_paths[i];
+    const auto& [group, joint_name] = joint_paths[i];
     const YAML::Node joint_node = safety_cfg["joints"][group][joint_name];
     safety_[i] = loadJointSafetyConfig(joint_node, defaults);
   }
   return true;
 }
 
-double JointCommandCore::clampStep(double target, double previous,
-                                   double delta_max) {
+double JointCommandCore::clampStep(double target, double previous, double delta_max) {
   return previous + std::clamp(target - previous, -delta_max, delta_max);
 }
 
-double JointCommandCore::applyLowPass(double target, double previous,
-                                      double alpha) {
+double JointCommandCore::applyLowPass(double target, double previous, double alpha) {
   return alpha * previous + (1.0 - alpha) * target;
 }
 
 std::vector<common_msgs::msg::MotorCmd>
-JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose &pose,
-                                     int8_t control_type) {
+JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose, int8_t control_type) {
   if (joints_.size() != 6) {
     throw std::runtime_error("JointCommandCore is not configured for 6 joints");
   }
 
   if (pose.shoulder.position.size() < 3 || pose.elbow.position.size() < 2 ||
       pose.wrist.position.size() < 1) {
-    throw std::runtime_error(
-        "ArmPose must contain 3 shoulder, 2 elbow, and 1 wrist positions");
+    throw std::runtime_error("ArmPose must contain 3 shoulder, 2 elbow, and 1 wrist positions");
   }
 
   const std::vector<double> source_angles = {
-      pose.shoulder.position[0], pose.shoulder.position[1],
-      pose.shoulder.position[2], pose.elbow.position[0],
-      pose.elbow.position[1],    pose.wrist.position[0],
+      pose.shoulder.position[0], pose.shoulder.position[1], pose.shoulder.position[2],
+      pose.elbow.position[0],    pose.elbow.position[1],    pose.wrist.position[0],
   };
 
   std::vector<common_msgs::msg::MotorCmd> commands;
@@ -160,7 +152,7 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose &pose,
   }
 
   for (size_t i = 0; i < joints_.size(); ++i) {
-    const JointSafetyConfig &safety = safety_[i];
+    const JointSafetyConfig& safety = safety_[i];
 
     double target = source_angles[i];
     if (safety.enable_position_clamp) {
@@ -169,8 +161,7 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose &pose,
 
     if (have_prev_targets_) {
       if (safety.enable_velocity_limit && control_rate_hz_ > 0.0) {
-        const double velocity_step =
-            std::abs(safety.velocity_max) / control_rate_hz_;
+        const double velocity_step = std::abs(safety.velocity_max) / control_rate_hz_;
         target = clampStep(target, prev_targets_[i], velocity_step);
       }
       if (safety.enable_delta_limit) {

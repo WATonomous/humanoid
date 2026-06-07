@@ -34,7 +34,7 @@ protected:
  * https://google.github.io/googletest/advanced.html#value-parameterized-tests
  */
 class TransformerParameterizedTest
-    : public ::testing::TestWithParam<std::tuple<const char *, bool>> {
+    : public ::testing::TestWithParam<std::tuple<const char*, bool>> {
 protected:
   samples::TransformerCore transformer;
 };
@@ -87,11 +87,10 @@ TEST_P(TransformerParameterizedTest, SerializationValidation) {
 
 // Parameterized testing lets us validate all edge cases for serialization
 // using one test case.
-INSTANTIATE_TEST_CASE_P(
-    Serialization, TransformerParameterizedTest,
-    ::testing::Values(std::make_tuple("x:1;y:2;z:3", false),
-                      std::make_tuple("z:1;y:2;x:3;", false),
-                      std::make_tuple("x:1,y:2,z:3", false),
-                      std::make_tuple("x:3;", false),
-                      std::make_tuple("x:3;y:2;z:3;", true),
-                      std::make_tuple("x:3;y:22; z:11;", true)));
+INSTANTIATE_TEST_CASE_P(Serialization, TransformerParameterizedTest,
+                        ::testing::Values(std::make_tuple("x:1;y:2;z:3", false),
+                                          std::make_tuple("z:1;y:2;x:3;", false),
+                                          std::make_tuple("x:1,y:2,z:3", false),
+                                          std::make_tuple("x:3;", false),
+                                          std::make_tuple("x:3;y:2;z:3;", true),
+                                          std::make_tuple("x:3;y:22; z:11;", true)));

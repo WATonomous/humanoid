@@ -7,6 +7,7 @@ WORKDIR ${AMENT_WS}/src
 
 # Copy source code
 COPY autonomy/teleop teleop
+COPY autonomy/wato_msgs/common_msgs common_msgs
 COPY autonomy/wato_msgs/sample_msgs sample_msgs
 
 # Install rosdep if not present, update package lists
@@ -37,7 +38,10 @@ COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
 # Install dependencies + tools (update must be in same layer)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        $(cat /tmp/colcon_install_list) && \
+        $(cat /tmp/colcon_install_list) \
+        libboost-system-dev \
+        libssl-dev \
+        nlohmann-json3-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy source code into workspace
@@ -61,6 +65,13 @@ RUN rm -rf src build log
 
 # Pass udev symlinks into container
 ENV UDEV=1
+
+# Auto-source ROS, build quest_teleop against live source, and source the overlay
+# in every interactive shell (watod -t bypasses the ENTRYPOINT).
+# /opt/watonomous/setup.bash provides ROS + the baked common_msgs dependency.
+RUN echo 'source /opt/watonomous/setup.bash' >> /root/.bashrc && \
+    echo 'cd /root/ament_ws && colcon build --packages-select quest_teleop' >> /root/.bashrc && \
+    echo 'source /root/ament_ws/install/setup.bash' >> /root/.bashrc
 
 # Entrypoint
 COPY docker/wato_ros_entrypoint.sh ${AMENT_WS}/wato_ros_entrypoint.sh

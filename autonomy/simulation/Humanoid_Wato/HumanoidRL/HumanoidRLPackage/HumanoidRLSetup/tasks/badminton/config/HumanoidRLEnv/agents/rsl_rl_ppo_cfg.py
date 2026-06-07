@@ -5,7 +5,7 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, R
 @configclass
 class HumanoidArmBadmintonPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 300
+    max_iterations = 500
     save_interval = 50
     experiment_name = "badminton_intercept_humanoid_arm"
     run_name = ""

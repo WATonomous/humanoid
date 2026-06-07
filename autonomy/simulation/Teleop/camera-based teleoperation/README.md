@@ -4,7 +4,7 @@
 
 ```
 ┌─────────────────── Windows PC ──────────────────────┐
-│  hand_recorder.py                                    │
+│  hand_landmark_publisher.py                          │
 │  (webcam + MediaPipe → rosbridge → Docker)          │
 └───────────────────────┬─────────────────────────────┘
                         │  rosbridge ws://localhost:9090
@@ -94,8 +94,7 @@ cd "/workspace/isaaclab/final_repo/humanoid/autonomy/simulation/Teleop/camera-ba
 /workspace/isaaclab/isaaclab.sh -p wato_hand_isaaclab_teleop.py
 ```
 
-> **Note:** No `PYTHONPATH` export required — `arm_cfg.py` and `fingertip_ik2.py`
-> are now local to this folder and resolve all paths via `__file__`.
+> **Note:** No `PYTHONPATH` export required — `teleop_tuned_arm_cfg.py` is local to this folder.
 
 ### Windows PC — webcam publisher
 ```powershell
@@ -103,7 +102,7 @@ cd "/workspace/isaaclab/final_repo/humanoid/autonomy/simulation/Teleop/camera-ba
 .\myenv\Scripts\Activate.ps1
 cd "autonomy\simulation\Teleop\camera-based teleoperation"
 pip install mediapipe==0.10.35 roslibpy opencv-python
-python hand_recorder.py
+python hand_landmark_publisher.py
 ```
 
 ---
@@ -124,13 +123,29 @@ ros2 topic echo /wato/hand_joint_angles
 
 ## File Overview
 
+### Main scripts (run directly)
+
 | File | Where it runs | Purpose |
 |------|--------------|---------|
-| `hand_recorder.py` | Windows (webcam host) | Reads webcam via MediaPipe, publishes landmarks over rosbridge |
-| `wato_hand_ros2_node.py` | Docker (ROS2) | Converts landmarks → joint angles, writes `/tmp/wato_joints.json` |
-| `wato_hand_isaaclab_teleop.py` | Docker (Isaac Lab Python) | Reads JSON, drives arm+hand sim via DexRetargeting (or `fingertip_ik2` fallback) |
-| `arm_cfg.py` | Docker (local import) | `ARM_CFG` articulation config — local copy, no PYTHONPATH needed |
-| `fingertip_ik2.py` | Docker (local import) | MuJoCo IK fallback when `dex-retargeting` is unavailable |
+| `hand_landmark_publisher.py` | Windows (webcam host) | Reads webcam via MediaPipe, publishes landmarks over rosbridge |
+| `wato_hand_ros2_node.py` | Docker (ROS2) | Converts landmarks → joint angles, writes `wato_joints.json` to temp dir |
+| `wato_hand_isaaclab_teleop.py` | Docker (Isaac Lab Python) | Reads JSON, drives arm+hand sim via DexRetargeting |
+| `teleop_tuned_arm_cfg.py` | Docker (local import) | `TELEOP_TUNED_ARM_CFG` — few-line overrides on `humanoid_arm_hand.ARM_CFG` |
+
+### `utils/` — diagnostic / test scripts
+
+| File | Where it runs | Purpose |
+|------|--------------|---------|
+| `utils/test_camera.py` | Windows (webcam host) | Simplified webcam + rosbridge connectivity test |
+| `utils/camera_messages.py` | Windows (webcam host) | Streams raw webcam frames over rosbridge to Docker |
+| `utils/websocket_test.py` | Windows | Raw WebSocket ping to confirm SSH tunnel is active |
+
+### `camera-based arm/` — URDF and IK support files
+
+| File | Purpose |
+|------|---------|
+| `Humanoid_Wato/arm_assembly/right_arm_assembly.urdf` | URDF used by DexRetargeting |
+| `camera-based arm/simple_door.urdf` | Optional door articulation for the sim scene (currently disabled) |
 
 ---
 
@@ -138,8 +153,8 @@ ros2 topic echo /wato/hand_joint_angles
 
 | Problem | Fix |
 |---------|-----|
-| `arm_cfg` import error | Check you're running from `camera-based teleoperation/` |
-| `arm_assembly_fixed.urdf not found` | Verify `Humanoid_Wato/arm_assembly/` exists in the repo |
+| `teleop_tuned_arm_cfg` import error | Check you are running from `camera-based teleoperation/` |
+| `right_arm_assembly.urdf not found` | Verify `Humanoid_Wato/arm_assembly/right_arm_assembly.urdf` exists |
 | rosbridge connection refused | Check Terminal 1 is running and SSH tunnel is active (`-L 9090:localhost:9090`) |
-| Hand landmarks not appearing | Run `ros2 topic echo /wato/hand_landmarks` to confirm `hand_recorder.py` is publishing |
-| Enable curl debug output | Set `DEBUG_CURL = True` in `wato_hand_ros2_node.py` — outputs to `/tmp/curl_debug.txt` |
+| Hand landmarks not appearing | Run `ros2 topic echo /wato/hand_landmarks` to confirm `hand_landmark_publisher.py` is publishing |
+| Enable curl debug output | Set `DEBUG_CURL = True` in `wato_hand_ros2_node.py` — outputs to temp dir `curl_debug.txt` |

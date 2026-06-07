@@ -8,16 +8,16 @@ services:
       cache_from:
         - "${SIMULATION_IMAGE:?}:${TAG}"
         - "${SIMULATION_IMAGE:?}:main"
-      args:
-        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
     image: "${SIMULATION_IMAGE:?}:${TAG}"
-    runtime: nvidia
+    gpus: all
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
       - XAUTHORITY=/tmp/.docker.xauth
+      - ROS_DOMAIN_ID=0
+      - FASTDDS_BUILTIN_TRANSPORTS=UDPv4
     profiles: [deploy]
     deploy:
       resources:
@@ -29,6 +29,9 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
       - ${MONO_DIR}/autonomy/simulation:/root/ament_ws/src/simulation
+      - ${MONO_DIR}/autonomy/simulation/Humanoid_Wato:/root/ament_ws/src/Humanoid_Wato
+      - ${MONO_DIR}/autonomy/simulation/quest_isaac_teleop:/root/ament_ws/src/quest_isaac_teleop
+      - ${MONO_DIR}/autonomy/wato_msgs/common_msgs:/root/ament_ws/src/common_msgs
     network_mode: host
     stdin_open: true
     tty: true
@@ -37,18 +40,23 @@ services:
   simulation_dev:
     build: *simulation_build
     image: "${SIMULATION_IMAGE:?}:dev_${TAG}"
-    runtime: nvidia
+    gpus: all
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
       - XAUTHORITY=/tmp/.docker.xauth
+      - ROS_DOMAIN_ID=0
+      - FASTDDS_BUILTIN_TRANSPORTS=UDPv4
     profiles: [develop]
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
       - ${MONO_DIR}/autonomy/simulation:/root/ament_ws/src/simulation
+      - ${MONO_DIR}/autonomy/simulation/Humanoid_Wato:/root/ament_ws/src/Humanoid_Wato
+      - ${MONO_DIR}/autonomy/simulation/quest_isaac_teleop:/root/ament_ws/src/quest_isaac_teleop
+      - ${MONO_DIR}/autonomy/wato_msgs/common_msgs:/root/ament_ws/src/common_msgs
     network_mode: host
     stdin_open: true
     tty: true

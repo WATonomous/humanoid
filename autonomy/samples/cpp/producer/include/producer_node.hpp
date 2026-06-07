@@ -42,7 +42,7 @@ private:
    * @returns status message indicating whether update was successful
    */
   rcl_interfaces::msg::SetParametersResult
-  parameters_callback(const std::vector<rclcpp::Parameter> &parameters);
+  parameters_callback(const std::vector<rclcpp::Parameter>& parameters);
 
   // ROS2 publisher sending raw messages to the unfiltered topic.
   rclcpp::Publisher<sample_msgs::msg::Unfiltered>::SharedPtr data_pub_;

@@ -16,8 +16,7 @@ public:
   ROSbridgeListenerNode();
 
 private:
-  std::string
-  hand_pose_to_string(const sample_msgs::msg::VRHandPose::SharedPtr pose);
+  std::string hand_pose_to_string(const sample_msgs::msg::VRHandPose::SharedPtr pose);
 
   void hand_pose_callback(const sample_msgs::msg::VRHandPose::SharedPtr msg);
 

@@ -9,7 +9,7 @@ import numpy as np
 from pathlib import Path
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
-URDF_PATH = _SCRIPT_DIR / "arm_assembly.urdf"
+URDF_PATH = _SCRIPT_DIR / "right_arm_assembly.urdf"
 
 FINGERTIP_BODIES = [
     "IP_THUMB_v1_1",   # thumb
@@ -30,22 +30,28 @@ def load_model(urdf_path=None):
         raise FileNotFoundError(f"Mesh directory not found: {mesh_dir}")
 
     xml = path.read_text()
-    xml = xml.replace('filename="meshes/', 'filename="')
+    # MuJoCo's URDF importer keeps only mesh basenames; chdir to the side subfolder.
+    if 'filename="meshes/left_arm/' in xml:
+        mesh_subdir = mesh_dir / "left_arm"
+        xml = xml.replace('filename="meshes/left_arm/', 'filename="')
+    elif 'filename="meshes/right_arm/' in xml:
+        mesh_subdir = mesh_dir / "right_arm"
+        xml = xml.replace('filename="meshes/right_arm/', 'filename="')
+    else:
+        mesh_subdir = mesh_dir
+        xml = xml.replace('filename="meshes/', 'filename="')
+    if not mesh_subdir.is_dir():
+        raise FileNotFoundError(f"Mesh directory not found: {mesh_subdir}")
     old_cwd = os.getcwd()
     try:
-        os.chdir(mesh_dir)
+        os.chdir(mesh_subdir)
         return mujoco.MjModel.from_xml_string(xml)
     finally:
         os.chdir(old_cwd)
 
 
 def clip_to_joint_limits(model: mujoco.MjModel, data: mujoco.MjData) -> None:
-    """Clamp joint value to be within joint limit
-
-    MuJoCo's URDF importer can set continuous joints to range [0,0] which would
-    lock joint 0 at zero, here we bypass that by making if lower == upper,
-    it doesn't enforce clipping
-    """
+    """Clamp joint values to URDF limits."""
     for i in range(model.njnt):
         jnt_type = model.jnt_type[i]
         if jnt_type not in (mujoco.mjtJoint.mjJNT_HINGE, mujoco.mjtJoint.mjJNT_SLIDE):
@@ -53,7 +59,7 @@ def clip_to_joint_limits(model: mujoco.MjModel, data: mujoco.MjData) -> None:
         pos_idx = model.jnt_qposadr[i]
         lo = model.jnt_range[i, 0]
         hi = model.jnt_range[i, 1]
-        if lo == hi:
+        if lo >= hi:
             continue
         if np.isfinite(lo) or np.isfinite(hi):
             data.qpos[pos_idx] = np.clip(data.qpos[pos_idx], lo, hi)

@@ -1,5 +1,6 @@
 # WATonomous + UWRL Humanoid Project
-Dockerized ROS2 setup controlling and interfacing with Humanoid Hand
+Dockerized ROS2 setup controlling and interfacing with Humanoid Robot
+https://watonomous.github.io/humanoid-docs/index.html 
 
 ## Repo Structure
 ```

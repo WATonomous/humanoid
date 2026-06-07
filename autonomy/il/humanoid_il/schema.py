@@ -58,7 +58,12 @@ def build_features(cfg: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return features
 
 
-def create_dataset(cfg: dict[str, Any], *, record_root: Path | None = None):
+def create_dataset(
+    cfg: dict[str, Any],
+    *,
+    record_root: Path | None = None,
+    experiment_path: Path | None = None,
+):
     """Create a new LeRobotDataset on disk."""
     try:
         from lerobot.datasets.lerobot_dataset import LeRobotDataset
@@ -69,8 +74,12 @@ def create_dataset(cfg: dict[str, Any], *, record_root: Path | None = None):
         ) from exc
 
     record_cfg = cfg.get("record") or {}
-    root_base = Path(record_root or record_cfg.get("root", "datasets/record"))
-    root = get_next_experiment_path_with_gap(root_base)
+    if experiment_path is not None:
+        root = experiment_path
+        root.mkdir(parents=True, exist_ok=True)
+    else:
+        root_base = Path(record_root or record_cfg.get("root", "datasets/record"))
+        root = get_next_experiment_path_with_gap(root_base)
 
     dataset = LeRobotDataset.create(
         repo_id=str(cfg.get("repo_id", "humanoid/local")),

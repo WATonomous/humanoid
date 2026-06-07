@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "humanoid-il"
 version = "0.1.0"
-description = "LeRobot dataset recording for the WATO humanoid arm (ROS 2)"
+description = "Dataset recording for the WATO humanoid arm (ROS 2 + Isaac Sim)"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -17,6 +17,8 @@ dependencies = [
 lerobot = ["lerobot>=0.3.0"]
 keyboard = ["pynput>=1.7"]
 ros = ["opencv-python-headless>=4.8"]
+hdf5 = ["h5py>=3.8"]
+record = ["lerobot>=0.3.0", "pynput>=1.7", "h5py>=3.8"]
 
 [project.scripts]
 humanoid-record = "humanoid_il.record:main"

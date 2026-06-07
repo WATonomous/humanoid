@@ -2,17 +2,17 @@
 wato_hand_isaaclab_teleop.py
 ============================
 Isaac Lab simulation that drives the arm_assembly hand joints in real-time
-by reading /tmp/wato_joints.json written by wato_hand_ros2_node.py.
+by reading a shared JSON file written by wato_hand_ros2_node.py.
 
 No rclpy required — works with isaaclab.sh's own Python interpreter.
 
 Usage (in the Docker container):
   # Terminal 1: rosbridge already running
-  # Terminal 2: wato_hand_ros2_node.py already running (writes /tmp/wato_joints.json)
-  # Terminal 3:
-  cd /workspace/isaaclab/humanoid/autonomy/simulation/Humanoid_Wato
-  PYTHONPATH=/workspace/isaaclab/humanoid/autonomy/simulation/Humanoid_Wato \
-    /workspace/isaaclab/isaaclab.sh -p wato_hand_isaaclab_teleop.py
+  # Terminal 2: wato_hand_ros2_node.py already running (writes wato_joints.json)
+  # Terminal 3 — run from the repo root:
+  PYTHONPATH=<repo_root>/autonomy/simulation/Humanoid_Wato \
+    /workspace/isaaclab/isaaclab.sh -p \
+    <repo_root>/autonomy/simulation/Teleop/camera-based\ teleoperation/wato_hand_isaaclab_teleop.py
 """
 
 import argparse
@@ -27,10 +27,6 @@ parser = argparse.ArgumentParser(description="Wato Hand Isaac Lab Teleop")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 
-# Force enable cameras — required for camera sensors to initialize
-if not hasattr(args_cli, 'enable_cameras') or not args_cli.enable_cameras:
-    args_cli.enable_cameras = True
-
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
@@ -38,346 +34,26 @@ simulation_app = app_launcher.app
 import torch                                        # noqa: E402
 
 import isaaclab.sim as sim_utils                   # noqa: E402
-from isaaclab.assets import AssetBaseCfg, ArticulationCfg
+from isaaclab.assets import AssetBaseCfg  # noqa: E402
 from isaaclab.managers import SceneEntityCfg       # noqa: E402
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg  # noqa: E402
 from isaaclab.utils import configclass             # noqa: E402
 
-from arm_cfg import ARM_CFG  # local duplicate — no PYTHONPATH needed  # noqa: E402
-from isaaclab.assets import RigidObjectCfg
-from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
-from isaaclab.actuators import ImplicitActuatorCfg
-from isaaclab.sensors import Camera, CameraCfg
-from isaaclab.utils.math import quat_from_euler_xyz
+from teleop_tuned_arm_cfg import TELEOP_TUNED_ARM_CFG  # noqa: E402
 
 import numpy as np
-import h5py
-import re
-from pathlib import Path
-from datetime import datetime
 
-try:
-    import cv2
-    CV2_AVAILABLE = True
-except ImportError:
-    CV2_AVAILABLE = False
-    print("[WARN] OpenCV not available; video recording will use imageio")
-
-try:
-    import imageio
-    IMAGEIO_AVAILABLE = True
-except ImportError:
-    IMAGEIO_AVAILABLE = False
-
-try:
-    import omni.ui as ui
-    OMNI_UI_AVAILABLE = True
-except ImportError:
-    OMNI_UI_AVAILABLE = False
-
-def quat_to_matrix(q):
-    """
-    Convert quaternion (w, x, y, z) → 3x3 rotation matrix
-    q: tensor of shape (4,)
-    """
-    w, x, y, z = q
-
-    return torch.tensor([
-        [1 - 2*(y*y + z*z), 2*(x*y - z*w),     2*(x*z + y*w)],
-        [2*(x*y + z*w),     1 - 2*(x*x + z*z), 2*(y*z - x*w)],
-        [2*(x*z - y*w),     2*(y*z + x*w),     1 - 2*(x*x + y*y)]
-    ], device=q.device)
-
-
-def _get_cam_quat(azimuth_deg: float, pitch_deg: float = 25.0):
-    """Quaternion (w,x,y,z) for a camera at azimuth_deg looking toward origin, tilted down by pitch_deg."""
-    try:
-        az = float(np.deg2rad(azimuth_deg))
-        pt = float(np.deg2rad(pitch_deg))
-        q = quat_from_euler_xyz(
-            torch.tensor([0.0]),
-            torch.tensor([pt]),
-            torch.tensor([az + np.pi]),
-        )
-        return tuple(q[0].tolist())
-    except Exception:
-        return (1.0, 0.0, 0.0, 0.0)
-
-
-# ── Camera names used for IL recording ─────────────────────────────────────
-_IL_CAMERAS = ["camera_back", "camera_diag_left", "camera_diag_right"]
-
-
-class DemonstrationRecorder:
-    """
-    Records robot hand demonstrations for Imitation Learning.
-
-    Saves in robomimic-compatible HDF5 format (one file per episode):
-
-    demonstrations/robot_demos_N.hdf5
-    └── data/
-        └── demo_N/
-            ├── actions            (T, 5+N_f)  [arm(3), wrist(2), finger(N_f)]
-            ├── rewards            (T,)
-            ├── dones              (T,)  last step = 1
-            └── obs/
-                ├── state          (T, 8+2*N_f)
-                ├── ee_poses       (T, 7)
-                └── joint_positions(T, 5+N_f)
-        attrs: env_args JSON, num_samples
-        video_path_<cam> attrs per camera
-
-    MP4 videos saved to: recordings/episode_N_<cam>.mp4
-    """
-
-    def __init__(self, save_dir: str = "demonstrations", recordings_dir: str = "recordings"):
-        self.save_dir = Path(save_dir)
-        self.save_dir.mkdir(exist_ok=True, parents=True)
-        self.recordings_dir = Path(recordings_dir)
-        self.recordings_dir.mkdir(exist_ok=True, parents=True)
-        self.episodes: list = []
-        self.recording = False
-        self.video_fps = 50  # Increased to 50 Hz for smoother real-time playback and more detail
-
-        # Resume episode counter from existing recordings
-        self.episode_counter = 0
-        pattern = re.compile(r"episode_(\d+)_")
-        max_ep = -1
-        for fp in self.recordings_dir.glob("*.mp4"):
-            m = pattern.search(fp.name)
-            if m:
-                try:
-                    ep_num = int(m.group(1))
-                    if ep_num > max_ep:
-                        max_ep = ep_num
-                except ValueError:
-                    pass
-        if max_ep >= 0:
-            self.episode_counter = max_ep + 1
-            print(f"[INFO] Resuming from episode_{self.episode_counter} (found up to episode_{max_ep})")
-
-        self._current: dict = {}
-        print(f"[INFO] DemonstrationRecorder ready  →  {self.save_dir.absolute()}")
-        print(f"[INFO] Recording cameras: {_IL_CAMERAS}")
-
-    def _blank_episode(self) -> dict:
-        return {
-            "episode_num": self.episode_counter,
-            # Raw per-key lists (used to build obs/state, obs/joint_positions)
-            "obs": {
-                "finger_joint_pos": [], "finger_joint_vel": [],
-                "arm_joint_pos":    [], "arm_joint_vel":    [],
-                "wrist_state":      [],
-                "palm_pose":        [],        # → obs/ee_poses
-                "door_hinge_angle": [],
-                "hand_visible":     [],
-            },
-            # Flat concatenated action each timestep  [arm(3) | wrist(2) | finger(N_f)]
-            "actions_flat": [],
-            "video_frames": {},
-        }
-
-    def start_episode(self):
-        """Begin a new recording episode."""
-        if self.recording:
-            print("[WARN] Already recording — stop the current episode first")
-            return
-        self.recording = True
-        self._current = self._blank_episode()
-        self._episode_start_t = time.time()   # wall-clock start for real FPS
-        # Reset step counter so frame capture starts immediately on the very
-        # first physics step of this episode (no offset, no skipped frames).
-        run_simulator._record_step_count = 0
-        print(f"[RECORDING] ▶  Started episode_{self.episode_counter}")
-
-    def add_transition(self,
-                       obs_dict: dict,
-                       action_flat,          # 1D numpy array: [arm|wrist|finger]
-                       video_frames_dict: dict = None):
-        """Append one timestep of data."""
-        if not self.recording:
-            return
-
-        def _to_np(t):
-            if t is None:
-                return np.zeros(1)
-            if hasattr(t, "cpu"):
-                return t.squeeze(0).cpu().numpy()
-            return np.asarray(t, dtype=np.float32)
-
-        for k, v in obs_dict.items():
-            if k in self._current["obs"]:
-                self._current["obs"][k].append(_to_np(v))
-
-        # Store flat action
-        if action_flat is not None:
-            if hasattr(action_flat, "cpu"):
-                action_flat = action_flat.squeeze(0).cpu().numpy()
-            self._current["actions_flat"].append(np.asarray(action_flat, dtype=np.float32))
-
-        if video_frames_dict:
-            for cam, frame in video_frames_dict.items():
-                if cam not in _IL_CAMERAS:
-                    continue  # only store the 3 chosen cameras
-                if cam not in self._current["video_frames"]:
-                    self._current["video_frames"][cam] = []
-                if hasattr(frame, "cpu"):
-                    frame = frame.cpu().numpy()
-                frame = np.asarray(frame)
-                if frame.dtype != np.uint8:
-                    frame = (np.clip(frame * 255, 0, 255) if frame.max() <= 1.0
-                             else np.clip(frame, 0, 255)).astype(np.uint8)
-                self._current["video_frames"][cam].append(frame)
-
-    def _save_video(self, frames: list, episode_num: int, cam_name: str,
-                    real_fps: float = None):
-        """Save frames as MP4.
-
-        Args:
-            real_fps: actual wall-clock capture rate (frames/second).
-                      Falls back to self.video_fps when unavailable.
-        """
-        if not frames:
-            return None
-        fps_to_use = fps_to_use = min(real_fps, 50)
-        video_path = self.recordings_dir / f"episode_{episode_num}_{cam_name}.mp4"
-        try:
-            if CV2_AVAILABLE:
-                h, w = frames[0].shape[:2]
-                fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-                out = cv2.VideoWriter(str(video_path), fourcc, fps_to_use, (w, h))
-                for f in frames:
-                    bgr = cv2.cvtColor(f.astype(np.uint8), cv2.COLOR_RGB2BGR) if f.ndim == 3 and f.shape[2] == 3 else f.astype(np.uint8)
-                    out.write(bgr)
-                out.release()
-            elif IMAGEIO_AVAILABLE:
-                imageio.mimwrite(str(video_path), [f.astype(np.uint8) for f in frames], fps=fps_to_use)
-            else:
-                print("[WARN] No video library (cv2/imageio). Video not saved.")
-                return None
-            print(f"[VIDEO] {len(frames)} frames @ {fps_to_use:.1f} fps → {video_path}")
-            return str(video_path)
-        except Exception as e:
-            print(f"[ERROR] Video save failed ({cam_name}): {e}")
-            return None
-
-    def end_episode(self):
-        """Stop recording, save MP4s and HDF5."""
-        if not self.recording:
-            print("[WARN] Not currently recording")
-            return
-        self.recording = False
-        elapsed = time.time() - getattr(self, "_episode_start_t", time.time())
-        n_steps = len(self._current["actions_flat"])
-        if n_steps == 0:
-            print("[WARN] Episode ended with no data — discarding")
-            return
-        ep_num = self._current["episode_num"]
-
-        # Compute true wall-clock FPS from the first camera that has frames.
-        # Clamp to [1, 60] to guard against timers that weren't set or edge cases.
-        first_cam_frames = 0
-        for cam in _IL_CAMERAS:
-            fc = len(self._current["video_frames"].get(cam, []))
-            if fc > 0:
-                first_cam_frames = fc
-                break
-        if first_cam_frames > 1 and elapsed > 0.5:
-            true_fps = first_cam_frames / elapsed
-            true_fps = float(max(1.0, min(60.0, true_fps)))
-        else:
-            true_fps = float(self.video_fps)   # fallback
-        print(f"[RECORDING] Wall-clock elapsed: {elapsed:.1f}s  |  "
-              f"{first_cam_frames} frames  |  true fps ≈ {true_fps:.1f}")
-
-        # Save MP4 per camera using the measured real fps
-        video_paths = {}
-        for cam in _IL_CAMERAS:
-            frames = self._current["video_frames"].get(cam, [])
-            path = self._save_video(frames, ep_num, cam, real_fps=true_fps)
-            if path:
-                video_paths[cam] = path
-        self._current["video_paths"] = video_paths
-        self._current["video_frames"] = {}  # free memory
-        self.episodes.append(self._current)
-        self.episode_counter += 1
-        print(f"[RECORDING] ⏹  Episode {ep_num}: {n_steps} steps, {len(video_paths)} videos")
-        self.save()
-
-    def save(self):
-        """Flush all in-memory episodes to individual robomimic-format HDF5 files."""
-        if not self.episodes:
-            return
-        import json as _json
-        env_args = _json.dumps({
-            "env_name": "IsaacLab-WatoHand",
-            "type": 1,
-            "env_kwargs": {},
-        })
-        for ep in self.episodes:
-            ep_num = ep["episode_num"]
-            hdf5_path = self.save_dir / f"robot_demos_{ep_num}.hdf5"
-            try:
-                obs = ep["obs"]
-
-                def _stack(key):
-                    lst = obs.get(key, [])
-                    if not lst:
-                        return None
-                    return np.array(lst, dtype=np.float32)
-
-                arm_pos  = _stack("arm_joint_pos")    # (T, 3)
-                arm_vel  = _stack("arm_joint_vel")    # (T, 3)
-                wrist    = _stack("wrist_state")       # (T, 2)
-                f_pos    = _stack("finger_joint_pos") # (T, N_f)
-                f_vel    = _stack("finger_joint_vel") # (T, N_f)
-                palm     = _stack("palm_pose")         # (T, 7)
-
-                # obs/state: [arm_pos | arm_vel | wrist | finger_pos | finger_vel]
-                state_parts = [p for p in [arm_pos, arm_vel, wrist, f_pos, f_vel] if p is not None]
-                state = np.concatenate(state_parts, axis=1) if state_parts else np.zeros((1, 1), dtype=np.float32)
-
-                # obs/joint_positions: [arm_pos | wrist | finger_pos]
-                jp_parts = [p for p in [arm_pos, wrist, f_pos] if p is not None]
-                joint_positions = np.concatenate(jp_parts, axis=1) if jp_parts else np.zeros((1, 1), dtype=np.float32)
-
-                # ee_poses = palm_pose
-                ee_poses = palm if palm is not None else np.zeros((state.shape[0], 7), dtype=np.float32)
-
-                # actions
-                actions = np.array(ep["actions_flat"], dtype=np.float32)  # (T, 5+N_f)
-
-                T = actions.shape[0]
-                rewards = np.zeros(T, dtype=np.float32)
-                dones   = np.zeros(T, dtype=np.float32)
-                dones[-1] = 1.0
-
-                with h5py.File(hdf5_path, "w") as f:
-                    data_grp = f.create_group("data")
-                    data_grp.attrs["env_args"]     = env_args
-                    data_grp.attrs["total"]        = T
-                    demo_grp = data_grp.create_group(f"demo_{ep_num}")
-                    demo_grp.attrs["num_samples"]  = T
-                    demo_grp.create_dataset("actions",  data=actions)
-                    demo_grp.create_dataset("rewards",  data=rewards)
-                    demo_grp.create_dataset("dones",    data=dones)
-                    obs_grp = demo_grp.create_group("obs")
-                    obs_grp.create_dataset("state",           data=state)
-                    obs_grp.create_dataset("ee_poses",        data=ee_poses)
-                    obs_grp.create_dataset("joint_positions", data=joint_positions)
-                    for cam, path in ep.get("video_paths", {}).items():
-                        demo_grp.attrs[f"video_path_{cam}"] = path
-
-                print(f"[SUCCESS] HDF5 → {hdf5_path.absolute()}  ({T} steps, action_dim={actions.shape[1]})")
-            except Exception as e:
-                print(f"[ERROR] HDF5 save failed (episode {ep_num}): {e}")
-                import traceback; traceback.print_exc()
-        self.episodes.clear()
-
-
-# ── Shared file written by wato_hand_ros2_node.py ────────────────────────────
-JOINT_FILE = "/tmp/wato_joints.json"
+# Shared file written by wato_hand_ros2_node.py.
+# tempfile.gettempdir() returns /tmp on Linux/Docker and %TEMP% on Windows.
+import tempfile
+JOINT_FILE = os.path.join(tempfile.gettempdir(), "wato_joints.json")
 HAND_TIMEOUT = 2.0  # seconds before hand is considered lost
+
+# Resolve asset paths relative to this script (works locally and in Docker).
+_SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
+_ARM_ASSEMBLY_DIR = os.path.abspath(
+    os.path.join(_SCRIPT_DIR, "..", "..", "Humanoid_Wato", "arm_assembly")
+)
 
 
 def read_joint_file() -> dict[str, float]:
@@ -409,71 +85,7 @@ class ArmHandSceneCfg(InteractiveSceneCfg):
         prim_path="/World/Light",
         spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75)),
     )
-    robot = ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-
-    # ── DOOR TEMPORARILY DISABLED ────────────────────────────────────────────
-    # Uncomment the block below to re-enable the door articulation.
-    # door = ArticulationCfg(
-    #     prim_path="/World/Door",
-    #     spawn=sim_utils.UrdfFileCfg(
-    #         asset_path="/workspace/isaaclab/humanoid/autonomy/simulation/Humanoid_Wato/arm_assembly/simple_door.urdf",
-    #         fix_base=True,
-    #         scale=(0.3, 0.5, 0.5),
-    #         joint_drive=sim_utils.UrdfFileCfg.JointDriveCfg(
-    #             drive_type="force",
-    #             target_type="position",
-    #             gains=sim_utils.UrdfFileCfg.JointDriveCfg.PDGainsCfg(
-    #                 stiffness=100.0,
-    #                 damping=10.0,
-    #             ),
-    #         ),
-    #     ),
-    #     init_state=ArticulationCfg.InitialStateCfg(
-    #         pos=(0, 0.5, -0.25),
-    #         rot=(0.707, 0.0, 0.0, 0.707),
-    #         joint_pos={"door_hinge": 0.0},
-    #     ),
-    #     actuators={
-    #         "hinge": ImplicitActuatorCfg(
-    #             joint_names_expr=["door_hinge"],
-    #             effort_limit=50.0, velocity_limit=1.0,
-    #             stiffness=100.0,
-    #             damping=10.0,
-    #         ),
-    #     },
-    # )
-
-    # ── 3 Cameras for Imitation Learning data collection ────────────────────
-    # Camera 1: Back  (180°, h=0.8m, r=1.2m)  — primary back-view camera
-    camera_back = CameraCfg(
-        prim_path="{ENV_REGEX_NS}/Camera_back",
-        update_period=0.01, height=480, width=640, data_types=["rgb"],
-        spawn=sim_utils.PinholeCameraCfg(
-            focal_length=24.0, focus_distance=400.0,
-            horizontal_aperture=20.955, clipping_range=(0.1, 10.0),
-        ),
-        offset=CameraCfg.OffsetCfg(pos=(-1.2, 0.0, 0.8), rot=_get_cam_quat(180.0, 25.0), convention="world"),
-    )
-    # Camera 2: Diagonal Left  (45°, h=1.0m)  — left-side view
-    camera_diag_left = CameraCfg(
-        prim_path="{ENV_REGEX_NS}/Camera_diag_left",
-        update_period=0.02, height=480, width=640, data_types=["rgb"],
-        spawn=sim_utils.PinholeCameraCfg(
-            focal_length=24.0, focus_distance=400.0,
-            horizontal_aperture=20.955, clipping_range=(0.1, 10.0),
-        ),
-        offset=CameraCfg.OffsetCfg(pos=(0.85, 0.85, 1.0), rot=_get_cam_quat(45.0, 30.0), convention="world"),
-    )
-    # Camera 3: Diagonal Right  (315°, h=1.0m)  — right-side view
-    camera_diag_right = CameraCfg(
-        prim_path="{ENV_REGEX_NS}/Camera_diag_right",
-        update_period=0.02, height=480, width=640, data_types=["rgb"],
-        spawn=sim_utils.PinholeCameraCfg(
-            focal_length=24.0, focus_distance=400.0,
-            horizontal_aperture=20.955, clipping_range=(0.1, 10.0),
-        ),
-        offset=CameraCfg.OffsetCfg(pos=(0.85, -0.85, 1.0), rot=_get_cam_quat(315.0, 30.0), convention="world"),
-    )
+    robot = TELEOP_TUNED_ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
 
 # ── Main sim loop ─────────────────────────────────────────────────────────────
@@ -493,56 +105,16 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     sim_joint_names: list[str] = list(robot.data.joint_names)
     name_to_sim_idx: dict[str, int] = {name: i for i, name in enumerate(sim_joint_names)}
 
-    # ── Precompute joint index groups for IL recording (done once) ──────────────
-    _jn_lower = [n.lower() for n in sim_joint_names]
-    _FINGER_KW = ("thumb", "index", "middle", "ring", "pinky", "mcp_", "pip_", "dip_", "ip_", "cmc_")
-    _ARM_KW    = ("shoulder_flexion_extension", "shoulder_abduction_adduction", "shoulder_rotation", "elbow_flexion_extension")
-    _WRIST_KW  = ("forearm_rotation", "wrist_extension")
-    _finger_ids = [i for i, n in enumerate(_jn_lower) if any(k in n for k in _FINGER_KW)]
-    _arm_ids    = [name_to_sim_idx[k] for k in _ARM_KW    if k in name_to_sim_idx]
-    _wrist_ids  = [name_to_sim_idx[k] for k in _WRIST_KW  if k in name_to_sim_idx]
-    _palm_body_idx = robot.data.body_names.index("PALM_GAVIN_1DoF_Hinge_v2_1")
-    # ── DOOR TEMPORARILY DISABLED ────────────────────────────────────────────
-    # _door_obj   = scene["door"]
-    # _door_jnames = list(_door_obj.data.joint_names)
-    # _door_ridx  = _door_jnames.index("door_hinge")
-    print(f"[INFO] IL groups — fingers: {len(_finger_ids)} DOF, arm: {len(_arm_ids)} DOF, wrist: {len(_wrist_ids)} DOF")
+    _ARM_ASSEMBLY_URDF = os.path.join(_ARM_ASSEMBLY_DIR, "right_arm_assembly.urdf")
 
-    # ── Demonstration Recorder ─────────────────────────────────────────────────
-    recorder = DemonstrationRecorder("demonstrations", "recordings")
-
-    # ── UI Recording Buttons (GUI mode only) ───────────────────────────────────
-    if OMNI_UI_AVAILABLE and not args_cli.headless:
-        _rec_window = ui.Window("IL Recording", width=230, height=140)
-        with _rec_window.frame:
-            with ui.VStack(spacing=8):
-                ui.Label("Demonstration Recording", height=22)
-                ui.Button("▶  Start Recording",  clicked_fn=recorder.start_episode, height=44)
-                ui.Button("⏹  Stop & Save",       clicked_fn=recorder.end_episode,   height=44)
-        print("[INFO] Recording UI window created")
-    else:
-        print("[INFO] Headless mode: call recorder.start_episode() / recorder.end_episode() programmatically")
-    # ───────────────────────────────────────────────────────────────────────
-
-    # ── Resolve URDF path relative to this script (works in any layout) ──────────
-    # camera-based teleoperation/ -> Teleop/ -> simulation/ -> Humanoid_Wato/arm_assembly/
-    import os as _os
-    _THIS_SCRIPT_DIR = _os.path.abspath(_os.path.dirname(__file__))
-    _ARM_ASSEMBLY_DIR = _os.path.abspath(
-        _os.path.join(_THIS_SCRIPT_DIR, "..", "..", "Humanoid_Wato", "arm_assembly")
-    )
-    _ARM_ASSEMBLY_FIXED_URDF = _os.path.join(_ARM_ASSEMBLY_DIR, "arm_assembly_fixed.urdf")
-
-    # Initialize IK DexRetargeting Solver (primary), fingertip_ik2 (fallback)
+    # Initialize DexRetargeting IK solver
     retargeter = None
-    _ik2_model = None
-    _ik2_data  = None
     try:
         from dex_retargeting.retargeting_config import RetargetingConfig
         import numpy as np
         ik_config = {
             "type": "vector",
-            "urdf_path": _ARM_ASSEMBLY_FIXED_URDF,
+            "urdf_path": _ARM_ASSEMBLY_URDF,
             "wrist_link_name": "PALM_GAVIN_1DoF_Hinge_v2_1",
             "target_origin_link_names": [
                 # Thumb (2 vectors)
@@ -578,17 +150,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         retargeter = RetargetingConfig.from_dict(ik_config).build()
         print(f"[INFO] Dex-Retargeting IK Solver active with {len(retargeter.joint_names)} joints.")
     except Exception as e:
-        print(f"[WARNING] Could not load DexRetargeting IK Solver: {e}")
-        # ── Fallback: load fingertip_ik2 (MuJoCo gradient IK) ───────────────────
-        try:
-            from fingertip_ik2 import load_model as _ik2_load, solve_fingertip_ik as _ik2_solve
-            import mujoco as _mujoco
-            _arm_urdf = _os.path.join(_ARM_ASSEMBLY_DIR, "arm_assembly.urdf")
-            _ik2_model = _ik2_load(_arm_urdf)
-            _ik2_data  = _mujoco.MjData(_ik2_model)
-            print(f"[INFO] fingertip_ik2 MuJoCo fallback loaded from {_arm_urdf}")
-        except Exception as e2:
-            print(f"[WARNING] fingertip_ik2 fallback also unavailable: {e2}. Using 1D joint mapping only.")
+        print(f"[WARNING] Could not load DexRetargeting IK Solver: {e}. Using 1D joint mapping only.")
 
     # ── Wait for first valid camera frame and snap robot to that pose ───────────
     print("[INFO]: Waiting for first hand frame from camera to set start pose...")
@@ -607,7 +169,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             joint_pos_target[0, name_to_sim_idx[joint_name]] = float(angle)
 
     import json
-    with open("/tmp/joint_limits.json", "w") as f:
+    _joint_limits_file = os.path.join(tempfile.gettempdir(), "joint_limits.json")
+    with open(_joint_limits_file, "w") as f:
         l = robot.data.soft_joint_pos_limits[0].cpu().numpy().tolist()
         json.dump({"names": robot.data.joint_names, "limits": l}, f)
 
@@ -912,157 +475,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
         sim.step()
         scene.update(sim_dt)
-
-        # -- IL DATA COLLECTION (DECOUPLED VIDEO + HDF5) -----------------------
-        # KEY FIX: Video and HDF5 are now decoupled.
-        #   * VIDEO: every physics step, hash-deduped for max unique frames.
-        #   * HDF5:  sub-sampled at recorder.video_fps sim-Hz.
-
-        def _get_cam_frame(sensor):
-            try:
-                rgb = sensor.data.output.get("rgb")
-                if rgb is None:
-                    return None
-                frame = rgb[0] if rgb.ndim == 4 else rgb
-                if hasattr(frame, "cpu"):
-                    frame = frame.cpu().numpy()
-                else:
-                    frame = np.asarray(frame)
-                if frame.dtype != np.uint8:
-                    fmax = frame.max()
-                    frame = (np.clip(frame * 255, 0, 255).astype(np.uint8)
-                             if fmax <= 1.0 else
-                             np.clip(frame, 0, 255).astype(np.uint8))
-                return frame
-            except Exception as _e:
-                if not hasattr(sensor, "_frame_err"):
-                    print(f"[WARN] Frame capture: {_e}")
-                    sensor._frame_err = True
-                return None
-
-        if recorder.recording:
-            # Increment ONCE
-            _step_count = getattr(run_simulator, "_record_step_count", 0)
-            run_simulator._record_step_count = _step_count + 1
-
-            _cam_interval = max(1, round(1.0 / (recorder.video_fps * sim_dt)))
-            _record_interval = _cam_interval  # keep consistent
-
-            # VIDEO
-            if _step_count % _cam_interval == 0:
-                for _ck in _IL_CAMERAS:
-                    if _ck not in scene.keys():
-                        continue
-                    try:
-                        _cs = scene[_ck]
-                        if not (hasattr(_cs, "data") and hasattr(_cs.data, "output")):
-                            continue
-                        _cf = _get_cam_frame(_cs)
-                        if _cf is None:
-                            continue
-
-                        if _ck not in recorder._current["video_frames"]:
-                            recorder._current["video_frames"][_ck] = []
-                        recorder._current["video_frames"][_ck].append(_cf)
-                    except Exception:
-                        pass
-
-            # HDF5 (CRITICAL)
-            if _step_count % _record_interval == 0:
-                _palm_pos_il  = robot.data.body_pos_w[:, _palm_body_idx, :]
-                _palm_quat_il = robot.data.body_quat_w[:, _palm_body_idx, :]
-                _palm_pose_il = torch.cat([_palm_pos_il, _palm_quat_il], dim=-1)
-                _door_angle_il = torch.zeros(1, 1, device=sim.device)
-                _obs_dict = {
-                    "finger_joint_pos": robot.data.joint_pos[:, _finger_ids] if _finger_ids else torch.zeros(1, 1, device=sim.device),
-                    "finger_joint_vel": robot.data.joint_vel[:, _finger_ids] if _finger_ids else torch.zeros(1, 1, device=sim.device),
-                    "arm_joint_pos":    robot.data.joint_pos[:, _arm_ids]    if _arm_ids    else torch.zeros(1, 3, device=sim.device),
-                    "arm_joint_vel":    robot.data.joint_vel[:, _arm_ids]    if _arm_ids    else torch.zeros(1, 3, device=sim.device),
-                    "wrist_state":      robot.data.joint_pos[:, _wrist_ids]  if _wrist_ids  else torch.zeros(1, 2, device=sim.device),
-                    "palm_pose":        _palm_pose_il,
-                    "door_hinge_angle": _door_angle_il,
-                    "hand_visible":     torch.tensor([[1.0 if hand_visible else 0.0]], device=sim.device),
-                }
-                _arm_t   = joint_pos_target[:, _arm_ids]    if _arm_ids    else torch.zeros(1, 3, device=sim.device)
-                _wrist_t = joint_pos_target[:, _wrist_ids]  if _wrist_ids  else torch.zeros(1, 2, device=sim.device)
-                _fing_t  = joint_pos_target[:, _finger_ids] if _finger_ids else torch.zeros(1, 1, device=sim.device)
-                _action_flat = torch.cat([_arm_t, _wrist_t, _fing_t], dim=-1).squeeze(0).cpu().numpy().astype(np.float32)
-                recorder.add_transition(_obs_dict, _action_flat, {})
-
-        # ── DOOR PUSH / PULL — TEMPORARILY DISABLED ───────────────────────────
-        # Uncomment this entire block to re-enable door interaction.
-        #
-        # door_obj = scene["door"]
-        # door_joint_names = list(door_obj.data.joint_names)
-        # door_idx = door_joint_names.index("door_hinge")
-        # palm_body_idx = robot.data.body_names.index("PALM_GAVIN_1DoF_Hinge_v2_1")
-        # palm_pos = robot.data.body_pos_w[0, palm_body_idx]
-        # panel_idx = door_obj.data.body_names.index("door_panel")
-        # panel_pos = door_obj.data.body_pos_w[0, panel_idx]
-        # panel_quat = door_obj.data.body_quat_w[0, panel_idx]
-        # R = quat_to_matrix(panel_quat)
-        # door_normal = R[:, 0]
-        # vec = palm_pos - panel_pos
-        # dist_to_plane = float(torch.dot(vec, door_normal))
-        # surface_dist = abs(dist_to_plane)
-        # SURFACE_THRESH = 0.14
-        # is_touching_surface = surface_dist < SURFACE_THRESH
-        # is_in_front = dist_to_plane > 0
-        # hinge_pos = door_obj.data.body_pos_w[0, 0]
-        # dist_to_panel = float(torch.norm(palm_pos[:2] - panel_pos[:2]))
-        # dist_to_hinge = float(torch.norm(palm_pos[:2] - hinge_pos[:2]))
-        # prev_palm_x = getattr(run_simulator, '_prev_palm_x', float(palm_pos[0]))
-        # palm_dx = float(palm_pos[0]) - prev_palm_x
-        # run_simulator._prev_palm_x = float(palm_pos[0])
-        # current_door = float(door_obj.data.joint_pos[0, door_idx])
-        # hinge_to_palm = max(float(torch.norm(palm_pos[:2] - hinge_pos[:2])), 0.05)
-        # PANEL_THRESH = 0.25
-        # HINGE_THRESH = 0.15
-        # target = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
-        # if not is_touching_surface:
-        #     effort = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
-        #     door_obj.set_joint_effort_target(effort)
-        #     num_bodies = robot.data.body_pos_w.shape[1]
-        #     forces  = torch.zeros((1, num_bodies, 3), device=palm_pos.device)
-        #     torques = torch.zeros((1, num_bodies, 3), device=palm_pos.device)
-        #     robot.set_external_force_and_torque(forces=forces, torques=torques)
-        # else:
-        #     if dist_to_panel > PANEL_THRESH:  # PUSH
-        #         OPEN_TARGET = -0.524
-        #         error = OPEN_TARGET - current_door
-        #         TORQUE_GAIN = 300.0; DAMPING = 20.0
-        #         prev_door = getattr(run_simulator, "_prev_door_angle", current_door)
-        #         door_vel  = current_door - prev_door
-        #         run_simulator._prev_door_angle = current_door
-        #         torque = float(max(min(TORQUE_GAIN * error - DAMPING * door_vel, 300.0), -300.0))
-        #         effort = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
-        #         effort[0, door_idx] = torque
-        #         door_obj.set_joint_effort_target(effort)
-        #         dir_vec = (palm_pos - hinge_pos) / (torch.norm(palm_pos - hinge_pos) + 1e-6)
-        #         force   = 100.0 * abs(error) * dir_vec
-        #         forces  = torch.zeros((1, robot.data.body_pos_w.shape[1], 3), device=palm_pos.device)
-        #         torques = torch.zeros_like(forces)
-        #         forces[0, palm_body_idx] = force
-        #         robot.set_external_force_and_torque(forces=forces, torques=torques)
-        #     else:  # PULL
-        #         CLOSE_TARGET = 0.0
-        #         error = CLOSE_TARGET - current_door
-        #         TORQUE_GAIN = 300.0; DAMPING = 20.0
-        #         prev_door = getattr(run_simulator, "_prev_door_angle", current_door)
-        #         door_vel  = current_door - prev_door
-        #         run_simulator._prev_door_angle = current_door
-        #         torque = float(max(min(TORQUE_GAIN * error - DAMPING * door_vel, 300.0), -300.0))
-        #         effort = torch.zeros(1, len(door_joint_names), device=palm_pos.device)
-        #         effort[0, door_idx] = torque
-        #         door_obj.set_joint_effort_target(effort)
-        #         dir_vec = (hinge_pos - palm_pos) / (torch.norm(hinge_pos - palm_pos) + 1e-6)
-        #         force   = 250.0 * abs(error) * dir_vec
-        #         forces  = torch.zeros((1, robot.data.body_pos_w.shape[1], 3), device=palm_pos.device)
-        #         torques = torch.zeros_like(forces)
-        #         forces[0, palm_body_idx] = force
-        #         robot.set_external_force_and_torque(forces=forces, torques=torques)
-        # ── end door block ────────────────────────────────────────────────────
-
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
