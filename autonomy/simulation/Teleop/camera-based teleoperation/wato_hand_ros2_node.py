@@ -2,7 +2,7 @@
 wato_hand_ros2_node.py (camera-based teleoperation)
 ===================================================
 This ROS2 node runs inside the Docker container.
-It subscribes to raw hand landmark data published by hand_recorder.py
+It subscribes to raw hand landmark data published by hand_landmark_publisher.py
 (running on the Windows PC), converts the 21 landmark positions into
 concrete robot joint angles for the Wato arm+hand, and writes the result
 to a shared JSON file that the Isaac Lab simulation reads each frame.
