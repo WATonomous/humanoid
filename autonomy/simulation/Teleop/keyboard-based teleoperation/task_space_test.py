@@ -741,7 +741,22 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     _debug_step_counter = 0   # throttle per-step debug output
 
     # Main simulation loop
+    # Initialise ee_quat_b so the first teleop frame can use it as a fallback.
+    ee_quat_b = torch.tensor([[1.0, 0.0, 0.0, 0.0]], device=sim.device)  # identity
     while simulation_app.is_running():
+        # ------------------------------------------------------------------
+        # Read current EE pose FIRST so the teleop block can use it to
+        # rotate the keyboard delta from EE-frame into base-frame.
+        # ------------------------------------------------------------------
+        ee_pose_w   = robot.data.body_state_w[:, robot_entity_cfg.body_ids[0], 0:7]
+        root_pose_w = robot.data.root_state_w[:, 0:7]
+        joint_pos   = robot.data.joint_pos[:, robot_entity_cfg.joint_ids]
+
+        ee_pos_b, ee_quat_b = subtract_frame_transforms(
+            root_pose_w[:, 0:3], root_pose_w[:, 3:7],
+            ee_pose_w[:, 0:3],   ee_pose_w[:, 3:7]
+        )
+
         if not args_cli.headless:
             ret = teleop.advance()
             if isinstance(ret, tuple) and len(ret) == 3:
@@ -753,7 +768,24 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             ee_command = torch.zeros(1, 3, device=sim.device)
 
             if isinstance(pos_delta, (list, tuple, np.ndarray)):
-                ee_command[0, 0:3] = torch.tensor(pos_delta[:3], dtype=torch.float32, device=sim.device)
+                # Se3Keyboard returns pos_delta in the EE frame.
+                # The IK controller (use_relative_mode=True, command_type="position")
+                # expects the delta in the robot BASE frame.
+                # Rotate the EE-frame delta into base frame using the current EE orientation.
+                _delta_ee = torch.tensor(pos_delta[:3], dtype=torch.float32, device=sim.device)  # (3,)
+                if float(_delta_ee.norm()) > 1e-8:
+                    # Build rotation matrix from base-frame EE quaternion (w, x, y, z)
+                    _q = ee_quat_b[0]  # (4,) = [w, x, y, z]
+                    _w, _x, _y, _z = _q[0], _q[1], _q[2], _q[3]
+                    # Row-major rotation matrix R: R @ v_ee = v_base
+                    _R = torch.stack([
+                        torch.stack([1 - 2*(_y*_y + _z*_z),     2*(_x*_y - _w*_z),     2*(_x*_z + _w*_y)]),
+                        torch.stack([    2*(_x*_y + _w*_z), 1 - 2*(_x*_x + _z*_z),     2*(_y*_z - _w*_x)]),
+                        torch.stack([    2*(_x*_z - _w*_y),     2*(_y*_z + _w*_x), 1 - 2*(_x*_x + _y*_y)])
+                    ], dim=0)  # (3, 3)
+                    _delta_base = _R @ _delta_ee  # rotate into base frame
+                    ee_command[0, 0:3] = _delta_base
+                # else: command stays zero
             gripper_open_bool = gripper_state["open"]
             gripper_target_norm = 0.0 if gripper_open_bool else 1.0
 
@@ -811,15 +843,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         smooth_target_pose[:, 3:7] = smooth_target_pose[:, 3:7] / torch.norm(smooth_target_pose[:, 3:7], dim=1, keepdim=True)
         previous_smooth_pose = smooth_target_pose.clone()'''
 
-        # IK computation — compute EE pose FIRST, then set command
-        ee_pose_w = robot.data.body_state_w[:, robot_entity_cfg.body_ids[0], 0:7]
-        root_pose_w = robot.data.root_state_w[:, 0:7]
-        joint_pos = robot.data.joint_pos[:, robot_entity_cfg.joint_ids]
-
-        ee_pos_b, ee_quat_b = subtract_frame_transforms(
-            root_pose_w[:, 0:3], root_pose_w[:, 3:7],
-            ee_pose_w[:, 0:3], ee_pose_w[:, 3:7]
-        )
+        # IK computation — EE pose, joint_pos, ee_pos_b, ee_quat_b
+        # are already up-to-date from the top-of-loop read.
 
         # Pass current orientation so controller can hold it fixed
         diff_ik_controller.set_command(ee_command, ee_pos=ee_pos_b, ee_quat=ee_quat_b)
