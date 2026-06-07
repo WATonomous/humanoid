@@ -124,13 +124,13 @@ class ActionsCfg:
 
     arm_action = mdp.JointPositionActionCfg(
         asset_name="robot",
-        joint_names=["joint[1-6]"],  # Control right arm (joints 1-6)
+        joint_names=["^joint[1-6]$"],  # Control right arm (joints 1-6)
         scale=0.5,
         use_default_offset=True,
     )
     gripper_action = mdp.BinaryJointPositionActionCfg(
         asset_name="robot",
-        joint_names=["joint[78]"],  # Control right gripper (joints 7, 8)
+        joint_names=["^joint[78]$"],  # Control right gripper (joints 7, 8)
         open_command_expr={"joint7": -0.05, "joint8": 0.05},
         close_command_expr={"joint7": 0.0, "joint8": 0.0},
     )
@@ -200,6 +200,7 @@ class EventCfg:
         func=mdp.reset_joints_by_offset,
         mode="reset",
         params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["^joint[1-8]$"]),
             "position_range": (-0.1, 0.1),
             "velocity_range": (0.0, 0.0),
         },
