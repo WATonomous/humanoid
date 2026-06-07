@@ -594,8 +594,15 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     diff_ik_controller = DifferentialIKController(diff_ik_cfg, num_envs=scene.num_envs, device=sim.device)
 
     # -----------------------
-    # SMOOTH APPROACH PARAMETERS
+    # SPEED / MOTION PARAMETERS
+    # Tune these to adjust arm feel.
+    # MAX_EE_STEP_M : max EE displacement per physics step (dt=0.01 s)
+    #   0.005 m/step = 0.5 m/s  (slow / safe)
+    #   0.01  m/step = 1.0 m/s  (moderate)
+    #   0.02  m/step = 2.0 m/s  (fast — default)
+    #   0.05  m/step = 5.0 m/s  (may cause IK instability near singularities)
     # -----------------------
+    MAX_EE_STEP_M    = 0.02   # metres per physics step  → 2.0 m/s max EE speed
     position_smoothing = 0.15
     rotation_smoothing = 0.12
     max_linear_velocity = 0.6
@@ -768,36 +775,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             ee_command = torch.zeros(1, 3, device=sim.device)
 
             if isinstance(pos_delta, (list, tuple, np.ndarray)):
-                # Se3Keyboard returns pos_delta in the EE frame.
-                # The IK controller (use_relative_mode=True, command_type="position")
-                # expects the delta in the robot BASE frame.
-                # Rotate the EE-frame delta into base frame using the current EE orientation.
-                _delta_ee = torch.tensor(pos_delta[:3], dtype=torch.float32, device=sim.device)  # (3,)
-                if float(_delta_ee.norm()) > 1e-8:
-                    # Build rotation matrix from base-frame EE quaternion (w, x, y, z)
-                    _q = ee_quat_b[0]  # (4,) = [w, x, y, z]
-                    _w, _x, _y, _z = _q[0], _q[1], _q[2], _q[3]
-                    # Row-major rotation matrix R: R @ v_ee = v_base
-                    _R = torch.stack([
-                        torch.stack([1 - 2*(_y*_y + _z*_z),     2*(_x*_y - _w*_z),     2*(_x*_z + _w*_y)]),
-                        torch.stack([    2*(_x*_y + _w*_z), 1 - 2*(_x*_x + _z*_z),     2*(_y*_z - _w*_x)]),
-                        torch.stack([    2*(_x*_z - _w*_y),     2*(_y*_z + _w*_x), 1 - 2*(_x*_x + _y*_y)])
-                    ], dim=0)  # (3, 3)
-                    _delta_base = _R @ _delta_ee  # rotate into base frame
-                    # ---------------------------------------------------------
-                    # CLAMP to a safe per-step magnitude.
-                    # Se3Keyboard with pos_sensitivity=0.15 outputs 0.15 m per
-                    # physics step while a key is held, which at 100 Hz equals
-                    # 15 m/s — far too fast for the IK solver and causes joint
-                    # targets to explode.  We cap the step here so the maximum
-                    # commanded EE speed is MAX_EE_STEP_M / dt = 0.5 m/s.
-                    # pos_sensitivity can stay at 0.15 for key-detection feel.
-                    MAX_EE_STEP_M = 0.005  # metres per physics step (= 0.5 m/s at 100 Hz)
-                    _step_norm = float(_delta_base.norm())
+                # Se3Keyboard outputs fixed-axis deltas in the world / robot-base
+                # frame (W always = +X, A always = +Y, Q always = +Z) regardless
+                # of where the arm is.  The IK controller expects its relative
+                # position command in the same base frame, so NO rotation is
+                # needed — just clamp the magnitude and pass through directly.
+                _delta = torch.tensor(pos_delta[:3], dtype=torch.float32, device=sim.device)
+                _step_norm = float(_delta.norm())
+                if _step_norm > 1e-8:
+                    # Clamp to MAX_EE_STEP_M (defined in the speed-params block
+                    # above) so the IK solver stays stable at any pos_sensitivity.
                     if _step_norm > MAX_EE_STEP_M:
-                        _delta_base = _delta_base * (MAX_EE_STEP_M / _step_norm)
-                    # ---------------------------------------------------------
-                    ee_command[0, 0:3] = _delta_base
+                        _delta = _delta * (MAX_EE_STEP_M / _step_norm)
+                    ee_command[0, 0:3] = _delta
                 # else: command stays zero
             gripper_open_bool = gripper_state["open"]
             gripper_target_norm = 0.0 if gripper_open_bool else 1.0
