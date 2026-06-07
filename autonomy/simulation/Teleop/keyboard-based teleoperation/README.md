@@ -18,18 +18,48 @@ Isaac Sim requires `warp-lang==1.5.0`. Run this once to install the correct vers
 
 ---
 
-## Step 2: Run the Script
+## Step 2: Run teleop
 
-From this directory (`keyboard-based teleoperation/`), run:
+From this directory (`keyboard-based teleoperation/`):
 
 ```bash
-PYTHONPATH=$(pwd) <path>/IsaacLab/isaaclab.sh -p task_space_test.py
+PYTHONPATH=$(pwd) <path>/IsaacLab/isaaclab.sh -p keyboard_teleop.py
 ```
+
+---
+
+## Step 3 (optional): Record demonstrations
+
+Install the shared IL recorder:
+
+```bash
+pip install -e ../../../il[record]
+```
+
+Record to LeRobot + HDF5 (same contract as real-arm `humanoid-record`):
+
+```bash
+PYTHONPATH=$(pwd) <path>/IsaacLab/isaaclab.sh -p keyboard_teleop.py --record \
+  --sink lerobot,hdf5 \
+  --num_episodes 5 \
+  --task_description "sim reach demo"
+```
+
+**Recording keys** (pynput, same as real robot):
+
+| Key | Effect |
+|-----|--------|
+| S | Start logging this episode |
+| N | Save episode |
+| D | Discard and re-record |
+| Esc | Stop and finalize |
+
+Output: `datasets/record_sim/001/` (LeRobot tree + `trajectories.h5`).
 
 ---
 
 ## Notes
 
-- Run from this directory so `demonstrations/` and `recordings/` are created here.
 - Step 1 only needs to be run **once** (or after an Isaac Sim / Isaac Lab reinstall).
 - If you see errors like `AttributeError: module 'warp.types' has no attribute 'array'`, repeat Step 1.
+- Recording uses `autonomy/il` — not the legacy `IL_test.py` prototype.

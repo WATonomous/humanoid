@@ -1,20 +1,20 @@
-"""Record teleoperation data to a LeRobot dataset from ROS 2 topics."""
+"""Record teleoperation data from ROS 2 (real arm) or dry-run tests."""
 
 from __future__ import annotations
 
 import argparse
 import logging
-import math
 import sys
 import time
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
-import numpy as np
-
-from humanoid_il.episode_keys import EpisodeFlags, EpisodeKeyboard
-from humanoid_il.record_utils import RateLimiter, resolve_config_path
-from humanoid_il.schema import create_dataset, enabled_images, load_yaml
+from humanoid_il.record_loop import run_record_loop
+from humanoid_il.recorder import RecordSettings
+from humanoid_il.record_utils import resolve_config_path
+from humanoid_il.schema import enabled_images, load_yaml
+from humanoid_il.sinks import parse_sink_names
+from humanoid_il.snapshot import ObservationSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ _DEFAULT_SCHEMA = _PKG_ROOT / "config" / "dataset_schema.yaml"
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Record a LeRobot dataset from ROS 2 (WATO humanoid arm)."
+        description="Record demonstrations to LeRobot and/or HDF5 (WATO humanoid arm, ROS 2)."
     )
     parser.add_argument(
         "--schema",
@@ -37,6 +37,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=str,
         default=None,
         help="Override record.root base directory (e.g. datasets/record)",
+    )
+    parser.add_argument(
+        "--sink",
+        type=str,
+        default="lerobot",
+        help="Output sinks: lerobot, hdf5, or comma-separated (e.g. lerobot,hdf5)",
     )
     parser.add_argument("--num_episodes", type=int, default=10)
     parser.add_argument("--task_description", type=str, default="humanoid demonstration")
@@ -61,132 +67,10 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--dry_run",
         action="store_true",
-        help="Synthetic data only; no ROS (tests LeRobot write path)",
+        help="Synthetic data only; no ROS (tests write path)",
     )
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser.parse_args(argv)
-
-
-def _build_frame(
-    snapshot,
-    *,
-    task: str,
-    image_keys: list[str],
-) -> dict[str, Any]:
-    if snapshot.action is None or snapshot.state is None:
-        raise ValueError("Missing state or action")
-
-    frame: dict[str, Any] = {
-        "observation.state": snapshot.state,
-        "action": snapshot.action,
-        "task": task,
-    }
-    for key in image_keys:
-        lerobot_key = f"observation.images.{key}"
-        if key not in snapshot.images:
-            raise ValueError(f"Missing image '{key}' for frame")
-        frame[lerobot_key] = snapshot.images[key]
-    return frame
-
-
-def _dry_snapshot(t: float, image_keys: list[str], dim: int):
-    from humanoid_il.ros_buffer import ObservationSnapshot
-
-    vec = np.array(
-        [0.2 * math.sin(t + i) for i in range(dim)], dtype=np.float32
-    )
-    images = {key: np.zeros((480, 640, 3), dtype=np.uint8) for key in image_keys}
-    return ObservationSnapshot(state=vec, action=vec.copy(), images=images)
-
-
-def _record_loop(
-    args: argparse.Namespace,
-    cfg: dict[str, Any],
-    get_snapshot: Callable,
-) -> Path:
-    image_keys = list(enabled_images(cfg).keys())
-    dim = len(cfg["joint_names"])
-    fps = float(cfg.get("fps", 30))
-    rate = RateLimiter(fps)
-
-    if args.dataset_root:
-        record_root = Path(args.dataset_root)
-    else:
-        record_root = Path((cfg.get("record") or {}).get("root", "datasets/record"))
-
-    dataset, root = create_dataset(cfg, record_root=record_root)
-    logger.info("Writing dataset to %s", root)
-
-    flags = EpisodeFlags(start=bool(args.auto_start))
-    keyboard = EpisodeKeyboard(flags)
-    keyboard.start()
-
-    episode_index = 0
-    episode_start = time.monotonic()
-    t0 = time.monotonic()
-
-    try:
-        while episode_index < args.num_episodes and not flags.abort:
-            flags.success = False
-            flags.remove = False
-            if args.auto_start:
-                flags.start = True
-            episode_start = time.monotonic()
-
-            while not flags.success and not flags.abort:
-                rate.sleep()
-                get_snapshot.maybe_spin()
-
-                if not flags.start:
-                    continue
-
-                if args.episode_time_s is not None:
-                    if time.monotonic() - episode_start >= args.episode_time_s:
-                        flags.success = True
-
-                try:
-                    snapshot = get_snapshot()
-                    if args.dry_run:
-                        snapshot = _dry_snapshot(
-                            time.monotonic() - t0, image_keys, dim
-                        )
-                    frame = _build_frame(
-                        snapshot,
-                        task=args.task_description,
-                        image_keys=image_keys,
-                    )
-                except ValueError:
-                    continue
-
-                if flags.remove:
-                    dataset.clear_episode_buffer()
-                    flags.remove = False
-                    episode_start = time.monotonic()
-                    continue
-
-                dataset.add_frame(frame)
-
-            if flags.abort:
-                break
-
-            dataset.save_episode()
-            logger.info(
-                "Saved episode %s / %s", episode_index + 1, args.num_episodes
-            )
-            episode_index += 1
-
-            if episode_index < args.num_episodes and args.reset_time_s > 0:
-                logger.info("Reset window %.1fs", args.reset_time_s)
-                time.sleep(args.reset_time_s)
-
-        if flags.abort:
-            dataset.clear_episode_buffer()
-        dataset.finalize()
-    finally:
-        keyboard.stop()
-        get_snapshot.cleanup()
-
-    return root
 
 
 class _SnapshotSource:
@@ -203,8 +87,10 @@ class _DryRunSource(_SnapshotSource):
         self._dim = dim
         self._t0 = time.monotonic()
 
-    def __call__(self):
-        return _dry_snapshot(time.monotonic() - self._t0, self._image_keys, self._dim)
+    def __call__(self) -> ObservationSnapshot:
+        from humanoid_il.record_loop import dry_snapshot
+
+        return dry_snapshot(time.monotonic() - self._t0, self._image_keys, self._dim)
 
 
 class _RosSource(_SnapshotSource):
@@ -222,7 +108,7 @@ class _RosSource(_SnapshotSource):
     def maybe_spin(self) -> None:
         self._rclpy.spin_once(self._node, timeout_sec=0.0)
 
-    def __call__(self):
+    def __call__(self) -> ObservationSnapshot:
         return self._buffer.snapshot()
 
     def cleanup(self) -> None:
@@ -242,13 +128,34 @@ def main(argv: list[str] | None = None) -> int:
     image_keys = list(enabled_images(cfg).keys())
     dim = len(cfg["joint_names"])
 
+    if args.dataset_root:
+        record_root = Path(args.dataset_root)
+    else:
+        record_root = Path((cfg.get("record") or {}).get("root", "datasets/record"))
+
+    settings = RecordSettings(
+        num_episodes=args.num_episodes,
+        task_description=args.task_description,
+        episode_time_s=args.episode_time_s,
+        reset_time_s=args.reset_time_s,
+        auto_start=args.auto_start,
+    )
+    sink_names = parse_sink_names(args.sink)
+
     if args.dry_run:
         source: _SnapshotSource = _DryRunSource(image_keys, dim)
     else:
         source = _RosSource(cfg)
 
-    root = _record_loop(args, cfg, source)
-    print(f"Dataset saved under: {root}")
+    output_dir = run_record_loop(
+        cfg,
+        source,
+        settings,
+        record_root=record_root,
+        sink_names=sink_names,
+        dry_run=args.dry_run,
+    )
+    print(f"Dataset saved under: {output_dir}")
     return 0
 
 

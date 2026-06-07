@@ -91,7 +91,14 @@ _DEFAULT_JOINT_POS = {
 RIGHT_ARM_JOINTS = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7", "joint8"]
 LEFT_ARM_JOINTS = ["joint1L", "joint2l", "joint3l", "joint4l", "joint5l", "joint6l"]
 LEFT_GRIPPER_JOINTS = ["joint7l", "joint8l"]
+# Jacobian anchor is the wrist link; IK pose target is the fingertip center (see below).
 LEFT_EE_BODY = "link6l"
+LEFT_FINGER_TIP_BODIES = ("link7l", "link8l")
+# Distal mesh points in each finger link frame (link7l.STL +X, link8l.STL -X).
+LEFT_FINGER_DISTAL_TIP_LOCAL = {
+    "link7l": (0.13211595, -0.04057075, -0.00434997),
+    "link8l": (-0.13211595, -0.04057075, -0.00435003),
+}
 
 # Gripper finger targets (joint7: [-0.05, 0], joint8: [0, 0.05])
 # Synchronized pair mimics single GL40 motor driving both fingers via linkage.
@@ -122,6 +129,79 @@ def apply_joint_limits(robot) -> None:
     if updated:
         robot.write_joint_position_limit_to_sim(limits, warn_limit_violation=False)
         print(f"[INFO] Applied joint limits for {len(updated)} joints.")
+
+
+def resolve_body_ids(robot, names: tuple[str, ...] | list[str]) -> list[int]:
+    """Map body names to articulation body indices."""
+    body_names = list(robot.data.body_names)
+    name_to_id = {name: idx for idx, name in enumerate(body_names)}
+    missing = [name for name in names if name not in name_to_id]
+    if missing:
+        raise KeyError(f"Body names {missing} not found in {body_names}")
+    return [name_to_id[name] for name in names]
+
+
+def compute_gripper_tip_pos_w(robot, finger_body_ids: list[int]):
+    """World-frame midpoint between the distal tips of link7l and link8l."""
+    import torch
+    from isaaclab.utils.math import quat_apply
+
+    dtype = robot.data.body_pos_w.dtype
+    device = robot.data.body_pos_w.device
+    tips = []
+    for body_name, body_id in zip(LEFT_FINGER_TIP_BODIES, finger_body_ids):
+        local = torch.tensor([LEFT_FINGER_DISTAL_TIP_LOCAL[body_name]], device=device, dtype=dtype)
+        body_pos = robot.data.body_pos_w[:, body_id]
+        body_quat = robot.data.body_quat_w[:, body_id]
+        tips.append(body_pos + quat_apply(body_quat, local))
+    return (tips[0] + tips[1]) * 0.5
+
+
+def compute_gripper_tip_pose_w(robot, wrist_body_id: int, finger_body_ids: list[int]):
+    """Gripper-tip center pose in world frame (position from fingers, orientation from wrist)."""
+    tip_pos_w = compute_gripper_tip_pos_w(robot, finger_body_ids)
+    tip_quat_w = robot.data.body_quat_w[:, wrist_body_id]
+    return tip_pos_w, tip_quat_w
+
+
+def compute_gripper_tip_pose_b(robot, root_pose_w, wrist_body_id: int, finger_body_ids: list[int]):
+    """Gripper-tip center pose in the robot root frame."""
+    from isaaclab.utils.math import subtract_frame_transforms
+
+    tip_pos_w, tip_quat_w = compute_gripper_tip_pose_w(robot, wrist_body_id, finger_body_ids)
+    return subtract_frame_transforms(
+        root_pose_w[:, 0:3], root_pose_w[:, 3:7], tip_pos_w, tip_quat_w
+    )
+
+
+def jacobian_world_to_root(robot, jacobian_w):
+    """Rotate PhysX world-frame Jacobian into the articulation root frame."""
+    import torch
+    from isaaclab.utils.math import matrix_from_quat, quat_inv
+
+    base_rot = matrix_from_quat(quat_inv(robot.data.root_quat_w))
+    jacobian_b = jacobian_w.clone()
+    jacobian_b[:, :3, :] = torch.bmm(base_rot, jacobian_b[:, :3, :])
+    jacobian_b[:, 3:, :] = torch.bmm(base_rot, jacobian_b[:, 3:, :])
+    return jacobian_b
+
+
+def adjust_jacobian_for_gripper_tip(jacobian_b, wrist_pos_b, tip_pos_b):
+    """Map link6l root-frame Jacobian to the fingertip center."""
+    import torch
+    from isaaclab.utils.math import skew_symmetric_matrix
+
+    offset_b = tip_pos_b - wrist_pos_b
+    tip_jacobian = jacobian_b.clone()
+    tip_jacobian[:, 0:3, :] += torch.bmm(-skew_symmetric_matrix(offset_b), jacobian_b[:, 3:, :])
+    return tip_jacobian
+
+
+def compute_tip_ik_jacobian(robot, jacobian_w, wrist_pos_b, tip_pos_b):
+    """World-frame link6l Jacobian -> root frame -> fingertip center."""
+    return adjust_jacobian_for_gripper_tip(
+        jacobian_world_to_root(robot, jacobian_w), wrist_pos_b, tip_pos_b
+    )
 
 
 def resolve_joint_name(robot, name: str) -> str:

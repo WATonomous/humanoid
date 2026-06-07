@@ -15,10 +15,40 @@ Teleop bindings: https://isaac-sim.github.io/IsaacLab/v2.0.1/source/overview/tel
 """
 
 import argparse
+import sys
+from pathlib import Path
 
 from isaaclab.app import AppLauncher
 
+_IL_PKG = Path(__file__).resolve().parents[3] / "il"
+_DEFAULT_SIM_SCHEMA = _IL_PKG / "config" / "dataset_schema_sim.yaml"
+
 parser = argparse.ArgumentParser(description="Keyboard teleoperation for the WATonomous bimanual arm (left only).")
+parser.add_argument(
+    "--record",
+    action="store_true",
+    help="Record demonstrations (requires: pip install -e autonomy/il[record])",
+)
+parser.add_argument(
+    "--sink",
+    type=str,
+    default="lerobot,hdf5",
+    help="Output sinks when --record: lerobot, hdf5, or lerobot,hdf5",
+)
+parser.add_argument(
+    "--schema",
+    type=str,
+    default=str(_DEFAULT_SIM_SCHEMA),
+    help="dataset_schema YAML (default: autonomy/il/config/dataset_schema_sim.yaml)",
+)
+parser.add_argument(
+    "--dataset_root",
+    type=str,
+    default=None,
+    help="Override record.root from schema (e.g. datasets/record_sim)",
+)
+parser.add_argument("--num_episodes", type=int, default=10)
+parser.add_argument("--task_description", type=str, default="sim keyboard teleop demonstration")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 
@@ -34,7 +64,13 @@ from isaaclab.devices import Se3Keyboard
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.utils import configclass
-from isaaclab.utils.math import subtract_frame_transforms
+from isaaclab.utils.math import (
+    matrix_from_quat,
+    quat_apply,
+    quat_inv,
+    skew_symmetric_matrix,
+    subtract_frame_transforms,
+)
 
 from bimanual_arm_cfg import (
     BIMANUAL_ARM_CFG,
@@ -47,6 +83,13 @@ from bimanual_arm_cfg import (
     apply_joint_limits,
     resolve_joint_name,
 )
+
+# Fingertip IK (same as task_space_test.py) — kept local, not shared via bimanual_arm_cfg.
+_FINGER_TIP_BODIES = ("link7l", "link8l")
+_FINGER_DISTAL_TIP_LOCAL = {
+    "link7l": (0.13211595, -0.04057075, -0.00434997),
+    "link8l": (-0.13211595, -0.04057075, -0.00435003),
+}
 
 
 @configclass
@@ -72,9 +115,81 @@ def _joint_ids(robot, names: list[str]) -> list[int]:
     return [name_to_id[resolve_joint_name(robot, name)] for name in names]
 
 
+def _body_ids(robot, names: tuple[str, ...]) -> list[int]:
+    name_to_id = {name: idx for idx, name in enumerate(robot.data.body_names)}
+    return [name_to_id[name] for name in names]
+
+
+def _gripper_tip_pose_b(robot, root_pose_w, wrist_body_id: int, finger_body_ids: list[int]):
+    dtype = robot.data.body_pos_w.dtype
+    device = robot.data.body_pos_w.device
+    tips = []
+    for body_name, body_id in zip(_FINGER_TIP_BODIES, finger_body_ids):
+        local = torch.tensor([_FINGER_DISTAL_TIP_LOCAL[body_name]], device=device, dtype=dtype)
+        body_pos = robot.data.body_pos_w[:, body_id]
+        body_quat = robot.data.body_quat_w[:, body_id]
+        tips.append(body_pos + quat_apply(body_quat, local))
+    tip_pos_w = (tips[0] + tips[1]) * 0.5
+    tip_quat_w = robot.data.body_quat_w[:, wrist_body_id]
+    return subtract_frame_transforms(
+        root_pose_w[:, 0:3], root_pose_w[:, 3:7], tip_pos_w, tip_quat_w
+    )
+
+
+def _tip_ik_jacobian(robot, jacobian_w, wrist_pos_b, tip_pos_b):
+    base_rot = matrix_from_quat(quat_inv(robot.data.root_quat_w))
+    jacobian_b = jacobian_w.clone()
+    jacobian_b[:, :3, :] = torch.bmm(base_rot, jacobian_b[:, :3, :])
+    jacobian_b[:, 3:, :] = torch.bmm(base_rot, jacobian_b[:, 3:, :])
+    offset_b = tip_pos_b - wrist_pos_b
+    jacobian_b[:, 0:3, :] += torch.bmm(-skew_symmetric_matrix(offset_b), jacobian_b[:, 3:, :])
+    return jacobian_b
+
+
+def _init_record_session():
+    if not args_cli.record:
+        return None
+    if str(_IL_PKG) not in sys.path:
+        sys.path.insert(0, str(_IL_PKG))
+    try:
+        import numpy as np
+        from humanoid_il.frame import joints_to_snapshot
+        from humanoid_il.record_utils import resolve_config_path
+        from humanoid_il.schema import load_yaml
+        from humanoid_il.sim_session import create_sim_record_session
+    except ImportError as exc:
+        raise ImportError(
+            "Recording requires humanoid-il. Install with:\n"
+            "  pip install -e autonomy/il[record]"
+        ) from exc
+
+    schema_path = resolve_config_path(args_cli.schema, anchor=_IL_PKG)
+    cfg = load_yaml(schema_path)
+    if args_cli.dataset_root:
+        record_root = Path(args_cli.dataset_root)
+    else:
+        record_root = Path((cfg.get("record") or {}).get("root", "datasets/record_sim"))
+
+    session = create_sim_record_session(
+        cfg,
+        record_root=record_root,
+        sink=args_cli.sink,
+        num_episodes=args_cli.num_episodes,
+        task_description=args_cli.task_description,
+        auto_start=False,
+    )
+    print(f"[RECORD] Writing to {session.output_dir} (sinks: {args_cli.sink})")
+    print("[RECORD] Keys: S=start, N=save episode, D=discard, Esc=stop")
+    return session, joints_to_snapshot, np
+
+
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     robot = scene["robot"]
     sim_dt = sim.get_physics_dt()
+    record_ctx = _init_record_session()
+    record_session = record_ctx[0] if record_ctx else None
+    joints_to_snapshot = record_ctx[1] if record_ctx else None
+    np = record_ctx[2] if record_ctx else None
 
     # Ensure robot buffers are populated before reading limits / joint names
     scene.update(sim_dt)
@@ -95,6 +210,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     robot_entity_cfg.resolve(scene)
 
     ee_jacobi_idx = robot_entity_cfg.body_ids[0] - 1 if robot.is_fixed_base else robot_entity_cfg.body_ids[0]
+    wrist_body_id = robot_entity_cfg.body_ids[0]
+    finger_body_ids = _body_ids(robot, _FINGER_TIP_BODIES)
 
     left_arm_ids = robot_entity_cfg.joint_ids
     left_gripper_ids = _joint_ids(robot, LEFT_GRIPPER_JOINTS)
@@ -115,7 +232,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         device=sim.device,
     )
 
-    teleop = Se3Keyboard(pos_sensitivity=0.15, rot_sensitivity=0.15)
+    teleop = Se3Keyboard(pos_sensitivity=0.005, rot_sensitivity=0.05)
     should_reset = False
 
     def reset_left_arm():
@@ -130,6 +247,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     debug_steps = 0
     while simulation_app.is_running():
+        if record_session is not None and record_session.is_complete:
+            print("[RECORD] Session complete.")
+            break
+
         if should_reset:
             joint_pos = robot.data.default_joint_pos.clone()
             joint_vel = robot.data.default_joint_vel.clone()
@@ -150,15 +271,40 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         root_pose_w = robot.data.root_state_w[:, 0:7]
         joint_pos = robot.data.joint_pos[:, left_arm_ids]
 
-        ee_pos_b, ee_quat_b = subtract_frame_transforms(
+        ee_pos_b, _ = subtract_frame_transforms(
             root_pose_w[:, 0:3], root_pose_w[:, 3:7], ee_pose_w[:, 0:3], ee_pose_w[:, 3:7]
         )
+        tip_pos_b, tip_quat_b = _gripper_tip_pose_b(
+            robot, root_pose_w, wrist_body_id, finger_body_ids
+        )
 
-        diff_ik_controller.set_command(command, ee_pos=ee_pos_b, ee_quat=ee_quat_b)
+        # Relative mode: target = current_tip + delta (stays close, no runaway).
+        # Se3Keyboard outputs [dx,dy,dz, drx,dry,drz] all in base frame.
+        # pos_sensitivity=0.005 keeps the IK step small enough for the linearization to hold.
+        diff_ik_controller.set_command(command, ee_pos=tip_pos_b, ee_quat=tip_quat_b)
 
-        jacobian = robot.root_physx_view.get_jacobians()[:, ee_jacobi_idx, :, left_arm_ids]
-        joint_pos_des = diff_ik_controller.compute(ee_pos_b, ee_quat_b, jacobian, joint_pos)
+        jacobian = _tip_ik_jacobian(
+            robot,
+            robot.root_physx_view.get_jacobians()[:, ee_jacobi_idx, :, left_arm_ids],
+            ee_pos_b,
+            tip_pos_b,
+        )
+        joint_pos_des = diff_ik_controller.compute(tip_pos_b, tip_quat_b, jacobian, joint_pos)
         robot.set_joint_position_target(joint_pos_des, joint_ids=left_arm_ids)
+
+        if record_session is not None:
+            record_session.check_timed_episode()
+            if record_session.flags.success:
+                if record_session.save_episode_if_ready():
+                    if not record_session.is_complete:
+                        record_session.begin_episode()
+            if record_session.should_record_frame():
+                state = joint_pos[0].detach().cpu().numpy().astype(np.float32)
+                action = joint_pos_des[0].detach().cpu().numpy().astype(np.float32)
+                try:
+                    record_session.ingest_snapshot(joints_to_snapshot(state, action))
+                except ValueError as exc:
+                    print(f"[RECORD] Skipped frame: {exc}")
 
         # Hold gripper fingers at synchronized open/closed pair (one GL40 motor on hardware).
         # High stiffness in cfg + zero velocity target prevents bounce when the arm moves.
@@ -177,6 +323,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         scene.write_data_to_sim()
         sim.step()
         scene.update(sim_dt)
+
+    if record_session is not None:
+        record_session.finalize()
+        record_session.cleanup()
+        print(f"[RECORD] Saved under {record_session.output_dir}")
 
 
 def main():

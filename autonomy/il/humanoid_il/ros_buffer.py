@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import threading
-from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
@@ -12,15 +11,9 @@ import numpy as np
 from humanoid_il.arm_pose_io import arm_pose_to_vector
 from humanoid_il.observation import image_msg_to_hwc
 from humanoid_il.schema import enabled_images
+from humanoid_il.snapshot import ObservationSnapshot
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class ObservationSnapshot:
-    state: np.ndarray | None
-    action: np.ndarray | None
-    images: dict[str, np.ndarray] = field(default_factory=dict)
 
 
 class RosRecordBuffer:
