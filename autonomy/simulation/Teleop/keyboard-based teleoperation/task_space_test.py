@@ -88,11 +88,12 @@ WATO_BIMANUAL_ARM_CFG = ArticulationCfg(
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.0),
         joint_pos={
-            # Right arm
+            # Right arm — start with shoulder slightly raised so arm
+            # faces forward (not fully sideways along +Y)
             "joint1": 0.0,
-            "joint2": 0.0,
+            "joint2": -0.78,   # ~-45° : lifts arm to a natural forward pose
             "joint3": 0.0,
-            "joint4": 0.0,
+            "joint4": 1.2,    # ~+69° : elbow bent so EE is in front of robot
             "joint5": 0.0,
             "joint6": 0.0,
             "joint7": 0.0,
@@ -602,7 +603,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     #   0.02  m/step = 2.0 m/s  (fast — default)
     #   0.05  m/step = 5.0 m/s  (may cause IK instability near singularities)
     # -----------------------
-    MAX_EE_STEP_M    = 0.02   # metres per physics step  → 2.0 m/s max EE speed
+    MAX_EE_STEP_M    = 0.004  # metres per physics step  → 0.4 m/s max EE speed
+                               # (was 0.02 → caused 37°+ joint jumps per step)
     position_smoothing = 0.15
     rotation_smoothing = 0.12
     max_linear_velocity = 0.6
@@ -635,6 +637,22 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     print(f"[DEBUG] is_fixed_base         : {robot.is_fixed_base}")
     print(f"[DEBUG] ee_jacobi_idx         : {robot_entity_cfg.body_ids[0] - 1 if robot.is_fixed_base else robot_entity_cfg.body_ids[0]}")
     # ─────────────────────────────────────────────────────────────────────────
+
+    # ── Joint role labels (based on physical observation) ────────────────────
+    # These map the controlled joint index (0-5, matching joint1-joint6) to
+    # a human-readable description of what motion that joint produces.
+    JOINT_ROLES = {
+        0: "joint1  | Shoulder Rotation       (twist about vertical axis)",
+        1: "joint2  | Shoulder Elevation      (arm up / down at shoulder)",
+        2: "joint3  | Elbow Rotation          (forearm twist / supination)",
+        3: "joint4  | Elbow Flexion           (elbow bend up / down)",
+        4: "joint5  | Forearm Rotation        (wrist-level roll)",
+        5: "joint6  | Wrist Flexion           (wrist bend up / down)",
+    }
+
+    # Periodic joint-state print counter (prints every 200 steps ≈ 2 s)
+    _periodic_debug_counter = 0
+    _PERIODIC_DEBUG_INTERVAL = 200   # steps
 
     ee_jacobi_idx = robot_entity_cfg.body_ids[0] - 1 if robot.is_fixed_base else robot_entity_cfg.body_ids[0]
     sim_dt = 0.01
@@ -745,7 +763,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     #previous_smooth_pose = smooth_target_pose.clone()
 
     ee_command = torch.zeros(1, 3, device=sim.device)
-    _debug_step_counter = 0   # throttle per-step debug output
+    _debug_step_counter = 0   # throttle per-step IK command debug output
 
     # Main simulation loop
     # Initialise ee_quat_b so the first teleop frame can use it as a fallback.
@@ -858,18 +876,68 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         # Clamp joint targets to ±2π to prevent runaway solutions near singularities.
         joint_pos_des = torch.clamp(joint_pos_des, min=-2 * torch.pi, max=2 * torch.pi)
 
-        # ── DEBUG: print every step where a non-zero command is sent (capped at 5) ──
+        # Clamp per-step joint DELTA so no single joint moves more than 5° (0.087 rad)
+        # in one physics step. This prevents IK from commanding unreachable jumps
+        # that the physical actuators cannot track, which is the root cause of the
+        # arm not following the desired EE path.
+        _MAX_JOINT_DELTA_RAD = 0.087  # 5° per step — raise if arm feels sluggish
+        _joint_delta = joint_pos_des - joint_pos
+        _delta_norm  = _joint_delta.abs().max(dim=1, keepdim=True).values
+        _scale       = torch.where(
+            _delta_norm > _MAX_JOINT_DELTA_RAD,
+            _MAX_JOINT_DELTA_RAD / _delta_norm.clamp(min=1e-6),
+            torch.ones_like(_delta_norm),
+        )
+        joint_pos_des = joint_pos + _joint_delta * _scale
+
+        # ── DEBUG: IK command block (fires on first 5 steps of each key press) ──
         _cmd_norm = float(ee_command.norm())
         if _cmd_norm > 1e-6 and _debug_step_counter < 5:
             _debug_step_counter += 1
-            print(f"[DEBUG step {_debug_step_counter}] ee_command      : {ee_command.cpu().numpy()}")
-            print(f"[DEBUG step {_debug_step_counter}] ee_pos_b        : {ee_pos_b.cpu().numpy()}")
-            print(f"[DEBUG step {_debug_step_counter}] joint_pos (cur) : {joint_pos.cpu().numpy()}")
-            print(f"[DEBUG step {_debug_step_counter}] joint_pos_des   : {joint_pos_des.cpu().numpy()}")
+            import math as _math
+            _jp_cur = joint_pos.cpu().numpy()[0]       # shape [6]
+            _jp_des = joint_pos_des.cpu().numpy()[0]   # shape [6]
             _jac_norm = float(jacobian.norm())
-            print(f"[DEBUG step {_debug_step_counter}] jacobian norm   : {_jac_norm:.6f}  (0 = IK has no effect)")
+            print(f"\n[IK DEBUG — step {_debug_step_counter}] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            print(f"  EE command (base frame dx,dy,dz) : {ee_command.cpu().numpy()}")
+            print(f"  EE pos  (base frame)             : {ee_pos_b.cpu().numpy()}")
+            print(f"  EE quat (base frame, w,x,y,z)    : {ee_quat_b.cpu().numpy()}")
+            print(f"  Jacobian norm                    : {_jac_norm:.6f}  (0 → IK solver blind)")
+            print(f"  ─── Per-joint breakdown ───────────────────────────────────────────")
+            for _ji in range(len(_jp_cur)):
+                _role  = JOINT_ROLES.get(_ji, f"joint{_ji+1}  | (unknown role)")
+                _cur_d = _math.degrees(_jp_cur[_ji])
+                _des_d = _math.degrees(_jp_des[_ji])
+                _dlt_d = _des_d - _cur_d
+                _flag  = "  ← large jump!" if abs(_dlt_d) > 20.0 else ""
+                print(f"  [{_ji}] {_role}")
+                print(f"      current : {_jp_cur[_ji]:+.4f} rad  ({_cur_d:+7.2f}°)")
+                print(f"      desired : {_jp_des[_ji]:+.4f} rad  ({_des_d:+7.2f}°)")
+                print(f"      delta   : {_jp_des[_ji]-_jp_cur[_ji]:+.4f} rad  ({_dlt_d:+7.2f}°){_flag}")
+            print(f"  ───────────────────────────────────────────────────────────────────")
         elif _cmd_norm < 1e-6:
             _debug_step_counter = 0  # reset counter when keys released
+        # ──────────────────────────────────────────────────────────────────────────
+
+        # ── PERIODIC joint state snapshot (every ~2 s even when idle) ─────────
+        _periodic_debug_counter += 1
+        if _periodic_debug_counter >= _PERIODIC_DEBUG_INTERVAL:
+            _periodic_debug_counter = 0
+            import math as _math
+            _jp_now = robot.data.joint_pos[:, robot_entity_cfg.joint_ids].cpu().numpy()[0]
+            _jv_now = robot.data.joint_vel[:, robot_entity_cfg.joint_ids].cpu().numpy()[0]
+            _ee_now = ee_pose_w.cpu().numpy()[0]
+            print(f"\n[JOINT SNAPSHOT] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            print(f"  EE world pos (x,y,z) : ({_ee_now[0]:+.4f}, {_ee_now[1]:+.4f}, {_ee_now[2]:+.4f})")
+            print(f"  EE world quat(w,x,y,z): ({_ee_now[3]:+.4f}, {_ee_now[4]:+.4f}, {_ee_now[5]:+.4f}, {_ee_now[6]:+.4f})")
+            print(f"  ─── Controlled joints (right arm joint1-joint6) ────────────────────")
+            for _ji in range(len(_jp_now)):
+                _role = JOINT_ROLES.get(_ji, f"joint{_ji+1}")
+                _ang  = _math.degrees(_jp_now[_ji])
+                _vel  = _math.degrees(_jv_now[_ji])
+                print(f"  [{_ji}] {_role}")
+                print(f"      pos : {_jp_now[_ji]:+.4f} rad ({_ang:+7.2f}°)   vel: {_jv_now[_ji]:+.4f} rad/s ({_vel:+7.2f}°/s)")
+            print(f"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
         # ──────────────────────────────────────────────────────────────────────────
 
         # Set arm joint targets
