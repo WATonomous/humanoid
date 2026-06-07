@@ -603,8 +603,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     #   0.02  m/step = 2.0 m/s  (fast — default)
     #   0.05  m/step = 5.0 m/s  (may cause IK instability near singularities)
     # -----------------------
-    MAX_EE_STEP_M    = 0.004  # metres per physics step  → 0.4 m/s max EE speed
-                               # (was 0.02 → caused 37°+ joint jumps per step)
+    MAX_EE_STEP_M    = 0.02   # metres per physics step  → 2.0 m/s max EE speed
     position_smoothing = 0.15
     rotation_smoothing = 0.12
     max_linear_velocity = 0.6
@@ -880,7 +879,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         # in one physics step. This prevents IK from commanding unreachable jumps
         # that the physical actuators cannot track, which is the root cause of the
         # arm not following the desired EE path.
-        _MAX_JOINT_DELTA_RAD = 0.087  # 5° per step — raise if arm feels sluggish
+        _MAX_JOINT_DELTA_RAD = 0.70   # ~40° per step — large visible motion per keypress
         _joint_delta = joint_pos_des - joint_pos
         _delta_norm  = _joint_delta.abs().max(dim=1, keepdim=True).values
         _scale       = torch.where(
