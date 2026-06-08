@@ -182,7 +182,7 @@ def conditional_joint_vel_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, 
 
 def print_stage_curriculum(env: ManagerBasedRLEnv, env_ids: torch.Tensor, term_name: str, weight: float, num_steps: int) -> float:
     """A wrapper for modify_reward_weight that prints a message exactly when the stage transitions."""
-    from isaaclab.envs.mdp.rewards import modify_reward_weight
+    from isaaclab.envs.mdp import modify_reward_weight
     
     # env.common_step_counter increments by the number of environments each step.
     # We print a message when the step counter crosses the threshold.
