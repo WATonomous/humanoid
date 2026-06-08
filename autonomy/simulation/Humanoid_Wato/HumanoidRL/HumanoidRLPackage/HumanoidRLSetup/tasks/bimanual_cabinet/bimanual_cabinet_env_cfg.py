@@ -231,7 +231,7 @@ class RewardsCfg:
     align_grasp_around_handle = RewTerm(func=mdp.align_grasp_around_handle, weight=0.125)
     grasp_handle = RewTerm(
         func=mdp.grasp_handle,
-        weight=0.5,
+        weight=20.0,
         params={
             "threshold": 0.03,
             "open_joint_pos": 0.04,
@@ -261,6 +261,10 @@ class TerminationsCfg:
     """Termination terms for the MDP."""
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
+    success = DoneTerm(
+        func=mdp.joint_pos_out_of_manual_limit,
+        params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]), "bounds": (0.0, 0.39)}
+    )
 
 
 ##
