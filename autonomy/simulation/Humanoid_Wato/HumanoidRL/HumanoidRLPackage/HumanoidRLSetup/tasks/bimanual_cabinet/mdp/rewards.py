@@ -118,7 +118,7 @@ def grasp_handle(
     distance = torch.norm(handle_pos - ee_tcp_pos, dim=-1, p=2)
     is_close = distance <= threshold
 
-    return is_close * torch.sum(open_joint_pos - gripper_joint_pos, dim=-1)
+    return is_close * torch.sum(open_joint_pos - torch.abs(gripper_joint_pos), dim=-1)
 
 
 def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:

@@ -235,7 +235,7 @@ class RewardsCfg:
         weight=20.0,
         params={
             "threshold": 0.03,
-            "open_joint_pos": 0.04,
+            "open_joint_pos": 0.06,
             "asset_cfg": SceneEntityCfg("robot", joint_names=["joint7", "joint8"]),
         },
     )
