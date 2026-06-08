@@ -9,7 +9,7 @@ from isaaclab_rl.rsl_rl import (
 @configclass
 class BimanualArmCabinetPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 96
-    max_iterations = 400
+    max_iterations = 500
     save_interval = 50
     experiment_name = "bimanual_cabinet"
     empirical_normalization = False
