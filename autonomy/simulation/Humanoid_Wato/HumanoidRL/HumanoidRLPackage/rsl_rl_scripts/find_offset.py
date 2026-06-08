@@ -12,9 +12,10 @@ app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 from pxr import Usd, UsdGeom, Gf
+from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
 # The exact path used by Isaac Lab for the cabinet
-usd_path = "http://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/2.0/Isaac/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd"
+usd_path = f"{ISAAC_NUCLEUS_DIR}/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd"
 
 print(f"Downloading and opening USD: {usd_path}")
 print("(This may take a few seconds...)\n")
