@@ -242,18 +242,29 @@ class RewardsCfg:
     # 3. Open the drawer
     open_drawer_bonus = RewTerm(
         func=mdp.open_drawer_bonus,
-        weight=8.0,
+        weight=5.0,  # Starts at 5.0 (Stage 1), boosted to 25.0 via curriculum (Stage 2)
         params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
     )
     multi_stage_open_drawer = RewTerm(
         func=mdp.multi_stage_open_drawer,
-        weight=1.0,
+        weight=10.0,  # Increased from 1.0 to give massive milestone bonuses at 20cm and 30cm!
         params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
     )
 
-    # 4. Penalize actions for cosmetic reasons
-    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-1e-2)
-    joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=-0.0001)
+    # 4. Penalize actions for cosmetic reasons (Conditional Jerk Penalties)
+    action_rate_l2 = RewTerm(
+        func=mdp.conditional_action_rate_l2, 
+        weight=-0.5,
+        params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
+    )
+    joint_vel = RewTerm(
+        func=mdp.conditional_joint_vel_l2, 
+        weight=-0.01,
+        params={
+            "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
+            "robot_cfg": SceneEntityCfg("robot", joint_names=["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7", "joint8"])
+        },
+    )
 
 
 @configclass
@@ -264,6 +275,28 @@ class TerminationsCfg:
     success = DoneTerm(
         func=mdp.joint_pos_out_of_manual_limit,
         params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]), "bounds": (0.0, 0.39)}
+    )
+
+@configclass
+class CurriculumCfg:
+    """Curriculum terms for the MDP.
+    
+    These guide the training in stages by changing the rules as the AI gets smarter!
+    """
+    
+    # Stage 2: After 10,000 steps, once the AI has learned to grab the handle,
+    # we massively boost the reward for pulling the drawer open, forcing it to
+    # evolve from "just holding the handle" to "aggressively pulling it".
+    boost_open_reward = CurrTerm(
+        func=mdp.modify_reward_weight, 
+        params={"term_name": "open_drawer_bonus", "weight": 25.0, "num_steps": 10000}
+    )
+    
+    # Stage 2: We also decrease the flat grasp reward so it doesn't get lazy
+    # and just sit there holding the handle for 8 seconds without pulling.
+    reduce_grasp_reward = CurrTerm(
+        func=mdp.modify_reward_weight, 
+        params={"term_name": "grasp_handle", "weight": 5.0, "num_steps": 10000}
     )
 
 
@@ -285,6 +318,7 @@ class CabinetEnvCfg(ManagerBasedRLEnvCfg):
     rewards: RewardsCfg = RewardsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
     events: EventCfg = EventCfg()
+    curriculum: CurriculumCfg = CurriculumCfg()
 
     def __post_init__(self):
         """Post initialization."""

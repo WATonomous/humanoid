@@ -146,3 +146,36 @@ def multi_stage_open_drawer(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -
     open_hard = (drawer_pos > 0.3) * is_graspable
 
     return open_easy + open_medium + open_hard
+
+
+def conditional_action_rate_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Action rate penalty that scales down as the drawer opens.
+    
+    If the drawer is completely closed, the penalty multiplier is 1.0.
+    As the drawer opens, the penalty multiplier scales down to 0.1 (so it's allowed to be slightly jerky while pulling).
+    """
+    # Base action rate penalty (squared difference of actions)
+    action_rate = torch.sum(torch.square(env.action_manager.action - env.action_manager.prev_action), dim=1)
+    
+    # Get drawer position
+    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
+    
+    # Scale multiplier from 1.0 (at 0m) down to 0.1 (at 0.35m)
+    multiplier = torch.clamp(1.0 - (drawer_pos / 0.35), min=0.1, max=1.0)
+    
+    return action_rate * multiplier
+
+
+def conditional_joint_vel_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, robot_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Joint velocity penalty that scales down as the drawer opens."""
+    # Base joint velocity penalty
+    joint_vel = torch.sum(torch.square(env.scene[robot_cfg.name].data.joint_vel), dim=1)
+    
+    # Get drawer position
+    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
+    
+    # Scale multiplier from 1.0 (at 0m) down to 0.1 (at 0.35m)
+    multiplier = torch.clamp(1.0 - (drawer_pos / 0.35), min=0.1, max=1.0)
+    
+    return joint_vel * multiplier
+
