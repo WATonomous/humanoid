@@ -289,15 +289,15 @@ class CurriculumCfg:
     # we massively boost the reward for pulling the drawer open, forcing it to
     # evolve from "just holding the handle" to "aggressively pulling it".
     boost_open_reward = CurrTerm(
-        func=mdp.modify_reward_weight, 
-        params={"term_name": "open_drawer_bonus", "weight": 25.0, "num_steps": 10000}
+        func=mdp.print_stage_curriculum, 
+        params={"term_name": "open_drawer_bonus", "weight": 25.0, "num_steps": 400_000_000}
     )
     
     # Stage 2: We also decrease the flat grasp reward so it doesn't get lazy
     # and just sit there holding the handle for 8 seconds without pulling.
     reduce_grasp_reward = CurrTerm(
-        func=mdp.modify_reward_weight, 
-        params={"term_name": "grasp_handle", "weight": 5.0, "num_steps": 10000}
+        func=mdp.print_stage_curriculum, 
+        params={"term_name": "grasp_handle", "weight": 5.0, "num_steps": 400_000_000}
     )
 
 
