@@ -1,5 +1,17 @@
-from pxr import Usd, UsdGeom, Gf
 import sys
+import argparse
+from isaaclab.app import AppLauncher
+
+# We have to launch Isaac Lab headlessly first, otherwise the Pixar library
+# doesn't know how to download files from NVIDIA's cloud servers!
+parser = argparse.ArgumentParser()
+AppLauncher.add_app_launcher_args(parser)
+args_cli, _ = parser.parse_known_args()
+args_cli.headless = True
+app_launcher = AppLauncher(args_cli)
+simulation_app = app_launcher.app
+
+from pxr import Usd, UsdGeom, Gf
 
 # The exact path used by Isaac Lab for the cabinet
 usd_path = "http://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/2.0/Isaac/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd"
