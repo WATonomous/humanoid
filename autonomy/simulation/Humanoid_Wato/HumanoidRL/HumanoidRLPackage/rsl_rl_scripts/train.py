@@ -9,6 +9,17 @@
 
 import argparse
 import sys
+import os
+
+# Ensure HumanoidRLPackage is always importable regardless of working directory
+_script_dir = os.path.dirname(os.path.abspath(__file__))          # rsl_rl_scripts/
+_humanoid_rl_dir = os.path.dirname(_script_dir)                    # HumanoidRLPackage/
+_parent_dir = os.path.dirname(_humanoid_rl_dir)                    # HumanoidRL/
+if _parent_dir not in sys.path:
+    sys.path.insert(0, _parent_dir)
+if _script_dir not in sys.path:
+    sys.path.insert(0, _script_dir)  # so cli_args.py is also found
+
 
 from isaaclab.app import AppLauncher
 
