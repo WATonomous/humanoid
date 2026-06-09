@@ -3,17 +3,24 @@
 # No local workshop clone required — fetches real files from GitHub.
 #
 # Usage:
+<<<<<<< HEAD
 #   ./assets/lerobot/sync_so101_vial_assets.sh          # vial props + textures
 #   ./assets/lerobot/sync_so101_vial_assets.sh --full    # + arm_camera, tray, HDRI (for --domain_rand)
 #   ./assets/lerobot/sync_so101_vial_assets.sh --hdri   # HDRI only
 #   ./assets/lerobot/sync_so101_vial_assets.sh --arm    # so101_arm_camera.usd only
 #
 # After copy, commit the downloaded assets normally (see assets/lerobot/README.md).
+=======
+#   ./assets/lerobot/sync_so101_vial_assets.sh
+#
+# After copy, commit through Git LFS (see assets/lerobot/README.md).
+>>>>>>> 476bbbcc (Add SO101 vial-task assets under Git LFS.)
 
 set -euo pipefail
 
 REPO="isaac-sim/Sim-to-Real-SO-101-Workshop"
 BRANCH="main"
+<<<<<<< HEAD
 USD_BASE="https://media.githubusercontent.com/media/${REPO}/${BRANCH}/source/sim_to_real_so101/assets/usd"
 HDRI_BASE="https://github.com/${REPO}/raw/${BRANCH}/source/sim_to_real_so101/assets/hdri"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -21,13 +28,22 @@ DEST="${ROOT}/so101_vial_task/usd"
 TEX_DEST="${DEST}/tex"
 SO101_DEST="${ROOT}/so101"
 HDRI_DEST="${ROOT}/so101_vial_task/hdri"
+=======
+BASE="https://media.githubusercontent.com/media/${REPO}/${BRANCH}/source/sim_to_real_so101/assets/usd"
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+DEST="${ROOT}/so101_vial_task/usd"
+TEX_DEST="${DEST}/tex"
+>>>>>>> 476bbbcc (Add SO101 vial-task assets under Git LFS.)
 
 USD_FILES=(
   lightbox-simple.usd
   mat.usda
   Vial_opaque.usda
   Vial_rack_simple.usda
+<<<<<<< HEAD
   tray.usda
+=======
+>>>>>>> 476bbbcc (Add SO101 vial-task assets under Git LFS.)
 )
 
 TEX_FILES=(
@@ -36,6 +52,7 @@ TEX_FILES=(
   vial_spec.png
 )
 
+<<<<<<< HEAD
 HDRI_FILES=(
   yaw_mapping.yaml
   moon_lab_1k.exr
@@ -63,11 +80,17 @@ HDRI_FILES=(
   university_workshop_1k.exr
   winter_evening_1k.exr
 )
+=======
+mkdir -p "$DEST" "$TEX_DEST"
+>>>>>>> 476bbbcc (Add SO101 vial-task assets under Git LFS.)
 
 fetch() {
   local url="$1"
   local out="$2"
+<<<<<<< HEAD
   mkdir -p "$(dirname "$out")"
+=======
+>>>>>>> 476bbbcc (Add SO101 vial-task assets under Git LFS.)
   echo "Fetching $(basename "$out")..."
   curl -fsSL "$url" -o "$out"
   if head -1 "$out" | grep -q 'git-lfs.github.com'; then
@@ -76,6 +99,7 @@ fetch() {
   fi
 }
 
+<<<<<<< HEAD
 sync_vial_props() {
   mkdir -p "$DEST" "$TEX_DEST"
   for name in lightbox-simple.usd mat.usda Vial_opaque.usda Vial_rack_simple.usda tray.usda; do
@@ -134,3 +158,18 @@ esac
 
 echo "Next:"
 echo "  git add assets/lerobot/"
+=======
+for name in "${USD_FILES[@]}"; do
+  fetch "${BASE}/${name}" "${DEST}/${name}"
+done
+
+for name in "${TEX_FILES[@]}"; do
+  fetch "${BASE}/tex/${name}" "${TEX_DEST}/${name}"
+done
+
+echo "OK: vial-task assets in ${DEST}"
+echo "Next:"
+echo "  export PATH=\"\$HOME/.local/bin:\$PATH\"   # if git-lfs installed locally"
+echo "  git lfs install"
+echo "  git add assets/lerobot/so101_vial_task/"
+>>>>>>> 476bbbcc (Add SO101 vial-task assets under Git LFS.)

@@ -21,6 +21,10 @@ log/
 <<<<<<< HEAD
 **/certs/*
 
+# Pasted external repos (use assets/lerobot/ + Git LFS instead)
+Sim-to-Real-SO-101-Workshop-main/
+lehome-challenge-main/
+
 autonomy/teleop/quest_teleop_server/certs/*
 datasets/
 outputs/
