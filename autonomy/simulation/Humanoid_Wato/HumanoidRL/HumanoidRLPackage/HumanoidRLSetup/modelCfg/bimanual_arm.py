@@ -44,8 +44,9 @@ def _deg(degrees: float) -> float:
 
 # --- Joint limits from Physics Inspector ------------------------------------
 _REVOLUTE_LIMIT = (-math.pi, math.pi)
-_JOINT7_LIMIT = (-0.05, 0.0)
-_JOINT8_LIMIT = (0.0, 0.05)
+# Set physical limits so the gripper cannot close past 0.015m!
+_JOINT7_LIMIT = (-0.05, -0.015)
+_JOINT8_LIMIT = (0.015, 0.05)
 
 JOINT_POS_LIMITS = {
     "joint1": _REVOLUTE_LIMIT,

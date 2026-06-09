@@ -119,6 +119,7 @@ def grasp_handle(
     distance = torch.norm(handle_pos - ee_tcp_pos, dim=-1, p=2)
     is_close = distance <= threshold
 
+    # The physics engine will now naturally clamp gripper_joint_pos to 0.015!
     return is_close * torch.sum(open_joint_pos - torch.abs(gripper_joint_pos), dim=-1)
 
 
