@@ -92,7 +92,7 @@ class CabinetSceneCfg(InteractiveSceneCfg):
                 prim_path="{ENV_REGEX_NS}/Cabinet/drawer_handle_top",
                 name="drawer_handle_top",
                 offset=OffsetCfg(
-                    pos=(0.39, 0.0, 0.01),
+                    pos=(0.40, 0.0, -0.01),
                     rot=(0.5, 0.5, -0.5, -0.5),  # align with end-effector frame
                 ),
             ),
@@ -230,6 +230,13 @@ class RewardsCfg:
     approach_gripper_handle = RewTerm(
         func=mdp.approach_gripper_handle, weight=5.0, params={"offset": 0.04})
     align_grasp_around_handle = RewTerm(func=mdp.align_grasp_around_handle, weight=0.125)
+    
+    straddle_handle = RewTerm(
+        func=mdp.straddle_handle,
+        weight=25.0,
+        params={"threshold": 0.05}
+    )
+
     grasp_handle = RewTerm(
         func=mdp.grasp_handle,
         weight=100.0,
@@ -255,7 +262,7 @@ class RewardsCfg:
     # 4. Penalize actions for cosmetic reasons (Conditional Jerk Penalties)
     action_rate_l2 = RewTerm(
         func=mdp.conditional_action_rate_l2, 
-        weight=-0.5,
+        weight=-0.05,
         params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
     )
     joint_vel = RewTerm(
@@ -290,7 +297,7 @@ class CurriculumCfg:
     # evolve from "just holding the handle" to "aggressively pulling it".
     boost_open_reward = CurrTerm(
         func=mdp.print_stage_curriculum, 
-        params={"term_name": "open_drawer_bonus", "weight": 25.0, "num_steps": 19200}
+        params={"term_name": "open_drawer_bonus", "weight": 200.0, "num_steps": 19200}
     )
     
     # Stage 2: We also decrease the flat grasp reward so it doesn't get lazy

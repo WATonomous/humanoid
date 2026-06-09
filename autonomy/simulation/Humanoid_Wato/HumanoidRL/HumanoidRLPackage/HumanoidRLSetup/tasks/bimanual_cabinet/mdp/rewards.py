@@ -143,6 +143,38 @@ def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torc
     return drawer_pos + (is_gripping * drawer_pos * 25.0)
 
 
+def straddle_handle(env: ManagerBasedRLEnv, threshold: float) -> torch.Tensor:
+    """Reward the robot for threading its fingers on strictly opposite sides of the handle.
+    This mathematically guarantees the handle is trapped INSIDE the grip, rather than pinched from outside.
+    """
+    pose = _robot_ee_pose(env)
+    if pose is None:
+        return torch.zeros(env.num_envs, device=env.device)
+        
+    ee_tcp_pos, _, lfinger_pos, rfinger_pos = pose
+    handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
+    
+    # Only reward straddling if the hand is physically near the handle
+    distance_to_handle = torch.norm(handle_pos - ee_tcp_pos, dim=-1, p=2)
+    is_close = (distance_to_handle <= threshold).float()
+    
+    # Calculate Euclidean distances
+    dist_thumb_to_handle = torch.norm(handle_pos - rfinger_pos, dim=-1, p=2)
+    dist_index_to_handle = torch.norm(handle_pos - lfinger_pos, dim=-1, p=2)
+    dist_thumb_to_index = torch.norm(lfinger_pos - rfinger_pos, dim=-1, p=2)
+    
+    # If the handle is PERFECTLY between the two fingers, then:
+    # dist(thumb, handle) + dist(index, handle) == dist(thumb, index)
+    # We penalize any deviation from this perfect straight line!
+    linearity_deviation = (dist_thumb_to_handle + dist_index_to_handle) - dist_thumb_to_index
+    
+    # Convert deviation to a 0-to-1 score (1.0 means perfectly straddled)
+    # We use a sharp exponential curve so it only gets points if it's highly accurate
+    straddle_score = torch.exp(-50.0 * linearity_deviation)
+    
+    return is_close * straddle_score
+
+
 def multi_stage_open_drawer(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Multi-stage bonus for opening the drawer.
 
