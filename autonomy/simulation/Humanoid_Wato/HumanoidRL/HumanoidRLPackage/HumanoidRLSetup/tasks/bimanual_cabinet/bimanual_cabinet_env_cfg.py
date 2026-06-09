@@ -250,12 +250,12 @@ class RewardsCfg:
     # 3. Open the drawer
     open_drawer_bonus = RewTerm(
         func=mdp.open_drawer_bonus,
-        weight=0.0,  # Starts at 0.0 (Stage 1), boosted to 200.0 via curriculum (Stage 2)
+        weight=200.0,
         params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
     )
     multi_stage_open_drawer = RewTerm(
         func=mdp.multi_stage_open_drawer,
-        weight=0.0,  # Starts at 0.0 (Stage 1), boosted to 50.0 via curriculum (Stage 2)
+        weight=50.0,
         params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
     )
 
@@ -287,29 +287,8 @@ class TerminationsCfg:
 
 @configclass
 class CurriculumCfg:
-    """Curriculum terms for the MDP.
-    
-    These guide the training in stages by changing the rules as the AI gets smarter!
-    """
-    
-    # Stage 2: After 10,000 steps, once the AI has learned to grab the handle,
-    # we massively boost the reward for pulling the drawer open, forcing it to
-    # evolve from "just holding the handle" to "aggressively pulling it".
-    boost_open_reward = CurrTerm(
-        func=mdp.print_stage_curriculum, 
-        params={"term_name": "open_drawer_bonus", "weight": 200.0, "num_steps": 19200}
-    )
-    boost_multi_stage = CurrTerm(
-        func=mdp.print_stage_curriculum, 
-        params={"term_name": "multi_stage_open_drawer", "weight": 50.0, "num_steps": 19200}
-    )
-    
-    # Stage 2: We also decrease the flat grasp reward so it doesn't get lazy
-    # and just sit there holding the handle for 8 seconds without pulling.
-    reduce_grasp_reward = CurrTerm(
-        func=mdp.print_stage_curriculum, 
-        params={"term_name": "grasp_handle", "weight": 5.0, "num_steps": 19200}
-    )
+    """Curriculum terms for the MDP."""
+    pass
 
 
 ##

@@ -135,12 +135,13 @@ def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torc
     ee_tcp_pos, _, _, _ = pose
     handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
     
-    # Check if the hand is physically straddling the handle!
-    # This prevents the AI from just making a "hook" with its wrist and yanking it.
-    is_gripping = straddle_handle(env, 0.05)
+    # Strict Z height (<= 2cm) prevents it from grabbing the top lip of the drawer.
+    # Lenient X/Y distance (<= 8cm) allows it to grab anywhere along the horizontal handle.
+    dz = torch.abs(handle_pos[..., 2] - ee_tcp_pos[..., 2])
+    dx_dy = torch.norm(handle_pos[..., :2] - ee_tcp_pos[..., :2], dim=-1, p=2)
+    is_close = ((dz <= 0.02) & (dx_dy <= 0.08)).float()
 
-    # 1x points if it magically opens on its own, but 25x points if the robot's hand is straddling the handle!
-    return drawer_pos + (is_gripping * drawer_pos * 25.0)
+    return drawer_pos + (is_close * drawer_pos * 25.0)
 
 
 def straddle_handle(env: ManagerBasedRLEnv, threshold: float) -> torch.Tensor:
@@ -183,12 +184,21 @@ def multi_stage_open_drawer(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -
     """
     drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
     
-    # Must be actively threading the fingers through the hole to get the big milestone points!
-    is_straddling = straddle_handle(env, 0.05)
+    pose = _robot_ee_pose(env)
+    if pose is None:
+        return torch.zeros(env.num_envs, device=env.device)
+        
+    ee_tcp_pos, _, _, _ = pose
+    handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
+    
+    # Strict Z height (<= 2cm), Lenient X/Y distance (<= 8cm)
+    dz = torch.abs(handle_pos[..., 2] - ee_tcp_pos[..., 2])
+    dx_dy = torch.norm(handle_pos[..., :2] - ee_tcp_pos[..., :2], dim=-1, p=2)
+    is_close = ((dz <= 0.02) & (dx_dy <= 0.08)).float()
 
     open_easy = (drawer_pos > 0.01) * 0.5
-    open_medium = (drawer_pos > 0.2) * is_straddling
-    open_hard = (drawer_pos > 0.3) * is_straddling
+    open_medium = (drawer_pos > 0.2) * is_close
+    open_hard = (drawer_pos > 0.3) * is_close
 
     return open_easy + open_medium + open_hard
 
