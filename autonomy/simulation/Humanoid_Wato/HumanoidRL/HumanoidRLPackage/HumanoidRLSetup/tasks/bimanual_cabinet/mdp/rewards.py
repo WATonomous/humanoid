@@ -133,16 +133,27 @@ def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torc
     if pose is None:
         return drawer_pos
         
-    ee_tcp_pos, _, _, _ = pose
+    ee_tcp_pos, _, lfinger_pos, rfinger_pos = pose
     handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
     
-    # Strict Z height (<= 2cm) prevents it from grabbing the top lip of the drawer.
-    # Lenient X/Y distance (<= 8cm) allows it to grab anywhere along the horizontal handle.
-    dz = torch.abs(handle_pos[..., 2] - ee_tcp_pos[..., 2])
+    # Lower the expected Z window by 2cm as requested
+    target_z = handle_pos[..., 2] - 0.02
+    dz = torch.abs(target_z - ee_tcp_pos[..., 2])
+    
+    # Lenient X/Y distance (<= 8cm)
     dx_dy = torch.norm(handle_pos[..., :2] - ee_tcp_pos[..., :2], dim=-1, p=2)
     is_close = ((dz <= 0.02) & (dx_dy <= 0.08)).float()
+    
+    # Check if the claw is actually closed!
+    # Fully open is ~10cm apart. Fully closed is ~3cm apart. 
+    finger_dist = torch.norm(lfinger_pos - rfinger_pos, dim=-1, p=2)
+    is_claw_closed = (finger_dist < 0.06).float()
+    
+    # 1x points for pulling with handle, 10x AS MANY points if claw is closed!
+    claw_multiplier = 1.0 + (is_claw_closed * 9.0)
 
-    return drawer_pos + (is_close * drawer_pos * 25.0)
+    # EXACTLY 0 points if it is pulling from the top of the shelf!
+    return is_close * drawer_pos * claw_multiplier
 
 
 def straddle_handle(env: ManagerBasedRLEnv, threshold: float) -> torch.Tensor:
@@ -189,17 +200,26 @@ def multi_stage_open_drawer(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -
     if pose is None:
         return torch.zeros(env.num_envs, device=env.device)
         
-    ee_tcp_pos, _, _, _ = pose
+    ee_tcp_pos, _, lfinger_pos, rfinger_pos = pose
     handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
     
-    # Strict Z height (<= 2cm), Lenient X/Y distance (<= 8cm)
-    dz = torch.abs(handle_pos[..., 2] - ee_tcp_pos[..., 2])
+    # Lower the expected Z window by 2cm
+    target_z = handle_pos[..., 2] - 0.02
+    dz = torch.abs(target_z - ee_tcp_pos[..., 2])
+    
+    # Lenient X/Y distance (<= 8cm)
     dx_dy = torch.norm(handle_pos[..., :2] - ee_tcp_pos[..., :2], dim=-1, p=2)
     is_close = ((dz <= 0.02) & (dx_dy <= 0.08)).float()
+    
+    # Claw closed multiplier (10x)
+    finger_dist = torch.norm(lfinger_pos - rfinger_pos, dim=-1, p=2)
+    is_claw_closed = (finger_dist < 0.06).float()
+    claw_multiplier = 1.0 + (is_claw_closed * 9.0)
 
-    open_easy = (drawer_pos > 0.01) * 0.5
-    open_medium = (drawer_pos > 0.2) * is_close
-    open_hard = (drawer_pos > 0.3) * is_close
+    # ALL milestones require is_close. If it pulls the shelf, it gets exactly 0!
+    open_easy = (drawer_pos > 0.01) * 0.5 * is_close * claw_multiplier
+    open_medium = (drawer_pos > 0.2) * is_close * claw_multiplier
+    open_hard = (drawer_pos > 0.3) * is_close * claw_multiplier
 
     return open_easy + open_medium + open_hard
 
