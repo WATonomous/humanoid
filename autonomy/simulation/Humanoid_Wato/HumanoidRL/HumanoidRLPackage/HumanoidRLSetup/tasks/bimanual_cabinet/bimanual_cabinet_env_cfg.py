@@ -250,12 +250,12 @@ class RewardsCfg:
     # 3. Open the drawer
     open_drawer_bonus = RewTerm(
         func=mdp.open_drawer_bonus,
-        weight=5.0,  # Starts at 5.0 (Stage 1), boosted to 25.0 via curriculum (Stage 2)
+        weight=0.0,  # Starts at 0.0 (Stage 1), boosted to 200.0 via curriculum (Stage 2)
         params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
     )
     multi_stage_open_drawer = RewTerm(
         func=mdp.multi_stage_open_drawer,
-        weight=10.0,  # Increased from 1.0 to give massive milestone bonuses at 20cm and 30cm!
+        weight=0.0,  # Starts at 0.0 (Stage 1), boosted to 50.0 via curriculum (Stage 2)
         params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
     )
 
@@ -298,6 +298,10 @@ class CurriculumCfg:
     boost_open_reward = CurrTerm(
         func=mdp.print_stage_curriculum, 
         params={"term_name": "open_drawer_bonus", "weight": 200.0, "num_steps": 19200}
+    )
+    boost_multi_stage = CurrTerm(
+        func=mdp.print_stage_curriculum, 
+        params={"term_name": "multi_stage_open_drawer", "weight": 50.0, "num_steps": 19200}
     )
     
     # Stage 2: We also decrease the flat grasp reward so it doesn't get lazy

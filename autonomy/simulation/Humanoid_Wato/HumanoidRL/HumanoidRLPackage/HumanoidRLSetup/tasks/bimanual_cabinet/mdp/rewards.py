@@ -135,11 +135,11 @@ def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torc
     ee_tcp_pos, _, _, _ = pose
     handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
     
-    # Check if the hand is physically within 5cm of the handle
-    distance = torch.norm(handle_pos - ee_tcp_pos, dim=-1, p=2)
-    is_gripping = (distance <= 0.05).float()
+    # Check if the hand is physically straddling the handle!
+    # This prevents the AI from just making a "hook" with its wrist and yanking it.
+    is_gripping = straddle_handle(env, 0.05)
 
-    # 1x points if it magically opens on its own, but 25x points if the robot's hand is on the handle!
+    # 1x points if it magically opens on its own, but 25x points if the robot's hand is straddling the handle!
     return drawer_pos + (is_gripping * drawer_pos * 25.0)
 
 
@@ -182,11 +182,13 @@ def multi_stage_open_drawer(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -
     This helps the agent to learn to open the drawer in a controlled manner.
     """
     drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
-    is_graspable = align_grasp_around_handle(env).float()
+    
+    # Must be actively threading the fingers through the hole to get the big milestone points!
+    is_straddling = straddle_handle(env, 0.05)
 
     open_easy = (drawer_pos > 0.01) * 0.5
-    open_medium = (drawer_pos > 0.2) * is_graspable
-    open_hard = (drawer_pos > 0.3) * is_graspable
+    open_medium = (drawer_pos > 0.2) * is_straddling
+    open_hard = (drawer_pos > 0.3) * is_straddling
 
     return open_easy + open_medium + open_hard
 
