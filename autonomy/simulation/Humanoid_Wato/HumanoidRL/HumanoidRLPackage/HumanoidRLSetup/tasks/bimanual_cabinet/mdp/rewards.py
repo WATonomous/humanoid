@@ -19,10 +19,11 @@ def _robot_ee_pose(env: ManagerBasedRLEnv):
     thumb_ids, _ = robot.find_bodies("link8", preserve_order=True)
     if not ee_ids or not thumb_ids:
         return None
-    ee_tcp_pos = robot.data.body_pos_w[:, ee_ids[0], :]
-    ee_tcp_quat = robot.data.body_quat_w[:, ee_ids[0], :]
     lfinger_pos = robot.data.body_pos_w[:, ee_ids[0], :]
     rfinger_pos = robot.data.body_pos_w[:, thumb_ids[0], :]
+    # The true End-Effector TCP is exactly halfway between the two fingers!
+    ee_tcp_pos = (lfinger_pos + rfinger_pos) / 2.0
+    ee_tcp_quat = robot.data.body_quat_w[:, ee_ids[0], :]
     return (ee_tcp_pos, ee_tcp_quat, lfinger_pos, rfinger_pos)
 
 
@@ -123,13 +124,23 @@ def grasp_handle(
 
 def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Bonus for opening the drawer given by the joint position of the drawer.
-
-    The bonus is given when the drawer is open. If the grasp is around the handle, the bonus is doubled.
+    Gives a MASSIVE multiplier if the robot's hand is physically on the handle while it opens!
     """
     drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
-    is_graspable = align_grasp_around_handle(env).float()
+    
+    pose = _robot_ee_pose(env)
+    if pose is None:
+        return drawer_pos
+        
+    ee_tcp_pos, _, _, _ = pose
+    handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
+    
+    # Check if the hand is physically within 5cm of the handle
+    distance = torch.norm(handle_pos - ee_tcp_pos, dim=-1, p=2)
+    is_gripping = (distance <= 0.05).float()
 
-    return (is_graspable + 1.0) * drawer_pos
+    # 1x points if it magically opens on its own, but 25x points if the robot's hand is on the handle!
+    return drawer_pos + (is_gripping * drawer_pos * 25.0)
 
 
 def multi_stage_open_drawer(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:

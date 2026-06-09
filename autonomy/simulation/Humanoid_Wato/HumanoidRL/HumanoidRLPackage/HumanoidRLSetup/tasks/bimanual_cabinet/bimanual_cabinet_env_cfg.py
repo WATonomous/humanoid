@@ -232,7 +232,7 @@ class RewardsCfg:
     align_grasp_around_handle = RewTerm(func=mdp.align_grasp_around_handle, weight=0.125)
     grasp_handle = RewTerm(
         func=mdp.grasp_handle,
-        weight=20.0,
+        weight=100.0,
         params={
             "threshold": 0.03,
             "open_joint_pos": 0.06,
