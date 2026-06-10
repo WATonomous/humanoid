@@ -110,13 +110,21 @@ def main():
 
     # wrap for video recording
     if args_cli.video:
+        import datetime
+        # Create a unique ID using a timestamp
+        unique_id = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        
+        # Point the video folder explicitly to the requested directory
+        target_video_dir = os.path.join(_humanoid_rl_dir, "HumanoidRLSetup", "tasks", "bimanual_cabinet", "videos")
+        
         video_kwargs = {
-            "video_folder": os.path.join(log_dir, "videos", "play"),
+            "video_folder": target_video_dir,
+            "name_prefix": f"demo_{unique_id}",
             "step_trigger": lambda step: step == 0,
             "video_length": args_cli.video_length,
             "disable_logger": True,
         }
-        print("[INFO] Recording videos during training.")
+        print(f"[INFO] Recording videos to: {target_video_dir}")
         print_dict(video_kwargs, nesting=4)
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
 
