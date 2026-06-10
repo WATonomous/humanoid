@@ -143,10 +143,12 @@ def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torc
     # X/Y distance
     dx_dy = torch.norm(handle_pos[..., :2] - ee_tcp_pos[..., :2], dim=-1, p=2)
     
-    # CONTINUOUS GRADIENTS: Instead of a strict boolean that causes policy collapse, 
-    # we use an exponential curve that guides the hand to the perfect center!
-    # If dz > 5cm (top shelf), it gets exactly 0. Otherwise, it smoothly guides it down.
-    z_score = torch.where(dz <= 0.05, torch.exp(-50.0 * dz), torch.zeros_like(dz))
+    # ASYMMETRIC GRADIENT: The top lip of the drawer is physically higher than the handle.
+    # If the robot's hand goes higher than target_z + 2cm, it gets EXACTLY 0 points!
+    # If it is below or at the handle, it gets the continuous breadcrumb trail.
+    is_too_high = ee_tcp_pos[..., 2] > (target_z + 0.02)
+    z_score = torch.where(is_too_high, torch.zeros_like(dz), torch.exp(-50.0 * dz))
+    
     xy_score = torch.where(dx_dy <= 0.15, torch.exp(-20.0 * dx_dy), torch.zeros_like(dx_dy))
     is_close = z_score * xy_score
     
@@ -216,8 +218,10 @@ def multi_stage_open_drawer(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -
     # X/Y distance
     dx_dy = torch.norm(handle_pos[..., :2] - ee_tcp_pos[..., :2], dim=-1, p=2)
     
-    # Continuous gradient!
-    z_score = torch.where(dz <= 0.05, torch.exp(-50.0 * dz), torch.zeros_like(dz))
+    # ASYMMETRIC GRADIENT to ban the top lip
+    is_too_high = ee_tcp_pos[..., 2] > (target_z + 0.02)
+    z_score = torch.where(is_too_high, torch.zeros_like(dz), torch.exp(-50.0 * dz))
+    
     xy_score = torch.where(dx_dy <= 0.15, torch.exp(-20.0 * dx_dy), torch.zeros_like(dx_dy))
     is_close = z_score * xy_score
     
