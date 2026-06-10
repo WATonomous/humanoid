@@ -108,7 +108,11 @@ Output: `datasets/record_sim/001/`.
 
 ## Isaac Sim (SO101 teleop)
 
+<<<<<<< HEAD
 **Keyboard** or **physical SO101 Leader** drives the SO101 follower in sim. From `autonomy/simulation/Teleop/so101_leader_teleoperation/`:
+=======
+**Keyboard** or **physical SO101 Leader** drives the SO101 follower in sim. From `autonomy/simulation/Teleop/so101-leader teleoperation/`:
+>>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)
 
 ```bash
 pip install -e ../../../il[record]
@@ -140,11 +144,15 @@ PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p so101_leader_teleop.py --reco
 
 Output: `datasets/record_so101_sim_vision/001/`.
 
+<<<<<<< HEAD
 ## Train (LeRobot)
 
 **SO101 vial sim IL (recommended):** inside `simulation_isaac` Docker — [`docker/simulation/isaac_lab/QUICKSTART.md`](../../docker/simulation/isaac_lab/QUICKSTART.md) (`il-train`, `--policy.push_to_hub=false`, `--steps=...`).
 
 **Generic / host** (outside Isaac docker):
+=======
+## Train (LeRobot, external)
+>>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)
 
 ```bash
 lerobot-train \

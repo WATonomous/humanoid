@@ -4,14 +4,20 @@
 #
 # Usage:
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)
 #   ./assets/lerobot/sync_so101_vial_assets.sh          # vial props + textures
 #   ./assets/lerobot/sync_so101_vial_assets.sh --full    # + arm_camera, tray, HDRI (for --domain_rand)
 #   ./assets/lerobot/sync_so101_vial_assets.sh --hdri   # HDRI only
 #   ./assets/lerobot/sync_so101_vial_assets.sh --arm    # so101_arm_camera.usd only
+<<<<<<< HEAD
 #
 # After copy, commit the downloaded assets normally (see assets/lerobot/README.md).
 =======
 #   ./assets/lerobot/sync_so101_vial_assets.sh
+=======
+>>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)
 #
 # After copy, commit through Git LFS (see assets/lerobot/README.md).
 >>>>>>> 476bbbcc (Add SO101 vial-task assets under Git LFS.)
@@ -20,6 +26,7 @@ set -euo pipefail
 
 REPO="isaac-sim/Sim-to-Real-SO-101-Workshop"
 BRANCH="main"
+<<<<<<< HEAD
 <<<<<<< HEAD
 USD_BASE="https://media.githubusercontent.com/media/${REPO}/${BRANCH}/source/sim_to_real_so101/assets/usd"
 HDRI_BASE="https://github.com/${REPO}/raw/${BRANCH}/source/sim_to_real_so101/assets/hdri"
@@ -34,6 +41,15 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 DEST="${ROOT}/so101_vial_task/usd"
 TEX_DEST="${DEST}/tex"
 >>>>>>> 476bbbcc (Add SO101 vial-task assets under Git LFS.)
+=======
+USD_BASE="https://media.githubusercontent.com/media/${REPO}/${BRANCH}/source/sim_to_real_so101/assets/usd"
+HDRI_BASE="https://media.githubusercontent.com/media/${REPO}/${BRANCH}/source/sim_to_real_so101/assets/hdri"
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+DEST="${ROOT}/so101_vial_task/usd"
+TEX_DEST="${DEST}/tex"
+SO101_DEST="${ROOT}/so101"
+HDRI_DEST="${ROOT}/so101_vial_task/hdri"
+>>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)
 
 USD_FILES=(
   lightbox-simple.usd
@@ -41,9 +57,13 @@ USD_FILES=(
   Vial_opaque.usda
   Vial_rack_simple.usda
 <<<<<<< HEAD
+<<<<<<< HEAD
   tray.usda
 =======
 >>>>>>> 476bbbcc (Add SO101 vial-task assets under Git LFS.)
+=======
+  tray.usda
+>>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)
 )
 
 TEX_FILES=(
@@ -53,6 +73,9 @@ TEX_FILES=(
 )
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)
 HDRI_FILES=(
   yaw_mapping.yaml
   moon_lab_1k.exr
@@ -80,17 +103,24 @@ HDRI_FILES=(
   university_workshop_1k.exr
   winter_evening_1k.exr
 )
+<<<<<<< HEAD
 =======
 mkdir -p "$DEST" "$TEX_DEST"
 >>>>>>> 476bbbcc (Add SO101 vial-task assets under Git LFS.)
+=======
+>>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)
 
 fetch() {
   local url="$1"
   local out="$2"
 <<<<<<< HEAD
+<<<<<<< HEAD
   mkdir -p "$(dirname "$out")"
 =======
 >>>>>>> 476bbbcc (Add SO101 vial-task assets under Git LFS.)
+=======
+  mkdir -p "$(dirname "$out")"
+>>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)
   echo "Fetching $(basename "$out")..."
   curl -fsSL "$url" -o "$out"
   if head -1 "$out" | grep -q 'git-lfs.github.com'; then
@@ -100,6 +130,9 @@ fetch() {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)
 sync_vial_props() {
   mkdir -p "$DEST" "$TEX_DEST"
   for name in lightbox-simple.usd mat.usda Vial_opaque.usda Vial_rack_simple.usda tray.usda; do
@@ -110,6 +143,7 @@ sync_vial_props() {
   done
   echo "OK: vial props in ${DEST}"
 }
+<<<<<<< HEAD
 
 sync_tray() {
   fetch "${USD_BASE}/tray.usda" "${DEST}/tray.usda"
@@ -162,14 +196,60 @@ echo "  git add assets/lerobot/"
 for name in "${USD_FILES[@]}"; do
   fetch "${BASE}/${name}" "${DEST}/${name}"
 done
+=======
+>>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)
 
-for name in "${TEX_FILES[@]}"; do
-  fetch "${BASE}/tex/${name}" "${TEX_DEST}/${name}"
-done
+sync_tray() {
+  fetch "${USD_BASE}/tray.usda" "${DEST}/tray.usda"
+  echo "OK: tray in ${DEST}/tray.usda"
+}
 
-echo "OK: vial-task assets in ${DEST}"
+sync_arm_camera() {
+  mkdir -p "$SO101_DEST"
+  fetch "${USD_BASE}/SO-ARM101-USD.usd" "${SO101_DEST}/so101_arm_camera.usd"
+  echo "OK: workshop arm (embedded gripper cam mesh) -> ${SO101_DEST}/so101_arm_camera.usd"
+}
+
+sync_hdri() {
+  mkdir -p "$HDRI_DEST"
+  for name in "${HDRI_FILES[@]}"; do
+    fetch "${HDRI_BASE}/${name}" "${HDRI_DEST}/${name}"
+  done
+  echo "OK: HDRI pack (${#HDRI_FILES[@]} files) in ${HDRI_DEST}"
+}
+
+case "${1:-}" in
+  --full)
+    sync_vial_props
+    sync_tray
+    sync_arm_camera
+    sync_hdri
+    ;;
+  --hdri)
+    sync_hdri
+    ;;
+  --arm)
+    sync_arm_camera
+    ;;
+  --tray)
+    sync_tray
+    ;;
+  "")
+    sync_vial_props
+    ;;
+  *)
+    echo "Unknown option: $1" >&2
+    echo "Usage: $0 [--full|--hdri|--arm|--tray]" >&2
+    exit 1
+    ;;
+esac
+
 echo "Next:"
 echo "  export PATH=\"\$HOME/.local/bin:\$PATH\"   # if git-lfs installed locally"
 echo "  git lfs install"
+<<<<<<< HEAD
 echo "  git add assets/lerobot/so101_vial_task/"
 >>>>>>> 476bbbcc (Add SO101 vial-task assets under Git LFS.)
+=======
+echo "  git add assets/lerobot/"
+>>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)

@@ -329,8 +329,13 @@
     <axis
       xyz="0 0.0212365807060809 -0.999774478389959" />
     <limit
+<<<<<<< HEAD
       lower="-0.471239"
       upper="0.471239"
+=======
+      lower="-0.15"
+      upper="0.15"
+>>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)
       effort="0"
       velocity="0" />
   </joint>
@@ -561,8 +566,13 @@
     <axis
       xyz="0 0.0212365807060816 -0.999774478389959" />
     <limit
+<<<<<<< HEAD
       lower="-0.471239"
       upper="0.471239"
+=======
+      lower="-0.15"
+      upper="0.15"
+>>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)
       effort="0"
       velocity="0" />
   </joint>
@@ -793,8 +803,13 @@
     <axis
       xyz="0 0.0212365807060821 -0.999774478389959" />
     <limit
+<<<<<<< HEAD
       lower="-0.471239"
       upper="0.471239"
+=======
+      lower="-0.15"
+      upper="0.15"
+>>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)
       effort="0"
       velocity="0" />
   </joint>
@@ -1025,8 +1040,13 @@
     <axis
       xyz="0 0.0212365807060809 -0.999774478389959" />
     <limit
+<<<<<<< HEAD
       lower="-0.471239"
       upper="0.471239"
+=======
+      lower="-0.15"
+      upper="0.15"
+>>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)
       effort="0"
       velocity="0" />
   </joint>
