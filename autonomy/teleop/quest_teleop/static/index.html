@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Quest Teleop</title>
+  </head>
+  <body>
+    <h1>Quest Teleop</h1>
+    <button id="start">Start</button>
+    <pre id="status">Not connected</pre>
+
+    <canvas id="xr-canvas" style="display:none;"></canvas>
+
+    <script>
+      const status = document.getElementById("status");
+
+      const JOINTS = [
+        "wrist",
+
+        "thumb-metacarpal",
+        "thumb-phalanx-proximal",
+        "thumb-phalanx-distal",
+        "thumb-tip",
+
+        "index-finger-metacarpal",
+        "index-finger-phalanx-proximal",
+        "index-finger-phalanx-intermediate",
+        "index-finger-phalanx-distal",
+        "index-finger-tip",
+
+        "middle-finger-metacarpal",
+        "middle-finger-phalanx-proximal",
+        "middle-finger-phalanx-intermediate",
+        "middle-finger-phalanx-distal",
+        "middle-finger-tip",
+
+        "ring-finger-metacarpal",
+        "ring-finger-phalanx-proximal",
+        "ring-finger-phalanx-intermediate",
+        "ring-finger-phalanx-distal",
+        "ring-finger-tip",
+
+        "pinky-finger-metacarpal",
+        "pinky-finger-phalanx-proximal",
+        "pinky-finger-phalanx-intermediate",
+        "pinky-finger-phalanx-distal",
+        "pinky-finger-tip"
+      ];
+
+      function emptyPose() {
+        return {
+          position: { x: 0, y: 0, z: 0 },
+          orientation: { x: 0, y: 0, z: 0, w: 1 }
+        };
+      }
+
+      function poseToJson(pose) {
+        if (!pose) return emptyPose();
+
+        const t = pose.transform;
+
+        return {
+          position: {
+            x: t.position.x,
+            y: t.position.y,
+            z: t.position.z
+          },
+          orientation: {
+            x: t.orientation.x,
+            y: t.orientation.y,
+            z: t.orientation.z,
+            w: t.orientation.w
+          }
+        };
+      }
+
+      // right_hand_joints layout:
+      // 0-2: wrist xyz
+      // 3-5: thumb-metacarpal xyz
+      // 6-8: thumb-phalanx-proximal xyz
+      // ...
+
+      function handJointsToArray(hand, frame, refSpace) {
+        const values = [];
+
+        for (const jointName of JOINTS) {
+          const jointSpace = hand.get(jointName);
+          const jointPose = jointSpace ? frame.getJointPose(jointSpace, refSpace) : null;
+
+          if (jointPose) {
+            values.push(
+              jointPose.transform.position.x,
+              jointPose.transform.position.y,
+              jointPose.transform.position.z
+            );
+          } else {
+            values.push(0, 0, 0);
+          }
+        }
+
+        return values;
+      }
+
+      function createShader(gl, type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+          throw new Error(gl.getShaderInfoLog(shader));
+        }
+
+        return shader;
+      }
+
+      function createProgram(gl, vertexSource, fragmentSource) {
+        const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexSource);
+        const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
+        const program = gl.createProgram();
+
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+          throw new Error(gl.getProgramInfoLog(program));
+        }
+
+        return program;
+      }
+
+      function createPointRenderer(gl) {
+        const program = createProgram(
+          gl,
+          `
+            attribute vec3 aPosition;
+            uniform mat4 uProjection;
+            uniform mat4 uView;
+            uniform float uPointSize;
+
+            void main() {
+              gl_Position = uProjection * uView * vec4(aPosition, 1.0);
+              gl_PointSize = uPointSize;
+            }
+          `,
+          `
+            precision mediump float;
+            uniform vec4 uColor;
+
+            void main() {
+              vec2 p = gl_PointCoord - vec2(0.5);
+              if (length(p) > 0.5) {
+                discard;
+              }
+              gl_FragColor = uColor;
+            }
+          `
+        );
+
+        return {
+          program,
+          buffer: gl.createBuffer(),
+          aPosition: gl.getAttribLocation(program, "aPosition"),
+          uProjection: gl.getUniformLocation(program, "uProjection"),
+          uView: gl.getUniformLocation(program, "uView"),
+          uPointSize: gl.getUniformLocation(program, "uPointSize"),
+          uColor: gl.getUniformLocation(program, "uColor")
+        };
+      }
+
+      function drawHandPoints(gl, renderer, values, projectionMatrix, viewMatrix, color) {
+        if (!values || values.length !== 75) return;
+
+        gl.useProgram(renderer.program);
+        gl.bindBuffer(gl.ARRAY_BUFFER, renderer.buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(values), gl.DYNAMIC_DRAW);
+
+        gl.enableVertexAttribArray(renderer.aPosition);
+        gl.vertexAttribPointer(renderer.aPosition, 3, gl.FLOAT, false, 0, 0);
+
+        gl.uniformMatrix4fv(renderer.uProjection, false, projectionMatrix);
+        gl.uniformMatrix4fv(renderer.uView, false, viewMatrix);
+        gl.uniform1f(renderer.uPointSize, 14.0);
+        gl.uniform4fv(renderer.uColor, color);
+
+        gl.drawArrays(gl.POINTS, 0, 25);
+      }
+
+      document.getElementById("start").onclick = async () => {
+        const wsUrl = `wss://${window.location.hostname}:9090`;
+        const ws = new WebSocket(wsUrl);
+
+        status.textContent = `Connecting to ${wsUrl}`;
+
+        ws.onopen = async () => {
+          status.textContent = "WSS connected. Starting WebXR...";
+
+          const useAr = await navigator.xr.isSessionSupported("immersive-ar");
+          const sessionMode = useAr ? "immersive-ar" : "immersive-vr";
+
+          const session = await navigator.xr.requestSession(sessionMode, {
+            requiredFeatures: ["hand-tracking"]
+          });
+
+          const canvas = document.getElementById("xr-canvas"); //needed for scene and getting pose data
+          const gl = canvas.getContext("webgl", {
+            xrCompatible: true,
+            alpha: true
+          });
+          const pointRenderer = createPointRenderer(gl);
+
+          session.updateRenderState({
+            baseLayer: new XRWebGLLayer(session, gl, {
+              alpha: true
+            })
+          });
+
+          const refSpace = await session.requestReferenceSpace("local");
+
+          function onFrame(time, frame) {
+            session.requestAnimationFrame(onFrame);
+
+            const payload = {
+              left_wrist: emptyPose(),
+              right_wrist: emptyPose(),
+              left_hand_joints: Array(75).fill(0),
+              right_hand_joints: Array(75).fill(0)
+            };
+
+            for (const inputSource of session.inputSources) {
+              if (!inputSource.hand) continue;
+
+              const wristSpace = inputSource.hand.get("wrist");
+              const wristPose = wristSpace ? frame.getJointPose(wristSpace, refSpace) : null;
+
+              if (inputSource.handedness === "left") {
+                payload.left_wrist = poseToJson(wristPose);
+                payload.left_hand_joints = handJointsToArray(inputSource.hand, frame, refSpace);
+              }
+
+              if (inputSource.handedness === "right") {
+                payload.right_wrist = poseToJson(wristPose);
+                payload.right_hand_joints = handJointsToArray(inputSource.hand, frame, refSpace);
+              }
+            }
+
+            const pose = frame.getViewerPose(refSpace);
+            if (pose) {
+              gl.bindFramebuffer(gl.FRAMEBUFFER, session.renderState.baseLayer.framebuffer);
+              gl.enable(gl.DEPTH_TEST);
+              gl.clearColor(0.0, 0.0, 0.0, useAr ? 0.0 : 1.0);
+              gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+              for (const view of pose.views) {
+                const viewport = session.renderState.baseLayer.getViewport(view);
+                gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
+
+                drawHandPoints(
+                  gl,
+                  pointRenderer,
+                  payload.left_hand_joints,
+                  view.projectionMatrix,
+                  view.transform.inverse.matrix,
+                  [0.1, 1.0, 0.25, 1.0]
+                );
+
+                drawHandPoints(
+                  gl,
+                  pointRenderer,
+                  payload.right_hand_joints,
+                  view.projectionMatrix,
+                  view.transform.inverse.matrix,
+                  [0.0, 0.75, 1.0, 1.0]
+                );
+              }
+            }
+
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify(payload));
+            }
+
+            status.textContent = `Streaming hand data (${sessionMode})`;
+          }
+
+          session.requestAnimationFrame(onFrame);
+        };
+
+        ws.onerror = () => {
+          status.textContent = "WebSocket error";
+        };
+
+        ws.onclose = () => {
+          status.textContent = "WebSocket closed";
+        };
+      };
+    </script>
+  </body>
+</html>

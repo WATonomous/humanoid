@@ -47,7 +47,7 @@ class HumanoidHandPoseFabric(BaseFabric):
 
         # URDF filpath for arm
         self.urdf_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                      "../Humanoid_Wato/arm_assembly/arm_assembly.urdf"
+                                      "../Humanoid_Wato/arm_assembly/right_arm_assembly.urdf"
                                       )
 
         self.load_robot(batch_size=batch_size)
@@ -103,7 +103,7 @@ class HumanoidHandPoseFabric(BaseFabric):
 
         robot_urdf_filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
-            "../Humanoid_Wato/arm_assembly/arm_assembly.urdf"
+            "../Humanoid_Wato/arm_assembly/right_arm_assembly.urdf"
         )
 
         initial_rotation = wp.quat(0., 0., 0., 1.)

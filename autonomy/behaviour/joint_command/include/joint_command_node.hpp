@@ -15,7 +15,7 @@ public:
 private:
   void armPoseCallback(const common_msgs::msg::ArmPose::SharedPtr msg);
   void controlTimerCallback();
-  void publishMotorCommands(const std::vector<common_msgs::msg::MotorCmd> &cmds);
+  void publishMotorCommands(const std::vector<common_msgs::msg::MotorCmd>& cmds);
 
   JointCommandCore core_;
   rclcpp::Subscription<common_msgs::msg::ArmPose>::SharedPtr arm_pose_sub_;

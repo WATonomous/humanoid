@@ -46,8 +46,7 @@ private:
   rclcpp::Subscription<sample_msgs::msg::Unfiltered>::SharedPtr raw_sub_;
 
   // ROS2 subscriber listening to the filtered topic.
-  rclcpp::Subscription<sample_msgs::msg::FilteredArray>::SharedPtr
-      filtered_sub_;
+  rclcpp::Subscription<sample_msgs::msg::FilteredArray>::SharedPtr filtered_sub_;
 
   // Object containing methods to determine the operating frequency on topics.
   samples::AggregatorCore aggregator_;

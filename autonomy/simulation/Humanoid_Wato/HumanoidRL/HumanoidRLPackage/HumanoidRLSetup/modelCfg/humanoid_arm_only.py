@@ -9,13 +9,15 @@ from isaaclab.assets.articulation import ArticulationCfg
 _HUMANOID_WATO_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
 )
-_MODEL_ASSETS = os.path.join(_HUMANOID_WATO_ROOT, "ModelAssets")
+_MODEL_ASSETS = os.path.join(_HUMANOID_WATO_ROOT, "UsdModelAssets")
 
 # Hand Arm
-_ARM_USD_PATH = os.path.join(_MODEL_ASSETS, "arm.usd")
+_RIGHT_ARM_USD_PATH = os.path.join(
+    _MODEL_ASSETS, "right_arm", "right_arm_assembly", "right_arm_assembly.usd"
+)
 ARM_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=_ARM_USD_PATH,
+        usd_path=_RIGHT_ARM_USD_PATH,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             max_depenetration_velocity=5.0,
