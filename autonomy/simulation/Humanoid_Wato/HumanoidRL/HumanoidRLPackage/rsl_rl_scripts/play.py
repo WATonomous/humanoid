@@ -165,9 +165,13 @@ def main():
             # env stepping
             obs, _, _, _ = env.step(actions)
         if args_cli.video:
+            if timestep % 50 == 0:
+                print(f"[INFO] Recording video step {timestep}/{args_cli.video_length}...")
+            
             timestep += 1
             # Exit the play loop after recording one video
-            if timestep == args_cli.video_length:
+            if timestep >= args_cli.video_length:
+                print(f"[INFO] Finished recording {args_cli.video_length} steps! Video saved successfully.")
                 break
 
         # time delay for real-time evaluation
