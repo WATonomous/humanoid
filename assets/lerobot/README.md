@@ -6,15 +6,18 @@ Large binaries under this tree use **Git LFS** (see repo root `.gitattributes`).
 
 ```
 assets/lerobot/
-├── so101/                         # SO101 follower arm (teleop)
-│   └── so101_follower_good.usd
-├── so101_vial_task/usd/           # NVIDIA vial-to-rack task props
+├── so101/
+│   ├── so101_follower_good.usd    # default teleop (--robot follower)
+│   └── so101_arm_camera.usd       # workshop arm w/ visible gripper cam mesh (--robot arm_camera)
+├── so101_vial_task/usd/
 │   ├── lightbox-simple.usd
 │   ├── mat.usda
+│   ├── tray.usda
 │   ├── Vial_opaque.usda
 │   ├── Vial_rack_simple.usda
-│   └── tex/                       # vial textures
-└── sync_so101_vial_assets.sh      # re-download props from GitHub if needed
+│   └── tex/
+├── so101_vial_task/hdri/          # required for --domain_rand (23 .exr + yaw_mapping.yaml)
+└── sync_so101_vial_assets.sh
 ```
 
 ## Git LFS setup (once per machine)
@@ -39,8 +42,9 @@ git lfs pull
 No local workshop clone needed:
 
 ```bash
-./assets/lerobot/sync_so101_vial_assets.sh
-git add assets/lerobot/so101_vial_task/
+./assets/lerobot/sync_so101_vial_assets.sh          # vial props + tray + textures
+./assets/lerobot/sync_so101_vial_assets.sh --full   # + arm_camera.usd + full HDRI (for --domain_rand)
+git add assets/lerobot/
 ```
 
 Source: [isaac-sim/Sim-to-Real-SO-101-Workshop](https://github.com/isaac-sim/Sim-to-Real-SO-101-Workshop) (Apache-2.0).

@@ -1,0 +1,22 @@
+# Isaac Sim SO101 follower + physical SO101 Leader teleop.
+# Values are stored in leader raw space (-100..100 arm, 0..100 gripper) for sim-to-real.
+robot_id: so101_follower_sim_v1
+repo_id: humanoid/local_so101_sim
+fps: 30
+state_unit: so101_leader_raw
+
+joint_names:
+  - shoulder_pan
+  - shoulder_lift
+  - elbow_flex
+  - wrist_flex
+  - wrist_roll
+  - gripper
+
+images: {}
+
+record:
+  root: datasets/record_so101_sim
+  use_videos: true
+  image_writer_threads: 4
+  image_writer_processes: 0

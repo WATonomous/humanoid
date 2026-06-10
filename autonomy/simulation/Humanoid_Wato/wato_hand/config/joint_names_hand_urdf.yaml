@@ -1,0 +1,1 @@
+controller_joint_names: ['', 'circumduction', 'MCP_A_thumb', 'PIP_thumb', 'DIP_thumb', 'MCP_A_1', 'MCP_1', 'PIP_1', 'DIP_1', 'MCP_A_2', 'MCP_2', 'PIP_2', 'DIP_2', 'MCP_A_3', 'MCP_3', 'PIP_3', 'DIP_3', 'MCP_A_4', 'MCP_4', 'PIP_4', 'DIP_4', ]

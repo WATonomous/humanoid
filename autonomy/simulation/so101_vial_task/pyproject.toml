@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "humanoid-so101-vial-task"
+version = "0.1.0"
+description = "Isaac Lab Gym envs for SO101 vial-to-rack sim teleop, eval, and rich LeRobot recording"
+requires-python = ">=3.11"
+dependencies = [
+    "psutil",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["humanoid_so101_vial_task*"]
