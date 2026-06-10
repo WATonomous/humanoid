@@ -20,6 +20,14 @@ bool ring_buffer_read(ring_buffer_t* rb, uint8_t* byte) {
   return true;
 }
 
-bool ring_buffer_write(ring_buffer_t* rb, uint8_t byte) {}
+bool ring_buffer_write(ring_buffer_t* rb, uint8_t byte) {
+  uint32_t next_write_index = (rb->write_index + 1) & (rb->size - 1);
+  if (next_write_index == rb->read_index) {
+    return false;
+  }
+  rb->buf[rb->write_index] = byte;
+  rb->write_index = next_write_index;
+  return true;
+}
 
 bool ring_buffer_empty(ring_buffer_t* rb) {}
