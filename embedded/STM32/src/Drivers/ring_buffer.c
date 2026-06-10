@@ -12,7 +12,10 @@ typedef struct ring_buffer_s
 
 void ring_buffer_init(ring_buffer_t* rb, uint8_t* buf, uint32_t size)
 {
-
+    rb->buf         = buf;
+    rb->size        = size;
+    rb->read_index  = 0U;
+    rb->write_index = 0U;
 
 }
 
@@ -30,5 +33,6 @@ bool ring_buffer_write(ring_buffer_t* rb, uint8_t byte)
 
 bool ring_buffer_empty(ring_buffer_t* rb)
 {
-
+    return (rb->read_index == rb->write_index);
 }
+
