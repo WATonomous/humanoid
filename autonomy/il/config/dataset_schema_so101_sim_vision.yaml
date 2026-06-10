@@ -1,0 +1,29 @@
+# Isaac Sim SO101 + physical leader — vision + domain randomization (workshop parity).
+robot_id: so101_follower_sim_v1
+repo_id: humanoid/local_so101_sim_vision
+fps: 30
+state_unit: so101_leader_raw
+
+joint_names:
+  - shoulder_pan
+  - shoulder_lift
+  - elbow_flex
+  - wrist_flex
+  - wrist_roll
+  - gripper
+
+images:
+  ego:
+    height: 480
+    width: 640
+    enabled: true
+  external_D455:
+    height: 480
+    width: 640
+    enabled: true
+
+record:
+  root: datasets/record_so101_sim_vision
+  use_videos: true
+  image_writer_threads: 4
+  image_writer_processes: 0
