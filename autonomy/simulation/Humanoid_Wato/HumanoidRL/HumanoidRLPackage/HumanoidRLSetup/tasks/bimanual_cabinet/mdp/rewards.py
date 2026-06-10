@@ -136,13 +136,19 @@ def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torc
     ee_tcp_pos, _, lfinger_pos, rfinger_pos = pose
     handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
     
-    # Lower the expected Z window by 2cm as requested
+    # Lower the expected Z window by 2cm
     target_z = handle_pos[..., 2] - 0.02
     dz = torch.abs(target_z - ee_tcp_pos[..., 2])
     
-    # Lenient X/Y distance (<= 8cm)
+    # X/Y distance
     dx_dy = torch.norm(handle_pos[..., :2] - ee_tcp_pos[..., :2], dim=-1, p=2)
-    is_close = ((dz <= 0.02) & (dx_dy <= 0.08)).float()
+    
+    # CONTINUOUS GRADIENTS: Instead of a strict boolean that causes policy collapse, 
+    # we use an exponential curve that guides the hand to the perfect center!
+    # If dz > 5cm (top shelf), it gets exactly 0. Otherwise, it smoothly guides it down.
+    z_score = torch.where(dz <= 0.05, torch.exp(-50.0 * dz), torch.zeros_like(dz))
+    xy_score = torch.where(dx_dy <= 0.15, torch.exp(-20.0 * dx_dy), torch.zeros_like(dx_dy))
+    is_close = z_score * xy_score
     
     # Check if the claw is actually closed!
     # Fully open is ~10cm apart. Fully closed is ~3cm apart. 
@@ -207,9 +213,13 @@ def multi_stage_open_drawer(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -
     target_z = handle_pos[..., 2] - 0.02
     dz = torch.abs(target_z - ee_tcp_pos[..., 2])
     
-    # Lenient X/Y distance (<= 8cm)
+    # X/Y distance
     dx_dy = torch.norm(handle_pos[..., :2] - ee_tcp_pos[..., :2], dim=-1, p=2)
-    is_close = ((dz <= 0.02) & (dx_dy <= 0.08)).float()
+    
+    # Continuous gradient!
+    z_score = torch.where(dz <= 0.05, torch.exp(-50.0 * dz), torch.zeros_like(dz))
+    xy_score = torch.where(dx_dy <= 0.15, torch.exp(-20.0 * dx_dy), torch.zeros_like(dx_dy))
+    is_close = z_score * xy_score
     
     # Claw closed multiplier (10x)
     finger_dist = torch.norm(lfinger_pos - rfinger_pos, dim=-1, p=2)
