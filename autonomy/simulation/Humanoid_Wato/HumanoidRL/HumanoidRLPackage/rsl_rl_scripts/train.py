@@ -103,7 +103,9 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
 
     # specify directory for logging experiments
-    log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
+    # Save directly to trained_models folder in the repo root!
+    repo_root = os.path.abspath(os.path.join(_script_dir, "../../../../../../"))
+    log_root_path = os.path.join(repo_root, "trained_models", agent_cfg.experiment_name)
     log_root_path = os.path.abspath(log_root_path)
     print(f"[INFO] Logging experiment in directory: {log_root_path}")
     # specify directory for logging runs: {time-stamp}_{run_name}
@@ -128,13 +130,18 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     # wrap for video recording
     if args_cli.video:
+        # Create a unique ID
+        unique_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        target_video_dir = os.path.join(_humanoid_rl_dir, "HumanoidRLSetup", "tasks", "bimanual_cabinet", "videos")
+        
         video_kwargs = {
-            "video_folder": os.path.join(log_dir, "videos", "train"),
+            "video_folder": target_video_dir,
+            "name_prefix": f"train_{unique_id}",
             "step_trigger": lambda step: step % args_cli.video_interval == 0,
             "video_length": args_cli.video_length,
             "disable_logger": True,
         }
-        print("[INFO] Recording videos during training.")
+        print(f"[INFO] Recording videos to {target_video_dir} during training.")
         print_dict(video_kwargs, nesting=4)
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
 
