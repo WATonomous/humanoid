@@ -149,8 +149,14 @@ def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torc
     is_too_high = ee_tcp_pos[..., 2] > (target_z + 0.02)
     z_score = torch.where(is_too_high, torch.zeros_like(dz), torch.exp(-50.0 * dz))
     
+    # Wide breadcrumb trail to get the hand generally near the handle
     xy_score = torch.where(dx_dy <= 0.15, torch.exp(-20.0 * dx_dy), torch.zeros_like(dx_dy))
-    is_close = z_score * xy_score
+    
+    # BULLSEYE MULTIPLIER: Gives up to 5x MORE points for pulling from the exact middle!
+    # Creates an ultra-sharp gravitational well directly in the center of the handle.
+    bullseye_multiplier = 1.0 + torch.where(dx_dy <= 0.04, 4.0 * torch.exp(-150.0 * dx_dy), torch.zeros_like(dx_dy))
+    
+    is_close = z_score * xy_score * bullseye_multiplier
     
     # Check if the claw is actually closed!
     # Fully open is ~10cm apart. Fully closed is ~3cm apart. 
@@ -222,8 +228,13 @@ def multi_stage_open_drawer(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -
     is_too_high = ee_tcp_pos[..., 2] > (target_z + 0.02)
     z_score = torch.where(is_too_high, torch.zeros_like(dz), torch.exp(-50.0 * dz))
     
+    # Wide breadcrumb trail
     xy_score = torch.where(dx_dy <= 0.15, torch.exp(-20.0 * dx_dy), torch.zeros_like(dx_dy))
-    is_close = z_score * xy_score
+    
+    # BULLSEYE MULTIPLIER: 5x points for exact middle
+    bullseye_multiplier = 1.0 + torch.where(dx_dy <= 0.04, 4.0 * torch.exp(-150.0 * dx_dy), torch.zeros_like(dx_dy))
+    
+    is_close = z_score * xy_score * bullseye_multiplier
     
     # Claw closed multiplier (10x)
     finger_dist = torch.norm(lfinger_pos - rfinger_pos, dim=-1, p=2)
