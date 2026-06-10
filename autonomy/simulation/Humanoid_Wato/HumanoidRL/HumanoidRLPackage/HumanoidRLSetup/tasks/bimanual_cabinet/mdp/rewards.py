@@ -136,8 +136,8 @@ def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torc
     ee_tcp_pos, _, lfinger_pos, rfinger_pos = pose
     handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
     
-    # Lower the expected Z window by 2cm
-    target_z = handle_pos[..., 2] - 0.02
+    # Use the exact Z-coordinate of the offset point!
+    target_z = handle_pos[..., 2]
     dz = torch.abs(target_z - ee_tcp_pos[..., 2])
     
     # X/Y distance
@@ -209,8 +209,8 @@ def multi_stage_open_drawer(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -
     ee_tcp_pos, _, lfinger_pos, rfinger_pos = pose
     handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
     
-    # Lower the expected Z window by 2cm
-    target_z = handle_pos[..., 2] - 0.02
+    # Use the exact Z-coordinate of the offset point!
+    target_z = handle_pos[..., 2]
     dz = torch.abs(target_z - ee_tcp_pos[..., 2])
     
     # X/Y distance
