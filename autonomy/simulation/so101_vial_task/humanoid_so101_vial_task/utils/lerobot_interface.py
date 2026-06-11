@@ -18,6 +18,8 @@ import numpy as np
 import torch
 import uuid
 
+from humanoid_il.so101_sim import SO101_USD_DEG_LIMITS, SO101_LEADER_KEYS
+
 from lerobot.teleoperators.so101_leader import SO101LeaderConfig
 from lerobot.robots.so101_follower import SO101FollowerConfig
 
@@ -42,25 +44,7 @@ from lerobot.utils.visualization_utils import init_rerun, log_rerun_data
 # and inherit from it for each robot type.
 class LeRobotSO101Interface:
 
-    # USD Robot has joint ranges that are not ranging from -100 to 100
-    SO101_USD_MAPPING = {
-        "shoulder_pan": {"joint_min": -110, "joint_max": 110},
-        "shoulder_lift": {"joint_min": -100, "joint_max": 100},
-        "elbow_flex": {"joint_min": -100, "joint_max": 90},
-        "wrist_flex": {"joint_min": -95, "joint_max": 95},
-        "wrist_roll": {"joint_min": -160, "joint_max": 160},
-        "gripper": {"joint_min": -10, "joint_max": 100},
-    }
-
-    # Joint order is the order of the joints in the USD articulation
-    SO101_JOINT_ORDER = [
-        "shoulder_pan.pos",
-        "shoulder_lift.pos",
-        "elbow_flex.pos",
-        "wrist_flex.pos",
-        "wrist_roll.pos",
-        "gripper.pos",
-    ]
+    SO101_JOINT_ORDER = list(SO101_LEADER_KEYS)
 
     def __init__(
         self,
@@ -84,12 +68,12 @@ class LeRobotSO101Interface:
 
         self.joint_names = [joint.split(".")[0] for joint in self.SO101_JOINT_ORDER]
         self.joint_mins = torch.tensor(
-            [self.SO101_USD_MAPPING[name]["joint_min"] for name in self.joint_names],
+            [SO101_USD_DEG_LIMITS[name][0] for name in self.joint_names],
             dtype=torch.float32,
             device=self.device,
         )
         self.joint_maxs = torch.tensor(
-            [self.SO101_USD_MAPPING[name]["joint_max"] for name in self.joint_names],
+            [SO101_USD_DEG_LIMITS[name][1] for name in self.joint_names],
             dtype=torch.float32,
             device=self.device,
         )
