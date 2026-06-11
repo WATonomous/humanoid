@@ -109,11 +109,14 @@ def maybe_apply_domain_rand(scene, args_cli) -> None:
     print("[INFO] Applied full vial-task domain randomization (VialsToRackDR parity).")
 
 
-def capture_record_images(scene, record_session) -> dict | None:
-    if record_session is None or not record_session.image_keys:
+def capture_record_images(scene, cfg: dict | None) -> dict | None:
+    if cfg is None:
         return None
     ensure_il_on_path()
+    from humanoid_il.schema import enabled_images
     from humanoid_il.so101_cameras import capture_rgb_images, schema_image_keys_to_scene
 
-    key_map = schema_image_keys_to_scene(record_session.cfg)
+    if not enabled_images(cfg):
+        return None
+    key_map = schema_image_keys_to_scene(cfg)
     return capture_rgb_images(scene, key_map)
