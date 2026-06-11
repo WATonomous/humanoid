@@ -2,6 +2,7 @@
 __pycache__
 .vscode/
 .DS_Store
+.claude/
 
 watod-config.local.sh
 utils/voxel/spconv
