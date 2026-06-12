@@ -8,7 +8,7 @@
 #   ./assets/lerobot/sync_so101_vial_assets.sh --hdri   # HDRI only
 #   ./assets/lerobot/sync_so101_vial_assets.sh --arm    # so101_arm_camera.usd only
 #
-# After copy, commit through Git LFS (see assets/lerobot/README.md).
+# After copy, commit the downloaded assets normally (see assets/lerobot/README.md).
 
 set -euo pipefail
 
@@ -133,6 +133,4 @@ case "${1:-}" in
 esac
 
 echo "Next:"
-echo "  export PATH=\"\$HOME/.local/bin:\$PATH\"   # if git-lfs installed locally"
-echo "  git lfs install"
 echo "  git add assets/lerobot/"
