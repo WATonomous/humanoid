@@ -19,6 +19,7 @@ keyboard = ["pynput>=1.7"]
 ros = ["opencv-python-headless>=4.8"]
 hdf5 = ["h5py>=3.8"]
 record = ["lerobot>=0.3.0", "pynput>=1.7", "h5py>=3.8"]
+sim = ["torch>=2.0", "tqdm>=4.0", "lerobot>=0.3.0"]
 
 [project.scripts]
 humanoid-record = "humanoid_il.record:main"

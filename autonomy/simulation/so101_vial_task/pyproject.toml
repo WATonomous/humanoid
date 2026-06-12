@@ -9,6 +9,7 @@ description = "Isaac Lab Gym envs for SO101 vial-to-rack sim teleop, eval, and r
 requires-python = ">=3.11"
 dependencies = [
     "psutil",
+    "humanoid-il",
 ]
 
 [tool.setuptools.packages.find]
