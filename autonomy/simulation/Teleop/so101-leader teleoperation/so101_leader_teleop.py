@@ -150,39 +150,45 @@ def _connect_leader(port: str, robot_id: str, recalibrate: bool):
     return leader
 
 
-def _init_record_session():
+def _init_recorder(device: str):
     if not args_cli.record:
-        return None
+        return None, None
+    ensure_il_on_path()
     try:
-        from humanoid_il.frame import joints_to_snapshot
         from humanoid_il.record_utils import resolve_config_path
-        from humanoid_il.schema import load_yaml
-        from humanoid_il.sim_session import create_sim_record_session
+        from humanoid_il.schema import enabled_images, load_yaml
+        from humanoid_il.sim_recorder import SimLeRobotRecorder
     except ImportError as exc:
         raise ImportError(
             "Recording requires humanoid-il. Install with:\n"
-            "  pip install -e autonomy/il[record]"
+            "  pip install -e autonomy/il[sim]"
         ) from exc
 
     schema_path = resolve_config_path(args_cli.schema, anchor=_IL_PKG)
     cfg = load_yaml(schema_path)
-    record_root = (
+    dataset_root = (
         Path(args_cli.dataset_root)
         if args_cli.dataset_root
         else Path((cfg.get("record") or {}).get("root", "datasets/record_so101_sim"))
     )
-
-    session = create_sim_record_session(
-        cfg,
-        record_root=record_root,
-        sink=args_cli.sink,
+    cameras = {
+        name: {"height": spec["height"], "width": spec["width"]}
+        for name, spec in enabled_images(cfg).items()
+    }
+    recorder = SimLeRobotRecorder(
+        task_name=args_cli.task_description,
+        repo_id=str(cfg.get("repo_id", "humanoid/so101_sim")),
+        dataset_root=dataset_root,
+        fps=int(cfg.get("fps", 30)),
+        device=device,
+        joint_names=list(cfg["joint_names"]),
+        cameras=cameras,
         num_episodes=args_cli.num_episodes,
-        task_description=args_cli.task_description,
-        auto_start=False,
     )
-    print(f"[RECORD] Writing to {session.output_dir} (sinks: {args_cli.sink})")
+    recorder.init_dataset()
+    print(f"[RECORD] Writing to {dataset_root}")
     print("[RECORD] Keys: S=start, N=save episode, D=discard, Esc=stop")
-    return session, joints_to_snapshot
+    return recorder, cfg
 
 
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
@@ -196,9 +202,17 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     robot.write_joint_state_to_sim(default_pos, default_vel)
 
     leader = _connect_leader(args_cli.port, args_cli.robot_id, args_cli.recalibrate)
-    record_ctx = _init_record_session()
-    record_session = record_ctx[0] if record_ctx else None
-    joints_to_snapshot = record_ctx[1] if record_ctx else None
+    recorder, record_cfg = _init_recorder(sim.device)
+
+    import time
+    from humanoid_il.episode_keys import EpisodeFlags, EpisodeKeyboard
+
+    flags = EpisodeFlags(start=False)
+    keyboard = EpisodeKeyboard(flags)
+    if recorder is not None:
+        keyboard.start()
+    _last_frame_t = 0.0
+    _frame_period = 1.0 / (record_cfg.get("fps", 30) if record_cfg else 30)
 
     should_reset = False
     last_leader_raw = None
@@ -217,7 +231,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     teleop.add_callback("R", reset_robot)
 
     while simulation_app.is_running():
-        if record_session is not None and record_session.is_complete:
+        if recorder is not None and recorder.is_complete:
             print("[RECORD] Session complete.")
             break
 
@@ -245,32 +259,33 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         target = torch.tensor(target_rad, dtype=torch.float32, device=sim.device).unsqueeze(0)
         robot.set_joint_position_target(target, joint_ids=joint_ids)
 
-        if record_session is not None:
-            record_session.check_timed_episode()
-            if record_session.flags.success:
-                if record_session.save_episode_if_ready():
-                    if not record_session.is_complete:
-                        maybe_apply_domain_rand(scene, args_cli)
-                        record_session.begin_episode()
-            if record_session.should_record_frame():
-                measured = robot.data.joint_pos[0, joint_ids].detach().cpu().numpy()
-                state_raw = sim_rad_to_leader_raw(measured)
-                images = capture_record_images(scene, record_session)
-                try:
-                    record_session.ingest_snapshot(
-                        joints_to_snapshot(state_raw, leader_raw.copy(), images=images)
-                    )
-                except ValueError as exc:
-                    print(f"[RECORD] Skipped frame: {exc}")
+        if recorder is not None:
+            if flags.remove:
+                recorder.cancel_recording()
+                flags.remove = False
+            if flags.success:
+                recorder.save_episode()
+                flags.success = False
+                flags.start = False
+                if not recorder.is_complete:
+                    maybe_apply_domain_rand(scene, args_cli)
+            if flags.start:
+                now = time.monotonic()
+                if now - _last_frame_t >= _frame_period:
+                    _last_frame_t = now
+                    measured = robot.data.joint_pos[0, joint_ids].detach().cpu().numpy()
+                    state_raw = sim_rad_to_leader_raw(measured)
+                    images = capture_record_images(scene, record_cfg) or {}
+                    recorder.push_frame_to_buffer(leader_raw.copy(), state_raw, images)
 
         scene.write_data_to_sim()
         sim.step()
         scene.update(sim_dt)
 
-    if record_session is not None:
-        record_session.finalize()
-        record_session.cleanup()
-        print(f"[RECORD] Saved under {record_session.output_dir}")
+    if recorder is not None:
+        keyboard.stop()
+        recorder.finalize()
+        print(f"[RECORD] Saved under {recorder.dataset_root}")
 
     try:
         leader.disconnect()

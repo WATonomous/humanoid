@@ -146,50 +146,63 @@ def _tip_ik_jacobian(robot, jacobian_w, wrist_pos_b, tip_pos_b):
     return jacobian_b
 
 
-def _init_record_session():
+def _init_recorder(device: str):
     if not args_cli.record:
-        return None
+        return None, None
     if str(_IL_PKG) not in sys.path:
         sys.path.insert(0, str(_IL_PKG))
     try:
-        import numpy as np
-        from humanoid_il.frame import joints_to_snapshot
         from humanoid_il.record_utils import resolve_config_path
-        from humanoid_il.schema import load_yaml
-        from humanoid_il.sim_session import create_sim_record_session
+        from humanoid_il.schema import enabled_images, load_yaml
+        from humanoid_il.sim_recorder import SimLeRobotRecorder
     except ImportError as exc:
         raise ImportError(
             "Recording requires humanoid-il. Install with:\n"
-            "  pip install -e autonomy/il[record]"
+            "  pip install -e autonomy/il[sim]"
         ) from exc
 
     schema_path = resolve_config_path(args_cli.schema, anchor=_IL_PKG)
     cfg = load_yaml(schema_path)
-    if args_cli.dataset_root:
-        record_root = Path(args_cli.dataset_root)
-    else:
-        record_root = Path((cfg.get("record") or {}).get("root", "datasets/record_sim"))
-
-    session = create_sim_record_session(
-        cfg,
-        record_root=record_root,
-        sink=args_cli.sink,
-        num_episodes=args_cli.num_episodes,
-        task_description=args_cli.task_description,
-        auto_start=False,
+    dataset_root = (
+        Path(args_cli.dataset_root)
+        if args_cli.dataset_root
+        else Path((cfg.get("record") or {}).get("root", "datasets/record_sim"))
     )
-    print(f"[RECORD] Writing to {session.output_dir} (sinks: {args_cli.sink})")
+    cameras = {
+        name: {"height": spec["height"], "width": spec["width"]}
+        for name, spec in enabled_images(cfg).items()
+    }
+    recorder = SimLeRobotRecorder(
+        task_name=args_cli.task_description,
+        repo_id=str(cfg.get("repo_id", "humanoid/sim")),
+        dataset_root=dataset_root,
+        fps=int(cfg.get("fps", 30)),
+        device=device,
+        joint_names=list(cfg["joint_names"]),
+        cameras=cameras,
+        num_episodes=args_cli.num_episodes,
+    )
+    recorder.init_dataset()
+    print(f"[RECORD] Writing to {dataset_root}")
     print("[RECORD] Keys: S=start, N=save episode, D=discard, Esc=stop")
-    return session, joints_to_snapshot, np
+    return recorder, cfg
 
 
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     robot = scene["robot"]
     sim_dt = sim.get_physics_dt()
-    record_ctx = _init_record_session()
-    record_session = record_ctx[0] if record_ctx else None
-    joints_to_snapshot = record_ctx[1] if record_ctx else None
-    np = record_ctx[2] if record_ctx else None
+    recorder, record_cfg = _init_recorder(sim.device)
+
+    import time
+    import numpy as np
+    from humanoid_il.episode_keys import EpisodeFlags, EpisodeKeyboard
+
+    flags = EpisodeFlags(start=False)
+    keyboard = EpisodeKeyboard(flags)
+    if recorder is not None:
+        keyboard.start()
+    _last_frame_t = 0.0
+    _frame_period = 1.0 / (record_cfg.get("fps", 30) if record_cfg else 30)
 
     # Ensure robot buffers are populated before reading limits / joint names
     scene.update(sim_dt)
@@ -247,7 +260,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     debug_steps = 0
     while simulation_app.is_running():
-        if record_session is not None and record_session.is_complete:
+        if recorder is not None and recorder.is_complete:
             print("[RECORD] Session complete.")
             break
 
@@ -292,19 +305,21 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         joint_pos_des = diff_ik_controller.compute(tip_pos_b, tip_quat_b, jacobian, joint_pos)
         robot.set_joint_position_target(joint_pos_des, joint_ids=left_arm_ids)
 
-        if record_session is not None:
-            record_session.check_timed_episode()
-            if record_session.flags.success:
-                if record_session.save_episode_if_ready():
-                    if not record_session.is_complete:
-                        record_session.begin_episode()
-            if record_session.should_record_frame():
-                state = joint_pos[0].detach().cpu().numpy().astype(np.float32)
-                action = joint_pos_des[0].detach().cpu().numpy().astype(np.float32)
-                try:
-                    record_session.ingest_snapshot(joints_to_snapshot(state, action))
-                except ValueError as exc:
-                    print(f"[RECORD] Skipped frame: {exc}")
+        if recorder is not None:
+            if flags.remove:
+                recorder.cancel_recording()
+                flags.remove = False
+            if flags.success:
+                recorder.save_episode()
+                flags.success = False
+                flags.start = False
+            if flags.start:
+                now = time.monotonic()
+                if now - _last_frame_t >= _frame_period:
+                    _last_frame_t = now
+                    state = joint_pos[0].detach().cpu().numpy().astype(np.float32)
+                    action = joint_pos_des[0].detach().cpu().numpy().astype(np.float32)
+                    recorder.push_frame_to_buffer(action, state, {})
 
         # Hold gripper fingers at synchronized open/closed pair (one GL40 motor on hardware).
         # High stiffness in cfg + zero velocity target prevents bounce when the arm moves.
@@ -324,10 +339,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         sim.step()
         scene.update(sim_dt)
 
-    if record_session is not None:
-        record_session.finalize()
-        record_session.cleanup()
-        print(f"[RECORD] Saved under {record_session.output_dir}")
+    if recorder is not None:
+        keyboard.stop()
+        recorder.finalize()
+        print(f"[RECORD] Saved under {recorder.dataset_root}")
 
 
 def main():
