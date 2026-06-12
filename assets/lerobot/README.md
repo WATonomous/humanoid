@@ -1,10 +1,14 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 # LeRobot simulation assets
 =======
 # LeRobot simulation assets (Git LFS)
 
 Large binaries under this tree use **Git LFS** (see repo root `.gitattributes`).
 >>>>>>> 476bbbcc (Add SO101 vial-task assets under Git LFS.)
+=======
+# LeRobot simulation assets
+>>>>>>> 43e7a4c2 (fix lfs issue)
 
 ## Layout
 
@@ -43,6 +47,7 @@ assets/lerobot/
 └── sync_so101_vial_assets.sh
 ```
 
+<<<<<<< HEAD
 ## Git LFS setup (once per machine)
 
 ```bash
@@ -61,6 +66,8 @@ git lfs pull
 >>>>>>> 476bbbcc (Add SO101 vial-task assets under Git LFS.)
 ```
 
+=======
+>>>>>>> 43e7a4c2 (fix lfs issue)
 ## Refresh vial-task props from NVIDIA workshop
 
 No local workshop clone needed:
@@ -85,6 +92,7 @@ git add assets/lerobot/
 Source: [isaac-sim/Sim-to-Real-SO-101-Workshop](https://github.com/isaac-sim/Sim-to-Real-SO-101-Workshop) (Apache-2.0).
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 Used by:
 - `simulation_isaac` watod Docker — [`docker/simulation/isaac_lab/QUICKSTART.md`](../../docker/simulation/isaac_lab/QUICKSTART.md)
 - `autonomy/simulation/so101_vial_task/`
@@ -102,5 +110,7 @@ git add assets/lerobot/so101/so101_follower_good.usd
 git lfs ls-files
 ```
 
+=======
+>>>>>>> 43e7a4c2 (fix lfs issue)
 Used by `autonomy/simulation/Teleop/so101-leader teleoperation/`.
 >>>>>>> 476bbbcc (Add SO101 vial-task assets under Git LFS.)

@@ -19,8 +19,12 @@
 =======
 >>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)
 #
+<<<<<<< HEAD
 # After copy, commit through Git LFS (see assets/lerobot/README.md).
 >>>>>>> 476bbbcc (Add SO101 vial-task assets under Git LFS.)
+=======
+# After copy, commit the downloaded assets normally (see assets/lerobot/README.md).
+>>>>>>> 43e7a4c2 (fix lfs issue)
 
 set -euo pipefail
 
@@ -245,11 +249,14 @@ case "${1:-}" in
 esac
 
 echo "Next:"
+<<<<<<< HEAD
 echo "  export PATH=\"\$HOME/.local/bin:\$PATH\"   # if git-lfs installed locally"
 echo "  git lfs install"
 <<<<<<< HEAD
 echo "  git add assets/lerobot/so101_vial_task/"
 >>>>>>> 476bbbcc (Add SO101 vial-task assets under Git LFS.)
 =======
+=======
+>>>>>>> 43e7a4c2 (fix lfs issue)
 echo "  git add assets/lerobot/"
 >>>>>>> ce24efc2 (add-to-IL-pipeline-and-add-16dof-hand)

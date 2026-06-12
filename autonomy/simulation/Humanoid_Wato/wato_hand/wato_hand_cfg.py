@@ -1,4 +1,18 @@
+<<<<<<< HEAD
 """20-DOF Wato hand articulation config."""
+=======
+"""
+20-DOF Wato hand articulation config.
+
+Robot model: Humanoid_Wato/wato_hand (hand_urdf.usd / hand_urdf.urdf)
+Joint limits: Isaac Sim Physics Inspector (/World/hand_urdf/hand_origin)
+Finger splay (MCP_A_1..4): ±8.594 deg (±0.15 rad) per joint.
+
+    import sys, os
+    sys.path.insert(0, os.path.join(<repo>, "autonomy/simulation/Humanoid_Wato/wato_hand"))
+    from wato_hand_cfg import WATO_HAND_CFG, JOINT_POS_LIMITS, apply_joint_limits
+"""
+>>>>>>> 43e7a4c2 (fix lfs issue)
 import math
 import os
 
