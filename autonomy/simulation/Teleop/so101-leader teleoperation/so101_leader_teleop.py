@@ -204,15 +204,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     leader = _connect_leader(args_cli.port, args_cli.robot_id, args_cli.recalibrate)
     recorder, record_cfg = _init_recorder(sim.device)
 
-    import time
-    from humanoid_il.episode_keys import EpisodeFlags, EpisodeKeyboard
-
-    flags = EpisodeFlags(start=False)
-    keyboard = EpisodeKeyboard(flags)
     if recorder is not None:
-        keyboard.start()
-    _last_frame_t = 0.0
-    _frame_period = 1.0 / (record_cfg.get("fps", 30) if record_cfg else 30)
+        recorder.start_keyboard()
 
     should_reset = False
     last_leader_raw = None
@@ -260,30 +253,17 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         robot.set_joint_position_target(target, joint_ids=joint_ids)
 
         if recorder is not None:
-            if flags.remove:
-                recorder.cancel_recording()
-                flags.remove = False
-            if flags.success:
-                recorder.save_episode()
-                flags.success = False
-                flags.start = False
-                if not recorder.is_complete:
-                    maybe_apply_domain_rand(scene, args_cli)
-            if flags.start:
-                now = time.monotonic()
-                if now - _last_frame_t >= _frame_period:
-                    _last_frame_t = now
-                    measured = robot.data.joint_pos[0, joint_ids].detach().cpu().numpy()
-                    state_raw = sim_rad_to_leader_raw(measured)
-                    images = capture_record_images(scene, record_cfg) or {}
-                    recorder.push_frame_to_buffer(leader_raw.copy(), state_raw, images)
+            measured = robot.data.joint_pos[0, joint_ids].detach().cpu().numpy()
+            state_raw = sim_rad_to_leader_raw(measured)
+            images = capture_record_images(scene, record_cfg) or {}
+            if recorder.tick(leader_raw.copy(), state_raw, images) and not recorder.is_complete:
+                maybe_apply_domain_rand(scene, args_cli)
 
         scene.write_data_to_sim()
         sim.step()
         scene.update(sim_dt)
 
     if recorder is not None:
-        keyboard.stop()
         recorder.finalize()
         print(f"[RECORD] Saved under {recorder.dataset_root}")
 
