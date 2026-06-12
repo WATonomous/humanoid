@@ -4,12 +4,15 @@ from __future__ import annotations
 import queue
 import subprocess
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import torch
 from tqdm import tqdm
+
+from humanoid_il.episode_keys import EpisodeFlags, EpisodeKeyboard
 
 
 class SimLeRobotRecorder:
@@ -75,6 +78,48 @@ class SimLeRobotRecorder:
             target=self._async_processor, daemon=True
         )
         self._processor_thread.start()
+
+        self._flags: EpisodeFlags | None = None
+        self._keyboard: EpisodeKeyboard | None = None
+        self._last_frame_t: float = 0.0
+        self._frame_period: float = 1.0 / fps
+
+    def start_keyboard(self) -> bool:
+        """Create episode flags, attach keyboard listener, and return whether keyboard started."""
+        self._flags = EpisodeFlags(start=False)
+        self._keyboard = EpisodeKeyboard(self._flags)
+        return self._keyboard.start()
+
+    def tick(
+        self,
+        action: np.ndarray | torch.Tensor,
+        state: np.ndarray | torch.Tensor,
+        images: dict[str, np.ndarray | torch.Tensor],
+        depth_buffers: dict[str, np.ndarray | torch.Tensor] | None = None,
+        instance_id_seg_buffers: dict[str, np.ndarray | torch.Tensor] | None = None,
+    ) -> bool:
+        """Handle episode flags and push one frame if the rate allows.
+
+        Returns True if an episode was just saved (so callers can trigger a scene reset).
+        No-op if start_keyboard() was never called.
+        """
+        if self._flags is None:
+            return False
+        flags = self._flags
+        if flags.remove:
+            self.cancel_recording()
+            flags.remove = False
+        if flags.success:
+            self.save_episode()
+            flags.success = False
+            flags.start = False
+            return True
+        if flags.start:
+            now = time.monotonic()
+            if now - self._last_frame_t >= self._frame_period:
+                self._last_frame_t = now
+                self.push_frame_to_buffer(action, state, images, depth_buffers, instance_id_seg_buffers)
+        return False
 
     @property
     def is_complete(self) -> bool:
@@ -288,6 +333,9 @@ class SimLeRobotRecorder:
 
     def finalize(self) -> None:
         """Block until all queued episodes are saved, then stop the worker thread."""
+        if self._keyboard is not None:
+            self._keyboard.stop()
+            self._keyboard = None
         self._episode_queue.join()
         self._stop_event.set()
         self._processor_thread.join(timeout=5.0)

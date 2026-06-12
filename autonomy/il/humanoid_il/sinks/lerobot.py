@@ -13,7 +13,8 @@ from humanoid_il.snapshot import ObservationSnapshot
 class LeRobotSink:
     def __init__(self, cfg: dict[str, Any], *, root: Path) -> None:
         self._image_keys = list(enabled_images(cfg).keys())
-        self._dataset, self._root = create_dataset(cfg, experiment_path=root)
+        self._root = root
+        self._dataset = create_dataset(cfg, root=root)
 
     @property
     def name(self) -> str:
