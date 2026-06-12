@@ -113,15 +113,27 @@ _GRIPPER_EFFORT_LIMIT = 30.0  # N (sim linear-force cap; tune empirically)
 _GRIPPER_VELOCITY_LIMIT = 0.2  # m/s
 
 
+def _joint_limit_key(name: str) -> str | None:
+    """Map a USD/articulation joint name to a JOINT_POS_LIMITS key."""
+    if name in JOINT_POS_LIMITS:
+        return name
+    if len(name) > 1 and name[-1] in ("l", "L"):
+        alt = name[:-1] + ("L" if name[-1] == "l" else "l")
+        if alt in JOINT_POS_LIMITS:
+            return alt
+    return None
+
+
 def apply_joint_limits(robot) -> None:
     """Apply Physics Inspector joint limits to the articulation."""
     limits = robot.data.joint_pos_limits.clone()
     updated = []
 
     for joint_idx, joint_name in enumerate(robot.data.joint_names):
-        if joint_name not in JOINT_POS_LIMITS:
+        limit_key = _joint_limit_key(joint_name)
+        if limit_key is None:
             continue
-        lo, hi = JOINT_POS_LIMITS[joint_name]
+        lo, hi = JOINT_POS_LIMITS[limit_key]
         limits[:, joint_idx, 0] = lo
         limits[:, joint_idx, 1] = hi
         updated.append(joint_name)
@@ -217,8 +229,54 @@ def resolve_joint_name(robot, name: str) -> str:
     raise KeyError(f"Joint '{name}' not found in {names}")
 
 
+def patch_joint_pos_limits_on_prim(prim_path: str) -> None:
+    """Write Physics Inspector limits onto spawned USD joints before articulation init."""
+    import isaacsim.core.utils.stage as stage_utils
+    from pxr import Usd, UsdPhysics
+
+    stage = stage_utils.get_current_stage()
+    root = stage.GetPrimAtPath(prim_path)
+    if not root.IsValid():
+        return
+
+    updated = []
+    for prim in Usd.PrimRange(root):
+        limit_key = _joint_limit_key(prim.GetName())
+        if limit_key is None:
+            continue
+        lo, hi = JOINT_POS_LIMITS[limit_key]
+        if prim.IsA(UsdPhysics.RevoluteJoint):
+            joint = UsdPhysics.RevoluteJoint(prim)
+            # USD RevoluteJoint limits are in degrees; JOINT_POS_LIMITS uses radians.
+            lo, hi = math.degrees(lo), math.degrees(hi)
+        elif prim.IsA(UsdPhysics.PrismaticJoint):
+            joint = UsdPhysics.PrismaticJoint(prim)
+        else:
+            continue
+        joint.GetLowerLimitAttr().Set(lo)
+        joint.GetUpperLimitAttr().Set(hi)
+        updated.append(prim.GetName())
+
+    if updated:
+        print(f"[INFO] Patched USD joint limits for {len(updated)} joints under {prim_path}.")
+
+
+def _spawn_bimanual_arm_from_usd(prim_path, cfg, translation=None, orientation=None):
+    from isaaclab.sim.spawners.from_files.from_files import _spawn_from_usd_file
+
+    prim = _spawn_from_usd_file(prim_path, cfg.usd_path, cfg, translation, orientation)
+    patch_joint_pos_limits_on_prim(prim_path)
+    return prim
+
+
+from isaaclab.sim.utils import clone  # noqa: E402
+
+spawn_bimanual_arm_from_usd = clone(_spawn_bimanual_arm_from_usd)
+
+
 BIMANUAL_ARM_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
+        func=spawn_bimanual_arm_from_usd,
         usd_path=_ARM_USD_PATH,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
