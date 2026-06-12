@@ -7,8 +7,6 @@ from typing import Any
 
 import yaml
 
-from humanoid_il.record_utils import get_next_experiment_path_with_gap
-
 
 def load_yaml(path: Path) -> dict[str, Any]:
     with path.open(encoding="utf-8") as f:
@@ -58,13 +56,8 @@ def build_features(cfg: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return features
 
 
-def create_dataset(
-    cfg: dict[str, Any],
-    *,
-    record_root: Path | None = None,
-    experiment_path: Path | None = None,
-):
-    """Create a new LeRobotDataset on disk."""
+def create_dataset(cfg: dict[str, Any], *, root: Path):
+    """Create a new LeRobotDataset on disk under the given root."""
     try:
         from lerobot.datasets.lerobot_dataset import LeRobotDataset
     except ImportError as exc:
@@ -73,15 +66,9 @@ def create_dataset(
             "pip install -e 'autonomy/il[lerobot]'"
         ) from exc
 
+    root.mkdir(parents=True, exist_ok=True)
     record_cfg = cfg.get("record") or {}
-    if experiment_path is not None:
-        root = experiment_path
-        root.mkdir(parents=True, exist_ok=True)
-    else:
-        root_base = Path(record_root or record_cfg.get("root", "datasets/record"))
-        root = get_next_experiment_path_with_gap(root_base)
-
-    dataset = LeRobotDataset.create(
+    return LeRobotDataset.create(
         repo_id=str(cfg.get("repo_id", "humanoid/local")),
         fps=int(cfg.get("fps", 30)),
         root=root,
@@ -90,4 +77,3 @@ def create_dataset(
         image_writer_processes=int(record_cfg.get("image_writer_processes", 0)),
         features=build_features(cfg),
     )
-    return dataset, root

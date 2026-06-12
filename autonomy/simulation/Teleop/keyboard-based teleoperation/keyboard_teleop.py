@@ -193,16 +193,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     sim_dt = sim.get_physics_dt()
     recorder, record_cfg = _init_recorder(sim.device)
 
-    import time
     import numpy as np
-    from humanoid_il.episode_keys import EpisodeFlags, EpisodeKeyboard
 
-    flags = EpisodeFlags(start=False)
-    keyboard = EpisodeKeyboard(flags)
     if recorder is not None:
-        keyboard.start()
-    _last_frame_t = 0.0
-    _frame_period = 1.0 / (record_cfg.get("fps", 30) if record_cfg else 30)
+        recorder.start_keyboard()
 
     # Ensure robot buffers are populated before reading limits / joint names
     scene.update(sim_dt)
@@ -306,20 +300,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         robot.set_joint_position_target(joint_pos_des, joint_ids=left_arm_ids)
 
         if recorder is not None:
-            if flags.remove:
-                recorder.cancel_recording()
-                flags.remove = False
-            if flags.success:
-                recorder.save_episode()
-                flags.success = False
-                flags.start = False
-            if flags.start:
-                now = time.monotonic()
-                if now - _last_frame_t >= _frame_period:
-                    _last_frame_t = now
-                    state = joint_pos[0].detach().cpu().numpy().astype(np.float32)
-                    action = joint_pos_des[0].detach().cpu().numpy().astype(np.float32)
-                    recorder.push_frame_to_buffer(action, state, {})
+            state = joint_pos[0].detach().cpu().numpy().astype(np.float32)
+            action = joint_pos_des[0].detach().cpu().numpy().astype(np.float32)
+            recorder.tick(action, state, {})
 
         # Hold gripper fingers at synchronized open/closed pair (one GL40 motor on hardware).
         # High stiffness in cfg + zero velocity target prevents bounce when the arm moves.
@@ -340,7 +323,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         scene.update(sim_dt)
 
     if recorder is not None:
-        keyboard.stop()
         recorder.finalize()
         print(f"[RECORD] Saved under {recorder.dataset_root}")
 

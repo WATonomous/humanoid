@@ -215,15 +215,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     recorder, record_cfg = _init_recorder(sim.device)
 
-    import time
-    from humanoid_il.episode_keys import EpisodeFlags, EpisodeKeyboard
-
-    flags = EpisodeFlags(start=False)
-    keyboard = EpisodeKeyboard(flags)
     if recorder is not None:
-        keyboard.start()
-    _last_frame_t = 0.0
-    _frame_period = 1.0 / (record_cfg.get("fps", 30) if record_cfg else 30)
+        recorder.start_keyboard()
 
     gripper_open = torch.tensor([[GRIPPER_OPEN]], device=sim.device)
     gripper_closed = torch.tensor([[GRIPPER_CLOSED]], device=sim.device)
@@ -275,34 +268,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         robot.set_joint_position_target(gripper_target, joint_ids=[gripper_joint_id])
 
         if recorder is not None:
-            if flags.remove:
-                recorder.cancel_recording()
-                flags.remove = False
-            if flags.success:
-                recorder.save_episode()
-                flags.success = False
-                flags.start = False
-                if not recorder.is_complete:
-                    maybe_apply_domain_rand(scene, args_cli)
-            if flags.start:
-                now = time.monotonic()
-                if now - _last_frame_t >= _frame_period:
-                    _last_frame_t = now
-                    state_rad = robot.data.joint_pos[0, all_joint_ids].detach().cpu().numpy()
-                    action_rad = torch.cat(
-                        [arm_joint_des[0], gripper_target[0]], dim=0
-                    ).detach().cpu().numpy()
-                    state_raw = sim_rad_to_leader_raw(state_rad)
-                    action_raw = sim_rad_to_leader_raw(action_rad)
-                    images = capture_record_images(scene, record_cfg) or {}
-                    recorder.push_frame_to_buffer(action_raw, state_raw, images)
+            state_rad = robot.data.joint_pos[0, all_joint_ids].detach().cpu().numpy()
+            action_rad = torch.cat([arm_joint_des[0], gripper_target[0]], dim=0).detach().cpu().numpy()
+            state_raw = sim_rad_to_leader_raw(state_rad)
+            action_raw = sim_rad_to_leader_raw(action_rad)
+            images = capture_record_images(scene, record_cfg) or {}
+            if recorder.tick(action_raw, state_raw, images) and not recorder.is_complete:
+                maybe_apply_domain_rand(scene, args_cli)
 
         scene.write_data_to_sim()
         sim.step()
         scene.update(sim_dt)
 
     if recorder is not None:
-        keyboard.stop()
         recorder.finalize()
         print(f"[RECORD] Saved under {recorder.dataset_root}")
 
