@@ -1,12 +1,9 @@
 """
-16-DOF Wato hand articulation config.
+20-DOF Wato hand articulation config.
 
 Robot model: Humanoid_Wato/wato_hand (hand_urdf.usd / hand_urdf.urdf)
 Joint limits: Isaac Sim Physics Inspector (/World/hand_urdf/hand_origin)
-
-The URDF exposes 20 revolute joints (4 finger abduction + 16 actuated DOF).
-ACTUATED_JOINT_NAMES lists the 16 controlled DOF; MCP_A_* abduction joints are
-included in JOINT_POS_LIMITS for sim limit enforcement but are typically passive.
+Finger splay (MCP_A_1..4): ±8.594 deg (±0.15 rad) per joint.
 
 Import example (dextrah, teleop, etc.)::
 
@@ -95,25 +92,8 @@ ALL_JOINT_NAMES = [
     "DIP_4",
 ]
 
-# 16 actuated DOF (excludes passive MCP_A finger abduction joints).
-ACTUATED_JOINT_NAMES = [
-    "circumduction",
-    "MCP_A_thumb",
-    "PIP_thumb",
-    "DIP_thumb",
-    "MCP_1",
-    "PIP_1",
-    "DIP_1",
-    "MCP_2",
-    "PIP_2",
-    "DIP_2",
-    "MCP_3",
-    "PIP_3",
-    "DIP_3",
-    "MCP_4",
-    "PIP_4",
-    "DIP_4",
-]
+# All 20 revolute DOF (matches config/joint_names_hand_urdf.yaml).
+ACTUATED_JOINT_NAMES = list(ALL_JOINT_NAMES)
 
 _DEFAULT_JOINT_POS = {name: 0.0 for name in ALL_JOINT_NAMES}
 
@@ -173,8 +153,8 @@ WATO_HAND_CFG = ArticulationCfg(
         ),
         "finger_abduction": ImplicitActuatorCfg(
             joint_names_expr=["MCP_A_1", "MCP_A_2", "MCP_A_3", "MCP_A_4"],
-            stiffness=10.0,
-            damping=0.8,
+            stiffness=50.0,
+            damping=2.0,
             velocity_limit_sim=3.0,
         ),
         "finger_mcp": ImplicitActuatorCfg(
