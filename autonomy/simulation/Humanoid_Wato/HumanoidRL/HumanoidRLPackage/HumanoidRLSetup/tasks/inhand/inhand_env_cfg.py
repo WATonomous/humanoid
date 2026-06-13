@@ -59,27 +59,21 @@ class InHandObjectSceneCfg(InteractiveSceneCfg):
 
 @configclass
 class CommandsCfg:
-    """Command specifications for the MDP."""
-
     object_pose = mdp.InHandReOrientationCommandCfg()
 
 
 @configclass
 class ActionsCfg:
-    """Action specifications for the MDP."""
-
     joint_pos = mdp.EMAJointPositionToLimitsActionCfg(
         asset_name="robot",
         joint_names=[".*"],
-        alpha=0.95,
+        alpha=0.85,
         rescale_to_limits=True,
     )
 
 
 @configclass
 class ObservationsCfg:
-    """Observation specifications for the MDP."""
-
     @configclass
     class KinematicObsGroupCfg(ObsGroup):
         """Observations with full-kinematic state information.
@@ -146,10 +140,6 @@ class ObservationsCfg:
 
 @configclass
 class EventCfg:
-    """Configuration for randomization."""
-
-    # startup
-    # -- robot
     robot_physics_material = EventTerm(
         func=mdp.randomize_rigid_body_material,
         mode="startup",
@@ -228,9 +218,6 @@ class EventCfg:
 
 @configclass
 class RewardsCfg:
-    """Reward terms for the MDP."""
-
-    # -- task
     track_pos_l2 = RewTerm(
         func=mdp.track_pos_l2,
         weight=-3.0,
@@ -238,7 +225,7 @@ class RewardsCfg:
     )
     track_orientation_inv_l2 = RewTerm(
         func=mdp.track_orientation_inv_l2,
-        weight=5.0,
+        weight=10.0,
         params={"object_cfg": SceneEntityCfg("object"), "rot_eps": 0.1, "command_name": "object_pose"},
     )
     success_bonus = RewTerm(
@@ -248,25 +235,24 @@ class RewardsCfg:
     )
 
     # -- penalties
-    joint_vel_l2 = RewTerm(func=mdp.joint_vel_l2, weight=-2.5e-5)
+    joint_vel_l2 = RewTerm(func=mdp.joint_vel_l2, weight=-1e-4)
     action_l2 = RewTerm(func=mdp.action_l2, weight=-0.0001)
-    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.01)
+    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.05)
 
     # Dense per-step bonus: +1 per step the cube stays within 0.10 m of the goal position.
     # At weight=2.0 this is worth ~+120/episode when held vs 0 when dropped, giving a far
     # stronger holding gradient than the continuous L2 penalty alone.
     object_held_bonus = RewTerm(
         func=mdp.object_held_bonus,
-        weight=2.0,
+        weight=0.5,
         params={"object_cfg": SceneEntityCfg("object"), "command_name": "object_pose", "hold_threshold": 0.10},
     )
 
-    # Rotation reward disabled — re-enable once alpha=0.5 is verified to allow cube rotation.
-    # object_ang_vel_toward_goal = RewTerm(
-    #     func=mdp.object_ang_vel_toward_goal,
-    #     weight=0.5,
-    #     params={"object_cfg": SceneEntityCfg("object"), "command_name": "object_pose"},
-    # )
+    object_ang_vel_toward_goal = RewTerm(
+        func=mdp.object_ang_vel_toward_goal,
+        weight=0.2,
+        params={"object_cfg": SceneEntityCfg("object"), "command_name": "object_pose"},
+    )
 
     # Penalty for dropping the object — critical for early training.
     object_away_penalty = RewTerm(
@@ -278,8 +264,6 @@ class RewardsCfg:
 
 @configclass
 class TerminationsCfg:
-    """Termination terms for the MDP."""
-
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
 
     max_consecutive_success = DoneTerm(
