@@ -1,10 +1,3 @@
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
-# All rights reserved.
-#
-# SPDX-License-Identifier: BSD-3-Clause
-
-"""Functions specific to the in-hand dexterous manipulation environments."""
-
 import torch
 from typing import TYPE_CHECKING
 
@@ -86,13 +79,11 @@ def track_orientation_inv_l2(
         object_cfg: The configuration for the scene entity. Default is "object".
         rot_eps: The threshold for the orientation error. Default is 1e-3.
     """
-    # extract useful elements
     asset: RigidObject = env.scene[object_cfg.name]
     command_term: InHandReOrientationCommand = env.command_manager.get_term(command_name)
 
     # obtain the goal orientation
     goal_quat_w = command_term.command[:, 3:7]
-    # calculate the orientation error
     dtheta = math_utils.quat_error_magnitude(asset.data.root_quat_w, goal_quat_w)
 
     return 1.0 / (dtheta + rot_eps)
