@@ -15,6 +15,12 @@ from isaaclab.assets import Articulation
 from isaaclab.managers import EventTermCfg, ManagerTermBase, SceneEntityCfg
 from isaaclab.utils.math import sample_uniform
 
+import sys, os as _os
+_WATO_HAND_DIR = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "../../../../../../wato_hand"))
+if _WATO_HAND_DIR not in sys.path:
+    sys.path.insert(0, _WATO_HAND_DIR)
+from wato_hand_cfg import apply_joint_limits as _apply_joint_limits  # noqa: E402
+
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
 
@@ -182,3 +188,17 @@ class reset_joints_within_limits_range(ManagerTermBase):
 
         # set into the physics simulation
         self._asset.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids)
+
+
+def apply_wato_hand_joint_limits(
+    env: "ManagerBasedEnv",
+    env_ids: torch.Tensor,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> None:
+    """Push expanded JOINT_POS_LIMITS from wato_hand_cfg into PhysX at startup.
+
+    The USD has the original hardware limits baked in (±8.6 deg for MCP_A).
+    This overwrites them so the RL policy can explore a larger abduction range.
+    """
+    robot: Articulation = env.scene[asset_cfg.name]
+    _apply_joint_limits(robot)

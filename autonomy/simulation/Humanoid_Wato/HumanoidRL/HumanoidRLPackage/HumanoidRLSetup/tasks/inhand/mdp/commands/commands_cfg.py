@@ -3,8 +3,6 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-from dataclasses import MISSING
-
 import isaaclab.sim as sim_utils
 from isaaclab.managers import CommandTermCfg
 from isaaclab.markers import VisualizationMarkersCfg
@@ -24,36 +22,32 @@ class InHandReOrientationCommandCfg(CommandTermCfg):
     class_type: type = InHandReOrientationCommand
     resampling_time_range: tuple[float, float] = (1e6, 1e6)  # no resampling based on time
 
-    asset_name: str = MISSING
-    """Name of the asset in the environment for which the commands are generated."""
+    asset_name: str = "object"
+    """Scene asset that receives orientation goals (the manipuland rigid body)."""
 
-    init_pos_offset: tuple[float, float, float] = (0.0, 0.0, 0.0)
-    """Position offset of the asset from its default position.
+    init_pos_offset: tuple[float, float, float] = (0.0, 0.0, -0.04)
+    """Offset added to the object's default spawn position to form the goal position command.
 
-    This is used to account for the offset typically present in the object's default position
-    so that the object is spawned at a height above the robot's palm. When the position command
-    is generated, the object's default position is used as the reference and the offset specified
-    is added to it to get the desired position of the object.
+    Does not move the physical cube at reset — only shifts the position target used by
+    ``track_pos_l2`` and the goal-marker anchor (before ``marker_pos_offset``).
     """
 
-    make_quat_unique: bool = MISSING
-    """Whether to make the quaternion unique or not.
+    make_quat_unique: bool = False
+    """Whether sampled goal quaternions are forced to have a positive real part."""
 
-    If True, the quaternion is made unique by ensuring the real part is positive.
-    """
+    orientation_success_threshold: float = 0.4
+    """Orientation error (rad) below which the goal counts as reached."""
 
-    orientation_success_threshold: float = MISSING
-    """Threshold for the orientation error to consider the goal orientation to be reached."""
+    update_goal_on_success: bool = True
+    """Resample goal orientation when the current goal is reached."""
 
-    update_goal_on_success: bool = MISSING
-    """Whether to update the goal orientation when the goal orientation is reached."""
+    rotation_axes: list[str] = ["x", "y"]
+    """World axes used when sampling random goal orientations."""
 
-    marker_pos_offset: tuple[float, float, float] = (0.0, 0.0, 0.0)
-    """Position offset of the marker from the object's desired position.
+    marker_pos_offset: tuple[float, float, float] = (-0.2, -0.06, 0.08)
+    """Extra offset for the goal-orientation debug marker only (not the physical cube)."""
 
-    This is useful to position the marker at a height above the object's desired position.
-    Otherwise, the marker may occlude the object in the visualization.
-    """
+    debug_vis: bool = True
 
     goal_pose_visualizer_cfg: VisualizationMarkersCfg = VisualizationMarkersCfg(
         prim_path="/Visuals/Command/goal_marker",
@@ -64,4 +58,4 @@ class InHandReOrientationCommandCfg(CommandTermCfg):
             ),
         },
     )
-    """The configuration for the goal pose visualization marker. Defaults to a DexCube marker."""
+    """Goal-orientation debug marker (DexCube visual only)."""
