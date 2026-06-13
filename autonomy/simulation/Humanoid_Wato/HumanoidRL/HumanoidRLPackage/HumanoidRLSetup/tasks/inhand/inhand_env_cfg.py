@@ -1,8 +1,3 @@
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
-# All rights reserved.
-#
-# SPDX-License-Identifier: BSD-3-Clause
-
 from __future__ import annotations
 
 from dataclasses import MISSING
@@ -23,21 +18,14 @@ from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveGaussianNoiseCfg as Gnoise
 
-import isaaclab_tasks.manager_based.manipulation.inhand.mdp as mdp
+import HumanoidRLPackage.HumanoidRLSetup.tasks.inhand.mdp as mdp
 
-##
-# Scene definition
-##
 
 
 @configclass
 class InHandObjectSceneCfg(InteractiveSceneCfg):
-    """Configuration for a scene with an object and a dexterous hand."""
-
-    # robots
     robot: ArticulationCfg = MISSING
 
-    # objects
     object: RigidObjectCfg = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/object",
         spawn=sim_utils.UsdFileCfg(
@@ -57,7 +45,6 @@ class InHandObjectSceneCfg(InteractiveSceneCfg):
         init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, -0.19, 0.56), rot=(1.0, 0.0, 0.0, 0.0)),
     )
 
-    # lights
     light = AssetBaseCfg(
         prim_path="/World/light",
         spawn=sim_utils.DistantLightCfg(color=(0.95, 0.95, 0.95), intensity=1000.0),
@@ -69,24 +56,12 @@ class InHandObjectSceneCfg(InteractiveSceneCfg):
     )
 
 
-##
-# MDP settings
-##
-
 
 @configclass
 class CommandsCfg:
     """Command specifications for the MDP."""
 
-    object_pose = mdp.InHandReOrientationCommandCfg(
-        asset_name="object",
-        init_pos_offset=(0.0, 0.0, -0.04),
-        update_goal_on_success=True,
-        orientation_success_threshold=0.1,
-        make_quat_unique=False,
-        marker_pos_offset=(-0.2, -0.06, 0.08),
-        debug_vis=True,
-    )
+    object_pose = mdp.InHandReOrientationCommandCfg()
 
 
 @configclass
@@ -179,7 +154,7 @@ class EventCfg:
         func=mdp.randomize_rigid_body_material,
         mode="startup",
         params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
+            "asset_cfg": SceneEntityCfg("robot"),
             "static_friction_range": (0.7, 1.3),
             "dynamic_friction_range": (0.7, 1.3),
             "restitution_range": (0.0, 0.0),
@@ -190,7 +165,7 @@ class EventCfg:
         func=mdp.randomize_rigid_body_mass,
         mode="startup",
         params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
+            "asset_cfg": SceneEntityCfg("robot"),
             "mass_distribution_params": (0.95, 1.05),
             "operation": "scale",
         },
@@ -200,7 +175,7 @@ class EventCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
-            "stiffness_distribution_params": (0.3, 3.0),  # default: 3.0
+            "stiffness_distribution_params": (0.75, 1.5),  # default: 3.0
             "damping_distribution_params": (0.75, 1.5),  # default: 0.1
             "operation": "scale",
             "distribution": "log_uniform",
@@ -212,7 +187,7 @@ class EventCfg:
         func=mdp.randomize_rigid_body_material,
         mode="startup",
         params={
-            "asset_cfg": SceneEntityCfg("object", body_names=".*"),
+            "asset_cfg": SceneEntityCfg("object"),
             "static_friction_range": (0.7, 1.3),
             "dynamic_friction_range": (0.7, 1.3),
             "restitution_range": (0.0, 0.0),
@@ -236,7 +211,7 @@ class EventCfg:
         params={
             "pose_range": {"x": [-0.01, 0.01], "y": [-0.01, 0.01], "z": [-0.01, 0.01]},
             "velocity_range": {},
-            "asset_cfg": SceneEntityCfg("object", body_names=".*"),
+            "asset_cfg": SceneEntityCfg("object"),
         },
     )
     reset_robot_joints = EventTerm(
@@ -256,19 +231,19 @@ class RewardsCfg:
     """Reward terms for the MDP."""
 
     # -- task
-    # track_pos_l2 = RewTerm(
-    #     func=mdp.track_pos_l2,
-    #     weight=-10.0,
-    #     params={"object_cfg": SceneEntityCfg("object"), "command_name": "object_pose"},
-    # )
+    track_pos_l2 = RewTerm(
+        func=mdp.track_pos_l2,
+        weight=-3.0,
+        params={"object_cfg": SceneEntityCfg("object"), "command_name": "object_pose"},
+    )
     track_orientation_inv_l2 = RewTerm(
         func=mdp.track_orientation_inv_l2,
-        weight=1.0,
+        weight=5.0,
         params={"object_cfg": SceneEntityCfg("object"), "rot_eps": 0.1, "command_name": "object_pose"},
     )
     success_bonus = RewTerm(
         func=mdp.success_bonus,
-        weight=250.0,
+        weight=50.0,
         params={"object_cfg": SceneEntityCfg("object"), "command_name": "object_pose"},
     )
 
@@ -277,12 +252,28 @@ class RewardsCfg:
     action_l2 = RewTerm(func=mdp.action_l2, weight=-0.0001)
     action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.01)
 
-    # -- optional penalties (these are disabled by default)
-    # object_away_penalty = RewTerm(
-    #     func=mdp.is_terminated_term,
-    #     weight=-0.0,
-    #     params={"term_keys": "object_out_of_reach"},
+    # Dense per-step bonus: +1 per step the cube stays within 0.10 m of the goal position.
+    # At weight=2.0 this is worth ~+120/episode when held vs 0 when dropped, giving a far
+    # stronger holding gradient than the continuous L2 penalty alone.
+    object_held_bonus = RewTerm(
+        func=mdp.object_held_bonus,
+        weight=2.0,
+        params={"object_cfg": SceneEntityCfg("object"), "command_name": "object_pose", "hold_threshold": 0.10},
+    )
+
+    # Rotation reward disabled — re-enable once alpha=0.5 is verified to allow cube rotation.
+    # object_ang_vel_toward_goal = RewTerm(
+    #     func=mdp.object_ang_vel_toward_goal,
+    #     weight=0.5,
+    #     params={"object_cfg": SceneEntityCfg("object"), "command_name": "object_pose"},
     # )
+
+    # Penalty for dropping the object — critical for early training.
+    object_away_penalty = RewTerm(
+        func=mdp.is_terminated_term,
+        weight=-5.0,
+        params={"term_keys": "object_out_of_reach"},
+    )
 
 
 @configclass
@@ -297,23 +288,23 @@ class TerminationsCfg:
 
     object_out_of_reach = DoneTerm(func=mdp.object_away_from_robot, params={"threshold": 0.3})
 
-    # object_out_of_reach = DoneTerm(
-    #     func=mdp.object_away_from_goal, params={"threshold": 0.24, "command_name": "object_pose"}
-    # )
-
-
-##
-# Environment configuration
-##
+    # End episode when goal orientation is not reached for too long.
+    # Threshold kept above orientation_success_threshold (0.4) so episodes that have
+    # achieved loose success (error < 0.4) don't simultaneously count as stagnant.
+    orientation_stagnation = DoneTerm(
+        func=mdp.orientation_stagnation,
+        params={
+            "command_name": "object_pose",
+            "orientation_error_threshold": 0.5,
+            "stagnant_steps": 150,
+        },
+    )
 
 
 @configclass
 class InHandObjectEnvCfg(ManagerBasedRLEnvCfg):
-    """Configuration for the in hand reorientation environment."""
-
-    # Scene settings
     scene: InHandObjectSceneCfg = InHandObjectSceneCfg(num_envs=8192, env_spacing=0.6)
-    # Simulation settings
+
     sim: SimulationCfg = SimulationCfg(
         physics_material=RigidBodyMaterialCfg(
             static_friction=1.0,
@@ -325,11 +316,11 @@ class InHandObjectEnvCfg(ManagerBasedRLEnvCfg):
             gpu_max_rigid_patch_count=2**23,
         ),
     )
-    # Basic settings
+
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
     commands: CommandsCfg = CommandsCfg()
-    # MDP settings
+
     rewards: RewardsCfg = RewardsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
     events: EventCfg = EventCfg()
@@ -344,3 +335,6 @@ class InHandObjectEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.render_interval = self.decimation
         # change viewer settings
         self.viewer.eye = (2.0, 2.0, 2.0)
+
+# PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Repose-Cube-WatoHand-v0 --headless
+# PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1

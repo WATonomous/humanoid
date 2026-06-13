@@ -104,14 +104,15 @@ class InHandReOrientationCommand(CommandTerm):
         self.metrics["consecutive_success"] += successes.float()
 
     def _resample_command(self, env_ids: Sequence[int]):
-        # sample new orientation targets
-        rand_floats = 2.0 * torch.rand((len(env_ids), 2), device=self.device) - 1.0
-        # rotate randomly about x-axis and then y-axis
-        quat = math_utils.quat_mul(
-            math_utils.quat_from_angle_axis(rand_floats[:, 0] * torch.pi, self._X_UNIT_VEC[env_ids]),
-            math_utils.quat_from_angle_axis(rand_floats[:, 1] * torch.pi, self._Y_UNIT_VEC[env_ids]),
-        )
-        # make sure the quaternion real-part is always positive
+        _axis_map = {"x": self._X_UNIT_VEC, "y": self._Y_UNIT_VEC, "z": self._Z_UNIT_VEC}
+        axes = self.cfg.rotation_axes
+        rand_floats = 2.0 * torch.rand((len(env_ids), len(axes)), device=self.device) - 1.0
+        quat = math_utils.quat_from_angle_axis(rand_floats[:, 0] * torch.pi, _axis_map[axes[0]][env_ids])
+        for i, ax in enumerate(axes[1:], start=1):
+            quat = math_utils.quat_mul(
+                quat,
+                math_utils.quat_from_angle_axis(rand_floats[:, i] * torch.pi, _axis_map[ax][env_ids]),
+            )
         self.quat_command_w[env_ids] = math_utils.quat_unique(quat) if self.cfg.make_quat_unique else quat
 
     def _update_command(self):

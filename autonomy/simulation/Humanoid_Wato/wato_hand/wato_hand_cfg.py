@@ -26,7 +26,7 @@ def _deg(degrees: float) -> float:
 
 
 # --- Joint limits from Physics Inspector (degrees -> rad) --------------------
-_MCP_A_LIMIT = (_deg(-8.594), _deg(8.594))
+_MCP_A_LIMIT = (_deg(-27.0), _deg(27.0))  # expanded to AllegroHand range; self-collision is off
 _MCP_FLEX_LIMIT = (0.0, _deg(85.944))
 _PIP_FLEX_LIMIT = (_deg(-85.944), 0.0)
 _DIP_FLEX_LIMIT = (0.0, _deg(85.944))
