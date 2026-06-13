@@ -19,7 +19,7 @@ class WatoHandCubeEnvCfg(inhand_env_cfg.InHandObjectEnvCfg):
 
         # Share physics across envs — lower RAM per env, scales to more parallel rollouts.
         self.scene.replicate_physics = True
-        self.scene.num_envs = 1024
+        self.scene.num_envs = 2048
 
         self.scene.robot = INHAND_WATO_HAND_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         # Push expanded MCP_A limits (±27 deg) into PhysX, overriding the ±8.6 deg baked in the USD.

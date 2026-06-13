@@ -59,27 +59,21 @@ class InHandObjectSceneCfg(InteractiveSceneCfg):
 
 @configclass
 class CommandsCfg:
-    """Command specifications for the MDP."""
-
     object_pose = mdp.InHandReOrientationCommandCfg()
 
 
 @configclass
 class ActionsCfg:
-    """Action specifications for the MDP."""
-
     joint_pos = mdp.EMAJointPositionToLimitsActionCfg(
         asset_name="robot",
         joint_names=[".*"],
-        alpha=0.8,
+        alpha=0.85,
         rescale_to_limits=True,
     )
 
 
 @configclass
 class ObservationsCfg:
-    """Observation specifications for the MDP."""
-
     @configclass
     class KinematicObsGroupCfg(ObsGroup):
         """Observations with full-kinematic state information.
@@ -146,10 +140,6 @@ class ObservationsCfg:
 
 @configclass
 class EventCfg:
-    """Configuration for randomization."""
-
-    # startup
-    # -- robot
     robot_physics_material = EventTerm(
         func=mdp.randomize_rigid_body_material,
         mode="startup",
@@ -228,9 +218,6 @@ class EventCfg:
 
 @configclass
 class RewardsCfg:
-    """Reward terms for the MDP."""
-
-    # -- task
     track_pos_l2 = RewTerm(
         func=mdp.track_pos_l2,
         weight=-3.0,
@@ -248,9 +235,9 @@ class RewardsCfg:
     )
 
     # -- penalties
-    joint_vel_l2 = RewTerm(func=mdp.joint_vel_l2, weight=-2.5e-5)
+    joint_vel_l2 = RewTerm(func=mdp.joint_vel_l2, weight=-1e-4)
     action_l2 = RewTerm(func=mdp.action_l2, weight=-0.0001)
-    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.01)
+    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.05)
 
     # Dense per-step bonus: +1 per step the cube stays within 0.10 m of the goal position.
     # At weight=2.0 this is worth ~+120/episode when held vs 0 when dropped, giving a far
@@ -277,8 +264,6 @@ class RewardsCfg:
 
 @configclass
 class TerminationsCfg:
-    """Termination terms for the MDP."""
-
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
 
     max_consecutive_success = DoneTerm(

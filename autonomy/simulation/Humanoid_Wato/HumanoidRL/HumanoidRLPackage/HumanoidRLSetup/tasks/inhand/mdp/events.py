@@ -1,11 +1,3 @@
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
-# All rights reserved.
-#
-# SPDX-License-Identifier: BSD-3-Clause
-
-"""Functions specific to the in-hand dexterous manipulation environments."""
-
-
 from __future__ import annotations
 
 import torch
