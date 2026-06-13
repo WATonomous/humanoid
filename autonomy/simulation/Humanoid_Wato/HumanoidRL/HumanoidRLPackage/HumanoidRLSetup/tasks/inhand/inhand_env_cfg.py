@@ -71,7 +71,7 @@ class ActionsCfg:
     joint_pos = mdp.EMAJointPositionToLimitsActionCfg(
         asset_name="robot",
         joint_names=[".*"],
-        alpha=0.95,
+        alpha=0.8,
         rescale_to_limits=True,
     )
 
@@ -238,7 +238,7 @@ class RewardsCfg:
     )
     track_orientation_inv_l2 = RewTerm(
         func=mdp.track_orientation_inv_l2,
-        weight=5.0,
+        weight=10.0,
         params={"object_cfg": SceneEntityCfg("object"), "rot_eps": 0.1, "command_name": "object_pose"},
     )
     success_bonus = RewTerm(
@@ -257,16 +257,15 @@ class RewardsCfg:
     # stronger holding gradient than the continuous L2 penalty alone.
     object_held_bonus = RewTerm(
         func=mdp.object_held_bonus,
-        weight=2.0,
+        weight=0.5,
         params={"object_cfg": SceneEntityCfg("object"), "command_name": "object_pose", "hold_threshold": 0.10},
     )
 
-    # Rotation reward disabled — re-enable once alpha=0.5 is verified to allow cube rotation.
-    # object_ang_vel_toward_goal = RewTerm(
-    #     func=mdp.object_ang_vel_toward_goal,
-    #     weight=0.5,
-    #     params={"object_cfg": SceneEntityCfg("object"), "command_name": "object_pose"},
-    # )
+    object_ang_vel_toward_goal = RewTerm(
+        func=mdp.object_ang_vel_toward_goal,
+        weight=0.2,
+        params={"object_cfg": SceneEntityCfg("object"), "command_name": "object_pose"},
+    )
 
     # Penalty for dropping the object — critical for early training.
     object_away_penalty = RewTerm(
