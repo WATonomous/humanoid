@@ -17,10 +17,9 @@ class WatoHandCubeEnvCfg(inhand_env_cfg.InHandObjectEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
-        # Wato hand USD is not instanceable; each env clones the full hand mesh.
-        self.scene.replicate_physics = False
-        # 2048 envs OOM-kills on ~32 GB RAM; override with --num_envs if you have headroom.
-        self.scene.num_envs = 256
+        # Share physics across envs — lower RAM per env, scales to more parallel rollouts.
+        self.scene.replicate_physics = True
+        self.scene.num_envs = 1024
 
         self.scene.robot = INHAND_WATO_HAND_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         # Push expanded MCP_A limits (±27 deg) into PhysX, overriding the ±8.6 deg baked in the USD.
@@ -28,16 +27,13 @@ class WatoHandCubeEnvCfg(inhand_env_cfg.InHandObjectEnvCfg):
             func=inhand_mdp.apply_wato_hand_joint_limits,
             mode="startup",
         )
-        # Paired with _INHAND_PALM_UP_ROT in modelCfg/wato_hand.py.
+
+        # change the cube on plam's property
         self.scene.object.spawn.scale = (0.8, 0.8, 0.8)
         self.scene.object.init_state.pos = INHAND_CUBE_POS
         self.scene.object.init_state.rot = (1.0, 0.0, 0.0, 0.0)
 
-        # Keep joint_names=[".*"] (all 20 joints) — a partial joint subset triggers a
-        # shape mismatch in EMAJointPositionToLimitsAction.reset() on this Isaac Lab version.
-        # Replace ".*" position_range: overlapping patterns duplicate joint ids (20 -> 24) and crash reset.
         _grasp_scale = [0.2, 0.2]
-        # Full abduction range at reset (±27 deg limit with use_default_offset on _INHAND_SPREAD_RAD default).
         _splay_scale = [1.0, 1.0]
         self.events.reset_robot_joints.params["position_range"] = {
             "circumduction": _grasp_scale,
