@@ -140,7 +140,11 @@ PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p so101_leader_teleop.py --reco
 
 Output: `datasets/record_so101_sim_vision/001/`.
 
-## Train (LeRobot, external)
+## Train (LeRobot)
+
+**SO101 vial sim IL (recommended):** inside `simulation_il` Docker — [`docker/simulation/isaac_il/QUICKSTART.md`](../../docker/simulation/isaac_il/QUICKSTART.md) (`il-train`, `--policy.push_to_hub=false`, `--steps=...`).
+
+**Generic / host** (outside Isaac docker):
 
 ```bash
 lerobot-train \

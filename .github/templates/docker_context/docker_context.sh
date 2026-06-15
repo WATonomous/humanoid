@@ -21,16 +21,16 @@ fi
 
 # Loop through each module
 while read -r module; do
+    module_out=$(basename "$(echo "$module" | sed -n 's/modules\/docker-compose\.\(.*\)\.yaml/\1/p')")
+
+    # Skip Isaac Sim modules (need GPU/NGC/X11; no multi-stage CI Dockerfile)
+    # TODO: Add custom handling for embedded testing
+    if [[ 'simulation' = $module_out || 'simulation_il' = $module_out || 'embedded' = $module_out ]]; then
+        continue
+    fi
 
     # Retrieve docker compose service names
     services=$(docker compose -f "$module" --profile deploy --profile develop config --services)
-    module_out=$(basename $(echo "$module" | sed -n 's/modules\/docker-compose\.\(.*\)\.yaml/\1/p'))
-
-    # Skip simulation module
-    # TODO: Add custom handling for embedded testing
-    if [[ 'simulation' = $module_out || 'embedded' = $module_out ]]; then
-        continue
-    fi
 
     # Only work with modules that are modified
     if [[ $MODIFIED_MODULES != *$module_out* && $TEST_ALL = "false"  ]]; then
