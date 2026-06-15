@@ -15,7 +15,7 @@ set -euo pipefail
 REPO="isaac-sim/Sim-to-Real-SO-101-Workshop"
 BRANCH="main"
 USD_BASE="https://media.githubusercontent.com/media/${REPO}/${BRANCH}/source/sim_to_real_so101/assets/usd"
-HDRI_BASE="https://media.githubusercontent.com/media/${REPO}/${BRANCH}/source/sim_to_real_so101/assets/hdri"
+HDRI_BASE="https://github.com/${REPO}/raw/${BRANCH}/source/sim_to_real_so101/assets/hdri"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 DEST="${ROOT}/so101_vial_task/usd"
 TEX_DEST="${DEST}/tex"
