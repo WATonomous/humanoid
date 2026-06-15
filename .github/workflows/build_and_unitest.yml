@@ -30,6 +30,7 @@ jobs:
 
       - name: Setup Watod Environment
         run: |
+          MONO_DIR="$GITHUB_WORKSPACE"
           MODULES_DIR="$GITHUB_WORKSPACE/modules"
           . ./watod_scripts/watod-setup-docker-env.sh
         shell: bash
