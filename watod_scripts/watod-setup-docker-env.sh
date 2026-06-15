@@ -34,7 +34,8 @@ TAG=${TAG/\//-}
 ##   - interfacing          :   starts interfacing nodes
 ##	 - perception			:	starts perception nodes
 ##	 - controller		    :	starts controller nodes
-##	 - simulation			:	starts simulation
+##	 - simulation			:	starts simulation (Humanoid_Wato / quest, Sim 4.5)
+##	 - simulation_il		:	starts SO101 sim IL (workshop stack, Lab 2.3.2) — see docker/simulation/isaac_il/QUICKSTART.md
 ##	 - behaviour			:	starts behaviour nodes
 ##   - samples             	:   starts sample ROS2 pubsub nodes
 ACTIVE_MODULES=${ACTIVE_MODULES:-""}
@@ -63,6 +64,10 @@ BEHAVIOUR_JOINT_COMMAND_IMAGE=${BEHAVIOUR_JOINT_COMMAND_IMAGE:-"$REGISTRY_URL/be
 PERCEPTION_IMAGE=${PERCEPTION_IMAGE:-"$REGISTRY_URL/perception/perception_module"}
 
 SIMULATION_IMAGE=${SIMULATION_IMAGE:-"$REGISTRY_URL/simulation/isaac_sim"}
+
+SIMULATION_IL_IMAGE=${SIMULATION_IL_IMAGE:-"$REGISTRY_URL/simulation/isaac_il"}
+
+ISAAC_SIM_CACHE_DIR=${ISAAC_SIM_CACHE_DIR:-"$HOME/docker/isaac-sim"}
 
 BEHAVIOUR_OCTO_IMAGE=${BEHAVIOUR_OCTO_IMAGE:-"$REGISTRY_URL/behaviour/octomap_server"}
 
@@ -108,5 +113,9 @@ echo "BEHAVIOUR_VOXEL_IMAGE=$BEHAVIOUR_VOXEL_IMAGE" >> "$MODULES_DIR/.env"
 echo "BEHAVIOUR_JOINT_COMMAND_IMAGE=$BEHAVIOUR_JOINT_COMMAND_IMAGE" >> "$MODULES_DIR/.env"
 echo "PERCEPTION_IMAGE=$PERCEPTION_IMAGE" >> "$MODULES_DIR/.env"
 echo "SIMULATION_IMAGE=$SIMULATION_IMAGE" >> "$MODULES_DIR/.env"
+echo "SIMULATION_IL_IMAGE=$SIMULATION_IL_IMAGE" >> "$MODULES_DIR/.env"
+echo "ISAAC_SIM_CACHE_DIR=$ISAAC_SIM_CACHE_DIR" >> "$MODULES_DIR/.env"
+echo "HF_HOME=${HF_HOME:-$HOME/.cache/huggingface}" >> "$MODULES_DIR/.env"
+echo "XAUTHORITY=${XAUTHORITY:-$HOME/.Xauthority}" >> "$MODULES_DIR/.env"
 echo "BEHAVIOUR_OCTO_IMAGE=$BEHAVIOUR_OCTO_IMAGE" >> "$MODULES_DIR/.env"
 echo "TELEOP_IMAGE=$TELEOP_IMAGE" >> "$MODULES_DIR/.env"

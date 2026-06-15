@@ -30,4 +30,9 @@ git add assets/lerobot/
 
 Source: [isaac-sim/Sim-to-Real-SO-101-Workshop](https://github.com/isaac-sim/Sim-to-Real-SO-101-Workshop) (Apache-2.0).
 
-Used by `autonomy/simulation/Teleop/so101-leader teleoperation/`.
+Used by:
+- `simulation_il` watod Docker — [`docker/simulation/isaac_il/QUICKSTART.md`](../../docker/simulation/isaac_il/QUICKSTART.md)
+- `autonomy/simulation/so101_vial_task/`
+- `autonomy/simulation/Teleop/so101-leader teleoperation/`
+
+Run `./assets/lerobot/sync_so101_vial_assets.sh --full` before first sim IL eval if you see `[WARNING] No textures found`.
