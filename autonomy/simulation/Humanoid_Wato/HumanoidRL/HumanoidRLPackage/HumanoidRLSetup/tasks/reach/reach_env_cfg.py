@@ -12,7 +12,7 @@ from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
-import HumanoidRLPackage.HumanoidRLSetup.tasks.manipulation.mdp as mdp
+import HumanoidRLPackage.HumanoidRLSetup.tasks.reach.mdp as mdp
 from HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid_arm_hand import ARM_CFG
 
 

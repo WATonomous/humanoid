@@ -7,7 +7,7 @@ gym.register(
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.wato_env_cfg:WatoHandCubeEnvCfg",
+        "env_cfg_entry_point": f"{__name__}.wato_hand_env_cfg:WatoHandCubeEnvCfg",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:WatoHandCubePPORunnerCfg",
     },
 )
@@ -17,7 +17,7 @@ gym.register(
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.wato_env_cfg:WatoHandCubeEnvCfg_PLAY",
+        "env_cfg_entry_point": f"{__name__}.wato_hand_env_cfg:WatoHandCubeEnvCfg_PLAY",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:WatoHandCubePPORunnerCfg",
     },
 )
@@ -27,7 +27,7 @@ gym.register(
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.wato_env_cfg:WatoHandCubeNoVelObsEnvCfg",
+        "env_cfg_entry_point": f"{__name__}.wato_hand_env_cfg:WatoHandCubeNoVelObsEnvCfg",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:WatoHandCubeNoVelObsPPORunnerCfg",
     },
 )
@@ -37,7 +37,7 @@ gym.register(
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.wato_env_cfg:WatoHandCubeNoVelObsEnvCfg_PLAY",
+        "env_cfg_entry_point": f"{__name__}.wato_hand_env_cfg:WatoHandCubeNoVelObsEnvCfg_PLAY",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:WatoHandCubeNoVelObsPPORunnerCfg",
     },
 )

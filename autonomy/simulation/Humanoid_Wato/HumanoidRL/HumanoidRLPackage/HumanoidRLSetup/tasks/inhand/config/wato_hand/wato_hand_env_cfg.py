@@ -3,11 +3,7 @@ from isaaclab.utils import configclass
 
 import HumanoidRLPackage.HumanoidRLSetup.tasks.inhand.inhand_env_cfg as inhand_env_cfg
 import HumanoidRLPackage.HumanoidRLSetup.tasks.inhand.mdp as inhand_mdp
-from HumanoidRLPackage.HumanoidRLSetup.modelCfg.wato_hand import (
-    INHAND_WATO_HAND_CFG,
-    INHAND_CUBE_POS,
-    INHAND_SPREAD_RAD,
-)
+from HumanoidRLPackage.HumanoidRLSetup.modelCfg.wato_hand import INHAND_SPREAD_RAD
 
 
 @configclass
@@ -17,21 +13,14 @@ class WatoHandCubeEnvCfg(inhand_env_cfg.InHandObjectEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
-        # Share physics across envs — lower RAM per env, scales to more parallel rollouts.
         self.scene.replicate_physics = True
         self.scene.num_envs = 2048
 
-        self.scene.robot = INHAND_WATO_HAND_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         # Push expanded MCP_A limits (±27 deg) into PhysX, overriding the ±8.6 deg baked in the USD.
         self.events.expand_abduction_limits = EventTerm(
             func=inhand_mdp.apply_wato_hand_joint_limits,
             mode="startup",
         )
-
-        # change the cube on plam's property
-        self.scene.object.spawn.scale = (0.8, 0.8, 0.8)
-        self.scene.object.init_state.pos = INHAND_CUBE_POS
-        self.scene.object.init_state.rot = (1.0, 0.0, 0.0, 0.0)
 
         _grasp_scale = [0.2, 0.2]
         _splay_scale = [1.0, 1.0]
@@ -62,7 +51,7 @@ class WatoHandCubeEnvCfg(inhand_env_cfg.InHandObjectEnvCfg):
         # Full 3D random orientation is too hard to explore from scratch; z-axis
         # rotation (spinning in the palm plane) is the most natural motion for this hand.
         # Once orientation_error shows a downward trend, expand back to ["x", "y"].
-        self.commands.object_pose.rotation_axes = ["z"]
+        self.commands.cube_pose.rotation_axes = ["z"]
 
         # Small bonus for MCP_A velocity + spread deflection.
         self.rewards.spread_activity = RewTerm(
@@ -81,12 +70,13 @@ class WatoHandCubeEnvCfg_PLAY(WatoHandCubeEnvCfg):
         super().__post_init__()
         self.scene.num_envs = 16
         self.observations.policy.enable_corruption = False
-        # Keep time_out so play episodes reset instead of clamping forever.
+        # Keep time_out so play episodes reset faster to see the next set
         self.episode_length_s = 10.0
         # Nudge goal marker aside so it does not cover the physical cube.
-        self.commands.object_pose.marker_pos_offset = (-0.10, 0.0, 0.12)
+        self.commands.cube_pose.marker_pos_offset = (-0.10, 0.0, 0.12)
 
 
+# Version with no velocity observation as input because in a real deployment, measuring velocity is noisy / unavailable
 @configclass
 class WatoHandCubeNoVelObsEnvCfg(WatoHandCubeEnvCfg):
     def __post_init__(self):
@@ -100,7 +90,5 @@ class WatoHandCubeNoVelObsEnvCfg_PLAY(WatoHandCubeNoVelObsEnvCfg):
         super().__post_init__()
         self.scene.num_envs = 16
         self.observations.policy.enable_corruption = False
-        # Keep time_out so play episodes reset instead of clamping forever.
         self.episode_length_s = 10.0
-        # Nudge goal marker aside so it does not cover the physical cube.
-        self.commands.object_pose.marker_pos_offset = (-0.10, 0.0, 0.12)
+        self.commands.cube_pose.marker_pos_offset = (-0.10, 0.0, 0.12)

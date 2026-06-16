@@ -9,15 +9,10 @@ from .orientation_command import InHandReOrientationCommand
 
 @configclass
 class InHandReOrientationCommandCfg(CommandTermCfg):
-    """Configuration for the uniform 3D orientation command term.
-
-    Please refer to the :class:`InHandReOrientationCommand` class for more details.
-    """
-
     class_type: type = InHandReOrientationCommand
     resampling_time_range: tuple[float, float] = (1e6, 1e6)  # no resampling based on time
 
-    asset_name: str = "object"
+    asset_name: str = "cube"
     """Scene asset that receives orientation goals (the manipuland rigid body)."""
 
     init_pos_offset: tuple[float, float, float] = (0.0, 0.0, -0.04)
@@ -44,6 +39,7 @@ class InHandReOrientationCommandCfg(CommandTermCfg):
 
     debug_vis: bool = True
 
+    """Goal-orientation debug marker (DexCube visual only)."""
     goal_pose_visualizer_cfg: VisualizationMarkersCfg = VisualizationMarkersCfg(
         prim_path="/Visuals/Command/goal_marker",
         markers={
@@ -53,4 +49,4 @@ class InHandReOrientationCommandCfg(CommandTermCfg):
             ),
         },
     )
-    """Goal-orientation debug marker (DexCube visual only)."""
+    

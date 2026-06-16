@@ -1,5 +1,5 @@
 from isaaclab.utils import configclass
-from HumanoidRLPackage.HumanoidRLSetup.tasks.manipulation.reach_env_cfg import ReachEnvCfg
+from HumanoidRLPackage.HumanoidRLSetup.tasks.reach.reach_env_cfg import ReachEnvCfg
 
 
 @configclass
