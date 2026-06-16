@@ -67,7 +67,7 @@ _ROBOT_USD_PATH = str(
 # Bimanual arm assembly placement. The complete asset already contains the
 # stand/arms setup, so don't spawn a second standalone stand in this scene.
 _ROBOT_POS = (0.0, 0.0, 0.5)
-_ROBOT_ROT = (0.0, 0.0, 0.0, 1.0)  # xyzw identity
+_ROBOT_ROT = (0.0, 0.0, 1.0, 0.0)  # xyzw, 180° about Z — base faces the operator
 
 # GUI debug camera: roughly at head height, looking forward over the arms.
 _VIEWER_EYE = (-0.198, -0.016, 1.329)
@@ -192,6 +192,9 @@ def _build_bimanual_pipeline():
     transform_input = ValueInput("world_T_anchor", TransformMatrix())
     transformed_hands = hands.transformed(transform_input.output(ValueInput.VALUE))
 
+    # Left/right is handled by rotating the robot base 180° about Z (see
+    # _ROBOT_ROT) so each arm sits on its natural side — so each retargeter reads
+    # its own physical hand here.
     # --- Wrist pose retargeters (read the hand's WRIST joint pose) ---
     right_se3 = Se3AbsRetargeter(
         Se3RetargeterConfig(
@@ -296,7 +299,22 @@ class BimanualTeleopSceneCfg(InteractiveSceneCfg):
     )
     robot: ArticulationCfg = BIMANUAL_ARM_CFG.replace(
         prim_path="{ENV_REGEX_NS}/Robot",
-        spawn=BIMANUAL_ARM_CFG.spawn.replace(usd_path=_ROBOT_USD_PATH),
+        # Fresh UsdFileCfg with the DEFAULT spawn func. BIMANUAL_ARM_CFG.spawn
+        # uses a custom func that patches joint limits via
+        # `isaacsim.core.utils.stage`, which doesn't exist in Isaac Sim 6.0. We
+        # don't need it — the limits are already baked into _ROBOT_USD_PATH by
+        # tools/import_bimanual_usd.py.
+        spawn=sim_utils.UsdFileCfg(
+            usd_path=_ROBOT_USD_PATH,
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                disable_gravity=False,
+                max_depenetration_velocity=5.0,
+            ),
+            activate_contact_sensors=False,
+            articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+                enabled_self_collisions=True,
+            ),
+        ),
         actuators=_high_pd_actuators(),
         init_state=ArticulationCfg.InitialStateCfg(
             pos=_ROBOT_POS,
