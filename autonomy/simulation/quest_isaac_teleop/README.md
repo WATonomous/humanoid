@@ -27,7 +27,7 @@ running.
 cd ~/Wato/humanoid/autonomy/simulation/quest_isaac_teleop && ./run_bimanual_teleop.sh
 ```
 
-Wait for `IsaacTeleop teleoperation started`. It runs headless — the view only
+Wait for `IsaacTeleop teleoperation started`. It runs headless; the view only
 appears in the headset.
 
 Add `--gui` for a local desktop window (no headset/CloudXR).
