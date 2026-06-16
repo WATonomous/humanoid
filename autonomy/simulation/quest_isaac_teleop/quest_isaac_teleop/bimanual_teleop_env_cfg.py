@@ -1,17 +1,4 @@
-"""CloudXR + Pink IK teleop env for the single-articulation bimanual arm.
-
-Entry point: registered as ``Isaac-WatoBimanualTeleop-v0`` (see __init__.py),
-launched via ``run_bimanual_teleop.sh``.
-
-Hand-tracking based (Quest 2, no controllers): each hand's wrist pose drives
-that arm, and a thumb/index pinch closes that arm's gripper.
-
-Pipeline (action tensor = 18D):
-  [right_wrist(7), left_wrist(7), gripper(4)]
-  - two Se3AbsRetargeters map each hand's WRIST joint to a wrist pose target
-  - one BimanualGripperRetargeter maps each hand's thumb/index pinch to the 4
-    prismatic gripper joint positions [joint7, joint8, joint7l, joint8l]
-"""
+"""CloudXR + Pink IK teleop env for the bimanual arm."""
 
 import importlib.util
 import math
@@ -42,9 +29,7 @@ from quest_isaac_teleop.bimanual_pink_controller_cfg import (
     WATO_BIMANUAL_IK_ACTION_CFG,
 )
 
-# Reuse the proven articulation config (USD path, actuators, joint limits,
-# default pose) from the keyboard-teleop module. Its directory name contains a
-# space, so it can't be imported as a normal module — load it by file path.
+# The keyboard-teleop config lives in a directory with a space, so load by path.
 _BIMANUAL_CFG_PATH = (
     _SIMULATION_DIR / "Teleop" / "keyboard-based teleoperation" / "bimanual_arm_cfg.py"
 )
@@ -57,33 +42,21 @@ _BIMANUAL_ROOT = _SIMULATION_DIR / "Humanoid_Wato" / "wato_bimanual_arm"
 _URDF_PATH = str(_BIMANUAL_ROOT / "urdf" / "armDouble.SLDASM.urdf")
 _MESH_DIR = str(_BIMANUAL_ROOT / "meshes")
 
-# Use the existing checked-in bimanual arm USD. The overlay only fixes the
-# SolidWorks-exported [0, 0] joint limits; it does not re-import or reposition
-# the asset.
 _ROBOT_USD_PATH = str(
     _BIMANUAL_ROOT / "urdf" / "armDouble.SLDASM" / "armDouble.SLDASM_limits.usda"
 )
 
-# Bimanual arm assembly placement. The complete asset already contains the
-# stand/arms setup, so don't spawn a second standalone stand in this scene.
 _ROBOT_POS = (0.0, 0.0, 0.5)
-_ROBOT_ROT = (0.0, 0.0, 1.0, 0.0)  # xyzw, 180° about Z — base faces the operator
+_ROBOT_ROT = (0.0, 0.0, 1.0, 0.0)  # xyzw, 180 deg about Z
 
-# GUI debug camera: roughly at head height, looking forward over the arms.
 _VIEWER_EYE = (-0.198, -0.016, 1.329)
 _VIEWER_LOOKAT = (0.667, -0.016, 0.828)
 
-# XR anchor: co-located (first-person). anchor_rot is xyzw. The arms reach +X, so
-# face the user toward +X with -90° about Z. If left/right or forward feels
-# mirrored in the headset, flip the sign of the z component (+0.7071) — this is
-# the main facing knob, same idea as GR1T2's identity anchor for its +Y workspace.
+# Flip the z sign if left/right or forward is mirrored in the headset.
 _XR_ANCHOR_POS = (0.0, 0.0, 0.0)
 _XR_ANCHOR_ROT = (0.0, 0.0, -0.70710678, 0.70710678)
 
 
-# ---------------------------------------------------------------------------
-# Custom retargeter: VR controller triggers -> 4 prismatic gripper targets
-# ---------------------------------------------------------------------------
 def _make_bimanual_gripper_retargeter_cls():
     """Build the retargeter class lazily (isaacteleop only imports under Isaac)."""
     import numpy as np
@@ -102,22 +75,12 @@ def _make_bimanual_gripper_retargeter_cls():
     )
 
     class BimanualGripperRetargeter(BaseRetargeter):
-        """Hand-tracking pinch controls each gripper (Quest 2, no controllers).
-
-        Per hand, measures the thumb-tip ↔ index-tip distance. Pinch (distance
-        below ``close_m``) closes the gripper; spreading the fingers apart
-        (distance above ``open_m``) opens it. Between the two thresholds the
-        previous state is held (hysteresis) so it doesn't chatter.
-
-        Outputs the 4 prismatic joint positions in GRIPPER_JOINTS order:
-        [joint7, joint8, joint7l, joint8l].
-        """
+        """Map thumb/index pinch to the four gripper joints."""
 
         def __init__(self, name: str, close_m: float = 0.03, open_m: float = 0.05) -> None:
             super().__init__(name=name)
             self._close_m = close_m
             self._open_m = open_m
-            # Hysteresis state per hand (False = open, True = closed).
             self._closed = {"left": False, "right": False}
 
         def input_spec(self) -> RetargeterIOType:
@@ -134,9 +97,8 @@ def _make_bimanual_gripper_retargeter_cls():
             }
 
         def _update_side(self, side: str, hand_group) -> bool:
-            """Return True if this hand's gripper should be closed."""
             if hand_group.is_none:
-                return self._closed[side]  # no tracking: hold last state
+                return self._closed[side]
 
             joint_positions = np.from_dlpack(hand_group[HandInputIndex.JOINT_POSITIONS])
             joint_valid = np.from_dlpack(hand_group[HandInputIndex.JOINT_VALID])
@@ -162,7 +124,6 @@ def _make_bimanual_gripper_retargeter_cls():
             right_targets = GRIPPER_CLOSED if self._update_side("right", inputs["hand_right"]) else GRIPPER_OPEN
             left_targets = GRIPPER_CLOSED if self._update_side("left", inputs["hand_left"]) else GRIPPER_OPEN
 
-            # GRIPPER_JOINTS order: joint7, joint8 (right), joint7l, joint8l (left)
             out[0] = right_targets["joint7"]
             out[1] = right_targets["joint8"]
             out[2] = left_targets["joint7l"]
@@ -172,11 +133,7 @@ def _make_bimanual_gripper_retargeter_cls():
 
 
 def _build_bimanual_pipeline():
-    """Build the IsaacTeleop 18D action pipeline for the bimanual arm.
-
-    Hand-tracking based (no controllers): each hand's wrist pose drives that
-    arm's wrist FrameTask, and a thumb/index pinch closes that arm's gripper.
-    """
+    """Build the 18D teleop action pipeline."""
     from isaacteleop.retargeters import (
         Se3AbsRetargeter,
         Se3RetargeterConfig,
@@ -192,13 +149,9 @@ def _build_bimanual_pipeline():
     transform_input = ValueInput("world_T_anchor", TransformMatrix())
     transformed_hands = hands.transformed(transform_input.output(ValueInput.VALUE))
 
-    # Left/right is handled by rotating the robot base 180° about Z (see
-    # _ROBOT_ROT) so each arm sits on its natural side — so each retargeter reads
-    # its own physical hand here.
-    # --- Wrist pose retargeters (read the hand's WRIST joint pose) ---
     right_se3 = Se3AbsRetargeter(
         Se3RetargeterConfig(
-            input_device=HandsSource.RIGHT,  # "hand_right"
+            input_device=HandsSource.RIGHT,
             zero_out_xy_rotation=False,
             use_wrist_rotation=True,
             use_wrist_position=True,
@@ -214,7 +167,7 @@ def _build_bimanual_pipeline():
 
     left_se3 = Se3AbsRetargeter(
         Se3RetargeterConfig(
-            input_device=HandsSource.LEFT,  # "hand_left"
+            input_device=HandsSource.LEFT,
             zero_out_xy_rotation=False,
             use_wrist_rotation=True,
             use_wrist_position=True,
@@ -228,7 +181,6 @@ def _build_bimanual_pipeline():
         {HandsSource.LEFT: transformed_hands.output(HandsSource.LEFT)}
     )
 
-    # --- Gripper retargeter (thumb/index pinch per hand) ---
     gripper = BimanualGripperRetargeter(name="gripper")
     connected_gripper = gripper.connect(
         {
@@ -237,10 +189,9 @@ def _build_bimanual_pipeline():
         }
     )
 
-    # --- Flatten to 18D: [right_wrist(7), left_wrist(7), gripper(4)] ---
     right_ee_elements = ["r_pos_x", "r_pos_y", "r_pos_z", "r_quat_x", "r_quat_y", "r_quat_z", "r_quat_w"]
     left_ee_elements = ["l_pos_x", "l_pos_y", "l_pos_z", "l_quat_x", "l_quat_y", "l_quat_z", "l_quat_w"]
-    gripper_elements = list(GRIPPER_JOINTS)  # joint7, joint8, joint7l, joint8l
+    gripper_elements = list(GRIPPER_JOINTS)
 
     reorderer = TensorReorderer(
         input_config={
@@ -253,7 +204,6 @@ def _build_bimanual_pipeline():
         input_types={
             "right_ee_pose": "array",
             "left_ee_pose": "array",
-            # 4 separate FloatType outputs from BimanualGripperRetargeter
             "gripper_joints": "scalar",
         },
     )
@@ -270,22 +220,13 @@ def _build_bimanual_pipeline():
 
 
 def _high_pd_actuators():
-    """Stiffen the arm joints (not grippers) for GR1T2-like snappy IK tracking.
-
-    The keyboard-teleop actuators use realistic-but-soft motor PD (stiffness
-    ~170-760), so joints lag the IK target and feel mushy. GR1T2's teleop uses a
-    HIGH-PD variant (stiffness 4400, damping 40). Override only the arm groups
-    here; grippers keep their tuned hold gains.
-    """
+    """Stiffen the arm joints so they track IK targets closely."""
     actuators = dict(BIMANUAL_ARM_CFG.actuators)
     for name in ("left_shoulder", "left_elbow", "left_wrist", "right_arm"):
         actuators[name] = actuators[name].replace(stiffness=4400.0, damping=40.0)
     return actuators
 
 
-# ---------------------------------------------------------------------------
-# Scene / MDP
-# ---------------------------------------------------------------------------
 @configclass
 class BimanualTeleopSceneCfg(InteractiveSceneCfg):
     ground = AssetBaseCfg(
@@ -299,11 +240,7 @@ class BimanualTeleopSceneCfg(InteractiveSceneCfg):
     )
     robot: ArticulationCfg = BIMANUAL_ARM_CFG.replace(
         prim_path="{ENV_REGEX_NS}/Robot",
-        # Fresh UsdFileCfg with the DEFAULT spawn func. BIMANUAL_ARM_CFG.spawn
-        # uses a custom func that patches joint limits via
-        # `isaacsim.core.utils.stage`, which doesn't exist in Isaac Sim 6.0. We
-        # don't need it — the limits are already baked into _ROBOT_USD_PATH by
-        # tools/import_bimanual_usd.py.
+        # The USD overlay already includes the joint limit fixes.
         spawn=sim_utils.UsdFileCfg(
             usd_path=_ROBOT_USD_PATH,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
@@ -368,7 +305,6 @@ class WatoBimanualTeleopEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.dt = 1 / 200
         self.sim.render_interval = 2
 
-        # Use the existing hand-authored URDF directly (no USD→URDF conversion).
         self.actions.bimanual_ik.controller.usd_path = None
         self.actions.bimanual_ik.controller.urdf_path = _URDF_PATH
         self.actions.bimanual_ik.controller.mesh_path = _MESH_DIR
@@ -376,7 +312,7 @@ class WatoBimanualTeleopEnvCfg(ManagerBasedRLEnvCfg):
         self.xr = XrCfg(
             anchor_pos=_XR_ANCHOR_POS,
             anchor_rot=_XR_ANCHOR_ROT,
-            near_plane=0.1,  # render the arms clearly even when close to your face
+            near_plane=0.1,
         )
         self.isaac_teleop = IsaacTeleopCfg(
             pipeline_builder=lambda: _build_bimanual_pipeline()[0],

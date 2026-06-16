@@ -1,20 +1,7 @@
 #!/usr/bin/env bash
-# Launch CloudXR + Pink IK teleop for the single-articulation bimanual arm
-# (Humanoid_Wato/wato_bimanual_arm).
+# Launch CloudXR + Pink IK teleop for the bimanual arm.
 #
-# Prerequisites:
-#   1. Isaac Sim 6.0 + Isaac Lab release/3.0.0-beta2 at ~/robotics/IsaacLab-3.0
-#   2. Quest connected via USB with gnirehtet running (for UDP video tunnel)
-#   3. On Quest browser: https://nvidia.github.io/IsaacTeleop/client/release-1.3.x/#/sim/isaacsim
-#
-# Usage:
-#   ./run_bimanual_teleop.sh [extra args passed to teleop_se3_agent.py]
-#
-# Examples:
-#   Quest CloudXR mode:
-#     ./run_bimanual_teleop.sh
-#   Local GUI debug mode, no XR runtime:
-#     ./run_bimanual_teleop.sh --gui
+# Use --gui for local debug without CloudXR.
 
 set -e
 

@@ -1,10 +1,5 @@
 def register_bimanual_tasks() -> list:
-    """Register the single-articulation bimanual arm teleop task.
-
-    Called via --external_callback from run_bimanual_teleop.sh so that Isaac Sim
-    is initialized before our env cfg imports happen. Returns an empty list
-    (no extra CLI args consumed).
-    """
+    """Register the bimanual teleop task after Isaac Sim starts."""
     import gymnasium as gym
 
     gym.register(
