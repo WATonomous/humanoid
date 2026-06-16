@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import MISSING
-
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg
 from isaaclab.envs import ManagerBasedRLEnvCfg
@@ -19,17 +17,19 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveGaussianNoiseCfg as Gnoise
 
 import HumanoidRLPackage.HumanoidRLSetup.tasks.inhand.mdp as mdp
+from HumanoidRLPackage.HumanoidRLSetup.modelCfg.wato_hand import INHAND_CUBE_POS, INHAND_WATO_HAND_CFG
 
 
 
 @configclass
 class InHandObjectSceneCfg(InteractiveSceneCfg):
-    robot: ArticulationCfg = MISSING
+    robot: ArticulationCfg = INHAND_WATO_HAND_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
-    object: RigidObjectCfg = RigidObjectCfg(
-        prim_path="{ENV_REGEX_NS}/object",
+    cube: RigidObjectCfg = RigidObjectCfg(
+        prim_path="{ENV_REGEX_NS}/cube",
         spawn=sim_utils.UsdFileCfg(
             usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/DexCube/dex_cube_instanceable.usd",
+            scale=(0.8, 0.8, 0.8),
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 kinematic_enabled=False,
                 disable_gravity=False,
@@ -42,7 +42,7 @@ class InHandObjectSceneCfg(InteractiveSceneCfg):
             ),
             mass_props=sim_utils.MassPropertiesCfg(density=400.0),
         ),
-        init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, -0.19, 0.56), rot=(1.0, 0.0, 0.0, 0.0)),
+        init_state=RigidObjectCfg.InitialStateCfg(pos=INHAND_CUBE_POS, rot=(1.0, 0.0, 0.0, 0.0)),
     )
 
     light = AssetBaseCfg(
@@ -59,7 +59,7 @@ class InHandObjectSceneCfg(InteractiveSceneCfg):
 
 @configclass
 class CommandsCfg:
-    object_pose = mdp.InHandReOrientationCommandCfg()
+    cube_pose = mdp.InHandReOrientationCommandCfg()
 
 
 @configclass
@@ -88,26 +88,26 @@ class ObservationsCfg:
 
         # -- object terms
         object_pos = ObsTerm(
-            func=mdp.root_pos_w, noise=Gnoise(std=0.002), params={"asset_cfg": SceneEntityCfg("object")}
+            func=mdp.root_pos_w, noise=Gnoise(std=0.002), params={"asset_cfg": SceneEntityCfg("cube")}
         )
         object_quat = ObsTerm(
-            func=mdp.root_quat_w, params={"asset_cfg": SceneEntityCfg("object"), "make_quat_unique": False}
+            func=mdp.root_quat_w, params={"asset_cfg": SceneEntityCfg("cube"), "make_quat_unique": False}
         )
         object_lin_vel = ObsTerm(
-            func=mdp.root_lin_vel_w, noise=Gnoise(std=0.002), params={"asset_cfg": SceneEntityCfg("object")}
+            func=mdp.root_lin_vel_w, noise=Gnoise(std=0.002), params={"asset_cfg": SceneEntityCfg("cube")}
         )
         object_ang_vel = ObsTerm(
             func=mdp.root_ang_vel_w,
             scale=0.2,
             noise=Gnoise(std=0.002),
-            params={"asset_cfg": SceneEntityCfg("object")},
+            params={"asset_cfg": SceneEntityCfg("cube")},
         )
 
         # -- command terms
-        goal_pose = ObsTerm(func=mdp.generated_commands, params={"command_name": "object_pose"})
+        goal_pose = ObsTerm(func=mdp.generated_commands, params={"command_name": "cube_pose"})
         goal_quat_diff = ObsTerm(
             func=mdp.goal_quat_diff,
-            params={"asset_cfg": SceneEntityCfg("object"), "command_name": "object_pose", "make_quat_unique": False},
+            params={"asset_cfg": SceneEntityCfg("cube"), "command_name": "cube_pose", "make_quat_unique": False},
         )
 
         # -- action terms
@@ -177,7 +177,7 @@ class EventCfg:
         func=mdp.randomize_rigid_body_material,
         mode="startup",
         params={
-            "asset_cfg": SceneEntityCfg("object"),
+            "asset_cfg": SceneEntityCfg("cube"),
             "static_friction_range": (0.7, 1.3),
             "dynamic_friction_range": (0.7, 1.3),
             "restitution_range": (0.0, 0.0),
@@ -188,7 +188,7 @@ class EventCfg:
         func=mdp.randomize_rigid_body_mass,
         mode="startup",
         params={
-            "asset_cfg": SceneEntityCfg("object"),
+            "asset_cfg": SceneEntityCfg("cube"),
             "mass_distribution_params": (0.4, 1.6),
             "operation": "scale",
         },
@@ -201,7 +201,7 @@ class EventCfg:
         params={
             "pose_range": {"x": [-0.01, 0.01], "y": [-0.01, 0.01], "z": [-0.01, 0.01]},
             "velocity_range": {},
-            "asset_cfg": SceneEntityCfg("object"),
+            "asset_cfg": SceneEntityCfg("cube"),
         },
     )
     reset_robot_joints = EventTerm(
@@ -221,17 +221,17 @@ class RewardsCfg:
     track_pos_l2 = RewTerm(
         func=mdp.track_pos_l2,
         weight=-3.0,
-        params={"object_cfg": SceneEntityCfg("object"), "command_name": "object_pose"},
+        params={"object_cfg": SceneEntityCfg("cube"), "command_name": "cube_pose"},
     )
     track_orientation_inv_l2 = RewTerm(
         func=mdp.track_orientation_inv_l2,
         weight=10.0,
-        params={"object_cfg": SceneEntityCfg("object"), "rot_eps": 0.1, "command_name": "object_pose"},
+        params={"object_cfg": SceneEntityCfg("cube"), "rot_eps": 0.1, "command_name": "cube_pose"},
     )
     success_bonus = RewTerm(
         func=mdp.success_bonus,
         weight=50.0,
-        params={"object_cfg": SceneEntityCfg("object"), "command_name": "object_pose"},
+        params={"object_cfg": SceneEntityCfg("cube"), "command_name": "cube_pose"},
     )
 
     # -- penalties
@@ -245,13 +245,13 @@ class RewardsCfg:
     object_held_bonus = RewTerm(
         func=mdp.object_held_bonus,
         weight=0.5,
-        params={"object_cfg": SceneEntityCfg("object"), "command_name": "object_pose", "hold_threshold": 0.10},
+        params={"object_cfg": SceneEntityCfg("cube"), "command_name": "cube_pose", "hold_threshold": 0.10},
     )
 
     object_ang_vel_toward_goal = RewTerm(
         func=mdp.object_ang_vel_toward_goal,
         weight=0.2,
-        params={"object_cfg": SceneEntityCfg("object"), "command_name": "object_pose"},
+        params={"object_cfg": SceneEntityCfg("cube"), "command_name": "cube_pose"},
     )
 
     # Penalty for dropping the object — critical for early training.
@@ -267,7 +267,7 @@ class TerminationsCfg:
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
 
     max_consecutive_success = DoneTerm(
-        func=mdp.max_consecutive_success, params={"num_success": 50, "command_name": "object_pose"}
+        func=mdp.max_consecutive_success, params={"num_success": 50, "command_name": "cube_pose"}
     )
 
     object_out_of_reach = DoneTerm(func=mdp.object_away_from_robot, params={"threshold": 0.3})
@@ -278,7 +278,7 @@ class TerminationsCfg:
     orientation_stagnation = DoneTerm(
         func=mdp.orientation_stagnation,
         params={
-            "command_name": "object_pose",
+            "command_name": "cube_pose",
             "orientation_error_threshold": 0.5,
             "stagnant_steps": 150,
         },

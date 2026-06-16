@@ -1,14 +1,4 @@
-"""
-20-DOF Wato hand articulation config.
-
-Robot model: Humanoid_Wato/wato_hand (hand_urdf.usd / hand_urdf.urdf)
-Joint limits: Isaac Sim Physics Inspector (/World/hand_urdf/hand_origin)
-Finger splay (MCP_A_1..4): ±8.594 deg (±0.15 rad) per joint.
-
-    import sys, os
-    sys.path.insert(0, os.path.join(<repo>, "autonomy/simulation/Humanoid_Wato/wato_hand"))
-    from wato_hand_cfg import WATO_HAND_CFG, JOINT_POS_LIMITS, apply_joint_limits
-"""
+"""20-DOF Wato hand articulation config."""
 import math
 import os
 
@@ -25,8 +15,8 @@ def _deg(degrees: float) -> float:
     return degrees * math.pi / 180.0
 
 
-# --- Joint limits from Physics Inspector (degrees -> rad) --------------------
-_MCP_A_LIMIT = (_deg(-27.0), _deg(27.0))  # expanded to AllegroHand range; self-collision is off
+# --- Joint limits (degrees -> rad) --------------------
+_MCP_A_LIMIT = (_deg(-27.0), _deg(27.0))  # expanded to wider range for now; self-collision is off
 _MCP_FLEX_LIMIT = (0.0, _deg(85.944))
 _PIP_FLEX_LIMIT = (_deg(-85.944), 0.0)
 _DIP_FLEX_LIMIT = (0.0, _deg(85.944))
@@ -54,7 +44,7 @@ JOINT_POS_LIMITS = {
     "MCP_2": _MCP_FLEX_LIMIT,
     "PIP_2": _PIP_FLEX_LIMIT,
     "DIP_2": _DIP_FLEX_LIMIT,
-    # Ring (finger 3) — slightly different flex range
+    # Ring (finger 3)
     "MCP_A_3": _MCP_A_LIMIT,
     "MCP_3": _MCP_FLEX_LIMIT_RING,
     "PIP_3": _PIP_FLEX_LIMIT_RING,
@@ -66,7 +56,6 @@ JOINT_POS_LIMITS = {
     "DIP_4": _DIP_FLEX_LIMIT_RING,
 }
 
-# Ordered like config/joint_names_hand_urdf.yaml (excluding the empty root slot).
 ALL_JOINT_NAMES = [
     "circumduction",
     "MCP_A_thumb",
@@ -90,7 +79,6 @@ ALL_JOINT_NAMES = [
     "DIP_4",
 ]
 
-# All 20 revolute DOF (matches config/joint_names_hand_urdf.yaml).
 ACTUATED_JOINT_NAMES = list(ALL_JOINT_NAMES)
 
 _DEFAULT_JOINT_POS = {name: 0.0 for name in ALL_JOINT_NAMES}

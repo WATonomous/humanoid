@@ -24,27 +24,13 @@ class InHandReOrientationCommand(CommandTerm):
 
     The constant position commands is to encourage that the object does not move during the task.
     For instance, the object should not fall off the robot's palm.
-
-    Unlike typical command terms, where the goals are resampled based on time, this command term
-    does not resample the goals based on time. Instead, the goals are resampled when the object
-    reaches the goal orientation. The goal orientation is considered to be reached when the
-    orientation error is below a certain threshold.
     """
 
     cfg: InHandReOrientationCommandCfg
-    """Configuration for the command term."""
 
     def __init__(self, cfg: InHandReOrientationCommandCfg, env: ManagerBasedRLEnv):
-        """Initialize the command term class.
-
-        Args:
-            cfg: The configuration parameters for the command term.
-            env: The environment object.
-        """
-        # initialize the base class
         super().__init__(cfg, env)
 
-        # object
         self.object: RigidObject = env.scene[cfg.asset_name]
 
         # create buffers to store the command
@@ -79,10 +65,6 @@ class InHandReOrientationCommand(CommandTerm):
     def command(self) -> torch.Tensor:
         """The desired goal pose in the environment frame. Shape is (num_envs, 7)."""
         return torch.cat((self.pos_command_e, self.quat_command_w), dim=-1)
-
-    """
-    Implementation specific functions.
-    """
 
     def _update_metrics(self):
         # logs data
