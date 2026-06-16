@@ -1,4 +1,4 @@
-# SO101 sim IL — copy-paste commands
+# SO101 sim IL
 
 Exact workflow used for **HF dataset → ACT train → sim eval** (no physical arm).
 Stack: Isaac Lab 2.3.2 / Sim 5.1 / LeRobot 0.4.3 / ACT / watod `simulation_il`.

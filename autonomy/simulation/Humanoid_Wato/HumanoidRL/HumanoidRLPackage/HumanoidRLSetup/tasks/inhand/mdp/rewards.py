@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 def success_bonus(
-    env: ManagerBasedRLEnv, command_name: str, object_cfg: SceneEntityCfg = SceneEntityCfg("object")
+    env: ManagerBasedRLEnv, command_name: str, object_cfg: SceneEntityCfg = SceneEntityCfg("cube")
 ) -> torch.Tensor:
     """Bonus reward for successfully reaching the goal.
 
@@ -23,7 +23,7 @@ def success_bonus(
     Args:
         env: The environment object.
         command_name: The command term to be used for extracting the goal.
-        object_cfg: The configuration for the scene entity. Default is "object".
+        object_cfg: The configuration for the scene entity. Default is "cube".
     """
     # extract useful elements
     asset: RigidObject = env.scene[object_cfg.name]
@@ -40,7 +40,7 @@ def success_bonus(
 
 
 def track_pos_l2(
-    env: ManagerBasedRLEnv, command_name: str, object_cfg: SceneEntityCfg = SceneEntityCfg("object")
+    env: ManagerBasedRLEnv, command_name: str, object_cfg: SceneEntityCfg = SceneEntityCfg("cube")
 ) -> torch.Tensor:
     """Reward for tracking the object position using the L2 norm.
 
@@ -49,7 +49,7 @@ def track_pos_l2(
     Args:
         env: The environment object.
         command_term: The command term to be used for extracting the goal.
-        object_cfg: The configuration for the scene entity. Default is "object".
+        object_cfg: The configuration for the scene entity. Default is "cube".
     """
     # extract useful elements
     asset: RigidObject = env.scene[object_cfg.name]
@@ -66,7 +66,7 @@ def track_pos_l2(
 def track_orientation_inv_l2(
     env: ManagerBasedRLEnv,
     command_name: str,
-    object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
+    object_cfg: SceneEntityCfg = SceneEntityCfg("cube"),
     rot_eps: float = 1e-3,
 ) -> torch.Tensor:
     """Reward for tracking the object orientation using the inverse of the orientation error.
@@ -76,7 +76,7 @@ def track_orientation_inv_l2(
     Args:
         env: The environment object.
         command_name: The command term to be used for extracting the goal.
-        object_cfg: The configuration for the scene entity. Default is "object".
+        object_cfg: The configuration for the scene entity. Default is "cube".
         rot_eps: The threshold for the orientation error. Default is 1e-3.
     """
     asset: RigidObject = env.scene[object_cfg.name]
@@ -92,7 +92,7 @@ def track_orientation_inv_l2(
 def object_ang_vel_toward_goal(
     env: ManagerBasedRLEnv,
     command_name: str,
-    object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
+    object_cfg: SceneEntityCfg = SceneEntityCfg("cube"),
 ) -> torch.Tensor:
     """Reward the component of object angular velocity that reduces orientation error.
 
@@ -121,7 +121,7 @@ def object_ang_vel_toward_goal(
 def object_held_bonus(
     env: ManagerBasedRLEnv,
     command_name: str,
-    object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
+    object_cfg: SceneEntityCfg = SceneEntityCfg("cube"),
     hold_threshold: float = 0.10,
 ) -> torch.Tensor:
     """Per-step bonus (1.0) when object is within hold_threshold of the goal position.

@@ -31,7 +31,7 @@ def object_away_from_goal(
     env: ManagerBasedRLEnv,
     threshold: float,
     command_name: str,
-    object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
+    object_cfg: SceneEntityCfg = SceneEntityCfg("cube"),
 ) -> torch.Tensor:
     """Check if object has gone far from the goal.
 
@@ -42,7 +42,7 @@ def object_away_from_goal(
         env: The environment object.
         threshold: The threshold for the distance between the robot and the object.
         command_name: The command term to be used for extracting the goal.
-        object_cfg: The configuration for the scene entity. Default is "object".
+        object_cfg: The configuration for the scene entity. Default is "cube".
     """
     # extract useful elements
     command_term: InHandReOrientationCommand = env.command_manager.get_term(command_name)
@@ -59,7 +59,7 @@ def object_away_from_robot(
     env: ManagerBasedRLEnv,
     threshold: float,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
+    object_cfg: SceneEntityCfg = SceneEntityCfg("cube"),
 ) -> torch.Tensor:
     """Check if object has gone far from the robot.
 
@@ -70,7 +70,7 @@ def object_away_from_robot(
         env: The environment object.
         threshold: The threshold for the distance between the robot and the object.
         asset_cfg: The configuration for the robot entity. Default is "robot".
-        object_cfg: The configuration for the object entity. Default is "object".
+        object_cfg: The configuration for the object entity. Default is "cube".
     """
     # extract useful elements
     robot = env.scene[asset_cfg.name]
@@ -89,7 +89,7 @@ def orientation_stagnation(
     stagnant_steps: int,
     object_ang_vel_threshold: float | None = None,
     joint_vel_threshold: float | None = None,
-    object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
+    object_cfg: SceneEntityCfg = SceneEntityCfg("cube"),
     robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
     """Terminate when orientation error stays above threshold for too many steps.
