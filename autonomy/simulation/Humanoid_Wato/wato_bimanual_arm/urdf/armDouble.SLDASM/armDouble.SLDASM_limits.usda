@@ -1,0 +1,109 @@
+#usda 1.0
+(
+    defaultPrim = "armDouble_SLDASM"
+    upAxis = "Z"
+)
+
+over "armDouble_SLDASM" (
+    prepend references = @./armDouble.SLDASM.usd@
+)
+{
+    over "joints"
+    {
+        over "joint1"
+        {
+            float physics:lowerLimit = -180
+            float physics:upperLimit = 180
+        }
+
+        over "joint2"
+        {
+            float physics:lowerLimit = -180
+            float physics:upperLimit = 180
+        }
+
+        over "joint3"
+        {
+            float physics:lowerLimit = -180
+            float physics:upperLimit = 180
+        }
+
+        over "joint4"
+        {
+            float physics:lowerLimit = -180
+            float physics:upperLimit = 180
+        }
+
+        over "joint5"
+        {
+            float physics:lowerLimit = -180
+            float physics:upperLimit = 180
+        }
+
+        over "joint6"
+        {
+            float physics:lowerLimit = -180
+            float physics:upperLimit = 180
+        }
+
+        over "joint1L"
+        {
+            float physics:lowerLimit = -180
+            float physics:upperLimit = 180
+        }
+
+        over "joint2l"
+        {
+            float physics:lowerLimit = -180
+            float physics:upperLimit = 180
+        }
+
+        over "joint3l"
+        {
+            float physics:lowerLimit = -180
+            float physics:upperLimit = 180
+        }
+
+        over "joint4l"
+        {
+            float physics:lowerLimit = -180
+            float physics:upperLimit = 180
+        }
+
+        over "joint5l"
+        {
+            float physics:lowerLimit = -180
+            float physics:upperLimit = 180
+        }
+
+        over "joint6l"
+        {
+            float physics:lowerLimit = -180
+            float physics:upperLimit = 180
+        }
+
+        over "joint7"
+        {
+            float physics:lowerLimit = -0.05
+            float physics:upperLimit = 0
+        }
+
+        over "joint8"
+        {
+            float physics:lowerLimit = 0
+            float physics:upperLimit = 0.05
+        }
+
+        over "joint7l"
+        {
+            float physics:lowerLimit = -0.05
+            float physics:upperLimit = 0
+        }
+
+        over "joint8l"
+        {
+            float physics:lowerLimit = 0
+            float physics:upperLimit = 0.05
+        }
+    }
+}
