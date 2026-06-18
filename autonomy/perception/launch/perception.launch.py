@@ -11,7 +11,6 @@ def generate_launch_description():
             default_value='info',
             description='Log level for the dummy publisher node'
         ),
-
         Node(
             package='perception',
             executable='dummy_publisher_node',
@@ -38,5 +37,9 @@ def generate_launch_description():
                 'enable_color': True,
                 'enable_depth': True
             }]
-        )
+        ),
+        Node(package="perception", 
+             executable="dummy_tracknet_output",
+               name="dummy_tracknet_output", 
+               output="screen")
     ])
