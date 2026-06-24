@@ -77,7 +77,7 @@ RUN python3 -m pip install --no-cache-dir \
       ccimport>=0.4.4 \
       pybind11>=2.6.0 \
       cv_bridge \
-      numpy==1.26.4 \
+      "numpy==1.26.4"\
       fire \
       opencv-python
 
