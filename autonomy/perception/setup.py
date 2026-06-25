@@ -32,9 +32,10 @@ setup(
     license="Apache-2.0",
     tests_require=["pytest"],
     entry_points={
-        "console_scripts": [
-            "dummy_publisher_node = perception.dummy_publisher_node:main",
-            "pose_estimation_node = perception.pose_estimation_node:main"
+        'console_scripts': [
+            'dummy_publisher_node = perception.dummy_publisher_node:main',
+            'dummy_tracknet_output = perception.dummy_tracknet_output:main',
+            'trajectory_EKF_prediction_node = perception.trajectory_EKF_prediction_node:main'
         ],
     },
 )
