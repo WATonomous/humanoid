@@ -17,9 +17,9 @@ class DummyTrackNetOutput(Node):
         super().__init__('ball_sim')
 
         self.shuttle = None
-        self.dt = 0.05
+        self.dt = 0.01
         self.history_position = []
-        self.noise = 0.5
+        self.noise = 0.04 #m
 
         #This is the L-value
         self.aerodynamic_characteristic_length = 3.4

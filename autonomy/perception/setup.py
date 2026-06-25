@@ -31,7 +31,8 @@ setup(
     entry_points={
         'console_scripts': [
             'dummy_publisher_node = perception.dummy_publisher_node:main',
-            'dummy_tracknet_output = perception.dummy_tracknet_output:main'
+            'dummy_tracknet_output = perception.dummy_tracknet_output:main',
+            'trajectory_EKF_prediction_node = perception.trajectory_EKF_prediction_node:main'
         ],
     },
 )
