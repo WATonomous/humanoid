@@ -48,7 +48,9 @@ simulation_app = app_launcher.app
 """Rest everything follows."""
 
 import gymnasium as gym
+import importlib.metadata as metadata
 import os
+import pickle
 import torch
 from datetime import datetime
 
@@ -62,9 +64,9 @@ from isaaclab.envs import (
     multi_agent_to_single_agent,
 )
 from isaaclab.utils.dict import print_dict
-from isaaclab.utils.io import dump_pickle, dump_yaml
+from isaaclab.utils.io import dump_yaml
 
-from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper
+from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper, handle_deprecated_rsl_rl_cfg
 
 import HumanoidRLPackage.HumanoidRLSetup.tasks  # noqa: F401
 from isaaclab_tasks.utils import get_checkpoint_path
@@ -74,6 +76,20 @@ torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 torch.backends.cudnn.deterministic = False
 torch.backends.cudnn.benchmark = False
+
+installed_rsl_rl_version = metadata.version("rsl-rl-lib")
+
+
+def dump_pickle(filename: str, data: object):
+    """Save data into a pickle file.
+
+    Isaac Lab 5.1 no longer exposes dump_pickle from isaaclab.utils.io, but the
+    training script still logs pickled configs for compatibility with older runs.
+    """
+    if not os.path.exists(os.path.dirname(filename)):
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+    with open(filename, "wb") as f:
+        pickle.dump(data, f)
 
 
 @hydra_task_config(args_cli.task, "rsl_rl_cfg_entry_point")
@@ -85,6 +101,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     agent_cfg.max_iterations = (
         args_cli.max_iterations if args_cli.max_iterations is not None else agent_cfg.max_iterations
     )
+    agent_cfg = handle_deprecated_rsl_rl_cfg(agent_cfg, installed_rsl_rl_version)
 
     # set the environment seed
     # note: certain randomizations occur in the environment initialization so we set the seed here
