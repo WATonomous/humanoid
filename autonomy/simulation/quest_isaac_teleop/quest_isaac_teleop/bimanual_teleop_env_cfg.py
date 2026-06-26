@@ -8,7 +8,24 @@ from pathlib import Path
 _SIMULATION_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_SIMULATION_DIR / "Humanoid_Wato"))
 
-from isaaclab_teleop import IsaacTeleopCfg, XrCfg
+from dataclasses import dataclass, field as _field
+from typing import Any as _Any
+
+
+@dataclass
+class XrCfg:
+    """Stub for the XR anchor configuration (replaces isaaclab_teleop.XrCfg)."""
+    anchor_pos: tuple = (0.0, 0.0, 0.0)
+    anchor_rot: tuple = (0.0, 0.0, 0.0, 1.0)
+    near_plane: float = 0.1
+
+
+@dataclass
+class IsaacTeleopCfg:
+    """Stub for the Isaac teleop pipeline config (replaces isaaclab_teleop.IsaacTeleopCfg)."""
+    pipeline_builder: _Any = None
+    sim_device: str = "cpu"
+    xr_cfg: _Any = None
 
 import isaaclab.envs.mdp as base_mdp
 import isaaclab.sim as sim_utils
