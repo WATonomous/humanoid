@@ -41,15 +41,18 @@ parser.add_argument("--num_episodes", type=int, default=10, help="Number of epis
 parser.add_argument(
     "--policy_type",
     type=str,
-    choices=("lerobot", "groot"),
+    choices=("lerobot", "groot", "custom_act"),
     default="lerobot",
-    help="lerobot: local checkpoint; groot: remote GR00T server",
+    help="lerobot: LeRobot checkpoint dir; custom_act: humanoid-act best.pt; groot: GR00T server",
 )
 parser.add_argument(
     "--policy_path",
     type=str,
     default=None,
-    help="Local LeRobot policy checkpoint dir (required for --policy_type lerobot)",
+    help=(
+        "Policy checkpoint path: LeRobot pretrained_model dir (--policy_type lerobot), "
+        "or humanoid-act .pt file (--policy_type custom_act)"
+    ),
 )
 parser.add_argument(
     "--rename_map",
@@ -97,6 +100,7 @@ from isaaclab_tasks.utils import parse_env_cfg
 
 import humanoid_so101_vial_task.tasks  # noqa: F401
 from humanoid_so101_vial_task.utils.keyboard import KeyboardControl
+from humanoid_act.eval import LocalCustomACTPolicy
 from humanoid_so101_vial_task.utils.lerobot_interface import (
     LeRobotSO101Interface,
     GR00TRemotePolicy,
@@ -166,6 +170,17 @@ def main():
             port=args_cli.policy_port,
             action_horizon=args_cli.action_horizon,
             lang_instruction=args_cli.lang_instruction,
+        )
+        policy.connect()
+    elif args_cli.policy_type == "custom_act":
+        if not args_cli.policy_path:
+            raise ValueError("--policy_path is required when --policy_type custom_act")
+        if args_cli.rename_map:
+            print("[WARNING] --rename_map is ignored for custom_act (use training camera names)")
+        policy = LocalCustomACTPolicy(
+            robot_iface=robot_iface,
+            checkpoint_path=args_cli.policy_path,
+            action_horizon=args_cli.action_horizon,
         )
         policy.connect()
     else:
