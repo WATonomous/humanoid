@@ -31,7 +31,7 @@ class DummyTrackNetOutput(Node):
             10
         )
         self.true_pub = self.create_publisher(
-            PointStamped,
+            Pose,
             '/shuttle_states_true',
             10
         )
@@ -44,11 +44,11 @@ class DummyTrackNetOutput(Node):
         self.timer = self.create_timer(self.dt, self.step)
 
     def spawn_shuttle(self):
-
-        # units in meters
-        # (0,0) is center of court
-        # position based on dimensions of a badminton court, 13.4m long
-        # x spread is based on width of court, y spread is length, z spread is based on net height to max shuttlecock height
+        
+        #units in meters
+        #(0,0) is center of court 
+        #position based on dimensions of a badminton court, 13.4m long 
+        #x spread is based on width of court, y spread is length, z spread is based on net height to max shuttlecock height
         msg = Bool()
         msg.data = True
         self.new_spawn.publish(msg)
@@ -69,6 +69,8 @@ class DummyTrackNetOutput(Node):
         velocity = np.random.uniform(70, 130) * noisy_dir
 
         self.shuttle = Shuttle(velocity, position)
+    
+        
 
         self.get_logger().info(
             f"Spawned shuttle | pos={position} vel={velocity}"
@@ -97,12 +99,11 @@ class DummyTrackNetOutput(Node):
         self.shuttle.velocity = new_vel
         self.shuttle.position = new_pos
         self.history_position.append(new_pos)
-        true_msg = PointStamped()
-        true_msg.header.stamp = self.get_clock().now().to_msg()
-        true_msg.header.frame_id = "robot_base_link"
-        true_msg.point.x = float(new_pos[0])
-        true_msg.point.y = float(new_pos[1])
-        true_msg.point.z = float(new_pos[2])
+        true_msg = Pose()
+        true_msg.position.x = float(new_pos[0])
+        true_msg.position.y = float(new_pos[1])
+        true_msg.position.z = float(new_pos[2])
+        true_msg.orientation.w = 1.0
         self.true_pub.publish(true_msg)
 
         noise = np.random.uniform(-self.noise, self.noise, size=3)
@@ -121,8 +122,7 @@ class DummyTrackNetOutput(Node):
         if new_pos[2] < 0:
             self.shuttle = None
             self.get_logger().debug("Shuttle landed → respawning next tick")
-            self.get_logger().debug(
-                f"Shuttle trajectory history: {self.history_position}")
+            self.get_logger().debug(f"Shuttle trajectory history: {self.history_position}")
             self.history_position = []
 
 
