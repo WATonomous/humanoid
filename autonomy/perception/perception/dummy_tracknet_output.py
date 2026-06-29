@@ -3,6 +3,7 @@ from rclpy.node import Node
 
 from geometry_msgs.msg import Pose
 import numpy as np
+from std_msgs.msg import Bool
 
 
 class Shuttle:
@@ -29,6 +30,16 @@ class DummyTrackNetOutput(Node):
             '/shuttle_states',
             10
         )
+        self.true_pub = self.create_publisher(
+            Pose,
+            '/shuttle_states_true',
+            10
+        )
+        self.new_spawn = self.create_publisher(
+            Bool,
+            '/shuttle_spawned',
+            10
+        )
 
         self.timer = self.create_timer(self.dt, self.step)
 
@@ -39,6 +50,9 @@ class DummyTrackNetOutput(Node):
         #(0,0) is center of court 
         #position based on dimensions of a badminton court, 13.4m long 
         #x spread is based on width of court, y spread is length, z spread is based on net height to max shuttlecock height
+        msg = Bool()
+        msg.data = True
+        self.new_spawn.publish(msg)
         position = np.array([
             np.random.uniform(-3.05,3.05),   # x spread
             np.random.uniform(3.35, 10.05),   # y spread
@@ -54,6 +68,7 @@ class DummyTrackNetOutput(Node):
         velocity = np.random.uniform(70, 130) * noisy_dir
 
         self.shuttle = Shuttle(velocity, position)
+    
         
 
         self.get_logger().info(
@@ -84,6 +99,13 @@ class DummyTrackNetOutput(Node):
         self.shuttle.velocity = new_vel
         self.shuttle.position = new_pos
         self.history_position.append(new_pos)
+        true_msg = Pose()
+        true_msg.position.x = float(new_pos[0])
+        true_msg.position.y = float(new_pos[1])
+        true_msg.position.z = float(new_pos[2])
+        true_msg.orientation.w = 1.0
+        self.true_pub.publish(true_msg)
+
         noise = np.random.uniform(-self.noise, self.noise, size=3)
 
         # publish noisy data
@@ -98,8 +120,8 @@ class DummyTrackNetOutput(Node):
         # RESET ON GROUND HIT
         if new_pos[2] < 0:
             self.shuttle = None
-            self.get_logger().info("Shuttle landed → respawning next tick")
-            self.get_logger().info(f"Shuttle trajectory history: {self.history_position}")
+            self.get_logger().debug("Shuttle landed → respawning next tick")
+            self.get_logger().debug(f"Shuttle trajectory history: {self.history_position}")
             self.history_position = []
 
 
