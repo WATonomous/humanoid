@@ -1,84 +1,139 @@
 # Quest Bimanual Arm Teleop
 
-Two teleoperation modes are available.  **Mode A** (UDP bridge) is the one
-that works today.  Mode B (CloudXR) is incomplete — it depends on
-`isaaclab_teleop`/`isaacteleop` which are not yet in the container.
-
----
-
-## Mode A — UDP bridge (works now)
-
-Hand-tracking data flows:
+Hand-tracking data from the Quest 2 drives both arms in Isaac Sim 5.1.
+Everything runs inside the `simulation_il` container — no separate teleop
+container is needed.
 
 ```
 Quest WebXR browser
     │  WSS port 9090 via adb reverse
     ▼
-quest_teleop_node (teleop container)
+quest_teleop_node  (simulation_il container)
     │  ROS 2 /quest_teleop topic
     ▼
-quest_teleop_bridge.py (teleop container)
-    │  JSON UDP  localhost:19090  (host-network: same on both containers)
+run_quest_bimanual_teleop.py  (simulation_il container)
+    │  DifferentialIKController → joint targets
     ▼
-run_quest_bimanual_teleop.py (simulation_il container)
-    │  DiffIK → joint targets
-    ▼
-Isaac Sim bimanual arm (rendered on PC monitor)
+Isaac Sim bimanual arm  (rendered on PC monitor)
 ```
 
-### Step 1 — Host: USB tunnel
+---
 
-Plug in the Quest over USB, then on the **host**:
+## Prerequisites — build the image first
+
+The Dockerfile installs a separate Python 3.11 (deadsnakes) used only for
+building ROS 2 packages. This must be baked in before the container will work:
+
+```bash
+# From repo root on the host — only needed once per Dockerfile change
+ACTIVE_MODULES="simulation_il" ./watod build
+```
+
+This takes several minutes the first time. After that, `./watod up -d` uses the
+cached image.
+
+---
+
+## Terminal 1 — Host: Internet sharing for Quest (optional)
+
+```bash
+gnirehtet run
+```
+
+Wait until you see repeating `TcpConnection` log lines — the Quest has internet.
+Leave this running for the whole session.
+
+---
+
+## Terminal 2 — Host: USB port forwarding
+
+Plug in the Quest over USB, then:
 
 ```bash
 adb reverse tcp:8443 tcp:8443
 adb reverse tcp:9090 tcp:9090
 ```
 
-### Step 2 — teleop container: ROS 2 node + WebXR page
+No output means success. This terminal is done.
+
+---
+
+## Terminal 3 — simulation\_il\_dev: ROS 2 hand tracking node
 
 ```bash
-# terminal A — inside teleop container
-./watod -t teleop
-cd /root/ament_ws
-colcon build --packages-select common_msgs quest_teleop
-source install/setup.bash
+cd ~/Documents/Wato/humanoid && ./watod -t simulation_il_dev
+```
+
+When you shell in, `.bashrc` automatically runs `colcon build` for `common_msgs`
+and `quest_teleop`. Wait for:
+
+```
+Summary: 2 packages finished
+```
+
+Then run the node:
+
+```bash
 ros2 run quest_teleop quest_teleop_node
 ```
 
+You should see `[INFO] WSS server listening on port 9090`. Leave this running.
+
+---
+
+## Terminal 4 — simulation\_il\_dev: HTTPS WebXR page server
+
 ```bash
-# terminal B — inside teleop container
-./watod -t teleop
-python3 /root/ament_ws/src/teleop/quest_teleop/scripts/webxr_server.py
+cd ~/Documents/Wato/humanoid && ./watod -t simulation_il_dev
 ```
 
-### Step 3 — teleop container: UDP relay
+Wait for `Summary: 2 packages finished`, then:
 
 ```bash
-# terminal C — inside teleop container
-./watod -t teleop
-cd /workspace/humanoid/autonomy/simulation/quest_isaac_teleop
-./run_relay.sh
+python3 /workspace/humanoid/autonomy/teleop/quest_teleop/scripts/webxr_server.py
 ```
 
-### Step 4 — simulation_il container: launch Isaac Sim
+You should see `Serving at https://0.0.0.0:8443`. Leave this running.
+
+---
+
+## Terminal 5 — simulation\_il\_dev: Isaac Sim + IK script
 
 ```bash
-# terminal D — inside simulation_il container
-./watod -t simulation_il_dev
+cd ~/Documents/Wato/humanoid && ./watod -t simulation_il_dev
+```
+
+Wait for `Summary: 2 packages finished`, then:
+
+```bash
 cd /workspace/humanoid/autonomy/simulation/quest_isaac_teleop
 ./run_quest_bimanual_teleop.sh
 ```
 
-Wait for `[Quest] Ready.` in the output.
+Isaac Sim takes 1–3 minutes to load. Wait for:
 
-### Step 5 — Quest: connect WebXR
+```
+[Quest] Ready. Waiting for /quest_teleop messages.
+```
 
-Open `https://localhost:8443/` in the Quest browser, accept the self-signed
-cert, then press **Start**.  Both arms move with your wrists.  Pinch thumb +
-index to close each gripper.
+before putting on the headset.
 
-### Controls
+---
+
+## Quest Headset
+
+1. Put on the headset
+2. Open **Meta Browser** (not the Isaac Sim app)
+3. Go to `https://localhost:8443/`
+4. You'll get a security warning — click **Advanced → Proceed** (self-signed cert, expected)
+5. Press **Start**
+
+The Isaac Sim terminal should print hand data. Both arms follow your wrists.
+Pinch thumb + index finger to close each gripper.
+
+---
+
+## Controls
 
 | Action | Effect |
 |--------|--------|
@@ -87,38 +142,28 @@ index to close each gripper.
 | Pinch right thumb+index | Right gripper closes/opens |
 | Pinch left thumb+index | Left gripper closes/opens |
 
-### Tuning
+Pass `--gain VALUE` (default 4.0) to `run_quest_bimanual_teleop.sh` to scale
+how far the arm moves per metre of wrist motion.
 
-Pass `--gain VALUE` (default 0.8) to `run_quest_bimanual_teleop.sh` to scale
-how far the arm moves per metre of real wrist motion.
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| `colcon build` fails on shell entry | Image wasn't rebuilt after Dockerfile changed — run `ACTIVE_MODULES="simulation_il" ./watod build` first |
+| `Package 'quest_teleop' not found` | Build didn't finish — wait for `Summary: 2 packages finished` |
+| `Cannot run the interpreter /usr/bin/python3.11` | Same as above — image needs rebuild with `./watod build` |
+| `quest_teleop_node: No such file or directory` | `ros2 run` requires sourced workspace — `.bashrc` does this; open a fresh shell into the container |
+| Quest browser says connection refused | Make sure Terminals 3 and 4 are running and `adb reverse` was done |
+| Arms don't move | Check Terminal 5 prints `[Quest] First wrist data` — if not, check Terminal 3 is publishing on `/quest_teleop` |
+| Isaac Sim numpy broken after container restart | Container state was manually patched — you need `./watod build` to make the fix permanent |
 
 ---
 
 ## Mode B — CloudXR streaming (incomplete)
 
 `bimanual_teleop_env_cfg.py` and `run_bimanual_teleop.sh` implement a CloudXR
-path where Isaac Sim streams video to the Quest headset.  This requires the
+path where Isaac Sim streams video to the Quest headset. This requires the
 `isaaclab_teleop` / `isaacteleop` NVIDIA SDK packages which are not yet
-installed in the container.  The `isaaclab_teleop` import in
-`bimanual_teleop_env_cfg.py` is stubbed out so the module is importable, but
-the retargeting pipeline inside it is non-functional until those packages are
-added.
-
----
-
-## Verify hand data is arriving
-
-In a new simulation_il shell, before launching Isaac Sim you can test the
-UDP data with:
-
-```bash
-python3 -c "
-import socket, json
-s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-s.bind(('0.0.0.0', 19090))
-data, _ = s.recvfrom(65536)
-msg = json.loads(data)
-print('left wrist:', msg['left_wrist'])
-print('right wrist:', msg['right_wrist'])
-"
-```
+installed in the container and is not functional.
