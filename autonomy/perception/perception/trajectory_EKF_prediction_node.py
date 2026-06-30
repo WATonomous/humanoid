@@ -16,19 +16,22 @@ class EKFPredictionNode(Node):
         # [px, py, pz, vx, vy, vz]
         self.x = np.zeros(6)
         self.true_pos = np.zeros(3)
+        self.increments = 0
 
         # ---------------- COVARIANCE ----------------
-        self.P = np.eye(6) * 0.1 #process noise covariance
+        self.P = np.eye(6) * 0.1
+        self.P[3:6, 3:6] = np.eye(3) * 50.0   # high uncertainty on vx, vy, vz
         self.R = (0.04 ** 2) * np.eye(3)  # measurement noise
-        self.process_noise = 1e-6
-        self.look_ahead_time = 2 #seconds
-        self.bounding_sphere_radius = 5.0 #meters
-    
+        self.process_noise_pos = 1e-5
+        self.process_noise_vel = 1e-5
+       
 
         # ---------------- CONSTANTS ----------------
         self.g = np.array([0.0, 0.0, -9.81])
         self.L = 3.4
-     
+        self.look_ahead_time = 2 #seconds
+        self.bounding_sphere_radius = 5.0 #meters
+    
 
        
 
@@ -40,12 +43,14 @@ class EKFPredictionNode(Node):
         self.impact_estimate_pub = self.create_publisher(Bool, '/ekf_impact', 10)
 
         self.latest_meas = None
+        self.new_meas_available = False
 
         self.timer = self.create_timer(self.dt, self.step)
 
     # ---------------- CALLBACK ----------------
     def shuttle_callback(self, msg):
         self.latest_meas = msg
+        self.new_meas_available = True
 
     def shuttle_true_callback(self, msg):
         self.true_pos = np.array([
@@ -58,8 +63,10 @@ class EKFPredictionNode(Node):
             self.get_logger().info("Shuttle spawned → resetting EKF state")
             self.x = np.zeros(6)
             self.P = np.eye(6) * 0.1
+            self.P[3:6, 3:6] = np.eye(3) * 50.0 
+            self.increments = 0
             self.latest_meas = None
-
+            self.new_meas_available = False
     # ---------------- MODEL ----------------
     def f(self, x):
         p = x[0:3]
@@ -103,14 +110,17 @@ class EKFPredictionNode(Node):
     def step(self):
         # ===== PREDICT =====
         F = self.F_jacobian(self.x)   # old state
-        self.x = self.f(self.x)
-  
-
-        Q = np.eye(6) * self.process_noise
+        self.x = self.f(self.x)  
+   
+        
+        self.increments += 1
+        Q = np.eye(6)
+        Q[0:3, 0:3] *= self.process_noise_pos
+        Q[3:6, 3:6] *= self.process_noise_vel
         self.P = F @ self.P @ F.T + Q
 
         # ===== UPDATE =====
-        if self.latest_meas is not None:
+        if self.latest_meas is not None and self.new_meas_available:
             z = np.array([
                 self.latest_meas.position.x,
                 self.latest_meas.position.y,
@@ -135,10 +145,15 @@ class EKFPredictionNode(Node):
         msg.position.x = float(self.x[0])
         msg.position.y = float(self.x[1])
         msg.position.z = float(self.x[2])
-
-        self.get_logger().info(#difference between true and predicted position
-            f"Total Error: {np.linalg.norm(self.true_pos - self.x[0:3])}")
+        if (self.latest_meas is not None and self.new_meas_available):
+                self.get_logger().info(
+                    f"Total Error: {np.linalg.norm(self.true_pos - self.x[0:3])}")
+                
+        self.new_meas_available = False
+        
+           
         self.pub.publish(msg)
+
 
 
 def main(args=None):
