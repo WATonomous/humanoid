@@ -1,0 +1,51 @@
+version: "3.8"
+
+services:
+  tracknetv3:
+    build: &tracknetv3_build
+      context: ..
+      dockerfile: docker/tracknetv3/tracknetv3.Dockerfile
+      cache_from:
+        - "${TRACKNETV3_IMAGE:-ghcr.io/watonomous/humanoid/perception/tracknetv3}:${TAG}"
+        - "${TRACKNETV3_IMAGE:-ghcr.io/watonomous/humanoid/perception/tracknetv3}:main"
+      args:
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
+    image: "${TRACKNETV3_IMAGE:-ghcr.io/watonomous/humanoid/perception/tracknetv3}:${TAG}"
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    profiles: [deploy]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
+    privileged: true
+    volumes:
+      - ${MONO_DIR}/autonomy/tracknetv3:/root/ament_ws/src/tracknetv3
+      - ${MONO_DIR}/autonomy/tracknetv3/models/weights:/models/tracknetv3:ro
+    command: >
+      /bin/bash -c
+      "ros2 launch tracknetv3 tracknetv3.launch.py model_dir:=/models/tracknetv3"
+
+  tracknetv3_dev:
+    build: *tracknetv3_build
+    image: "${TRACKNETV3_IMAGE:-ghcr.io/watonomous/humanoid/perception/tracknetv3}:dev_${TAG}"
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    profiles: [develop]
+    privileged: true
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
+    volumes:
+      - ${MONO_DIR}/autonomy/tracknetv3:/root/ament_ws/src/tracknetv3
+      - ${MONO_DIR}/autonomy/tracknetv3/models/weights:/models/tracknetv3:ro
+    command: >
+      /bin/bash -c
+      "ros2 launch tracknetv3 tracknetv3.launch.py model_dir:=/models/tracknetv3"

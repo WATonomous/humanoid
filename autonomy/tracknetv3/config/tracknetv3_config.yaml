@@ -1,0 +1,28 @@
+tracknetv3_node:
+  ros__parameters:
+    camera:
+      rgb_image_topic: "/camera/color/image_raw"
+      camera_frame: "camera_link"
+
+    model:
+      model_dir: ""
+      tracknet_checkpoint: "TrackNet_best.pt"
+      inpaintnet_checkpoint: ""
+      device: "cuda:0"
+      use_fp16: true
+      seq_len: 8
+      bg_mode: "concat"
+
+    inference:
+      confidence_threshold: 0.5
+
+    publishers:
+      point_topic: "/tracknetv3/shuttle_point"
+      visible_topic: "/tracknetv3/shuttle_visible"
+      debug_image_topic: "/tracknetv3/debug_image"
+      stats_topic: "/tracknetv3/stats"
+
+    debug:
+      enabled: false
+      draw_trajectory: true
+      trajectory_length: 8

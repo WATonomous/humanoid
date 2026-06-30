@@ -16,3 +16,8 @@ log/
 autonomy/teleop/quest_teleop_server/certs/*
 datasets/
 outputs/
+
+# TrackNetV3 checkpoints are mounted locally; do not commit model weights.
+autonomy/tracknetv3/models/weights/*.pt
+autonomy/tracknetv3/models/weights/*.pth
+autonomy/tracknetv3/models/weights/*.onnx
