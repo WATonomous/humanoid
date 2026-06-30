@@ -22,15 +22,15 @@ class EKFPredictionNode(Node):
         self.P = np.eye(6) * 0.1
         self.P[3:6, 3:6] = np.eye(3) * 50.0   # high uncertainty on vx, vy, vz
         self.R = (0.04 ** 2) * np.eye(3)  # measurement noise
-        self.process_noise_pos = 1e-5
-        self.process_noise_vel = 1e-5
+        self.process_noise_pos = 1e-2
+        self.process_noise_vel = 1e-2
        
 
         # ---------------- CONSTANTS ----------------
         self.g = np.array([0.0, 0.0, -9.81])
-        self.L = 3.4
+        self.L = 3.4 #aerodynamic characteristic length (L-value) 
         self.look_ahead_time = 2 #seconds
-        self.bounding_sphere_radius = 5.0 #meters
+        self.bounding_sphere_radius = 2.0 #meters
     
 
        
@@ -43,6 +43,7 @@ class EKFPredictionNode(Node):
         self.impact_estimate_pub = self.create_publisher(Bool, '/ekf_impact', 10)
 
         self.latest_meas = None
+        self.latest_meas_time = None
         self.new_meas_available = False
 
         self.timer = self.create_timer(self.dt, self.step)
@@ -50,6 +51,7 @@ class EKFPredictionNode(Node):
     # ---------------- CALLBACK ----------------
     def shuttle_callback(self, msg):
         self.latest_meas = msg
+        self.latest_meas_time = self.increments
         self.new_meas_available = True
 
     def shuttle_true_callback(self, msg):
@@ -67,6 +69,7 @@ class EKFPredictionNode(Node):
             self.increments = 0
             self.latest_meas = None
             self.new_meas_available = False
+            self.latest_meas_time = None
     # ---------------- MODEL ----------------
     def f(self, x):
         p = x[0:3]
@@ -105,15 +108,55 @@ class EKFPredictionNode(Node):
         F[3:6, 3:6] = I - drag_jac * self.dt
 
         return F
+    # ---------------- IMPACT ESTIMATION ----------------
+    def estimate_impact(self):
+        future_x = self.x.copy()
+        impact = False
+        time_till_impact = 0.0
+        position_of_impact = np.zeros(3)
+        hit_back_direction = np.zeros(3)
+        if(future_x[0]**2 + future_x[1]**2 + future_x[2]**2 <= self.bounding_sphere_radius**2):
+            self.get_logger().debug("Already impacted")
+            return
+        for i in range(int(self.look_ahead_time / self.dt)):
+            future_x = self.f(future_x)
+            if future_x[0]**2 + future_x[1]**2 + future_x[2]**2 <= self.bounding_sphere_radius**2:
+                impact = True
+                #using the negative of the normalized velocity at impact to estimate the ideal racket facing orientation for a hit back
+                hit_back_direction = -(future_x[3:6]/np.linalg.norm(future_x[3:6]))
+                time_till_impact = i * self.dt
+                position_of_impact = future_x[0:3]
+                break
+        if (impact):
+            self.get_logger().info(f"Impact estimated in {time_till_impact:.2f} seconds at position {position_of_impact} with hit back racket direction {hit_back_direction})")
+        else:
+            self.get_logger().info("No impact estimated in the next 2 seconds")
+        return 
+       
+
+            
 
     # ---------------- STEP ----------------
     def step(self):
+        self.increments += 1
+        if (self.true_pos[0]**2 + self.true_pos[1]**2 + self.true_pos[2]**2 <= self.bounding_sphere_radius**2):
+            self.get_logger().info(f"Shuttle has impacted at true position {self.true_pos}")
+        if (np.trace(self.P) < 5):
+            self.process_noise_pos = 1e-5
+            self.process_noise_vel = 1e-5
+        else:
+            self.process_noise_pos = 1e-2
+            self.process_noise_vel = 1e-2
+        
+        
+        # ====IMPACT ESTIMATION =====
+        self.estimate_impact()
         # ===== PREDICT =====
         F = self.F_jacobian(self.x)   # old state
         self.x = self.f(self.x)  
    
         
-        self.increments += 1
+     
         Q = np.eye(6)
         Q[0:3, 0:3] *= self.process_noise_pos
         Q[3:6, 3:6] *= self.process_noise_vel
@@ -126,7 +169,7 @@ class EKFPredictionNode(Node):
                 self.latest_meas.position.y,
                 self.latest_meas.position.z
             ])
-
+    
             H = np.zeros((3, 6))
             H[:, 0:3] = np.eye(3)
 
@@ -146,7 +189,7 @@ class EKFPredictionNode(Node):
         msg.position.y = float(self.x[1])
         msg.position.z = float(self.x[2])
         if (self.latest_meas is not None and self.new_meas_available):
-                self.get_logger().info(
+                self.get_logger().debug(
                     f"Total Error: {np.linalg.norm(self.true_pos - self.x[0:3])}")
                 
         self.new_meas_available = False
