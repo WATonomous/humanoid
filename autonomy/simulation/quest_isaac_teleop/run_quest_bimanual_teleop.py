@@ -7,6 +7,11 @@ The left Quest wrist drives the left arm (joints joint1L–joint6l).
 The right Quest wrist drives the right arm (joints joint1–joint6).
 Pinching thumb + index closes the corresponding gripper.
 
+IK solver: Pink IK (Pinocchio-based QP with multiple weighted tasks).
+  - Absolute pose targets tracked from Quest wrist home position.
+  - Better singularity handling than Differential IK via per-task LM damping.
+  - Uses WATO_BIMANUAL_IK_CONTROLLER_CFG from bimanual_pink_controller_cfg.py.
+
 Coordinate mapping
 ------------------
 WebXR uses a Y-up frame (X-right, Y-up, -Z-forward).  The robot base is in
@@ -39,33 +44,48 @@ _SIM_DIR = _THIS_DIR.parent
 _KEYBOARD_TELEOP_DIR = _SIM_DIR / "Teleop" / "keyboard-based teleoperation"
 sys.path.insert(0, str(_KEYBOARD_TELEOP_DIR))
 
+# Bimanual arm URDF + mesh paths for Pink IK's Pinocchio model
+_BIMANUAL_ROOT = _SIM_DIR / "Humanoid_Wato" / "wato_bimanual_arm"
+_URDF_PATH = str(_BIMANUAL_ROOT / "urdf" / "armDouble.SLDASM.urdf")
+_MESH_DIR = str(_BIMANUAL_ROOT / "meshes")
+
 # ── CLI args ──────────────────────────────────────────────────────────────────
-parser = argparse.ArgumentParser(description="Quest bimanual arm teleop (ROS 2)")
+parser = argparse.ArgumentParser(description="Quest bimanual arm teleop (ROS 2, Pink IK)")
 parser.add_argument("--gain", type=float, default=4.0,
                     help="Motion gain: metres of EE motion per metre of real wrist motion")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
+
+# Pinocchio must be imported before AppLauncher starts Isaac Sim.
+# Isaac Sim loads its own libboost_python311.so; if that loads first, its Boost
+# type registry becomes authoritative and Pinocchio's C++ type registrations
+# (StdVec_StdString, etc.) become invisible, causing "No Python class registered"
+# errors. Importing here ensures cmeel's Boost wins the soname race.
+import pinocchio as _pin_preload  # noqa: F401
+del _pin_preload
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 # ── post-launch imports (require Omniverse runtime) ───────────────────────────
 # rclpy must be imported after AppLauncher — Omniverse must initialise first.
+import numpy as np  # noqa: E402
+import pinocchio as pin  # noqa: E402
 import rclpy  # noqa: E402
+import torch  # noqa: E402
 from rclpy.node import Node  # noqa: E402
 from common_msgs.msg import QuestHandPose  # noqa: E402
-import torch  # noqa: E402
 
 import isaaclab.sim as sim_utils  # noqa: E402
 from isaaclab.assets import AssetBaseCfg  # noqa: E402
-from isaaclab.controllers import DifferentialIKController, DifferentialIKControllerCfg  # noqa: E402
+from isaaclab.controllers.pink_ik import PinkIKController  # noqa: E402
 from isaaclab.managers import SceneEntityCfg  # noqa: E402
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg  # noqa: E402
 from isaaclab.utils import configclass  # noqa: E402
 from isaaclab.utils.math import (  # noqa: E402
-    matrix_from_quat,
     quat_apply,
     quat_apply_inverse,
+    quat_from_matrix,
     quat_inv,
     quat_mul,
     skew_symmetric_matrix,
@@ -82,12 +102,15 @@ from bimanual_arm_cfg import (  # noqa: E402
     apply_joint_limits,
     resolve_joint_name,
 )
+from quest_isaac_teleop.bimanual_pink_controller_cfg import (  # noqa: E402
+    ARM_JOINTS,
+    RIGHT_EE_LINK,
+    WATO_BIMANUAL_IK_CONTROLLER_CFG,
+)
 
 # ── constants ─────────────────────────────────────────────────────────────────
 
-# Right arm: 6 revolute joints (no gripper — controlled separately)
-_RIGHT_IK_JOINTS = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]
-_RIGHT_EE_BODY = "link6"
+_RIGHT_EE_BODY = RIGHT_EE_LINK          # "link6"
 _RIGHT_GRIPPER_JOINTS = ["joint7", "joint8"]
 _RIGHT_GRIPPER_OPEN = {"joint7": -0.05, "joint8": 0.05}
 _RIGHT_GRIPPER_CLOSED = {"joint7": 0.0, "joint8": 0.0}
@@ -100,8 +123,7 @@ _QUEST_TO_WORLD = torch.tensor(
     dtype=torch.float32,
 )
 
-# WebXR joint indices (each joint = 3 floats xyz; 25 joints = 75 floats)
-_THUMB_TIP_IDX = 4   # thumb-tip
+_THUMB_TIP_IDX = 4   # thumb-tip in Quest hand joint array
 _INDEX_TIP_IDX = 9   # index-finger-tip
 _PINCH_CLOSE_M = 0.030   # metres — gripper closes when thumb-index < this
 _PINCH_OPEN_M = 0.050    # metres — gripper opens when > this (hysteresis)
@@ -153,15 +175,6 @@ def _make_entity_cfg(scene, joint_names: list[str], ee_body: str) -> SceneEntity
     return cfg
 
 
-def _make_diff_ik(scene, device: str) -> DifferentialIKController:
-    cfg = DifferentialIKControllerCfg(
-        command_type="pose",
-        use_relative_mode=True,
-        ik_method="dls",
-    )
-    return DifferentialIKController(cfg, num_envs=scene.num_envs, device=device)
-
-
 def _wrist_xyz(wrist) -> torch.Tensor:
     p = wrist.position
     return torch.tensor([p.x, p.y, p.z], dtype=torch.float32)
@@ -173,17 +186,6 @@ def _wrist_quat_wxyz(wrist) -> torch.Tensor:
     return torch.tensor([o.w, o.x, o.y, o.z], dtype=torch.float32)
 
 
-def _rot_delta_to_axis_angle(q_curr: torch.Tensor, q_prev: torch.Tensor) -> torch.Tensor:
-    """Relative rotation q_prev→q_curr expressed as axis-angle (3D) in world frame."""
-    dq = quat_mul(q_curr.unsqueeze(0), quat_inv(q_prev.unsqueeze(0))).squeeze(0)
-    # dq = (w, x, y, z); axis-angle = 2*acos(|w|) * axis
-    w = dq[0].clamp(-1.0, 1.0)
-    angle = 2.0 * torch.acos(w.abs())
-    sin_half = torch.sqrt(1.0 - w * w).clamp(min=1e-6)
-    axis = dq[1:] / sin_half
-    return axis * angle
-
-
 def _pinch_dist(hand_joints: list) -> float:
     if len(hand_joints) != 75:
         return float("inf")
@@ -191,11 +193,6 @@ def _pinch_dist(hand_joints: list) -> float:
     thumb = torch.tensor(hand_joints[ti:ti + 3])
     index = torch.tensor(hand_joints[ii:ii + 3])
     return (thumb - index).norm().item()
-
-
-def _base_delta(delta_world: torch.Tensor, root_quat_w: torch.Tensor) -> torch.Tensor:
-    """Convert a world-frame delta into the robot root frame."""
-    return quat_apply_inverse(root_quat_w, delta_world.unsqueeze(0)).squeeze(0)
 
 
 def _ee_pose_in_base(robot, body_id: int):
@@ -207,14 +204,21 @@ def _ee_pose_in_base(robot, body_id: int):
     )
 
 
-def _arm_jacobian(robot, jacobi_idx: int, joint_ids) -> torch.Tensor:
-    """Return the Jacobian rotated into the robot root frame."""
-    base_rot = matrix_from_quat(quat_inv(robot.data.root_quat_w))
-    jac_w = robot.root_physx_view.get_jacobians()[:, jacobi_idx, :, joint_ids]
-    jac_b = jac_w.clone()
-    jac_b[:, :3, :] = torch.bmm(base_rot, jac_b[:, :3, :])
-    jac_b[:, 3:, :] = torch.bmm(base_rot, jac_b[:, 3:, :])
-    return jac_b
+def _to_pin_se3(pos_b: torch.Tensor, quat_wxyz: torch.Tensor) -> pin.SE3:
+    """Convert Isaac Lab base-frame pose tensors to a Pinocchio SE3.
+
+    pos_b   : (1, 3) tensor — position in robot base frame
+    quat_wxyz: (1, 4) tensor — orientation (w, x, y, z) in robot base frame
+    Returns a pin.SE3 suitable for LocalFrameTask.set_target().
+    """
+    t = pos_b[0].cpu().numpy().astype(np.float64)
+    w, x, y, z = quat_wxyz[0].cpu().numpy().astype(np.float64)
+    R = np.array([
+        [1 - 2*(y*y + z*z),   2*(x*y - w*z),     2*(x*z + w*y)],
+        [2*(x*y + w*z),       1 - 2*(x*x + z*z), 2*(y*z - w*x)],
+        [2*(x*z - w*y),       2*(y*z + w*x),     1 - 2*(x*x + y*y)],
+    ])
+    return pin.SE3(R, t)
 
 
 # ── main simulation loop ──────────────────────────────────────────────────────
@@ -228,35 +232,53 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     scene.update(sim_dt)
     apply_joint_limits(robot)
 
-    # Resolve joint names (handle case variants like joint2L vs joint2l)
+    # Resolve arm joint names (handle case variants like joint1L vs joint1l)
     left_arm_names = [resolve_joint_name(robot, n) for n in LEFT_ARM_JOINTS]
-    right_arm_names = [resolve_joint_name(robot, n) for n in _RIGHT_IK_JOINTS]
+    right_arm_names = [resolve_joint_name(robot, n) for n in ["joint1", "joint2", "joint3",
+                                                                "joint4", "joint5", "joint6"]]
 
-    # Entity configs for DiffIK
+    # Entity configs — only used to get EE body IDs for pose tracking
     left_cfg = _make_entity_cfg(scene, left_arm_names, LEFT_EE_BODY)
     right_cfg = _make_entity_cfg(scene, right_arm_names, _RIGHT_EE_BODY)
-
-    left_arm_ids = left_cfg.joint_ids
-    right_arm_ids = right_cfg.joint_ids
-
     left_body_id = left_cfg.body_ids[0]
     right_body_id = right_cfg.body_ids[0]
 
-    # Jacobian row indices (fixed-base arm: body_id - 1)
-    left_jacobi_idx = left_body_id - 1 if robot.is_fixed_base else left_body_id
-    right_jacobi_idx = right_body_id - 1 if robot.is_fixed_base else right_body_id
+    # ── Pink IK controller setup ───────────────────────────────────────────────
+    # ARM_JOINTS = right (joint1-6) + left (joint1L-joint6l), 12 joints total.
+    # We resolve each Pink config name to its Isaac Lab USD name, then get its
+    # index in robot.data.joint_names so PinkIKController can build the
+    # reordering maps between Isaac Lab and Pinocchio conventions.
+    all_joint_names = list(robot.data.joint_names)
+    controlled_joint_indices = []
+    arm_joints_il = []  # actual Isaac Lab names for the 12 arm joints
+    for jname in ARM_JOINTS:
+        if jname in all_joint_names:
+            controlled_joint_indices.append(all_joint_names.index(jname))
+            arm_joints_il.append(jname)
+        else:
+            # Try case variant (e.g. joint2L vs joint2l)
+            idx = next((i for i, n in enumerate(all_joint_names) if n.lower() == jname.lower()), None)
+            if idx is None:
+                raise ValueError(f"Pink IK arm joint '{jname}' not found in robot joints {all_joint_names}")
+            controlled_joint_indices.append(idx)
+            arm_joints_il.append(all_joint_names[idx])
 
-    # Debug: confirm joint and body IDs resolved correctly
-    print(f"[Debug] Left arm joint names:  {left_arm_names}", flush=True)
-    print(f"[Debug] Left arm joint IDs:    {list(left_arm_ids)}", flush=True)
-    print(f"[Debug] Left EE body ID:       {left_body_id}", flush=True)
-    print(f"[Debug] Right arm joint names: {right_arm_names}", flush=True)
-    print(f"[Debug] Right arm joint IDs:   {list(right_arm_ids)}", flush=True)
-    print(f"[Debug] Right EE body ID:      {right_body_id}", flush=True)
+    pink_cfg = WATO_BIMANUAL_IK_CONTROLLER_CFG.copy()
+    pink_cfg.urdf_path = _URDF_PATH
+    pink_cfg.mesh_path = _MESH_DIR
+    pink_cfg.joint_names = arm_joints_il        # USD names of the 12 controlled arm joints
+    pink_cfg.all_joint_names = all_joint_names  # all USD joint names (16 total incl. grippers)
 
-    # DiffIK controllers
-    left_ik = _make_diff_ik(scene, device)
-    right_ik = _make_diff_ik(scene, device)
+    pink_controller = PinkIKController(
+        cfg=pink_cfg,
+        robot_cfg=BIMANUAL_ARM_CFG,
+        device=device,
+        controlled_joint_indices=controlled_joint_indices,
+    )
+
+    # Frame-remap quaternion: maps Quest orientation deltas into world frame
+    quest_to_world = _QUEST_TO_WORLD.to(device)
+    quest_to_world_quat = quat_from_matrix(quest_to_world.unsqueeze(0))  # (1, 4) wxyz
 
     # Gripper joint ids
     left_gripper_ids = _joint_ids(robot, LEFT_GRIPPER_JOINTS)
@@ -290,18 +312,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     receiver = QuestRosReceiver()
     threading.Thread(target=rclpy.spin, args=(receiver,), daemon=True).start()
 
-    # Previous wrist poses for delta computation
-    prev_left: torch.Tensor | None = None
-    prev_right: torch.Tensor | None = None
-    prev_left_quat: torch.Tensor | None = None
-    prev_right_quat: torch.Tensor | None = None
+    # Home references for absolute-pose tracking (captured on first Quest message)
+    quest_home_left: torch.Tensor | None = None
+    quest_home_right: torch.Tensor | None = None
+    quest_home_left_quat: torch.Tensor | None = None
+    quest_home_right_quat: torch.Tensor | None = None
+    home_ee_pos_b_left: torch.Tensor | None = None
+    home_ee_quat_b_left: torch.Tensor | None = None
+    home_ee_pos_b_right: torch.Tensor | None = None
+    home_ee_quat_b_right: torch.Tensor | None = None
 
     # Gripper state (hysteresis)
     left_closed = False
     right_closed = False
-
-    quest_to_world = _QUEST_TO_WORLD.to(device)
-    zero_cmd = torch.zeros(1, 6, device=device)
 
     print("[Quest] Ready. Waiting for /quest_teleop messages.")
     print("[Quest] Connect the Quest browser to start streaming hand data.")
@@ -318,39 +341,65 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             right_joints = list(msg.right_hand_joints)
 
             root_quat_w = robot.data.root_state_w[:, 3:7]  # (1, 4)
+            ee_pos_b_l, ee_quat_b_l = _ee_pose_in_base(robot, left_body_id)
+            ee_pos_b_r, ee_quat_b_r = _ee_pose_in_base(robot, right_body_id)
 
-            if prev_left is None:
-                prev_left = left_xyz_q.clone()
-                prev_right = right_xyz_q.clone()
-                prev_left_quat = left_quat.clone()
-                prev_right_quat = right_quat.clone()
-                print(f"[Quest] First wrist data — left: {left_xyz_q.tolist()}, right: {right_xyz_q.tolist()}", flush=True)
+            if quest_home_left is None:
+                # First message: anchor home references so arm holds its current pose.
+                quest_home_left = left_xyz_q.clone()
+                quest_home_right = right_xyz_q.clone()
+                quest_home_left_quat = left_quat.clone()
+                quest_home_right_quat = right_quat.clone()
+                home_ee_pos_b_left = ee_pos_b_l.clone()
+                home_ee_quat_b_left = ee_quat_b_l.clone()
+                home_ee_pos_b_right = ee_pos_b_r.clone()
+                home_ee_quat_b_right = ee_quat_b_r.clone()
+                # Sync Pink task targets to the actual Isaac Sim EE poses at home.
+                right_task = pink_controller.cfg.variable_input_tasks[0]
+                left_task = pink_controller.cfg.variable_input_tasks[1]
+                right_task.set_target(_to_pin_se3(home_ee_pos_b_right, home_ee_quat_b_right))
+                left_task.set_target(_to_pin_se3(home_ee_pos_b_left, home_ee_quat_b_left))
+                print(f"[Quest] First wrist data — left: {left_xyz_q.tolist()}, "
+                      f"right: {right_xyz_q.tolist()}", flush=True)
 
-            # Position delta: WebXR frame → world frame → robot base frame
-            left_delta_w = (quest_to_world @ (left_xyz_q - prev_left)) * gain
-            right_delta_w = (quest_to_world @ (right_xyz_q - prev_right)) * gain
-            prev_left = left_xyz_q.clone()
-            prev_right = right_xyz_q.clone()
+            # ── Absolute position target in robot base frame ───────────────────
+            # Quest wrist delta → world frame (via frame-remap matrix) → base frame.
+            left_delta_w = (quest_to_world @ (left_xyz_q - quest_home_left)) * gain
+            right_delta_w = (quest_to_world @ (right_xyz_q - quest_home_right)) * gain
+            target_pos_b_left = (
+                home_ee_pos_b_left + quat_apply_inverse(root_quat_w, left_delta_w.unsqueeze(0))
+            )
+            target_pos_b_right = (
+                home_ee_pos_b_right + quat_apply_inverse(root_quat_w, right_delta_w.unsqueeze(0))
+            )
 
-            left_delta_b = _base_delta(left_delta_w, root_quat_w)
-            right_delta_b = _base_delta(right_delta_w, root_quat_w)
+            # ── Absolute orientation target in robot base frame ────────────────
+            # Relative wrist rotation since home, remapped through the axis-remap
+            # quaternion (Quest→world) then into the robot base frame, applied to
+            # the home palm orientation.  Matches the approach in quest_Isaac.py.
+            dq_left = quat_mul(left_quat.unsqueeze(0), quat_inv(quest_home_left_quat.unsqueeze(0)))
+            dq_left_world = quat_mul(quat_mul(quest_to_world_quat, dq_left),
+                                     quat_inv(quest_to_world_quat))
+            dq_left_base = quat_mul(quat_mul(quat_inv(root_quat_w), dq_left_world), root_quat_w)
+            target_quat_b_left = quat_mul(dq_left_base, home_ee_quat_b_left)
 
-            # Rotation delta: relative wrist rotation → axis-angle in world → base frame
-            left_rot_w = _rot_delta_to_axis_angle(left_quat, prev_left_quat).to(device)
-            right_rot_w = _rot_delta_to_axis_angle(right_quat, prev_right_quat).to(device)
-            prev_left_quat = left_quat.clone()
-            prev_right_quat = right_quat.clone()
+            dq_right = quat_mul(right_quat.unsqueeze(0), quat_inv(quest_home_right_quat.unsqueeze(0)))
+            dq_right_world = quat_mul(quat_mul(quest_to_world_quat, dq_right),
+                                      quat_inv(quest_to_world_quat))
+            dq_right_base = quat_mul(quat_mul(quat_inv(root_quat_w), dq_right_world), root_quat_w)
+            target_quat_b_right = quat_mul(dq_right_base, home_ee_quat_b_right)
 
-            left_rot_b = _base_delta(left_rot_w, root_quat_w)
-            right_rot_b = _base_delta(right_rot_w, root_quat_w)
+            # ── Update Pink IK task targets ────────────────────────────────────
+            # variable_input_tasks[0] = right EE (link6), [1] = left EE (link6l).
+            # Targets are pin.SE3 in the robot base frame.
+            pink_controller.cfg.variable_input_tasks[0].set_target(
+                _to_pin_se3(target_pos_b_right, target_quat_b_right)
+            )
+            pink_controller.cfg.variable_input_tasks[1].set_target(
+                _to_pin_se3(target_pos_b_left, target_quat_b_left)
+            )
 
-            left_cmd = torch.cat([left_delta_b, left_rot_b]).unsqueeze(0)
-            right_cmd = torch.cat([right_delta_b, right_rot_b]).unsqueeze(0)
-
-            if left_delta_b.abs().max().item() > 0.0001:
-                print(f"[Quest] left_delta_b={[round(v,4) for v in left_delta_b.tolist()]} right_delta_b={[round(v,4) for v in right_delta_b.tolist()]}", flush=True)
-
-            # Gripper hysteresis — pinch = close, release = open
+            # ── Gripper hysteresis — pinch = close, release = open ─────────────
             ld = _pinch_dist(left_joints)
             if ld < _PINCH_CLOSE_M:
                 left_closed = False
@@ -362,29 +411,18 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 right_closed = False
             elif rd > _PINCH_OPEN_M:
                 right_closed = True
-        else:
-            left_cmd = zero_cmd
-            right_cmd = zero_cmd
 
-        # ── Left arm IK ──────────────────────────────────────────────────────
-        ee_pos_b_l, ee_quat_b_l = _ee_pose_in_base(robot, left_body_id)
-        left_ik.set_command(left_cmd, ee_pos=ee_pos_b_l, ee_quat=ee_quat_b_l)
-        jac_l = _arm_jacobian(robot, left_jacobi_idx, left_arm_ids)
-        left_des = left_ik.compute(
-            ee_pos_b_l, ee_quat_b_l, jac_l, robot.data.joint_pos[:, left_arm_ids]
+        # ── Pink IK solve ──────────────────────────────────────────────────────
+        # compute() takes ALL joint positions (numpy, Isaac Lab ordering) and
+        # returns target positions for the 12 CONTROLLED arm joints only.
+        curr_joint_pos_np = robot.data.joint_pos[0].cpu().numpy()
+        target_arm_pos = pink_controller.compute(curr_joint_pos_np, sim_dt)  # (12,) tensor
+
+        robot.set_joint_position_target(
+            target_arm_pos.unsqueeze(0), joint_ids=controlled_joint_indices
         )
-        robot.set_joint_position_target(left_des, joint_ids=left_arm_ids)
 
-        # ── Right arm IK ─────────────────────────────────────────────────────
-        ee_pos_b_r, ee_quat_b_r = _ee_pose_in_base(robot, right_body_id)
-        right_ik.set_command(right_cmd, ee_pos=ee_pos_b_r, ee_quat=ee_quat_b_r)
-        jac_r = _arm_jacobian(robot, right_jacobi_idx, right_arm_ids)
-        right_des = right_ik.compute(
-            ee_pos_b_r, ee_quat_b_r, jac_r, robot.data.joint_pos[:, right_arm_ids]
-        )
-        robot.set_joint_position_target(right_des, joint_ids=right_arm_ids)
-
-        # ── Gripper targets ───────────────────────────────────────────────────
+        # ── Gripper targets ────────────────────────────────────────────────────
         robot.set_joint_position_target(
             left_g_closed if left_closed else left_g_open, joint_ids=left_gripper_ids
         )
