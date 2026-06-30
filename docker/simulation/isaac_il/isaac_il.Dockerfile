@@ -37,6 +37,7 @@ RUN mkdir -p src && \
         rcutils rcl rmw rclpy rclcpp \
         geometry_msgs std_msgs common_interfaces \
         rosidl_default_generators rosidl_default_runtime \
+        ros2cli ros2run ros2topic ros2node ros2pkg \
     > ros2.humble.rosinstall && \
     vcs import --shallow src < ros2.humble.rosinstall
 
