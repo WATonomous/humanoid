@@ -10,13 +10,13 @@ Quest 2 headset (WebXR hand tracking)
     ▼
 webxr_server.py  ──────────────────────────────┐
                                                │ self-signed cert
-    │  WSS port 9090  (adb reverse tunnel)     │
-    ▼                                          │
+    │  WSS port 9090  (adb reverse tunnel)     │  (must be trusted on Quest
+    ▼                                          │   for BOTH ports 8443 + 9090)
 quest_teleop_node  (ROS 2 WebSocket bridge)    │
     │  /quest_teleop  (ROS 2 topic)            │
     ▼                                          │
 run_quest_bimanual_teleop.py                   │
-    │  DifferentialIKController → joint cmds   │
+    │  PinkIKController → joint cmds           │
     ▼                                          │
 Isaac Sim 5.1  (rendered on host monitor) ◄────┘
 ```
@@ -207,14 +207,18 @@ before putting on the headset.
 
 ### Quest headset
 
+The self-signed cert must be trusted separately for each port the browser
+connects to. Missing either step will silently break the WebSocket connection
+and `/quest_teleop` will receive no data.
+
 1. Put on the headset
 2. Open **Meta Browser** (not the Isaac Sim app)
-3. Navigate to `https://localhost:8443/`
-4. You will see a security warning — click **Advanced → Proceed** (expected, self-signed cert)
+3. Navigate to `https://localhost:9090` — click **Advanced → Proceed** to trust the WSS cert
+4. Navigate to `https://localhost:8443/` — click **Advanced → Proceed** to trust the HTTPS cert
 5. Press **Start**
 
 Both arms should begin following your wrists. The Isaac Sim terminal will
-print hand data as it arrives.
+print `[Quest] First wrist data` when the first message arrives.
 
 ---
 
@@ -258,6 +262,7 @@ You should see `QuestHandPose` messages at ~30 Hz when the Quest is active.
 | Quest browser shows connection refused on port 8443 | `webxr_server.py` not running or `adb reverse` not done | Start Terminal 4 and re-run Terminal 2 |
 | Quest browser shows `localhost terminated connection` | SSL issue or server not running | Confirm Terminal 4 is running; check cert files exist at `autonomy/teleop/quest_teleop/certs/` |
 | Quest browser shows security warning | Self-signed cert | Expected — click Advanced → Proceed |
+| `/quest_teleop` topic empty after pressing Start | WSS cert not trusted for port 9090 | In Quest browser, navigate to `https://localhost:9090` and accept the warning, then return to port 8443 and press Start again |
 | Arms don't move after pressing Start | No hand data reaching IK script | Check Terminal 5 prints `[Quest] First wrist data`; check Terminal 3 is running and topic is publishing |
 | Isaac Sim numpy broken after container restart | Container was manually patched (not image-built) | Run `./watod build` to make fixes permanent; restart container |
 | `ModuleNotFoundError: No module named 'em'` during colcon | `empy` installed into wrong Python (Isaac Sim's, not deadsnakes) | Rebuild image — Dockerfile now uses `/usr/bin/python3.11` explicitly |

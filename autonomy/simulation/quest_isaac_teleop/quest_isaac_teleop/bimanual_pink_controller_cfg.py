@@ -1,12 +1,8 @@
 """Pink IK action config for the bimanual arm."""
 
-from isaaclab.controllers.pink_ik import (
-    DampingTaskCfg,
-    LocalFrameTaskCfg,
-    NullSpacePostureTaskCfg,
-    PinkIKControllerCfg,
-)
-from isaaclab.envs.mdp.actions.pink_actions_cfg import PinkInverseKinematicsActionCfg
+from pink.tasks import DampingTask as DampingTaskCfg
+from isaaclab.controllers.pink_ik import NullSpacePostureTask as NullSpacePostureTaskCfg, PinkIKControllerCfg
+from isaaclab.controllers.pink_ik.local_frame_task import LocalFrameTask as LocalFrameTaskCfg
 
 RIGHT_EE_LINK = "link6"
 LEFT_EE_LINK = "link6l"
@@ -58,11 +54,15 @@ WATO_BIMANUAL_IK_CONTROLLER_CFG = PinkIKControllerCfg(
     fixed_input_tasks=[],
 )
 
-WATO_BIMANUAL_IK_ACTION_CFG = PinkInverseKinematicsActionCfg(
-    pink_controlled_joint_names=ARM_JOINTS,
-    hand_joint_names=GRIPPER_JOINTS,
-    target_eef_link_names={"right_ee": RIGHT_EE_LINK, "left_ee": LEFT_EE_LINK},
-    asset_name="robot",
-    enable_gravity_compensation=True,
-    controller=WATO_BIMANUAL_IK_CONTROLLER_CFG,
-)
+try:
+    from isaaclab.envs.mdp.actions.pink_actions_cfg import PinkInverseKinematicsActionCfg
+    WATO_BIMANUAL_IK_ACTION_CFG = PinkInverseKinematicsActionCfg(
+        pink_controlled_joint_names=ARM_JOINTS,
+        hand_joint_names=GRIPPER_JOINTS,
+        target_eef_link_names={"right_ee": RIGHT_EE_LINK, "left_ee": LEFT_EE_LINK},
+        asset_name="robot",
+        enable_gravity_compensation=True,
+        controller=WATO_BIMANUAL_IK_CONTROLLER_CFG,
+    )
+except ImportError:
+    WATO_BIMANUAL_IK_ACTION_CFG = None
