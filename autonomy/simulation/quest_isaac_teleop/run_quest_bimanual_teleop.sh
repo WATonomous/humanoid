@@ -15,6 +15,7 @@ ISAAC_LAB="${ISAAC_LAB:-/workspace/isaaclab}"
 
 export PYTHONPATH="${SCRIPT_DIR}:${SCRIPT_DIR}/../Teleop/keyboard-based teleoperation:${SCRIPT_DIR}/../Humanoid_Wato:${PYTHONPATH}"
 
+
 exec "${ISAAC_LAB}/isaaclab.sh" -p \
   "${SCRIPT_DIR}/run_quest_bimanual_teleop.py" \
   --device cpu \

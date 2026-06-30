@@ -3,10 +3,12 @@
 #include <iostream>
 
 #include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
 #include <boost/beast/websocket.hpp>
 #include <boost/beast/websocket/ssl.hpp>
 
 namespace beast = boost::beast;
+namespace http = beast::http;
 namespace websocket = beast::websocket;
 namespace ssl = boost::asio::ssl;
 
@@ -75,18 +77,39 @@ void WssServer::run() {
 
 void WssServer::handle_session(tcp::socket socket) {
   try {
-    websocket::stream<ssl::stream<tcp::socket>> ws(std::move(socket), ssl_context_);
+    ssl::stream<tcp::socket> tls_stream(std::move(socket), ssl_context_);
+    tls_stream.handshake(ssl::stream_base::server);
 
-    ws.next_layer().handshake(ssl::stream_base::server);
-    ws.accept();
+    // Read the first request to distinguish plain HTTP from WebSocket upgrade.
+    // Plain HTTP arrives when the Quest browser navigates to https://localhost:9090
+    // to accept the self-signed cert — serve a redirect so the cert trust flow
+    // completes cleanly before the WebSocket connection is attempted.
+    beast::flat_buffer buffer;
+    http::request<http::string_body> req;
+    http::read(tls_stream, buffer, req);
+
+    if (!websocket::is_upgrade(req)) {
+      http::response<http::string_body> res{http::status::ok, req.version()};
+      res.set(http::field::content_type, "text/html");
+      res.body() =
+        "<html><body><h1>Certificate trusted.</h1>"
+        "<p>Return to <a href='https://localhost:8443'>https://localhost:8443</a> and press Start.</p>"
+        "</body></html>";
+      res.prepare_payload();
+      http::write(tls_stream, res);
+      return;
+    }
+
+    websocket::stream<ssl::stream<tcp::socket>> ws(std::move(tls_stream));
+    ws.accept(req);
 
     std::cout << "Quest browser connected" << std::endl;
 
     while (running_) {
-      beast::flat_buffer buffer;
-      ws.read(buffer);
+      beast::flat_buffer msg_buffer;
+      ws.read(msg_buffer);
 
-      std::string text = beast::buffers_to_string(buffer.data());
+      std::string text = beast::buffers_to_string(msg_buffer.data());
 
       if (on_message_) {
         on_message_(text);
