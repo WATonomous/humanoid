@@ -27,7 +27,7 @@ RUN add-apt-repository -y ppa:deadsnakes/ppa && \
 RUN python3.11 -m pip install \
         empy==3.3.4 numpy pybind11 PyYAML lark \
         "pybind11[global]" setuptools==70.0.0 \
-        colcon-common-extensions \
+        colcon-common-extensions netifaces \
         rosinstall_generator vcstool rosdep && \
     ln -sf /usr/include/python3.11 /usr/include/python3
 
@@ -158,7 +158,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl -sS https://bootstrap.pypa.io/get-pip.py | /usr/bin/python3.11 && \
     /usr/bin/python3.11 -m pip install --upgrade pip setuptools==70.0.0 wheel && \
     /usr/bin/python3.11 -m pip install numpy "empy==3.3.4" lark catkin_pkg \
-        colcon-common-extensions && \
+        colcon-common-extensions netifaces && \
     rm -rf /var/lib/apt/lists/*
 
 ENV ROS_DISTRO=humble
