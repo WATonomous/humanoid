@@ -1,8 +1,7 @@
 """Quest bimanual arm teleoperation — runs inside the simulation_il container.
 
-Both arms are controlled via Quest hand tracking.  Hand pose data arrives as
-JSON UDP packets sent by quest_teleop_bridge.py (running in the teleop
-container on the same host network).
+Both arms are controlled via Quest hand tracking.  Hand pose data arrives via
+ROS 2 /quest_teleop topic published by quest_teleop_node (also in this container).
 
 The left Quest wrist drives the left arm (joints joint1L–joint6l).
 The right Quest wrist drives the right arm (joints joint1–joint6).
@@ -28,9 +27,8 @@ Or via the helper script:
 """
 
 import argparse
-import json
-import socket
 import sys
+import threading
 from pathlib import Path
 
 from isaaclab.app import AppLauncher
@@ -42,9 +40,7 @@ _KEYBOARD_TELEOP_DIR = _SIM_DIR / "Teleop" / "keyboard-based teleoperation"
 sys.path.insert(0, str(_KEYBOARD_TELEOP_DIR))
 
 # ── CLI args ──────────────────────────────────────────────────────────────────
-parser = argparse.ArgumentParser(description="Quest bimanual arm teleop (UDP bridge)")
-parser.add_argument("--port", type=int, default=19090,
-                    help="UDP port for hand pose packets from quest_teleop_bridge.py")
+parser = argparse.ArgumentParser(description="Quest bimanual arm teleop (ROS 2)")
 parser.add_argument("--gain", type=float, default=4.0,
                     help="Motion gain: metres of EE motion per metre of real wrist motion")
 AppLauncher.add_app_launcher_args(parser)
@@ -54,6 +50,10 @@ app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 # ── post-launch imports (require Omniverse runtime) ───────────────────────────
+# rclpy must be imported after AppLauncher — Omniverse must initialise first.
+import rclpy  # noqa: E402
+from rclpy.node import Node  # noqa: E402
+from common_msgs.msg import QuestHandPose  # noqa: E402
 import torch  # noqa: E402
 
 import isaaclab.sim as sim_utils  # noqa: E402
@@ -123,25 +123,23 @@ class BimanualSceneCfg(InteractiveSceneCfg):
     robot = BIMANUAL_ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
 
-class UdpHandReceiver:
-    """Non-blocking UDP socket that keeps the most recent hand-pose packet."""
+class QuestRosReceiver(Node):
+    """ROS 2 subscriber that caches the latest /quest_teleop message."""
 
-    def __init__(self, port: int) -> None:
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._sock.bind(("0.0.0.0", port))
-        self._sock.setblocking(False)
-        self._latest: dict | None = None
-        print(f"[Quest] Listening for hand poses on UDP :{port}")
+    def __init__(self) -> None:
+        super().__init__("quest_ik_listener")
+        self._latest: QuestHandPose | None = None
+        self._lock = threading.Lock()
+        self.create_subscription(QuestHandPose, "/quest_teleop", self._cb, 1)
+        self.get_logger().info("Subscribed to /quest_teleop")
 
-    def poll(self) -> dict | None:
-        """Drain the receive buffer; return the most recent packet or None."""
-        while True:
-            try:
-                data, _ = self._sock.recvfrom(65536)
-                self._latest = json.loads(data.decode())
-            except BlockingIOError:
-                break
-        return self._latest
+    def _cb(self, msg: QuestHandPose) -> None:
+        with self._lock:
+            self._latest = msg
+
+    def poll(self) -> QuestHandPose | None:
+        with self._lock:
+            return self._latest
 
 
 def _joint_ids(robot, names: list[str]) -> list[int]:
@@ -164,15 +162,15 @@ def _make_diff_ik(scene, device: str) -> DifferentialIKController:
     return DifferentialIKController(cfg, num_envs=scene.num_envs, device=device)
 
 
-def _wrist_xyz(wrist_dict: dict) -> torch.Tensor:
-    p = wrist_dict["position"]
-    return torch.tensor([p["x"], p["y"], p["z"]], dtype=torch.float32)
+def _wrist_xyz(wrist) -> torch.Tensor:
+    p = wrist.position
+    return torch.tensor([p.x, p.y, p.z], dtype=torch.float32)
 
 
-def _wrist_quat_wxyz(wrist_dict: dict) -> torch.Tensor:
+def _wrist_quat_wxyz(wrist) -> torch.Tensor:
     """Return wrist orientation as (w, x, y, z) — Isaac Lab convention."""
-    o = wrist_dict["orientation"]
-    return torch.tensor([o["w"], o["x"], o["y"], o["z"]], dtype=torch.float32)
+    o = wrist.orientation
+    return torch.tensor([o.w, o.x, o.y, o.z], dtype=torch.float32)
 
 
 def _rot_delta_to_axis_angle(q_curr: torch.Tensor, q_prev: torch.Tensor) -> torch.Tensor:
@@ -287,8 +285,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     sim.step()
     scene.update(sim_dt)
 
-    # UDP hand pose receiver
-    receiver = UdpHandReceiver(args_cli.port)
+    # ROS 2 hand pose receiver (spun in a daemon thread so Isaac Sim loop is unblocked)
+    rclpy.init()
+    receiver = QuestRosReceiver()
+    threading.Thread(target=rclpy.spin, args=(receiver,), daemon=True).start()
 
     # Previous wrist poses for delta computation
     prev_left: torch.Tensor | None = None
@@ -303,19 +303,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     quest_to_world = _QUEST_TO_WORLD.to(device)
     zero_cmd = torch.zeros(1, 6, device=device)
 
-    print("[Quest] Ready. Start quest_teleop_bridge.py in the teleop container,")
-    print("[Quest] then connect the Quest browser to start streaming hand data.")
+    print("[Quest] Ready. Waiting for /quest_teleop messages.")
+    print("[Quest] Connect the Quest browser to start streaming hand data.")
 
     while simulation_app.is_running():
         msg = receiver.poll()
 
         if msg is not None:
-            left_xyz_q = _wrist_xyz(msg["left_wrist"]).to(device)
-            right_xyz_q = _wrist_xyz(msg["right_wrist"]).to(device)
-            left_quat = _wrist_quat_wxyz(msg["left_wrist"]).to(device)
-            right_quat = _wrist_quat_wxyz(msg["right_wrist"]).to(device)
-            left_joints = msg.get("left_hand_joints", [])
-            right_joints = msg.get("right_hand_joints", [])
+            left_xyz_q = _wrist_xyz(msg.left_wrist).to(device)
+            right_xyz_q = _wrist_xyz(msg.right_wrist).to(device)
+            left_quat = _wrist_quat_wxyz(msg.left_wrist).to(device)
+            right_quat = _wrist_quat_wxyz(msg.right_wrist).to(device)
+            left_joints = list(msg.left_hand_joints)
+            right_joints = list(msg.right_hand_joints)
 
             root_quat_w = robot.data.root_state_w[:, 3:7]  # (1, 4)
 
@@ -412,6 +412,7 @@ def main() -> None:
     sim.reset()
     print("[Quest] Simulation ready.")
     run_simulator(sim, scene)
+    rclpy.shutdown()
 
 
 if __name__ == "__main__":
