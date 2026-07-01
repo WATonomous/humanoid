@@ -86,7 +86,7 @@ parser.add_argument(
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 
-from so101_teleop_runtime import prepare_launcher_args
+from so101_teleop_runtime import prepare_launcher_args, ensure_il_on_path
 
 prepare_launcher_args(args_cli)
 
@@ -97,7 +97,7 @@ import torch
 
 import isaaclab.sim as sim_utils
 from isaaclab.controllers import DifferentialIKController, DifferentialIKControllerCfg
-from isaaclab.devices import Se3Keyboard
+from isaaclab.devices import Se3Keyboard, Se3KeyboardCfg
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.scene import InteractiveScene
 from isaaclab.utils.math import subtract_frame_transforms
@@ -221,7 +221,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     gripper_open = torch.tensor([[GRIPPER_OPEN]], device=sim.device)
     gripper_closed = torch.tensor([[GRIPPER_CLOSED]], device=sim.device)
 
-    teleop = Se3Keyboard(pos_sensitivity=0.005, rot_sensitivity=0.05)
+    teleop = Se3Keyboard(cfg=Se3KeyboardCfg(pos_sensitivity=0.005, rot_sensitivity=0.05))
     should_reset = False
 
     def reset_robot():
@@ -246,8 +246,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             maybe_apply_domain_rand(scene, args_cli)
             should_reset = False
 
-        delta_pose, close_gripper = teleop.advance()
-        command = torch.tensor(delta_pose, dtype=torch.float32, device=sim.device).unsqueeze(0)
+        teleop_result = teleop.advance()
+        delta_pose = teleop_result[:6]
+        close_gripper = teleop_result[6].item() < 0
+        command = delta_pose.to(device=sim.device).unsqueeze(0)
 
         ee_pose_w = robot.data.body_state_w[:, robot_entity_cfg.body_ids[0], 0:7]
         root_pose_w = robot.data.root_state_w[:, 0:7]

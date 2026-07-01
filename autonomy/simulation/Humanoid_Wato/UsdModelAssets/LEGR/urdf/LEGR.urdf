@@ -1,0 +1,796 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com)
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="LEGR">
+  <link
+    name="Hip">
+    <inertial>
+      <origin
+        xyz="0 -0.0657500000000001 0"
+        rpy="0 0 0" />
+      <mass
+        value="0.518480597566825" />
+      <inertia
+        ixx="0.000549470614950559"
+        ixy="-1.83732071021993E-36"
+        ixz="0"
+        iyy="0.00052496160503641"
+        iyz="8.15674912065134E-37"
+        izz="0.000549470614950559" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Hip.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Hip.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="Upper_Body">
+    <inertial>
+      <origin
+        xyz="-0.0699544680866373 1.22481588930162E-05 -0.016670267249465"
+        rpy="0 0 0" />
+      <mass
+        value="27.7545033299824" />
+      <inertia
+        ixx="1.02010359240724"
+        ixy="-1.09313760462169E-07"
+        ixz="0.000240853820522352"
+        iyy="0.840060709146905"
+        iyz="0.000104534186117496"
+        izz="0.273757156688419" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Upper_Body.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Upper_Body.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Upper_Body"
+    type="fixed">
+    <origin
+      xyz="0.0699999999999998 0 0.359410275400906"
+      rpy="3.14159265358979 0 0" />
+    <parent
+      link="Hip" />
+    <child
+      link="Upper_Body" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="Flexion_R">
+    <inertial>
+      <origin
+        xyz="-0.0933671460265784 -0.0979608401676104 1.17708065294764E-07"
+        rpy="0 0 0" />
+      <mass
+        value="1.44233474114918" />
+      <inertia
+        ixx="0.00332782279239087"
+        ixy="0.00101157066507014"
+        ixz="-5.3666407851099E-09"
+        iyy="0.00443463569987751"
+        iyz="9.71024055846825E-09"
+        izz="0.00476699071155774" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Flexion_R.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Flexion_R.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="F_R"
+    type="revolute">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="Hip" />
+    <child
+      link="Flexion_R" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-1.57"
+      upper="1.57"
+      effort="222"
+      velocity="2.93" />
+  </joint>
+  <link
+    name="Abduction_R">
+    <inertial>
+      <origin
+        xyz="-0.0822040490889351 0.0345 -0.0638966265425073"
+        rpy="0 0 0" />
+      <mass
+        value="0.722279981913388" />
+      <inertia
+        ixx="0.00234373825904436"
+        ixy="-5.65101762136744E-19"
+        ixz="0.0015132212552273"
+        iyy="0.00595516879259536"
+        iyz="-4.13370959996044E-20"
+        izz="0.00572728176818476" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Abduction_R.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.866666666666667 0.909803921568627 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Abduction_R.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="A_R"
+    type="revolute">
+    <origin
+      xyz="0 -0.12 0"
+      rpy="0 0 0" />
+    <parent
+      link="Flexion_R" />
+    <child
+      link="Abduction_R" />
+    <axis
+      xyz="-1 0 0" />
+    <limit
+      lower="0.1745"
+      upper="-0.7854"
+      effort="120"
+      velocity="17.488" />
+  </joint>
+  <link
+    name="Rotation_R">
+    <inertial>
+      <origin
+        xyz="-0.00492083504904506 1.30921760738379E-05 0.0463344944581505"
+        rpy="0 0 0" />
+      <mass
+        value="1.44248138871196" />
+      <inertia
+        ixx="0.00273251479278457"
+        ixy="-1.04290732708722E-07"
+        ixz="0.000370616735369085"
+        iyy="0.00287124977941731"
+        iyz="-9.07320675796581E-07"
+        izz="0.00283438631947682" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Rotation_R.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Rotation_R.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="R_R"
+    type="revolute">
+    <origin
+      xyz="0 0.0345 -0.141"
+      rpy="3.14159265358979 0 3.14159265358979" />
+    <parent
+      link="Abduction_R" />
+    <child
+      link="Rotation_R" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-3.1415"
+      upper="3.1415"
+      effort="60"
+      velocity="18.85" />
+  </joint>
+  <link
+    name="Calf_R">
+    <inertial>
+      <origin
+        xyz="-0.00264406421063712 0.0611733687520314 -0.164093531357499"
+        rpy="0 0 0" />
+      <mass
+        value="2.78275474946605" />
+      <inertia
+        ixx="0.0252612472548975"
+        ixy="-7.79067745203157E-07"
+        ixz="-0.000374661304279708"
+        iyy="0.0252796388579665"
+        iyz="-4.16195898257555E-05"
+        izz="0.00772981792688356" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Calf_R.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.866666666666667 0.909803921568627 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Calf_R.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Knee_R"
+    type="revolute">
+    <origin
+      xyz="0 -0.061 0.181001210671794"
+      rpy="3.14159265358979 0 3.14159265358979" />
+    <parent
+      link="Rotation_R" />
+    <child
+      link="Calf_R" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="0"
+      upper="1.0472"
+      effort="222"
+      velocity="2.93" />
+  </joint>
+  <link
+    name="Universal_Roll_R">
+    <inertial>
+      <origin
+        xyz="-1.29934063508585E-10 -2.14348409052594E-07 0.0299010093092331"
+        rpy="0 0 0" />
+      <mass
+        value="0.24334410427355" />
+      <inertia
+        ixx="0.000267985027545248"
+        ixy="-1.70796236509871E-11"
+        ixz="-4.63113246714869E-12"
+        iyy="0.000289452319590034"
+        iyz="5.31582942589484E-12"
+        izz="0.000157832093058896" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Universal_Roll_R.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.866666666666667 0.909803921568627 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Universal_Roll_R.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="U_R_R"
+    type="revolute">
+    <origin
+      xyz="0 0.0610002142022335 -0.333411729469431"
+      rpy="3.14159265358979 0 3.14159265358979" />
+    <parent
+      link="Calf_R" />
+    <child
+      link="Universal_Roll_R" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="0.7854"
+      upper="-0.7854"
+      effort="120"
+      velocity="18.85" />
+  </joint>
+  <link
+    name="Foot_R">
+    <inertial>
+      <origin
+        xyz="0.0598617927444527 2.38831173222757E-06 0.0287102806905619"
+        rpy="0 0 0" />
+      <mass
+        value="1.5066129434386" />
+      <inertia
+        ixx="0.00210335176155756"
+        ixy="-1.66784800173222E-18"
+        ixz="2.46680887023512E-05"
+        iyy="0.0070723154785942"
+        iyz="1.16390308471617E-18"
+        izz="0.00815282787440377" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Foot_R.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.866666666666667 0.909803921568627 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Foot_R.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="U_P_R"
+    type="revolute">
+    <origin
+      xyz="0 0 0.0631508128084964"
+      rpy="0 0 3.14159265358979" />
+    <parent
+      link="Universal_Roll_R" />
+    <child
+      link="Foot_R" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-0.7854"
+      upper="0.5236"
+      effort="120"
+      velocity="18.85" />
+  </joint>
+  <link
+    name="Flexion_L">
+    <inertial>
+      <origin
+        xyz="-0.0644248295777232 3.7470027081099E-16 2.22044604925031E-16"
+        rpy="0 0 0" />
+      <mass
+        value="1.61797932437096" />
+      <inertia
+        ixx="0.00437560330051243"
+        ixy="-4.98732999343332E-18"
+        ixz="2.14095022044037E-19"
+        iyy="0.0073982218963487"
+        iyz="1.94204811152001E-08"
+        izz="0.00806293191970915" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Flexion_L.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Flexion_L.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="F_L"
+    type="revolute">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="Hip" />
+    <child
+      link="Flexion_L" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="1.57"
+      upper="-1.57"
+      effort="222"
+      velocity="2.93" />
+  </joint>
+  <link
+    name="Abduction_L">
+    <inertial>
+      <origin
+        xyz="0.0822040490889353 -0.0345000000000001 0.0638966265425075"
+        rpy="0 0 0" />
+      <mass
+        value="0.722279981913388" />
+      <inertia
+        ixx="0.00234373825904436"
+        ixy="-9.74564888879635E-20"
+        ixz="0.0015132212552273"
+        iyy="0.00595516879259536"
+        iyz="-2.17124368948612E-19"
+        izz="0.00572728176818476" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Abduction_L.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.866666666666667 0.909803921568627 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Abduction_L.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="A_L"
+    type="revolute">
+    <origin
+      xyz="0 0.12 0"
+      rpy="3.14159265358979 0 3.14159265358979" />
+    <parent
+      link="Flexion_L" />
+    <child
+      link="Abduction_L" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="-0.7854"
+      upper="0.1745"
+      effort="120"
+      velocity="17.488" />
+  </joint>
+  <link
+    name="Rotation_L">
+    <inertial>
+      <origin
+        xyz="-0.00492083504904506 1.3092176073537E-05 0.0282381387548195"
+        rpy="0 0 0" />
+      <mass
+        value="1.44248138871196" />
+      <inertia
+        ixx="0.00273251479278457"
+        ixy="-1.0429073271178E-07"
+        ixz="0.00037061673536908"
+        iyy="0.00287124977941733"
+        iyz="-9.07320675804238E-07"
+        izz="0.00283438631947683" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Rotation_L.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.866666666666667 0.909803921568627 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Rotation_L.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="R_L"
+    type="revolute">
+    <origin
+      xyz="0 -0.0344999999999997 0.16777798973535"
+      rpy="0 0 0" />
+    <parent
+      link="Abduction_L" />
+    <child
+      link="Rotation_L" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="3.1415"
+      upper="-3.1415"
+      effort="60"
+      velocity="18.85" />
+  </joint>
+  <link
+    name="Calf_L">
+    <inertial>
+      <origin
+        xyz="-0.00264406421064045 0.0611733687460123 -0.164093531357484"
+        rpy="0 0 0" />
+      <mass
+        value="2.78275474946527" />
+      <inertia
+        ixx="0.0252612472548964"
+        ixy="-7.79067541193254E-07"
+        ixz="-0.000374661304280883"
+        iyy="0.0252796388579601"
+        iyz="-4.1619590430814E-05"
+        izz="0.00772981792688854" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Calf_L.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Calf_L.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Knee_L"
+    type="revolute">
+    <origin
+      xyz="0 -0.0610000000000004 0.154223220936442"
+      rpy="3.14159265358979 0 3.14159265358979" />
+    <parent
+      link="Rotation_L" />
+    <child
+      link="Calf_L" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="0"
+      upper="1.0472"
+      effort="222"
+      velocity="2.93" />
+  </joint>
+  <link
+    name="Universal_Roll_L">
+    <inertial>
+      <origin
+        xyz="1.29933841463981E-10 2.14348409049991E-07 0.0299010093092332"
+        rpy="0 0 0" />
+      <mass
+        value="0.24334410427355" />
+      <inertia
+        ixx="0.000267985027545248"
+        ixy="-1.70796236326147E-11"
+        ixz="4.631132791759E-12"
+        iyy="0.000289452319590034"
+        iyz="-5.31582949428168E-12"
+        izz="0.000157832093058897" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Universal_Roll_L.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.866666666666667 0.909803921568627 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Universal_Roll_L.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="U_R_L"
+    type="revolute">
+    <origin
+      xyz="0 0.0609997857977665 -0.333411729469431"
+      rpy="-3.14159265358979 0 3.14159265358979" />
+    <parent
+      link="Calf_L" />
+    <child
+      link="Universal_Roll_L" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="0.7854"
+      upper="-0.7854"
+      effort="120"
+      velocity="18.85" />
+  </joint>
+  <link
+    name="Foot_L">
+    <inertial>
+      <origin
+        xyz="0.0598634582000981 -2.38831173235421E-06 0.0287102806905618"
+        rpy="0 0 0" />
+      <mass
+        value="1.5066129434386" />
+      <inertia
+        ixx="0.00210335176155756"
+        ixy="9.66489000618252E-19"
+        ixz="2.46680887023539E-05"
+        iyy="0.00707231547859419"
+        iyz="6.07596965342924E-19"
+        izz="0.00815282787440376" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Foot_L.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.866666666666667 0.909803921568627 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://LEGR/meshes/Foot_L.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="U_P_L"
+    type="revolute">
+    <origin
+      xyz="0 0 0.0631508128084964"
+      rpy="0 0 -3.14159265358979" />
+    <parent
+      link="Universal_Roll_L" />
+    <child
+      link="Foot_L" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-0.7854"
+      upper="0.5236"
+      effort="120"
+      velocity="18.85" />
+  </joint>
+</robot>
