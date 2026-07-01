@@ -8,6 +8,17 @@
 """Launch Isaac Sim Simulator first."""
 
 import argparse
+import sys
+import os
+
+# Ensure HumanoidRLPackage is always importable regardless of working directory
+_script_dir = os.path.dirname(os.path.abspath(__file__))          # rsl_rl_scripts/
+_humanoid_rl_dir = os.path.dirname(_script_dir)                    # HumanoidRLPackage/
+_parent_dir = os.path.dirname(_humanoid_rl_dir)                    # HumanoidRL/
+if _parent_dir not in sys.path:
+    sys.path.insert(0, _parent_dir)
+if _script_dir not in sys.path:
+    sys.path.insert(0, _script_dir)  # so cli_args.py is also found
 
 from isaaclab.app import AppLauncher
 
@@ -88,7 +99,8 @@ def main():
     agent_cfg = handle_deprecated_rsl_rl_cfg(agent_cfg, installed_rsl_rl_version)
 
     # specify directory for logging experiments
-    log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
+    repo_root = os.path.abspath(os.path.join(_script_dir, "../../../../../../"))
+    log_root_path = os.path.join(repo_root, "trained_models", agent_cfg.experiment_name)
     log_root_path = os.path.abspath(log_root_path)
     print(f"[INFO] Loading experiment from directory: {log_root_path}")
     if args_cli.use_pretrained_checkpoint:
@@ -114,13 +126,21 @@ def main():
 
     # wrap for video recording
     if args_cli.video:
+        import datetime
+        # Create a unique ID using a timestamp
+        unique_id = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        
+        # Point the video folder explicitly to the requested directory
+        target_video_dir = os.path.join(_humanoid_rl_dir, "HumanoidRLSetup", "tasks", "bimanual_cabinet", "videos")
+        
         video_kwargs = {
-            "video_folder": os.path.join(log_dir, "videos", "play"),
+            "video_folder": target_video_dir,
+            "name_prefix": f"demo_{unique_id}",
             "step_trigger": lambda step: step == 0,
             "video_length": args_cli.video_length,
             "disable_logger": True,
         }
-        print("[INFO] Recording videos during training.")
+        print(f"[INFO] Recording videos to: {target_video_dir}")
         print_dict(video_kwargs, nesting=4)
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
 
@@ -176,9 +196,13 @@ def main():
             elif policy_nn is not None:
                 policy_nn.reset(dones)
         if args_cli.video:
+            if timestep % 50 == 0:
+                print(f"[INFO] Recording video step {timestep}/{args_cli.video_length}...")
+            
             timestep += 1
             # Exit the play loop after recording one video
-            if timestep == args_cli.video_length:
+            if timestep >= args_cli.video_length:
+                print(f"[INFO] Finished recording {args_cli.video_length} steps! Video saved successfully.")
                 break
 
         # time delay for real-time evaluation
