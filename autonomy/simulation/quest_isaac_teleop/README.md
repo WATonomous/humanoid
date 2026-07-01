@@ -231,7 +231,7 @@ print `[Quest] First wrist data` when the first message arrives.
 | Pinch right thumb + index | Right gripper closes/opens |
 | Pinch left thumb + index | Left gripper closes/opens |
 
-Pass `--gain VALUE` (default `4.0`) to `run_quest_bimanual_teleop.sh` to scale
+Pass `--gain VALUE` (default `2.0`) to `run_quest_bimanual_teleop.sh` to scale
 how far the arm moves per metre of real wrist motion.
 
 ---
@@ -272,9 +272,93 @@ You should see `QuestHandPose` messages at ~30 Hz when the Quest is active.
 
 ---
 
-## Mode B — CloudXR streaming (incomplete)
+## Tuning
 
-`bimanual_teleop_env_cfg.py` and `run_bimanual_teleop.sh` implement a CloudXR
-path where Isaac Sim streams video directly to the Quest headset. This requires
-the `isaaclab_teleop` / `isaacteleop` NVIDIA SDK packages which are not yet
-installed in the container. Not functional.
+### Translation scale
+
+`--gain` (default `2.0`) scales how far the IK target moves per metre of real
+wrist motion. Increase if the arms feel sluggish to reach positions; decrease
+if they overshoot.
+
+### IK tracking speed
+
+Tracking aggressiveness is controlled by two parameters per end-effector task
+in `quest_isaac_teleop/bimanual_pink_controller_cfg.py`:
+
+| Parameter | Effect | Current value |
+|-----------|--------|---------------|
+| `gain` | How much of the pose error the solver corrects per time-step. Higher = faster convergence, but may overshoot. | `8.0` |
+| `lm_damping` | Levenberg–Marquardt regularisation. Higher = smoother but slower, especially near the target. | `0.5` |
+
+Pink IK uses a proportional controller: joint velocity ∝ `gain × error`. This
+means the arm naturally slows down as it approaches the target. If it feels
+too sluggish in the end-range, raise `gain` further or lower `lm_damping`.
+If it becomes unstable (oscillating), lower `gain` or raise `lm_damping`.
+
+Actuator responsiveness (how fast joints track the IK output) is set in
+`autonomy/simulation/Teleop/keyboard-based\ teleoperation/bimanual_arm_cfg.py`
+via `stiffness` and `damping` on each `ImplicitActuatorCfg`. Current values
+are 2× the original motor datasheet figures for faster sim tracking.
+
+### Coordinate frame mapping
+
+`_QUEST_TO_WORLD` in `run_quest_bimanual_teleop.py` is the 3×3 rotation matrix
+that maps Quest standing-space axes to simulation world-frame axes. It must
+have determinant +1 (proper rotation) — a det = −1 matrix silently corrupts
+orientation tracking via `quat_from_matrix`.
+
+`_DEPTH_SIGN` is a per-axis sign vector `[sx, sy, sz]` applied to the
+world-frame position delta after the matrix remap. Use it to flip individual
+axes without touching the orientation-critical matrix.
+
+If an axis feels backwards, flip the corresponding element of `_DEPTH_SIGN`
+(currently `[1, 1, 1]`). Do **not** negate a row of `_QUEST_TO_WORLD` — that
+changes the determinant sign and breaks orientation.
+
+### Wrist orientation alignment
+
+**Observed issue:** when the simulation first starts, the robot EE orientation
+does not match the user's physical wrist orientation. Rotating the wrist in one
+physical axis can drive the EE in a different axis in sim (~30° misalignment on
+the right arm, ~90° on the left arm in testing).
+
+**Root cause:** the Quest wrist tracking frame and the robot's link6/link6l
+URDF frame have different axis conventions. After the Quest→World→Base frame
+remap, the rotation axes do not 1:1 correspond between the physical wrist and
+the EE.
+
+**Current knob:** `_WRIST_ORIENT_OFFSET` (line ~135 in
+`run_quest_bimanual_teleop.py`) is a `(w, x, y, z)` quaternion applied as a
+conjugation on the world-frame orientation delta before converting to base
+frame. Identity `[1, 0, 0, 0]` = no correction. Common trial values:
+
+| Value | Meaning |
+|-------|---------|
+| `[1, 0, 0, 0]` | No correction (identity) |
+| `[0, 0, 0, 1]` | 180° about world Z |
+| `[0.707, 0, 0, 0.707]` | 90° about world Z |
+| `[0.707, 0, 0.707, 0]` | 90° about world Y |
+| `[0.707, 0.707, 0, 0]` | 90° about world X |
+
+**Possible automatic fix (not yet implemented):** at startup, compute the
+rotation from "Quest wrist in world frame" to "robot EE in world frame" using
+the home poses captured on the first message, and apply that as the per-arm
+correction automatically:
+
+```python
+# In the first-message block, after home poses are captured:
+ee_quat_w_l  = quat_mul(root_quat_w, home_ee_quat_b_left)
+ee_quat_w_r  = quat_mul(root_quat_w, home_ee_quat_b_right)
+q_home_w_l   = quat_mul(quat_mul(quest_to_world_quat, quest_home_left_quat.unsqueeze(0)),
+                         quat_inv(quest_to_world_quat))
+q_home_w_r   = quat_mul(quat_mul(quest_to_world_quat, quest_home_right_quat.unsqueeze(0)),
+                         quat_inv(quest_to_world_quat))
+orient_corr_left  = quat_mul(ee_quat_w_l, quat_inv(q_home_w_l))   # (1, 4)
+orient_corr_right = quat_mul(ee_quat_w_r, quat_inv(q_home_w_r))   # (1, 4)
+```
+
+Then replace `wrist_orient_offset` in the orientation loop with
+`quat_mul(wrist_orient_offset, orient_corr_left/right)`. This absorbs the
+fixed frame offset automatically at the cost of making the calibration
+sensitive to whatever wrist orientation the user holds at the moment the first
+message arrives.
