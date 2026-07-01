@@ -38,3 +38,20 @@ def object_reached_goal(
     distance = torch.norm(des_pos_w - curr_pos_w, dim=1)
 
     return distance < threshold
+
+
+def object_xy_out_of_bounds(
+    env: ManagerBasedRLEnv,
+    x_bounds: tuple[float, float],
+    y_bounds: tuple[float, float],
+    object_cfg: SceneEntityCfg = SceneEntityCfg("cube"),
+) -> torch.Tensor:
+    """Terminate if the cube is pushed too far across the table before/while grasping."""
+    object: RigidObject = env.scene[object_cfg.name]
+    object_pos_e = object.data.root_pos_w - env.scene.env_origins
+    return (
+        (object_pos_e[:, 0] < x_bounds[0])
+        | (object_pos_e[:, 0] > x_bounds[1])
+        | (object_pos_e[:, 1] < y_bounds[0])
+        | (object_pos_e[:, 1] > y_bounds[1])
+    )

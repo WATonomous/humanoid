@@ -35,3 +35,21 @@ class SO101LiftPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         desired_kl=0.01,
         max_grad_norm=1.0,
     )
+
+@configclass
+class WatoBimanualRightLiftPPORunnerCfg(SO101LiftPPORunnerCfg):
+    experiment_name = "lift_wato_bimanual_right"
+    algorithm = RslRlPpoAlgorithmCfg(
+        value_loss_coef=0.5,
+        use_clipped_value_loss=True,
+        clip_param=0.2,
+        entropy_coef=0.004,
+        num_learning_epochs=5,
+        num_mini_batches=4,
+        learning_rate=5.0e-5,
+        schedule="adaptive",
+        gamma=0.98,
+        lam=0.95,
+        desired_kl=0.008,
+        max_grad_norm=0.5,
+    )
