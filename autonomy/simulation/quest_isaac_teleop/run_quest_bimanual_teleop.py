@@ -51,7 +51,7 @@ _MESH_DIR = str(_BIMANUAL_ROOT / "meshes")
 
 # ── CLI args ──────────────────────────────────────────────────────────────────
 parser = argparse.ArgumentParser(description="Quest bimanual arm teleop (ROS 2, Pink IK)")
-parser.add_argument("--gain", type=float, default=4.0,
+parser.add_argument("--gain", type=float, default=2.0,
                     help="Motion gain: metres of EE motion per metre of real wrist motion")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
@@ -80,6 +80,7 @@ import isaaclab.sim as sim_utils  # noqa: E402
 from isaaclab.assets import AssetBaseCfg  # noqa: E402
 from isaaclab.controllers.pink_ik import PinkIKController  # noqa: E402
 from isaaclab.managers import SceneEntityCfg  # noqa: E402
+from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg  # noqa: E402
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg  # noqa: E402
 from isaaclab.utils import configclass  # noqa: E402
 from isaaclab.utils.math import (  # noqa: E402
@@ -116,12 +117,22 @@ _RIGHT_GRIPPER_OPEN = {"joint7": -0.05, "joint8": 0.05}
 _RIGHT_GRIPPER_CLOSED = {"joint7": 0.0, "joint8": 0.0}
 
 # WebXR (Y-up: X-right, Y-up, -Z-forward) → simulation world frame (Z-up)
+# det = +1 (proper rotation) — required so quat_from_matrix gives correct orientation.
+# Depth: quest +Z (toward body) → world −X → ×depth_sign(−1) → base −X (arm retracts) ✓
+# Lateral: quest +X (right) → world −Y → base +Y ✓
+# Vertical: quest +Y (up) → world +Z ✓
 _QUEST_TO_WORLD = torch.tensor(
-    [[0.0, 0.0, -1.0],   # world +X (forward) = quest -Z
-     [-1.0, 0.0, 0.0],   # world +Y (left)    = quest -X
-     [0.0, 1.0, 0.0]],   # world +Z (up)      = quest +Y
+    [[0.0, 0.0, -1.0],   # world +X = quest -Z
+     [-1.0, 0.0, 0.0],   # world +Y = quest -X
+     [0.0, 1.0, 0.0]],   # world +Z = quest +Y
     dtype=torch.float32,
 )
+_DEPTH_SIGN = torch.tensor([1.0, 1.0, 1.0])  # per-axis sign flip on world-frame position delta; tune if an axis is inverted
+
+# Orientation-only correction applied after Quest→world frame remap, in world frame.
+# Change this to rotate which physical wrist axis drives which EE rotation axis.
+# Common values: [1,0,0,0]=identity, [0,0,0,1]=180°Z, [0.707,0,0,0.707]=90°Z, etc. (w,x,y,z)
+_WRIST_ORIENT_OFFSET = torch.tensor([1.0, 0.0, 0.0, 0.0])
 
 _THUMB_TIP_IDX = 4   # thumb-tip in Quest hand joint array
 _INDEX_TIP_IDX = 9   # index-finger-tip
@@ -279,6 +290,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     # Frame-remap quaternion: maps Quest orientation deltas into world frame
     quest_to_world = _QUEST_TO_WORLD.to(device)
     quest_to_world_quat = quat_from_matrix(quest_to_world.unsqueeze(0))  # (1, 4) wxyz
+    depth_sign = _DEPTH_SIGN.to(device)
+    wrist_orient_offset = _WRIST_ORIENT_OFFSET.to(device).unsqueeze(0)  # (1, 4) wxyz
 
     # Gripper joint ids
     left_gripper_ids = _joint_ids(robot, LEFT_GRIPPER_JOINTS)
@@ -326,6 +339,44 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     left_closed = False
     right_closed = False
 
+    # ── Viewport visualization markers ────────────────────────────────────────
+    _N_HAND = 25
+
+    def _sphere_cfg(color, radius, opacity=1.0):
+        return sim_utils.SphereCfg(
+            radius=radius,
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=color, opacity=opacity),
+        )
+
+    left_joint_vis = VisualizationMarkers(VisualizationMarkersCfg(
+        prim_path="/Visuals/left_hand_joints",
+        markers={"sphere": _sphere_cfg((0.2, 0.5, 1.0), 0.012)},
+    ))
+    right_joint_vis = VisualizationMarkers(VisualizationMarkersCfg(
+        prim_path="/Visuals/right_hand_joints",
+        markers={"sphere": _sphere_cfg((1.0, 0.3, 0.1), 0.012)},
+    ))
+    left_target_vis = VisualizationMarkers(VisualizationMarkersCfg(
+        prim_path="/Visuals/left_ik_target",
+        markers={"sphere": _sphere_cfg((0.2, 0.5, 1.0), 0.05, opacity=0.3)},
+    ))
+    right_target_vis = VisualizationMarkers(VisualizationMarkersCfg(
+        prim_path="/Visuals/right_ik_target",
+        markers={"sphere": _sphere_cfg((1.0, 0.3, 0.1), 0.05, opacity=0.3)},
+    ))
+
+    def _joints_world(hand_joints_list, wrist_xyz, wrist_target_w):
+        """Map 75-float Quest joint array to (N_HAND, 3) world-frame positions.
+
+        Joint 0 (wrist) coincides with the IK target (wrist_target_w). All other
+        joints are at their real-world-scale offsets from the current wrist position,
+        rotated into the sim world frame via quest_to_world. No gain is applied to
+        inter-joint distances — the hand appears at its actual physical size.
+        """
+        xyz = torch.tensor(hand_joints_list, dtype=torch.float32, device=device).reshape(_N_HAND, 3)
+        offsets_w = (quest_to_world @ (xyz - wrist_xyz).T).T  # (N_HAND, 3), real-world scale
+        return wrist_target_w.expand(_N_HAND, -1) + offsets_w
+
     print("[Quest] Ready. Waiting for /quest_teleop messages.")
     print("[Quest] Connect the Quest browser to start streaming hand data.")
 
@@ -333,12 +384,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         msg = receiver.poll()
 
         if msg is not None:
-            left_xyz_q = _wrist_xyz(msg.left_wrist).to(device)
-            right_xyz_q = _wrist_xyz(msg.right_wrist).to(device)
-            left_quat = _wrist_quat_wxyz(msg.left_wrist).to(device)
-            right_quat = _wrist_quat_wxyz(msg.right_wrist).to(device)
-            left_joints = list(msg.left_hand_joints)
-            right_joints = list(msg.right_hand_joints)
+            left_xyz_q = _wrist_xyz(msg.right_wrist).to(device)
+            right_xyz_q = _wrist_xyz(msg.left_wrist).to(device)
+            left_quat = _wrist_quat_wxyz(msg.right_wrist).to(device)
+            right_quat = _wrist_quat_wxyz(msg.left_wrist).to(device)
+            left_joints = list(msg.right_hand_joints)
+            right_joints = list(msg.left_hand_joints)
 
             root_quat_w = robot.data.root_state_w[:, 3:7]  # (1, 4)
             ee_pos_b_l, ee_quat_b_l = _ee_pose_in_base(robot, left_body_id)
@@ -364,8 +415,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
 
             # ── Absolute position target in robot base frame ───────────────────
             # Quest wrist delta → world frame (via frame-remap matrix) → base frame.
-            left_delta_w = (quest_to_world @ (left_xyz_q - quest_home_left)) * gain
-            right_delta_w = (quest_to_world @ (right_xyz_q - quest_home_right)) * gain
+            left_delta_w = (quest_to_world @ (left_xyz_q - quest_home_left)) * gain * depth_sign
+            right_delta_w = (quest_to_world @ (right_xyz_q - quest_home_right)) * gain * depth_sign
             target_pos_b_left = (
                 home_ee_pos_b_left + quat_apply_inverse(root_quat_w, left_delta_w.unsqueeze(0))
             )
@@ -380,12 +431,16 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             dq_left = quat_mul(left_quat.unsqueeze(0), quat_inv(quest_home_left_quat.unsqueeze(0)))
             dq_left_world = quat_mul(quat_mul(quest_to_world_quat, dq_left),
                                      quat_inv(quest_to_world_quat))
+            dq_left_world = quat_mul(quat_mul(wrist_orient_offset, dq_left_world),
+                                     quat_inv(wrist_orient_offset))
             dq_left_base = quat_mul(quat_mul(quat_inv(root_quat_w), dq_left_world), root_quat_w)
             target_quat_b_left = quat_mul(dq_left_base, home_ee_quat_b_left)
 
             dq_right = quat_mul(right_quat.unsqueeze(0), quat_inv(quest_home_right_quat.unsqueeze(0)))
             dq_right_world = quat_mul(quat_mul(quest_to_world_quat, dq_right),
                                       quat_inv(quest_to_world_quat))
+            dq_right_world = quat_mul(quat_mul(wrist_orient_offset, dq_right_world),
+                                      quat_inv(wrist_orient_offset))
             dq_right_base = quat_mul(quat_mul(quat_inv(root_quat_w), dq_right_world), root_quat_w)
             target_quat_b_right = quat_mul(dq_right_base, home_ee_quat_b_right)
 
@@ -398,6 +453,23 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             pink_controller.cfg.variable_input_tasks[1].set_target(
                 _to_pin_se3(target_pos_b_left, target_quat_b_left)
             )
+
+            # ── Viewport marker updates ────────────────────────────────────────
+            # Target spheres: home EE world pos + the same world-frame delta the IK uses
+            # (includes gain). This is mathematically identical to
+            # root_pos_w + quat_apply(root_quat_w, target_pos_b) but avoids a
+            # potential quat_apply sign issue on X by adding delta_w directly.
+            _rp = robot.data.root_state_w[:, :3]
+            home_w_l = _rp + quat_apply(root_quat_w, home_ee_pos_b_left)
+            home_w_r = _rp + quat_apply(root_quat_w, home_ee_pos_b_right)
+            tgt_l_w = home_w_l + left_delta_w.unsqueeze(0)
+            tgt_r_w = home_w_r + right_delta_w.unsqueeze(0)
+            left_target_vis.visualize(translations=tgt_l_w)
+            right_target_vis.visualize(translations=tgt_r_w)
+            # Joint spheres: wrist (joint 0) anchored to IK target; other joints at
+            # real-world-scale offset from the current wrist, same axis mapping.
+            left_joint_vis.visualize(translations=_joints_world(left_joints, left_xyz_q, tgt_l_w))
+            right_joint_vis.visualize(translations=_joints_world(right_joints, right_xyz_q, tgt_r_w))
 
             # ── Gripper hysteresis — pinch = close, release = open ─────────────
             ld = _pinch_dist(left_joints)
