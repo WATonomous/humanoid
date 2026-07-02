@@ -31,7 +31,7 @@ class EKFPredictionNode(Node):
         self.L = 3.4 #aerodynamic characteristic length (L-value) 
         self.look_ahead_time = 2 #seconds
         self.bounding_sphere_radius = 2.0 #meters
-    
+        
 
        
 
@@ -45,6 +45,12 @@ class EKFPredictionNode(Node):
         self.latest_meas = None
         self.latest_meas_time = None
         self.new_meas_available = False
+        self.low_uncertainty = False
+
+        # ---------------- VELOCITY SEEDING ----------------
+        self.prev_meas = None
+        self.prev_meas_increment = None
+        self.velocity_initialized = False
 
         self.timer = self.create_timer(self.dt, self.step)
 
@@ -54,12 +60,29 @@ class EKFPredictionNode(Node):
         self.latest_meas_time = self.increments
         self.new_meas_available = True
 
+        z = np.array([msg.position.x, msg.position.y, msg.position.z])
+
+        if not self.velocity_initialized:
+            if self.prev_meas is not None:
+                dt_elapsed = (self.increments - self.prev_meas_increment) * self.dt
+                # guard: only seed if elapsed time is not like zero or too small
+                if dt_elapsed > self.dt:
+                    v_init = (z - self.prev_meas) / dt_elapsed
+                    self.x[0:3] = z
+                    self.x[3:6] = v_init
+                    self.velocity_initialized = True
+                    self.get_logger().info(
+                        f"Velocity seeded: {v_init}")
+            self.prev_meas = z
+            self.prev_meas_increment = self.increments
+
     def shuttle_true_callback(self, msg):
         self.true_pos = np.array([
             msg.position.x,
             msg.position.y,
             msg.position.z
         ])
+
     def shuttle_spawned_callback(self, msg):
         if msg.data:
             self.get_logger().info("Shuttle spawned → resetting EKF state")
@@ -70,6 +93,12 @@ class EKFPredictionNode(Node):
             self.latest_meas = None
             self.new_meas_available = False
             self.latest_meas_time = None
+            self.true_pos = np.zeros(3)
+            self.low_uncertainty = False
+            self.prev_meas = None
+            self.prev_meas_increment = None
+            self.velocity_initialized = False
+
     # ---------------- MODEL ----------------
     def f(self, x):
         p = x[0:3]
@@ -108,6 +137,7 @@ class EKFPredictionNode(Node):
         F[3:6, 3:6] = I - drag_jac * self.dt
 
         return F
+
     # ---------------- IMPACT ESTIMATION ----------------
     def estimate_impact(self):
         future_x = self.x.copy()
@@ -128,9 +158,9 @@ class EKFPredictionNode(Node):
                 position_of_impact = future_x[0:3]
                 break
         if (impact):
-            self.get_logger().info(f"Impact estimated in {time_till_impact:.2f} seconds at position {position_of_impact} with hit back racket direction {hit_back_direction})")
+            self.get_logger().debug(f"Impact estimated in {time_till_impact:.2f} seconds at position {position_of_impact} with hit back racket direction {hit_back_direction})")
         else:
-            self.get_logger().info("No impact estimated in the next 2 seconds")
+            self.get_logger().debug("No impact estimated in the next 2 seconds")
         return 
        
 
@@ -140,10 +170,13 @@ class EKFPredictionNode(Node):
     def step(self):
         self.increments += 1
         if (self.true_pos[0]**2 + self.true_pos[1]**2 + self.true_pos[2]**2 <= self.bounding_sphere_radius**2):
-            self.get_logger().info(f"Shuttle has impacted at true position {self.true_pos}")
-        if (np.trace(self.P) < 5):
+            self.get_logger().debug(f"Shuttle has impacted at true position {self.true_pos}")
+        if (np.trace(self.P) < 2):
+            if(not self.low_uncertainty):
+                self.get_logger().info("Low uncertainty → reducing process noise")
             self.process_noise_pos = 1e-5
             self.process_noise_vel = 1e-5
+            self.low_uncertainty = True
         else:
             self.process_noise_pos = 1e-2
             self.process_noise_vel = 1e-2
@@ -189,9 +222,10 @@ class EKFPredictionNode(Node):
         msg.position.y = float(self.x[1])
         msg.position.z = float(self.x[2])
         if (self.latest_meas is not None and self.new_meas_available):
-                self.get_logger().debug(
+                self.get_logger().info(
                     f"Total Error: {np.linalg.norm(self.true_pos - self.x[0:3])}")
                 
+        self.get_logger().debug(f'Predicted Position: {self.x[0:3]}')
         self.new_meas_available = False
         
            
