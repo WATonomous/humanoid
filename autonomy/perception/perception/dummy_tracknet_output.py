@@ -65,7 +65,7 @@ class DummyTrackNetOutput(Node):
 
         noisy_dir = noisy_dir / np.linalg.norm(noisy_dir)
 
-        velocity = np.random.uniform(70, 130) * noisy_dir
+        velocity = np.random.uniform(70,130) * noisy_dir
 
         self.shuttle = Shuttle(velocity, position)
     
