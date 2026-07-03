@@ -36,6 +36,51 @@ PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scri
 
 Rough-terrain variants: replace `Flat` with `Rough` and use experiment dir `logs/rsl_rl/g1_rough/`.
 
+## LEGR leg model
+
+The local LEGR leg model lives under:
+
+```text
+autonomy/simulation/Humanoid_Wato/UsdModelAssets/LEGR/
+```
+
+The original SolidWorks URDF export is preserved as `urdf/LEGR.urdf`. The Isaac Lab import path uses
+`urdf/LEGR_isaac.urdf`, which fixes reversed mirrored joint limits and changes the left ankle pitch joint
+`U_P_L` from fixed to revolute to mirror `U_P_R`. It also adds an upright `base` link above the original
+`Hip` link so the locomotion task has a stable root body name after fixed joints are merged during USD
+conversion.
+
+Registered LEGR task IDs:
+
+| Task ID | Terrain | Mode |
+| :--- | :--- | :--- |
+| `Isaac-Locomotion-Flat-LEGR-v0` | Plane | Train |
+| `Isaac-Locomotion-Flat-LEGR-Play-v0` | Plane | Play |
+| `Isaac-Locomotion-Rough-LEGR-v0` | Procedural rough | Train |
+| `Isaac-Locomotion-Rough-LEGR-Play-v0` | Procedural rough | Play |
+
+PowerShell smoke train from `HumanoidRL/`:
+
+```powershell
+$env:ISAACLAB_ROOT = "<path-to-IsaacLab>"
+$env:PYTHONPATH = (Get-Location).Path
+$env:WARP_CACHE_PATH = "<repo-root>\.warp_cache"
+
+& "$env:ISAACLAB_ROOT\isaaclab.bat" -p HumanoidRLPackage\rsl_rl_scripts\train.py --task Isaac-Locomotion-Flat-LEGR-v0 --headless --num_envs 1 --max_iterations 1
+```
+
+PowerShell spawn/contact diagnostic from `HumanoidRL/`:
+
+```powershell
+& "$env:ISAACLAB_ROOT\isaaclab.bat" -p HumanoidRLPackage\rsl_rl_scripts\diagnose_spawn.py --task Isaac-Locomotion-Flat-LEGR-v0 --headless --num_envs 1 --steps 10
+```
+
+PowerShell play with the D3D12 experience:
+
+```powershell
+& "$env:ISAACLAB_ROOT\isaaclab.bat" -p HumanoidRLPackage\rsl_rl_scripts\play.py --task Isaac-Locomotion-Flat-LEGR-Play-v0 --num_envs 1 --checkpoint logs\rsl_rl\legr_flat\<run>\model_<iter>.pt --experience "$env:ISAACLAB_ROOT\apps\isaaclab.python.d3d12.kit" --rendering_mode performance
+```
+
 ## Reward (G1 flat)
 
 Total reward is the weighted sum of all terms below. Config: `config/g1/flat_env_cfg.py`.

@@ -46,5 +46,11 @@ def generate_launch_description():
         Node(package="perception",
              executable="trajectory_EKF_prediction_node",
              name="trajectory_EKF_prediction_node",
-             output="screen")
+             output="screen"),
+        Node(
+            package="perception",
+            executable="pose_estimation_node",
+            name="pose_estimation_node",
+            output="screen",
+            ),
     ])

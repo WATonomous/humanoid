@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  perception:
+    build: &perception_build
+      context: ..
+      dockerfile: docker/perception/perception.Dockerfile
+      cache_from:
+        - "${PERCEPTION_IMAGE:?}:${TAG}"
+        - "${PERCEPTION_IMAGE:?}:main"
+      args:
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
+    image: "${PERCEPTION_IMAGE:?}:${TAG}"
+    # NVIDIA runtime removed for macOS compatibility. Set NVIDIA_RUNTIME and
+    # related env vars in modules/.env on an NVIDIA host if needed.
+    profiles: [ deploy ]
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
+    privileged: true
+    volumes:
+      - ${MONO_DIR}/autonomy/perception:/root/ament_ws/src/perception
+    command: /bin/bash -c "ros2 launch perception perception.launch.py"
+
+  perception_dev:
+    build: *perception_build
+    image: "${PERCEPTION_IMAGE:?}:dev_${TAG}"
+    # NVIDIA runtime removed for macOS compatibility. Set NVIDIA_RUNTIME and
+    # related env vars in modules/.env on an NVIDIA host if needed.
+    profiles: [ develop ]
+    privileged: true
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
+    volumes:
+      - ${MONO_DIR}/autonomy/perception:/root/ament_ws/src/perception
+    command: /bin/bash -c "ros2 launch perception perception.launch.py"
+    # command: tail -f /dev/null
