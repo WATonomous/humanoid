@@ -57,9 +57,18 @@ class EKFPredictionNode(Node):
 
     # ---------------- CALLBACK ----------------
     def shuttle_callback(self, msg):
+       
+        if self.latest_meas_time is not None:
+            dt_elapsed = (msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+                        - (self.latest_meas_time.sec + self.latest_meas_time.nanosec * 1e-9))
+            #over 3 seconds of no measurements, assume new shuttle
+            if dt_elapsed > 3:
+                self.shuttle_spawned_callback(Bool(data=True))
+
         self.latest_meas = msg
         self.latest_meas_time = msg.header.stamp
         self.new_meas_available = True
+        
 
         z = np.array([msg.point.x, msg.point.y, msg.point.z])
 
