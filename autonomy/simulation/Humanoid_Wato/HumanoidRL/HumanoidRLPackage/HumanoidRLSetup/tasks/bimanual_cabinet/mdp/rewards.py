@@ -543,6 +543,115 @@ def print_stage_curriculum(env: ManagerBasedRLEnv, env_ids: torch.Tensor, term_n
     return modify_reward_weight(env, env_ids, term_name, weight, num_steps)
 
 
+def finger_behind_handle(
+    env: ManagerBasedRLEnv,
+    behind_offset: float = 0.03,
+    below_offset: float = 0.0,
+    sigma: float = 0.03,
+    proximity_radius: float = 0.12,
+    gap_sign: float = 1.0,
+) -> torch.Tensor:
+    """Reward the closest fingertip reaching a target point INSIDE the gap behind the bar.
+
+    This is the key signal for HOOKING (as opposed to top-draping). It builds an explicit
+    3D hook target:
+        target = handle_center + gap_sign * behind_offset (along world +X, into the gap)
+                                - below_offset            (down, below the bar's top edge)
+
+    It then rewards a Gaussian bell on the closest fingertip's distance to that point,
+    gated by overall hand proximity. Unlike distance-to-center rewards, a finger draped
+    on TOP of the bar scores poorly here because the target is behind AND below the bar,
+    so the only way to score high is to thread a fingertip into the actual gap.
+
+    NOTE: mirror geometry by setting gap_sign=-1.0 if the gap is on the -X side.
+    """
+    result = _claw_distances(env)
+    if result is None:
+        return torch.zeros(env.num_envs, device=env.device)
+    d7, d8, lfinger_pos, rfinger_pos, handle_pos = result
+
+    # Build the hook target point: behind the bar (world +X) and below its top edge
+    target = handle_pos.clone()
+    target[:, 0] = target[:, 0] + gap_sign * behind_offset
+    target[:, 2] = target[:, 2] - below_offset
+
+    dist7 = torch.norm(lfinger_pos - target, dim=-1, p=2)
+    dist8 = torch.norm(rfinger_pos - target, dim=-1, p=2)
+    nearest = torch.minimum(dist7, dist8)
+
+    # Overall hand proximity gate so this only matters once the hand is at the handle
+    avg_dist = (d7 + d8) * 0.5
+    prox_gate = torch.exp(-3.0 * avg_dist / proximity_radius)
+
+    hook_score = torch.exp(-(nearest ** 2) / (2.0 * sigma ** 2))
+    return prox_gate * hook_score
+
+
+def descend_into_gap(
+    env: ManagerBasedRLEnv,
+    proximity_radius: float = 0.10,
+    gap_sign: float = 1.0,
+) -> torch.Tensor:
+    """Reward positioning a finger BEHIND the bar and AT/BELOW its top (anti top-drape).
+
+    A hooking finger should be behind the bar (+X) and at or below the bar's top edge so
+    the fingertip is inside the gap, not draped over the top. This term rewards the
+    finger that is furthest into the gap for being both behind and low. Combined with
+    finger_behind_handle it shapes the full 'come in above the gap, then drop into it' motion.
+    """
+    result = _claw_distances(env)
+    if result is None:
+        return torch.zeros(env.num_envs, device=env.device)
+    d7, d8, lfinger_pos, rfinger_pos, handle_pos = result
+
+    # How far behind the bar each fingertip is (positive = on the gap side)
+    behind7 = gap_sign * (lfinger_pos[:, 0] - handle_pos[:, 0])
+    behind8 = gap_sign * (rfinger_pos[:, 0] - handle_pos[:, 0])
+
+    # Pick the finger that is furthest into the gap
+    use7 = behind7 >= behind8
+    behind = torch.where(use7, behind7, behind8)
+    finger_z = torch.where(use7, lfinger_pos[:, 2], rfinger_pos[:, 2])
+
+    # Reward being behind the bar (clamped, saturating at 3cm)
+    behind_score = torch.clamp(torch.clamp(behind, min=0.0) / 0.03, max=1.0)
+
+    # Reward being at or below the bar top (not draped above it)
+    dz = finger_z - handle_pos[:, 2]  # >0 means above the bar
+    below_score = torch.sigmoid(-40.0 * dz)  # ~1 when at/below, ~0 when above
+
+    avg_dist = (d7 + d8) * 0.5
+    prox_gate = torch.exp(-3.0 * avg_dist / proximity_radius)
+
+    return prox_gate * behind_score * below_score
+
+
+def asymmetry_penalty(env: ManagerBasedRLEnv, contact_radius: float = 0.08, penalty_threshold: float = 0.05) -> torch.Tensor:
+    """Penalty for asymmetric finger distances — discourages single-finger solutions.
+
+    When one finger is much closer to the handle than the other, apply a penalty.
+    This specifically targets the local optimum where link8 gets close (0.004m)
+    while link7 stays far (0.115m).
+
+    Penalty = prox_gate * max(0, |d7 - d8| - penalty_threshold)^2
+    """
+    result = _claw_distances(env)
+    if result is None:
+        return torch.zeros(env.num_envs, device=env.device)
+
+    d_link7, d_link8, _, _, _ = result
+
+    # Only apply penalty when at least one finger is approaching
+    min_distance = torch.minimum(d_link7, d_link8)
+    prox_gate = torch.exp(-3.0 * min_distance / contact_radius)
+
+    # Penalty increases quadratically with distance asymmetry
+    distance_diff = torch.abs(d_link7 - d_link8)
+    asymmetry_excess = torch.clamp(distance_diff - penalty_threshold, min=0.0)
+
+    return prox_gate * (asymmetry_excess ** 2)
+
+
 def debug_link_distances(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Weight-0 term: redundant debug view (link distances tracked in single_claw_proximity).
 

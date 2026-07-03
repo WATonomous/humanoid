@@ -54,10 +54,10 @@ class CabinetSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.UsdFileCfg(
             usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd",
             activate_contact_sensors=False,
-            scale=(1.15, 1.15, 1.15),
+            scale=(1.5, 1.5, 1.5),  # Scaled up from 1.15 — bigger handle bar for easier hooking
         ),
         init_state=ArticulationCfg.InitialStateCfg(
-            pos=(0.75, 0.0, 0.6),
+            pos=(0.85, 0.0, 0.55),  # Pushed back +X slightly to keep spacing with robot
             rot=(0.0, 0.0, 0.0, 1.0),
             joint_pos={
                 "door_left_joint": 0.0,
@@ -93,7 +93,7 @@ class CabinetSceneCfg(InteractiveSceneCfg):
                 prim_path="{ENV_REGEX_NS}/Cabinet/drawer_handle_top",
                 name="drawer_handle_top",
                 offset=OffsetCfg(
-                    pos=(0.3485, 0.0, 0.01),
+                    pos=(0.454, 0.0, 0.013),  # Scaled from (0.3485, 0.0, 0.01) by 1.5/1.15 ≈ 1.304x
                     rot=(0.5, 0.5, -0.5, -0.5),  # align with end-effector frame
                 ),
             ),
@@ -247,12 +247,12 @@ class RewardsCfg:
     # 2b-i. Keep the claw OPEN while approaching (reward-driven, replaces hard joint limits)
     open_claw_approach = RewTerm(
         func=mdp.open_claw_approach_reward,
-        weight=25.0,
+        weight=300.0,  # Doubled again — must completely dominate over single-finger rewards
         params={
             "gripper_cfg": SceneEntityCfg("robot", joint_names=["joint7", "joint8"]),
-            "open_target": 0.05,
-            "aperture_sigma": 0.02,
-            "proximity_radius": 0.12,
+            "open_target": 0.1,         # Even more open — force wider gap
+            "aperture_sigma": 0.04,     # Slightly wider tolerance
+            "proximity_radius": 0.15,   # Larger activation radius
         },
     )
 
@@ -267,10 +267,31 @@ class RewardsCfg:
         },
     )
 
+    # 2b-iii. Dense hook target: reach a point INSIDE the gap (behind + below the bar).
+    #         This is the primary "get a finger behind the handle" gradient.
+    finger_behind_handle = RewTerm(
+        func=mdp.finger_behind_handle,
+        weight=250.0,
+        params={
+            "behind_offset": 0.03,      # 3cm behind the bar (into the gap)
+            "below_offset": 0.01,       # 1cm below the bar top edge
+            "sigma": 0.03,              # Gaussian width of the hook target
+            "proximity_radius": 0.12,
+            "gap_sign": 1.0,            # flip to -1.0 if the gap is on the -X side
+        },
+    )
+
+    # 2b-iv. Shape the descent: reward being behind the bar AND at/below its top.
+    descend_into_gap = RewTerm(
+        func=mdp.descend_into_gap,
+        weight=100.0,
+        params={"proximity_radius": 0.10, "gap_sign": 1.0},
+    )
+
     # 2c. Continuous approach angle gradient — rewards moving fingers toward opposite sides
     approach_angle_reward = RewTerm(
         func=mdp.approach_angle_reward,
-        weight=20.0,
+        weight=5.0,  # Reduced from 20 — stop competing with open_claw_approach
         params={"proximity_radius": 0.15},
     )
 
@@ -288,6 +309,17 @@ class RewardsCfg:
             "open_joint_pos": 0.06,
             "asset_cfg": SceneEntityCfg("robot", joint_names=["joint7", "joint8"]),
         },
+    )
+
+    # Temporarily disable conflicting grasping signals
+    approach_gripper_handle = RewTerm(
+        func=mdp.approach_gripper_handle, 
+        weight=0.0,  # Disabled — competes with open_claw_approach
+        params={"offset": 0.04}
+    )
+    align_grasp_around_handle = RewTerm(
+        func=mdp.align_grasp_around_handle, 
+        weight=0.0  # Disabled — competes with open_claw_approach
     )
 
     # 2d. Both claws on opposite sides of the handle bar (orientation gate, no drawer movement needed)
@@ -354,6 +386,14 @@ class RewardsCfg:
         },
     )
 
+    # 4b. Asymmetry penalty — break the single-finger local optimum.
+    #     Penalizes one finger being much closer than the other near the handle.
+    asymmetry_penalty = RewTerm(
+        func=mdp.asymmetry_penalty,
+        weight=-500.0,  # Strong negative — makes single-finger solutions unprofitable
+        params={"contact_radius": 0.08, "penalty_threshold": 0.05},
+    )
+
     # 5. Debug only — weight=0 means this has zero effect on training.
     #    Prints link7 & link8 closest distance to handle once per iteration.
     debug_link_distances = RewTerm(func=mdp.debug_link_distances, weight=0.0)
@@ -400,15 +440,15 @@ class CabinetEnvCfg(ManagerBasedRLEnvCfg):
         # general settings
         self.decimation = 1
         self.episode_length_s = 8.0
-        self.viewer.eye = (-2.0, 2.0, 2.0)
-        self.viewer.lookat = (0.8, 0.0, 0.5)
+        self.viewer.eye = (-2.5, 2.0, 2.0)
+        self.viewer.lookat = (0.85, 0.0, 0.5)
         # simulation settings
         self.sim.dt = 1 / 60  # 60Hz
         self.sim.render_interval = self.decimation
         self.sim.physx.bounce_threshold_velocity = 0.2
         self.sim.physx.bounce_threshold_velocity = 0.01
         self.sim.physx.friction_correlation_distance = 0.00625
-        self.scene.robot.init_state.pos = (-0.1, 0.0, 0.4)
+        self.scene.robot.init_state.pos = (-0.25, 0.0, 0.55)  # Pushed back and raised for larger cabinet
 
 
 # PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Open-Drawer-Humanoid-Arm-v0 --headless
