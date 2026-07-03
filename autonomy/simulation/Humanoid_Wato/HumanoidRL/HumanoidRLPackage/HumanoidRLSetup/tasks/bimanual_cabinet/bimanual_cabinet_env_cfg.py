@@ -298,6 +298,10 @@ class RewardsCfg:
         },
     )
 
+    # 5. Debug only — weight=0 means this has zero effect on training.
+    #    Prints link7 & link8 closest distance to handle once per iteration.
+    debug_link_distances = RewTerm(func=mdp.debug_link_distances, weight=0.0)
+
 
 @configclass
 class TerminationsCfg:

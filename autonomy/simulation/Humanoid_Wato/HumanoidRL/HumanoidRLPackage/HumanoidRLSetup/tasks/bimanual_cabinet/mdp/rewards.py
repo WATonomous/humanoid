@@ -412,3 +412,51 @@ def print_stage_curriculum(env: ManagerBasedRLEnv, env_ids: torch.Tensor, term_n
             
     return modify_reward_weight(env, env_ids, term_name, weight, num_steps)
 
+
+# ─── Debug: closest link distances ────────────────────────────────────────────
+# A module-level accumulator so we can track the MINIMUM distance seen across
+# each training step and print it once per iteration (every ~430K steps for 4096 envs).
+_link7_min_buf: list[float] = []
+_link8_min_buf: list[float] = []
+_PRINT_EVERY_STEPS: int = 430_000   # ≈ 1 RSL-RL iteration with 4096 envs
+
+def debug_link_distances(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """Weight-0 term: prints mean closest distance for link7 & link8 to the handle.
+
+    Call once per step; prints a human-readable summary each time the step counter
+    crosses a multiple of _PRINT_EVERY_STEPS so the output appears once per iteration.
+    Returns zeros so it has absolutely no effect on training.
+    """
+    global _link7_min_buf, _link8_min_buf
+
+    robot = env.scene["robot"]
+    handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]  # (N, 3)
+
+    ee_ids, _   = robot.find_bodies("link7", preserve_order=True)
+    thumb_ids, _ = robot.find_bodies("link8", preserve_order=True)
+
+    if ee_ids and thumb_ids:
+        link7_pos = robot.data.body_pos_w[:, ee_ids[0], :]    # (N, 3)
+        link8_pos = robot.data.body_pos_w[:, thumb_ids[0], :] # (N, 3)
+
+        dist7 = torch.norm(handle_pos - link7_pos, dim=-1, p=2)  # (N,)
+        dist8 = torch.norm(handle_pos - link8_pos, dim=-1, p=2)  # (N,)
+
+        # Accumulate the mean-closest per step
+        _link7_min_buf.append(dist7.min().item())
+        _link8_min_buf.append(dist8.min().item())
+
+        # Print once per iteration
+        steps = env.common_step_counter
+        if steps > 0 and (steps % _PRINT_EVERY_STEPS) < env.num_envs:
+            avg7 = sum(_link7_min_buf) / max(len(_link7_min_buf), 1)
+            avg8 = sum(_link8_min_buf) / max(len(_link8_min_buf), 1)
+            print(
+                f"\n[DEBUG link distances @ step {steps:,}]"
+                f"  link7 (index) closest: {avg7*100:.1f} cm"
+                f"  |  link8 (thumb) closest: {avg8*100:.1f} cm"
+            )
+            _link7_min_buf.clear()
+            _link8_min_buf.clear()
+
+    return torch.zeros(env.num_envs, device=env.device)
