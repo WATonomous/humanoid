@@ -158,11 +158,11 @@ class TrackNetV3Inference:
         for frame_rgb in frames_rgb:
             if self.bg_mode == "subtract":
                 diff = _background_difference(frame_rgb, median_rgb)
-                channels.append(_resize_gray(diff.astype(np.uint8)))
+                channels.append(_resize_gray(_clip_background_difference(diff)))
             elif self.bg_mode == "subtract_concat":
                 channels.extend(_resize_channels(frame_rgb))
                 diff = _background_difference(frame_rgb, median_rgb)
-                channels.append(_resize_gray(diff.astype(np.uint8)))
+                channels.append(_resize_gray(_clip_background_difference(diff)))
             else:
                 channels.extend(_resize_channels(frame_rgb))
 
@@ -221,6 +221,10 @@ def _background_difference(frame_rgb: np.ndarray, median_rgb: np.ndarray) -> np.
         np.abs(frame_rgb.astype(np.int16) - median_rgb.astype(np.int16)),
         axis=2,
     )
+
+
+def _clip_background_difference(diff: np.ndarray) -> np.ndarray:
+    return np.clip(diff, 0, 255).astype(np.uint8)
 
 
 def _resize_gray(image: np.ndarray) -> np.ndarray:
