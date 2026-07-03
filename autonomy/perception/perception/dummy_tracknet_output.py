@@ -31,7 +31,7 @@ class DummyTrackNetOutput(Node):
             10
         )
         self.true_pub = self.create_publisher(
-            Pose,
+            PointStamped,
             '/shuttle_states_true',
             10
         )
@@ -99,11 +99,12 @@ class DummyTrackNetOutput(Node):
         self.shuttle.velocity = new_vel
         self.shuttle.position = new_pos
         self.history_position.append(new_pos)
-        true_msg = Pose()
-        true_msg.position.x = float(new_pos[0])
-        true_msg.position.y = float(new_pos[1])
-        true_msg.position.z = float(new_pos[2])
-        true_msg.orientation.w = 1.0
+        true_msg = PointStamped()
+        true_msg.header.stamp = self.get_clock().now().to_msg()
+        true_msg.header.frame_id = "robot_base_link"
+        true_msg.point.x = float(new_pos[0])
+        true_msg.point.y = float(new_pos[1])
+        true_msg.point.z = float(new_pos[2])
         self.true_pub.publish(true_msg)
 
         noise = np.random.uniform(-self.noise, self.noise, size=3)
