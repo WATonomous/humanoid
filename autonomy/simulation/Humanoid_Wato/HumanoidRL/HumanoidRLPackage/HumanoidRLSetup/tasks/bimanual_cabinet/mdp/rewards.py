@@ -123,35 +123,101 @@ def grasp_handle(
     return is_close * torch.sum(open_joint_pos - torch.abs(gripper_joint_pos), dim=-1)
 
 
-def dual_contact_pull(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, contact_radius: float = 0.04) -> torch.Tensor:
-    """High-priority reward: BOTH inner claws (link7 and link8) must each be within
-    contact_radius of the handle while the drawer is being pulled open.
-
-    Uses a multiplicative Gaussian gate — both fingers must be close simultaneously
-    (AND logic, not OR). Scales with drawer_pos so the signal only exists while
-    the drawer is actually moving out.
-    """
+def _claw_distances(env: ManagerBasedRLEnv):
+    """Return (d_link7, d_link8, lfinger_pos, rfinger_pos, handle_pos) or None."""
     pose = _robot_ee_pose(env)
     if pose is None:
-        return torch.zeros(env.num_envs, device=env.device)
-
-    _, _, lfinger_pos, rfinger_pos = pose  # lfinger=link7, rfinger=link8
+        return None
+    _, _, lfinger_pos, rfinger_pos = pose
     handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
-    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
-
-    # Distance from each fingertip body to the handle centre
     d_link7 = torch.norm(handle_pos - lfinger_pos, dim=-1, p=2)
     d_link8 = torch.norm(handle_pos - rfinger_pos, dim=-1, p=2)
+    return d_link7, d_link8, lfinger_pos, rfinger_pos, handle_pos
 
-    # Sharp Gaussian well — score ~0.05 at contact_radius, ~0 beyond 2x
+
+def single_claw_proximity(env: ManagerBasedRLEnv, contact_radius: float = 0.06) -> torch.Tensor:
+    """Breadcrumb reward: points for each individual claw being near the handle (OR logic).
+
+    Gives a soft Gaussian signal for link7 and link8 independently so the arm
+    learns to bring EITHER finger close before we demand both.
+    Also prints mean claw distances every 500 PPO iterations.
+    """
+    result = _claw_distances(env)
+    if result is None:
+        return torch.zeros(env.num_envs, device=env.device)
+
+    d_link7, d_link8, _, _, _ = result
+
     k = 3.0 / contact_radius
     score_link7 = torch.exp(-k * d_link7)
     score_link8 = torch.exp(-k * d_link8)
 
-    # Both fingers must be close: multiplicative gate (AND logic)
-    dual_contact_score = score_link7 * score_link8
+    # Print diagnostics every 500 iterations (500 * num_envs steps)
+    log_interval = 500 * env.num_envs
+    if (env.common_step_counter % log_interval) < env.num_envs:
+        mean_d7 = d_link7.mean().item()
+        mean_d8 = d_link8.mean().item()
+        print(
+            f"\n[Claw Distance] step={env.common_step_counter} | "
+            f"link7→handle: {mean_d7:.4f}m | link8→handle: {mean_d8:.4f}m | "
+            f"sum: {mean_d7 + mean_d8:.4f}m"
+        )
 
-    return dual_contact_score * drawer_pos
+    # Sum (not product) so either finger getting close earns points
+    return score_link7 + score_link8
+
+
+def dual_claw_straddle(env: ManagerBasedRLEnv, contact_radius: float = 0.04) -> torch.Tensor:
+    """Reward both claws being close AND on OPPOSITE sides of the handle bar.
+
+    The handle bar runs along its local Y-axis. We project each finger's offset
+    from the handle centre onto that axis to get a signed side value:
+      - link7 should be on the +Y side  (one inner face against the bar)
+      - link8 should be on the -Y side  (other inner face against the bar)
+    Both proximity AND opposite-side conditions must be satisfied simultaneously.
+    """
+    result = _claw_distances(env)
+    if result is None:
+        return torch.zeros(env.num_envs, device=env.device)
+
+    d_link7, d_link8, lfinger_pos, rfinger_pos, handle_pos = result
+
+    # Proximity gates — both must be within contact_radius
+    k = 3.0 / contact_radius
+    prox_link7 = torch.exp(-k * d_link7)
+    prox_link8 = torch.exp(-k * d_link8)
+    dual_proximity = prox_link7 * prox_link8  # AND gate
+
+    # Handle local Y-axis in world frame (bar direction)
+    handle_quat = env.scene["cabinet_frame"].data.target_quat_w[..., 0, :]
+    handle_mat = matrix_from_quat(handle_quat)
+    handle_y = handle_mat[..., 1]  # (N, 3)
+
+    # Signed projection of each finger onto the handle bar axis
+    vec_to_link7 = lfinger_pos - handle_pos  # (N, 3)
+    vec_to_link8 = rfinger_pos - handle_pos  # (N, 3)
+
+    side_link7 = (vec_to_link7 * handle_y).sum(dim=-1)  # (N,)
+    side_link8 = (vec_to_link8 * handle_y).sum(dim=-1)  # (N,)
+
+    # Opposite sides: link7 > 0 and link8 < 0 (or vice versa)
+    # Use a soft gate: tanh of the product being negative means opposite sides
+    # product < 0  →  opposite sides  →  gate near 1.0
+    # product > 0  →  same side       →  gate near 0.0
+    opposite_side_score = torch.sigmoid(-20.0 * side_link7 * side_link8)
+
+    return dual_proximity * opposite_side_score
+
+
+def dual_contact_pull(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, contact_radius: float = 0.04) -> torch.Tensor:
+    """Maximum points: both claws on opposite sides of the handle AND the drawer is moving.
+
+    Reuses dual_claw_straddle as the contact gate, then scales by drawer_pos.
+    This is the top-of-pyramid reward — it only fires when everything else is correct.
+    """
+    straddle_score = dual_claw_straddle(env, contact_radius=contact_radius)
+    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
+    return straddle_score * drawer_pos
 
 
 def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:

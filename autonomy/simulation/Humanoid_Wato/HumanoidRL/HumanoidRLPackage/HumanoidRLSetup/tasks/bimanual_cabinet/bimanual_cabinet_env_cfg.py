@@ -230,7 +230,14 @@ class RewardsCfg:
     approach_gripper_handle = RewTerm(
         func=mdp.approach_gripper_handle, weight=5.0, params={"offset": 0.04})
     align_grasp_around_handle = RewTerm(func=mdp.align_grasp_around_handle, weight=0.125)
-    
+
+    # 2b. Individual claw proximity — breadcrumb trail to get each finger near the handle
+    single_claw_proximity = RewTerm(
+        func=mdp.single_claw_proximity,
+        weight=30.0,
+        params={"contact_radius": 0.06},
+    )
+
     straddle_handle = RewTerm(
         func=mdp.straddle_handle,
         weight=40.0,
@@ -245,6 +252,13 @@ class RewardsCfg:
             "open_joint_pos": 0.06,
             "asset_cfg": SceneEntityCfg("robot", joint_names=["joint7", "joint8"]),
         },
+    )
+
+    # 2c. Both claws on opposite sides of the handle bar (orientation gate, no drawer movement needed)
+    dual_claw_straddle = RewTerm(
+        func=mdp.dual_claw_straddle,
+        weight=100.0,
+        params={"contact_radius": 0.04},
     )
 
     # 3. Open the drawer — weights reduced; dual_contact_pull is now the primary signal
