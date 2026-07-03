@@ -133,9 +133,9 @@ class ActionsCfg:
     gripper_action = mdp.BinaryJointPositionActionCfg(
         asset_name="robot",
         joint_names=["joint7", "joint8"],
-        # Force wide open claw hook (~15cm total gap) so fingers easily hook on without crossing
-        open_command_expr={"joint7": -0.075, "joint8": 0.075},
-        close_command_expr={"joint7": -0.075, "joint8": 0.075},
+        # Force wide open claw hook (~11.5cm fingertip gap) so fingers easily hook on without crossing
+        open_command_expr={"joint7": -0.14, "joint8": 0.14},
+        close_command_expr={"joint7": -0.14, "joint8": 0.14},
     )
     # Dummy action to actively hold the left arm at its resting pose
     left_arm_hold = mdp.JointPositionActionCfg(
@@ -306,7 +306,7 @@ class RewardsCfg:
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "gripper_cfg": SceneEntityCfg("robot", joint_names=["joint7", "joint8"]),
-            "hook_aperture": 0.075,   # target each finger 7.5cm from center = 15cm total gap (wide open hook)
+            "hook_aperture": 0.14,    # target joint position 0.14 (~11.5cm total fingertip gap)
             "aperture_sigma": 0.02,   # reward falls off outside target
             "contact_radius": 0.05,   # how close each finger must be to handle bar
         },

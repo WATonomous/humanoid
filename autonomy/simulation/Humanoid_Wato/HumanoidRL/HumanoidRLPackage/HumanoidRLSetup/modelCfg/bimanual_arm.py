@@ -44,9 +44,9 @@ def _deg(degrees: float) -> float:
 
 # --- Joint limits from Physics Inspector ------------------------------------
 _REVOLUTE_LIMIT = (-math.pi, math.pi)
-# Set physical limits so the gripper cannot close past 0.02m or open past 0.09m
-_JOINT7_LIMIT = (-0.09, -0.02)
-_JOINT8_LIMIT = (0.02, 0.09)
+# Set physical limits so the gripper cannot close past touching (-0.082 / 0.082) or open past 14cm gap (-0.155 / 0.155)
+_JOINT7_LIMIT = (-0.155, -0.082)
+_JOINT8_LIMIT = (0.082, 0.155)
 
 JOINT_POS_LIMITS = {
     "joint1": _REVOLUTE_LIMIT,
@@ -76,8 +76,8 @@ _DEFAULT_JOINT_POS = {
     "joint4": _deg(111.4),
     "joint5": _deg(34.8),
     "joint6": _deg(3.5),
-    "joint7": -0.08,
-    "joint8": 0.08,
+    "joint7": -0.14,
+    "joint8": 0.14,
     # Left arm — teleoperated
     "joint1L": _deg(139.2),
     "joint2l": _deg(66.1),
@@ -85,8 +85,8 @@ _DEFAULT_JOINT_POS = {
     "joint4l": _deg(-76.5),
     "joint5l": _deg(-76.5),
     "joint6l": _deg(-22.6),
-    "joint7l": -0.08,
-    "joint8l": 0.08,
+    "joint7l": -0.14,
+    "joint8l": 0.14,
 }
 
 RIGHT_ARM_JOINTS = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7", "joint8"]
@@ -101,10 +101,10 @@ LEFT_FINGER_DISTAL_TIP_LOCAL = {
     "link8l": (-0.13211595, -0.04057075, -0.00435003),
 }
 
-# Gripper finger targets (joint7: [-0.08, -0.02], joint8: [0.02, 0.08])
+# Gripper finger targets (joint7: [-0.155, -0.082], joint8: [0.082, 0.155])
 # Synchronized pair mimics single GL40 motor driving both fingers via linkage.
-GRIPPER_OPEN = {"joint7l": -0.08, "joint8l": 0.08}
-GRIPPER_CLOSED = {"joint7l": 0.0, "joint8l": 0.0}
+GRIPPER_OPEN = {"joint7l": -0.14, "joint8l": 0.14}
+GRIPPER_CLOSED = {"joint7l": -0.082, "joint8l": 0.082}
 
 # Prismatic gripper PD — tuned for hold during arm motion (not from motor datasheet).
 # If fingers bounce when the shoulder moves, raise stiffness; if jittery, raise damping.
