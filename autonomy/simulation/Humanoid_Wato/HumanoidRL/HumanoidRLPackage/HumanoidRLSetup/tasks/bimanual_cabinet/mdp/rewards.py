@@ -177,13 +177,19 @@ def single_claw_proximity(env: ManagerBasedRLEnv, contact_radius: float = 0.06) 
 
 
 def dual_claw_straddle(env: ManagerBasedRLEnv, contact_radius: float = 0.04) -> torch.Tensor:
-    """Reward both claws being close AND on OPPOSITE sides of the handle bar.
+    """Reward both claws being close AND on OPPOSITE sides of the handle center.
 
-    The handle bar runs along its local Y-axis. We project each finger's offset
-    from the handle centre onto that axis to get a signed side value:
-      - link7 should be on the +Y side  (one inner face against the bar)
-      - link8 should be on the -Y side  (other inner face against the bar)
-    Both proximity AND opposite-side conditions must be satisfied simultaneously.
+    Uses a direction-agnostic dot-product check:
+      - Compute the unit vector from the handle to each finger: u7, u8
+      - If dot(u7, u8) < 0, the fingers are on opposite sides of the handle
+        along WHATEVER axis they happen to be on (any line through the origin).
+      - This is correct regardless of which direction the robot approaches from.
+
+    Gate 1 (proximity): both fingers within contact_radius of handle center.
+    Gate 2 (opposite-side): dot(u7, u8) < 0  →  angle between them > 90°.
+    Perfect opposite sides → cos = -1 → score = 1.0
+    Perpendicular          → cos =  0 → score = 0.5
+    Same side              → cos = +1 → score ≈ 0.0
     """
     result = _claw_distances(env)
     if result is None:
@@ -191,26 +197,27 @@ def dual_claw_straddle(env: ManagerBasedRLEnv, contact_radius: float = 0.04) -> 
 
     d_link7, d_link8, lfinger_pos, rfinger_pos, handle_pos = result
 
-    # Proximity gates — both must be within contact_radius
+    # ── Gate 1: proximity ─────────────────────────────────────────────────────
     k = 3.0 / contact_radius
     prox_link7 = torch.exp(-k * d_link7)
     prox_link8 = torch.exp(-k * d_link8)
-    dual_proximity = prox_link7 * prox_link8  # AND gate
+    dual_proximity = prox_link7 * prox_link8  # AND gate — both must be close
 
-    # Handle local Y-axis in world frame (bar direction)
-    handle_quat = env.scene["cabinet_frame"].data.target_quat_w[..., 0, :]
-    handle_mat = matrix_from_quat(handle_quat)
-    handle_y = handle_mat[..., 1]  # (N, 3)
+    # ── Gate 2: direction-agnostic opposite-side check ────────────────────────
+    # Vectors from handle center to each finger
+    vec7 = lfinger_pos - handle_pos  # (N, 3)
+    vec8 = rfinger_pos - handle_pos  # (N, 3)
 
-    # Signed projection of each finger onto the handle bar axis
-    vec_to_link7 = lfinger_pos - handle_pos  # (N, 3)
-    vec_to_link8 = rfinger_pos - handle_pos  # (N, 3)
+    # Normalize (add small epsilon to avoid division by zero)
+    u7 = vec7 / (torch.norm(vec7, dim=-1, keepdim=True) + 1e-6)  # (N, 3)
+    u8 = vec8 / (torch.norm(vec8, dim=-1, keepdim=True) + 1e-6)  # (N, 3)
 
-    side_link7 = (vec_to_link7 * handle_y).sum(dim=-1)  # (N,)
-    side_link8 = (vec_to_link8 * handle_y).sum(dim=-1)  # (N,)
+    # Cosine of the angle between the two finger directions
+    cos_angle = (u7 * u8).sum(dim=-1)  # (N,) — range [-1, +1]
 
-    # Opposite sides: product < 0 → opposite sides → gate near 1.0
-    opposite_side_score = torch.sigmoid(-20.0 * side_link7 * side_link8)
+    # Sigmoid gate: scores near 1.0 when cos < 0 (opposite sides), 0.0 when same side.
+    # Sharpness factor 8 gives a clear threshold around cos = 0.
+    opposite_side_score = torch.sigmoid(-8.0 * cos_angle)
 
     return dual_proximity * opposite_side_score
 
@@ -319,6 +326,60 @@ def multi_stage_open_drawer(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -
     open_hard = (drawer_pos > 0.3) * is_close * claw_multiplier
 
     return open_easy + open_medium + open_hard
+
+
+def hook_grip_pull_reward(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    gripper_cfg: SceneEntityCfg,
+    hook_aperture: float = 0.025,
+    aperture_sigma: float = 0.01,
+    contact_radius: float = 0.05,
+) -> torch.Tensor:
+    """Maximum reward: hook grip + opposite-side straddle + positive drawer velocity.
+
+    Three conditions must all be satisfied simultaneously:
+      1. Hook aperture: each finger is at ~hook_aperture from center (Gaussian bell peak).
+         Fingers a bit open, not fully closed, perfectly wrapping the handle bar.
+      2. Opposite-side straddle: link7 and link8 on opposite sides of the handle bar Y-axis.
+      3. Positive drawer velocity: actively pulling, not just sitting there.
+
+    This is the highest-priority reward, acting as the pyramid capstone.
+    """
+    # ── 1. Hook aperture gate ─────────────────────────────────────────────────
+    # joint7 target is -hook_aperture, joint8 is +hook_aperture.
+    # Reward peaks when joints are AT the hook position; falls off as a Gaussian.
+    gripper_pos = env.scene[gripper_cfg.name].data.joint_pos[:, gripper_cfg.joint_ids]  # (N, 2)
+    j7_pos = gripper_pos[:, 0]  # joint7 (negative side)
+    j8_pos = gripper_pos[:, 1]  # joint8 (positive side)
+
+    j7_error = (j7_pos - (-hook_aperture)) ** 2
+    j8_error = (j8_pos - hook_aperture) ** 2
+    aperture_score = torch.exp(-(j7_error + j8_error) / (2 * aperture_sigma ** 2))  # (N,)
+
+    # ── 2. Opposite-side straddle gate ────────────────────────────────────────
+    # Reuse dual_claw_straddle for proximity + opposite-side check
+    straddle_score = dual_claw_straddle(env, contact_radius=contact_radius)  # (N,)
+
+    # ── 3. Positive drawer velocity ───────────────────────────────────────────
+    drawer_vel = env.scene[asset_cfg.name].data.joint_vel[:, asset_cfg.joint_ids[0]]
+    pulling_vel = torch.clamp(drawer_vel, min=0.0)
+
+    return aperture_score * straddle_score * pulling_vel
+
+
+def drawer_vel_reward(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Reward positive drawer joint velocity (i.e. actually pulling the drawer open).
+
+    This fires even before the drawer position changes, teaching the agent to apply
+    sustained outward force once it is straddling the handle.
+    Scaled by the dual_claw_straddle score so it only activates when grip is correct.
+    """
+    drawer_vel = env.scene[asset_cfg.name].data.joint_vel[:, asset_cfg.joint_ids[0]]
+    # Only reward POSITIVE velocity (pulling outward), ignore pushing back
+    pulling_vel = torch.clamp(drawer_vel, min=0.0)
+    straddle_score = dual_claw_straddle(env, contact_radius=0.05)
+    return pulling_vel * straddle_score
 
 
 def conditional_action_rate_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:

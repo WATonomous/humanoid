@@ -70,8 +70,9 @@ class CabinetSceneCfg(InteractiveSceneCfg):
             "drawers": ImplicitActuatorCfg(
                 joint_names_expr=["drawer_top_joint", "drawer_bottom_joint"],
                 effort_limit_sim=87.0,
-                stiffness=10.0,
-                damping=1.0,
+                # Lowered from 10.0 → 3.0 so the weak wrist (0.25 Nm) can actually pull the drawer
+                stiffness=3.0,
+                damping=0.5,
             ),
             "doors": ImplicitActuatorCfg(
                 joint_names_expr=["door_left_joint", "door_right_joint"],
@@ -132,8 +133,11 @@ class ActionsCfg:
     gripper_action = mdp.BinaryJointPositionActionCfg(
         asset_name="robot",
         joint_names=["joint7", "joint8"],
-        open_command_expr={"joint7": -0.06, "joint8": 0.06},
-        close_command_expr={"joint7": 0.0, "joint8": 0.0},
+        # Wide open for approach
+        open_command_expr={"joint7": -0.05, "joint8": 0.05},
+        # Hook grip: partially open (~3cm gap) — enough to wrap around the handle bar
+        # without closing so tight that fingers cross or lose the handle
+        close_command_expr={"joint7": -0.025, "joint8": 0.025},
     )
     # Dummy action to actively hold the left arm at its resting pose
     left_arm_hold = mdp.JointPositionActionCfg(
@@ -280,6 +284,26 @@ class RewardsCfg:
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "contact_radius": 0.04,
+        },
+    )
+
+    # 3c. Reward positive drawer velocity — fires before position changes to teach sustained force
+    drawer_vel_reward = RewTerm(
+        func=mdp.drawer_vel_reward,
+        weight=500.0,
+        params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
+    )
+
+    # 3d. Grand-prize: hook grip + opposite-side straddle + pulling velocity all at once
+    hook_grip_pull_reward = RewTerm(
+        func=mdp.hook_grip_pull_reward,
+        weight=1000.0,
+        params={
+            "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
+            "gripper_cfg": SceneEntityCfg("robot", joint_names=["joint7", "joint8"]),
+            "hook_aperture": 0.025,   # target each finger 2.5cm from center = 5cm total gap
+            "aperture_sigma": 0.01,   # reward falls off sharply outside ±1cm of target
+            "contact_radius": 0.05,   # how close each finger must be to handle bar
         },
     )
 
