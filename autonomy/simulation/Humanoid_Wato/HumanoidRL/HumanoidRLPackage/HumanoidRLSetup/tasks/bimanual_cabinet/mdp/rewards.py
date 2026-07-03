@@ -201,11 +201,21 @@ def approach_angle_reward(env: ManagerBasedRLEnv, proximity_radius: float = 0.15
     avg_dist = (d_link7 + d_link8) * 0.5
     prox_gate = torch.exp(-3.0 * avg_dist / proximity_radius)
 
-    # Direction vectors from handle center to each finger (normalized)
+    # Direction vectors from handle center to each finger
     vec7 = lfinger_pos - handle_pos
     vec8 = rfinger_pos - handle_pos
-    u7 = vec7 / (torch.norm(vec7, dim=-1, keepdim=True) + 1e-6)
-    u8 = vec8 / (torch.norm(vec8, dim=-1, keepdim=True) + 1e-6)
+
+    # Project onto plane perpendicular to handle bar length (handle local Y-axis)
+    # so hovering over top at opposite ends of the bar does not count as opposite sides
+    handle_quat = env.scene["cabinet_frame"].data.target_quat_w[..., 0, :]
+    handle_mat = matrix_from_quat(handle_quat)
+    handle_y = handle_mat[..., 1]  # (N, 3)
+
+    vec7_perp = vec7 - (vec7 * handle_y).sum(dim=-1, keepdim=True) * handle_y
+    vec8_perp = vec8 - (vec8 * handle_y).sum(dim=-1, keepdim=True) * handle_y
+
+    u7 = vec7_perp / (torch.norm(vec7_perp, dim=-1, keepdim=True) + 1e-6)
+    u8 = vec8_perp / (torch.norm(vec8_perp, dim=-1, keepdim=True) + 1e-6)
 
     cos_angle = (u7 * u8).sum(dim=-1)  # (N,) in [-1, +1]
 
@@ -242,16 +252,24 @@ def dual_claw_straddle(env: ManagerBasedRLEnv, contact_radius: float = 0.04) -> 
     prox_link8 = torch.exp(-k * d_link8)
     dual_proximity = prox_link7 * prox_link8  # AND gate — both must be close
 
-    # ── Gate 2: direction-agnostic opposite-side check ────────────────────────
+    # ── Gate 2: direction-agnostic opposite-side check in handle cross-section ──
     # Vectors from handle center to each finger
     vec7 = lfinger_pos - handle_pos  # (N, 3)
     vec8 = rfinger_pos - handle_pos  # (N, 3)
 
-    # Normalize (add small epsilon to avoid division by zero)
-    u7 = vec7 / (torch.norm(vec7, dim=-1, keepdim=True) + 1e-6)  # (N, 3)
-    u8 = vec8 / (torch.norm(vec8, dim=-1, keepdim=True) + 1e-6)  # (N, 3)
+    # Project out handle bar length direction (handle local Y-axis)
+    handle_quat = env.scene["cabinet_frame"].data.target_quat_w[..., 0, :]
+    handle_mat = matrix_from_quat(handle_quat)
+    handle_y = handle_mat[..., 1]  # (N, 3)
 
-    # Cosine of the angle between the two finger directions
+    vec7_perp = vec7 - (vec7 * handle_y).sum(dim=-1, keepdim=True) * handle_y
+    vec8_perp = vec8 - (vec8 * handle_y).sum(dim=-1, keepdim=True) * handle_y
+
+    # Normalize (add small epsilon to avoid division by zero)
+    u7 = vec7_perp / (torch.norm(vec7_perp, dim=-1, keepdim=True) + 1e-6)  # (N, 3)
+    u8 = vec8_perp / (torch.norm(vec8_perp, dim=-1, keepdim=True) + 1e-6)  # (N, 3)
+
+    # Cosine of the angle between the two finger directions in cross-section plane
     cos_angle = (u7 * u8).sum(dim=-1)  # (N,) — range [-1, +1]
 
     # Sigmoid gate: scores near 1.0 when cos < 0 (opposite sides), 0.0 when same side.
@@ -304,10 +322,10 @@ def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torc
 
     is_close = z_score * xy_score * bullseye_multiplier
 
-    # Claw closed multiplier (10x)
+    # Open claw hook multiplier (10x for fingers < 12cm apart)
     finger_dist = torch.norm(lfinger_pos - rfinger_pos, dim=-1, p=2)
-    is_claw_closed = (finger_dist < 0.06).float()
-    claw_multiplier = 1.0 + (is_claw_closed * 9.0)
+    is_claw_hooked = (finger_dist < 0.12).float()
+    claw_multiplier = 1.0 + (is_claw_hooked * 9.0)
 
     return is_close * drawer_pos * claw_multiplier
 
@@ -357,8 +375,8 @@ def multi_stage_open_drawer(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -
     is_close = z_score * xy_score * bullseye_multiplier
 
     finger_dist = torch.norm(lfinger_pos - rfinger_pos, dim=-1, p=2)
-    is_claw_closed = (finger_dist < 0.06).float()
-    claw_multiplier = 1.0 + (is_claw_closed * 9.0)
+    is_claw_hooked = (finger_dist < 0.12).float()
+    claw_multiplier = 1.0 + (is_claw_hooked * 9.0)
 
     open_easy = (drawer_pos > 0.01) * 0.5 * is_close * claw_multiplier
     open_medium = (drawer_pos > 0.2) * is_close * claw_multiplier
