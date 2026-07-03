@@ -197,8 +197,12 @@ class EventCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("cabinet", body_names="drawer_handle_top"),
-            "static_friction_range": (2.0, 2.5),
-            "dynamic_friction_range": (2.0, 2.25),
+            # Lowered from (2.0, 2.5) — high friction let the robot drag the drawer
+            # open by pressing down on TOP of the bar. Lower friction forces it to
+            # mechanically HOOK a finger behind the bar to pull. Tune upward if the
+            # grip slips too much once hooking is learned.
+            "static_friction_range": (0.5, 0.7),
+            "dynamic_friction_range": (0.4, 0.6),
             "restitution_range": (0.0, 0.0),
             "num_buckets": 16,
         },
@@ -238,6 +242,29 @@ class RewardsCfg:
         func=mdp.single_claw_proximity,
         weight=10.0,
         params={"contact_radius": 0.06},
+    )
+
+    # 2b-i. Keep the claw OPEN while approaching (reward-driven, replaces hard joint limits)
+    open_claw_approach = RewTerm(
+        func=mdp.open_claw_approach_reward,
+        weight=25.0,
+        params={
+            "gripper_cfg": SceneEntityCfg("robot", joint_names=["joint7", "joint8"]),
+            "open_target": 0.05,
+            "aperture_sigma": 0.02,
+            "proximity_radius": 0.12,
+        },
+    )
+
+    # 2b-ii. Thread a finger INTO the gap behind the bar (anti top-drape cheat)
+    finger_in_gap = RewTerm(
+        func=mdp.finger_in_gap_reward,
+        weight=80.0,
+        params={
+            "gap_depth": 0.03,
+            "proximity_radius": 0.08,
+            "gap_sign": 1.0,  # flip to -1.0 if the finger should penetrate toward -X instead
+        },
     )
 
     # 2c. Continuous approach angle gradient — rewards moving fingers toward opposite sides

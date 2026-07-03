@@ -439,6 +439,78 @@ def drawer_vel_reward(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torc
     return pulling_vel * straddle_score
 
 
+def open_claw_approach_reward(
+    env: ManagerBasedRLEnv,
+    gripper_cfg: SceneEntityCfg,
+    open_target: float = 0.05,
+    aperture_sigma: float = 0.02,
+    proximity_radius: float = 0.12,
+) -> torch.Tensor:
+    """Reward keeping the claw OPEN while approaching the handle.
+
+    Replaces reliance on hard joint limits to keep the gripper open. Rewards the
+    gripper joints sitting near their open targets (joint7 ≈ -open_target,
+    joint8 ≈ +open_target), gated by proximity to the handle so it only matters
+    when the robot is actually going in for the grasp.
+
+    A wide-open claw lets the handle bar pass BETWEEN the fingers instead of the
+    robot draping a closed/pinched hand over the top.
+    """
+    result = _claw_distances(env)
+    if result is None:
+        return torch.zeros(env.num_envs, device=env.device)
+    d7, d8, _, _, _ = result
+
+    # Proximity gate — fires as the average fingertip nears the handle
+    avg_dist = (d7 + d8) * 0.5
+    prox_gate = torch.exp(-3.0 * avg_dist / proximity_radius)
+
+    # Aperture score — Gaussian bell peaking when joints are at the open targets
+    gripper_pos = env.scene[gripper_cfg.name].data.joint_pos[:, gripper_cfg.joint_ids]  # (N, 2)
+    j7, j8 = gripper_pos[:, 0], gripper_pos[:, 1]
+    err = (j7 - (-open_target)) ** 2 + (j8 - open_target) ** 2
+    open_score = torch.exp(-err / (2.0 * aperture_sigma ** 2))
+
+    return prox_gate * open_score
+
+
+def finger_in_gap_reward(
+    env: ManagerBasedRLEnv,
+    gap_depth: float = 0.03,
+    proximity_radius: float = 0.08,
+    gap_sign: float = 1.0,
+) -> torch.Tensor:
+    """Reward threading a finger INTO the gap behind the handle bar (anti top-drape).
+
+    The drawer opens along world -X (toward the robot), so the hole between the bar
+    and the drawer face is on the +X side of the bar center. To hook and pull, a
+    fingertip must get PAST the bar into that gap (world X greater than handle X).
+
+    Reward = proximity_gate * clamp(deepest_finger_penetration / gap_depth, 0, 1)
+
+    NOTE: if the geometry turns out mirrored (finger should go to -X), set
+    gap_sign=-1.0 in the RewTerm params to flip the rewarded direction.
+    """
+    result = _claw_distances(env)
+    if result is None:
+        return torch.zeros(env.num_envs, device=env.device)
+    d7, d8, lfinger_pos, rfinger_pos, handle_pos = result
+
+    # Only reward penetration when the hand is actually near the handle
+    avg_dist = (d7 + d8) * 0.5
+    prox_gate = torch.exp(-3.0 * avg_dist / proximity_radius)
+
+    # Signed penetration of each finger past the bar along the pull axis (world X)
+    depth7 = gap_sign * (lfinger_pos[:, 0] - handle_pos[:, 0])
+    depth8 = gap_sign * (rfinger_pos[:, 0] - handle_pos[:, 0])
+    deepest = torch.maximum(depth7, depth8)
+
+    # Saturating reward for positive penetration up to gap_depth
+    depth_score = torch.clamp(torch.clamp(deepest, min=0.0) / gap_depth, max=1.0)
+
+    return prox_gate * depth_score
+
+
 def conditional_action_rate_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Action rate penalty that scales down as the drawer opens."""
     action_rate = torch.sum(torch.square(env.action_manager.action - env.action_manager.prev_action), dim=1)
