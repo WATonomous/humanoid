@@ -135,13 +135,21 @@ def _claw_distances(env: ManagerBasedRLEnv):
     return d_link7, d_link8, lfinger_pos, rfinger_pos, handle_pos
 
 
+# Module-level tracking: closest each claw has gotten within the current PPO iteration.
+_last_claw_print_step: int = -1
+_min_d7_this_iter: float = float("inf")
+_min_d8_this_iter: float = float("inf")
+
+
 def single_claw_proximity(env: ManagerBasedRLEnv, contact_radius: float = 0.06) -> torch.Tensor:
     """Breadcrumb reward: points for each individual claw being near the handle (OR logic).
 
     Gives a soft Gaussian signal for link7 and link8 independently so the arm
     learns to bring EITHER finger close before we demand both.
-    Also prints mean claw distances every 500 PPO iterations.
+    Prints the closest each claw got during the iteration, once per PPO iteration.
     """
+    global _last_claw_print_step, _min_d7_this_iter, _min_d8_this_iter
+
     result = _claw_distances(env)
     if result is None:
         return torch.zeros(env.num_envs, device=env.device)
@@ -152,16 +160,21 @@ def single_claw_proximity(env: ManagerBasedRLEnv, contact_radius: float = 0.06) 
     score_link7 = torch.exp(-k * d_link7)
     score_link8 = torch.exp(-k * d_link8)
 
-    # Print diagnostics every 500 iterations (500 * num_envs steps)
-    log_interval = 500 * env.num_envs
-    if (env.common_step_counter % log_interval) < env.num_envs:
-        mean_d7 = d_link7.mean().item()
-        mean_d8 = d_link8.mean().item()
+    # Track the closest any env got this iteration
+    _min_d7_this_iter = min(_min_d7_this_iter, d_link7.min().item())
+    _min_d8_this_iter = min(_min_d8_this_iter, d_link8.min().item())
+
+    # Print once per PPO iteration (num_envs * 24 steps), then reset the trackers
+    log_interval = env.num_envs * 24
+    if env.common_step_counter - _last_claw_print_step >= log_interval:
         print(
-            f"\n[Claw Distance] step={env.common_step_counter} | "
-            f"link7→handle: {mean_d7:.4f}m | link8→handle: {mean_d8:.4f}m | "
-            f"sum: {mean_d7 + mean_d8:.4f}m"
+            f"[Claw best] iter_end={env.common_step_counter} | "
+            f"link7 closest: {_min_d7_this_iter:.3f}m  "
+            f"link8 closest: {_min_d8_this_iter:.3f}m"
         )
+        _last_claw_print_step = env.common_step_counter
+        _min_d7_this_iter = float("inf")
+        _min_d8_this_iter = float("inf")
 
     # Sum (not product) so either finger getting close earns points
     return score_link7 + score_link8
