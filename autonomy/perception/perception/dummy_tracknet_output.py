@@ -18,11 +18,11 @@ class DummyTrackNetOutput(Node):
         super().__init__('ball_sim')
 
         self.shuttle = None
-        self.dt = 0.02 #50Hz
+        self.dt = 0.02  # 50Hz
         self.history_position = []
-        self.noise = 0.04 #m
+        self.noise = 0.04  # m
 
-        #This is the L-value
+        # This is the L-value
         self.aerodynamic_characteristic_length = 3.4
 
         self.pub = self.create_publisher(
@@ -43,38 +43,36 @@ class DummyTrackNetOutput(Node):
 
         self.timer = self.create_timer(self.dt, self.step)
 
- 
     def spawn_shuttle(self):
-        
-        #units in meters
-        #(0,0) is center of court 
-        #position based on dimensions of a badminton court, 13.4m long 
-        #x spread is based on width of court, y spread is length, z spread is based on net height to max shuttlecock height
+
+        # units in meters
+        # (0,0) is center of court
+        # position based on dimensions of a badminton court, 13.4m long
+        # x spread is based on width of court, y spread is length, z spread is based on net height to max shuttlecock height
         msg = Bool()
         msg.data = True
         self.new_spawn.publish(msg)
         position = np.array([
-            np.random.uniform(-3.05,3.05),   # x spread
+            np.random.uniform(-3.05, 3.05),   # x spread
             np.random.uniform(3.35, 10.05),   # y spread
-            np.random.uniform(1.53, 3)    #zspread (net height to max height of shuttlecock)
+            # zspread (net height to max height of shuttlecock)
+            np.random.uniform(1.53, 3)
         ])
         dir_to_origin = np.array([0.0, 0.0, 0.0]) - position
         noise = np.random.uniform(-0.5, 0.5, size=3)
-        dir_to_origin[2] *= -1 # invert z direction to ensure shuttle is launched upwards
+        # invert z direction to ensure shuttle is launched upwards
+        dir_to_origin[2] *= -1
         noisy_dir = dir_to_origin + noise
 
         noisy_dir = noisy_dir / np.linalg.norm(noisy_dir)
 
-        velocity = np.random.uniform(70,130) * noisy_dir
+        velocity = np.random.uniform(70, 130) * noisy_dir
 
         self.shuttle = Shuttle(velocity, position)
-    
-        
 
         self.get_logger().info(
             f"Spawned shuttle | pos={position} vel={velocity}"
         )
-
 
     def step(self):
 
@@ -84,8 +82,8 @@ class DummyTrackNetOutput(Node):
 
         cur_pos = self.shuttle.position
         cur_vel = self.shuttle.velocity
-        #using quadratic air drag for shuttlecock trajectory
-        #dv/dt = g - ||v||*v/L 
+        # using quadratic air drag for shuttlecock trajectory
+        # dv/dt = g - ||v||*v/L
         speed = np.linalg.norm(cur_vel)
 
         drag = (speed * cur_vel / self.aerodynamic_characteristic_length)
@@ -123,7 +121,8 @@ class DummyTrackNetOutput(Node):
         if new_pos[2] < 0:
             self.shuttle = None
             self.get_logger().debug("Shuttle landed → respawning next tick")
-            self.get_logger().debug(f"Shuttle trajectory history: {self.history_position}")
+            self.get_logger().debug(
+                f"Shuttle trajectory history: {self.history_position}")
             self.history_position = []
 
 
