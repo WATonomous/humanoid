@@ -1,0 +1,28 @@
+services:
+  mjlabs:
+    build:
+      context: ..
+      dockerfile: docker/simulation/mjlabs/mjlabs.Dockerfile
+    image: "ghcr.io/watonomous/humanoid/mjlabs:latest"
+    network_mode: "bridge"
+    ipc: "none"
+    ports:
+      - "8080:8080"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
+      - ROS_DOMAIN_ID=0
+      - FASTDDS_BUILTIN_TRANSPORTS=UDPv4
+    profiles: [deploy, develop]
+    command: sleep infinity
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ${MONO_DIR}/autonomy/simulation:/root/ament_ws/src/simulation
+      - ${MONO_DIR}/autonomy/teleop:/root/ament_ws/src/teleop
+      - ${MONO_DIR}/autonomy/wato_msgs/common_msgs:/root/ament_ws/src/common_msgs
