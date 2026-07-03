@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 
-from geometry_msgs.msg import Pose, PoseStamped, PointStamped
+from geometry_msgs.msg import Pose, PointStamped
 from std_msgs.msg import Bool
 from common_msgs.msg import PerceptionImpactEstimation
 import numpy as np
@@ -10,8 +10,6 @@ import numpy as np
 class EKFPredictionNode(Node):
     def __init__(self):
         super().__init__('ekf_prediction_node')
-        
-
         self.dt = 0.01
         # ---------------- STATE ----------------
         # [px, py, pz, vx, vy, vz]
@@ -25,23 +23,23 @@ class EKFPredictionNode(Node):
         self.R = (0.04 ** 2) * np.eye(3)  # measurement noise
         self.process_noise_pos = 1e-2
         self.process_noise_vel = 1e-2
-       
 
         # ---------------- CONSTANTS ----------------
         self.g = np.array([0.0, 0.0, -9.81])
-        self.L = 3.4 #aerodynamic characteristic length (L-value) 
-        self.look_ahead_time = 2 #seconds
-        self.bounding_sphere_radius = 2.0 #meters
-        
-
-       
+        self.L = 3.4  # aerodynamic characteristic length (L-value)
+        self.look_ahead_time = 2  # seconds
+        self.bounding_sphere_radius = 2.0  # meters
 
         # ---------------- ROS ----------------
         self.pub = self.create_publisher(Pose, '/ekf_predicted_states', 10)
-        self.sub = self.create_subscription(PointStamped, '/shuttle_states', self.shuttle_callback, 10)
-        self.true_sub = self.create_subscription(PointStamped, '/shuttle_states_true', self.shuttle_true_callback, 10)
-        self.new_spawn = self.create_subscription(Bool, '/shuttle_spawned', self.shuttle_spawned_callback, 10)
-        self.impact_estimate_pub = self.create_publisher(PerceptionImpactEstimation, '/ekf_impact', 10)
+        self.sub = self.create_subscription(
+            PointStamped, '/shuttle_states', self.shuttle_callback, 10)
+        self.true_sub = self.create_subscription(
+            PointStamped, '/shuttle_states_true', self.shuttle_true_callback, 10)
+        self.new_spawn = self.create_subscription(
+            Bool, '/shuttle_spawned', self.shuttle_spawned_callback, 10)
+        self.impact_estimate_pub = self.create_publisher(
+            PerceptionImpactEstimation, '/ekf_impact', 10)
 
         self.latest_meas = None
         self.latest_meas_time = None
@@ -57,24 +55,25 @@ class EKFPredictionNode(Node):
 
     # ---------------- CALLBACK ----------------
     def shuttle_callback(self, msg):
-       
+
         if self.latest_meas_time is not None:
             dt_elapsed = (msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
-                        - (self.latest_meas_time.sec + self.latest_meas_time.nanosec * 1e-9))
-            #over 3 seconds of no measurements, assume new shuttle
+                          - (self.latest_meas_time.sec + self.latest_meas_time.nanosec * 1e-9))
+            # over 3 seconds of no measurements, assume new shuttle
             if dt_elapsed > 3:
                 self.shuttle_spawned_callback(Bool(data=True))
 
         self.latest_meas = msg
         self.latest_meas_time = msg.header.stamp
         self.new_meas_available = True
-        
 
         z = np.array([msg.point.x, msg.point.y, msg.point.z])
 
         if not self.velocity_initialized:
             if self.prev_meas is not None:
-                dt_elapsed = self.latest_meas_time.sec + self.latest_meas_time.nanosec * 1e-9 - (self.prev_meas_time.sec + self.prev_meas_time.nanosec * 1e-9)
+                dt_elapsed = self.latest_meas_time.sec + self.latest_meas_time.nanosec * \
+                    1e-9 - (self.prev_meas_time.sec +
+                            self.prev_meas_time.nanosec * 1e-9)
                 # guard: only seed if elapsed time is not like zero or too small
                 if dt_elapsed > 0.001:
                     v_init = (z - self.prev_meas) / dt_elapsed
@@ -98,7 +97,7 @@ class EKFPredictionNode(Node):
             self.get_logger().info("Shuttle spawned → resetting EKF state")
             self.x = np.zeros(6)
             self.P = np.eye(6) * 0.1
-            self.P[3:6, 3:6] = np.eye(3) * 50.0 
+            self.P[3:6, 3:6] = np.eye(3) * 50.0
             self.increments = 0
             self.latest_meas = None
             self.new_meas_available = False
@@ -137,8 +136,6 @@ class EKFPredictionNode(Node):
         # dv/dv nonlinear drag term
         I = np.eye(3)
 
-
-
         # derivative of (|v| v)
         outer = np.outer(v, v) / speed
 
@@ -155,21 +152,23 @@ class EKFPredictionNode(Node):
         time_to_impact = -1
         position_of_impact = np.zeros(3)
         hitback_direction = np.zeros(3)
-        
-        if(future_x[0]**2 + future_x[1]**2 + future_x[2]**2 <= self.bounding_sphere_radius**2):
+
+        if (future_x[0]**2 + future_x[1]**2 + future_x[2]**2 <= self.bounding_sphere_radius**2):
             self.get_logger().debug("Already impacted")
             return
         for i in range(int(self.look_ahead_time / self.dt)):
             future_x = self.f(future_x)
             if future_x[0]**2 + future_x[1]**2 + future_x[2]**2 <= self.bounding_sphere_radius**2:
                 impact = True
-                #using the negative of the normalized velocity at impact to estimate the ideal racket facing orientation for a hit back
-                hitback_direction = -(future_x[3:6]/np.linalg.norm(future_x[3:6]))
+                # using the negative of the normalized velocity at impact to estimate the ideal racket facing orientation for a hit back
+                hitback_direction = - \
+                    (future_x[3:6]/np.linalg.norm(future_x[3:6]))
                 time_to_impact = i * self.dt
                 position_of_impact = future_x[0:3]
                 break
         if (impact):
-            self.get_logger().debug(f"Impact estimated in {time_to_impact:.2f} seconds at position {position_of_impact} with hit back racket direction {hitback_direction})")
+            self.get_logger().debug(
+                f"Impact estimated in {time_to_impact:.2f} seconds at position {position_of_impact} with hit back racket direction {hitback_direction})")
         else:
             self.get_logger().debug("No impact estimated in the next 2 seconds")
         # Publish the impact estimate
@@ -190,15 +189,15 @@ class EKFPredictionNode(Node):
 
         self.impact_estimate_pub.publish(impact_msg)
 
-            
-
     # ---------------- STEP ----------------
+
     def step(self):
         self.increments += 1
         if (self.true_pos[0]**2 + self.true_pos[1]**2 + self.true_pos[2]**2 <= self.bounding_sphere_radius**2):
-            self.get_logger().debug(f"Shuttle has impacted at true position {self.true_pos}")
+            self.get_logger().debug(
+                f"Shuttle has impacted at true position {self.true_pos}")
         if (np.trace(self.P) < 2):
-            if(not self.low_uncertainty):
+            if (not self.low_uncertainty):
                 self.get_logger().info("Low uncertainty → reducing process noise")
             self.process_noise_pos = 1e-5
             self.process_noise_vel = 1e-5
@@ -206,16 +205,13 @@ class EKFPredictionNode(Node):
         else:
             self.process_noise_pos = 1e-2
             self.process_noise_vel = 1e-2
-        
-        
+
         # ====IMPACT ESTIMATION =====
         self.estimate_impact()
         # ===== PREDICT =====
         F = self.F_jacobian(self.x)   # old state
-        self.x = self.f(self.x)  
-   
-        
-     
+        self.x = self.f(self.x)
+
         Q = np.eye(6)
         Q[0:3, 0:3] *= self.process_noise_pos
         Q[3:6, 3:6] *= self.process_noise_vel
@@ -228,7 +224,7 @@ class EKFPredictionNode(Node):
                 self.latest_meas.point.y,
                 self.latest_meas.point.z
             ])
-    
+
             H = np.zeros((3, 6))
             H[:, 0:3] = np.eye(3)
 
@@ -248,15 +244,13 @@ class EKFPredictionNode(Node):
         msg.position.y = float(self.x[1])
         msg.position.z = float(self.x[2])
         if (self.latest_meas is not None and self.new_meas_available):
-                self.get_logger().info(
-                    f"Total Error: {np.linalg.norm(self.true_pos - self.x[0:3])}")
-                
+            self.get_logger().info(
+                f"Total Error: {np.linalg.norm(self.true_pos - self.x[0:3])}")
+
         self.get_logger().debug(f'Predicted Position: {self.x[0:3]}')
         self.new_meas_available = False
-        
-           
-        self.pub.publish(msg)
 
+        self.pub.publish(msg)
 
 
 def main(args=None):
