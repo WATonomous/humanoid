@@ -1,9 +1,13 @@
+
+
 import rclpy
 from rclpy.node import Node
 
-from geometry_msgs.msg import Pose
-import numpy as np
+from geometry_msgs.msg import Pose, PoseStamped
 from std_msgs.msg import Bool
+from common_msgs.msg import PerceptionImpactEstimation
+import numpy as np
+
 
 class EKFPredictionNode(Node):
     def __init__(self):
@@ -40,7 +44,7 @@ class EKFPredictionNode(Node):
         self.sub = self.create_subscription(Pose, '/shuttle_states', self.shuttle_callback, 10)
         self.true_sub = self.create_subscription(Pose, '/shuttle_states_true', self.shuttle_true_callback, 10)
         self.new_spawn = self.create_subscription(Bool, '/shuttle_spawned', self.shuttle_spawned_callback, 10)
-        self.impact_estimate_pub = self.create_publisher(Bool, '/ekf_impact', 10)
+        self.impact_estimate_pub = self.create_publisher(PerceptionImpactEstimation, '/ekf_impact', 10)
 
         self.latest_meas = None
         self.latest_meas_time = None
@@ -142,9 +146,10 @@ class EKFPredictionNode(Node):
     def estimate_impact(self):
         future_x = self.x.copy()
         impact = False
-        time_till_impact = 0.0
+        time_to_impact = -1
         position_of_impact = np.zeros(3)
-        hit_back_direction = np.zeros(3)
+        hitback_direction = np.zeros(3)
+        
         if(future_x[0]**2 + future_x[1]**2 + future_x[2]**2 <= self.bounding_sphere_radius**2):
             self.get_logger().debug("Already impacted")
             return
@@ -153,16 +158,29 @@ class EKFPredictionNode(Node):
             if future_x[0]**2 + future_x[1]**2 + future_x[2]**2 <= self.bounding_sphere_radius**2:
                 impact = True
                 #using the negative of the normalized velocity at impact to estimate the ideal racket facing orientation for a hit back
-                hit_back_direction = -(future_x[3:6]/np.linalg.norm(future_x[3:6]))
-                time_till_impact = i * self.dt
+                hitback_direction = -(future_x[3:6]/np.linalg.norm(future_x[3:6]))
+                time_to_impact = i * self.dt
                 position_of_impact = future_x[0:3]
                 break
         if (impact):
-            self.get_logger().debug(f"Impact estimated in {time_till_impact:.2f} seconds at position {position_of_impact} with hit back racket direction {hit_back_direction})")
+            self.get_logger().debug(f"Impact estimated in {time_to_impact:.2f} seconds at position {position_of_impact} with hit back racket direction {hitback_direction})")
         else:
             self.get_logger().debug("No impact estimated in the next 2 seconds")
-        return 
-       
+        # Publish the impact estimate
+        impact_msg = PerceptionImpactEstimation()
+        impact_msg.time_to_impact = float(time_to_impact)
+
+        impact_msg.position_of_impact.x = float(position_of_impact[0])
+        impact_msg.position_of_impact.y = float(position_of_impact[1])
+        impact_msg.position_of_impact.z = float(position_of_impact[2])
+
+        impact_msg.hitback_direction.x = float(hitback_direction[0])
+        impact_msg.hitback_direction.y = float(hitback_direction[1])
+        impact_msg.hitback_direction.z = float(hitback_direction[2])
+
+        impact_msg.uncertainty = float(np.trace(self.P))
+
+        self.impact_estimate_pub.publish(impact_msg)
 
             
 
