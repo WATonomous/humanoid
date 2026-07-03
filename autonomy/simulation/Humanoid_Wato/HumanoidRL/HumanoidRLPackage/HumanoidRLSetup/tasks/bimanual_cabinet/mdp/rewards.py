@@ -164,13 +164,15 @@ def single_claw_proximity(env: ManagerBasedRLEnv, contact_radius: float = 0.06) 
     _min_d7_this_iter = min(_min_d7_this_iter, d_link7.min().item())
     _min_d8_this_iter = min(_min_d8_this_iter, d_link8.min().item())
 
-    # Print once per PPO iteration (num_envs * 24 steps), then reset the trackers
-    log_interval = env.num_envs * 24
+    # One print per PPO iteration. num_steps_per_env=96, so each iteration advances
+    # common_step_counter by num_envs * 96.
+    log_interval = env.num_envs * 96
     if env.common_step_counter - _last_claw_print_step >= log_interval:
         print(
             f"[Claw best] iter_end={env.common_step_counter} | "
             f"link7 closest: {_min_d7_this_iter:.3f}m  "
-            f"link8 closest: {_min_d8_this_iter:.3f}m"
+            f"link8 closest: {_min_d8_this_iter:.3f}m",
+            flush=True,
         )
         _last_claw_print_step = env.common_step_counter
         _min_d7_this_iter = float("inf")
