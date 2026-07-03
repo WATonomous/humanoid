@@ -233,7 +233,7 @@ class RewardsCfg:
     
     straddle_handle = RewTerm(
         func=mdp.straddle_handle,
-        weight=25.0,
+        weight=40.0,
         params={"threshold": 0.05}
     )
 
@@ -247,16 +247,26 @@ class RewardsCfg:
         },
     )
 
-    # 3. Open the drawer
+    # 3. Open the drawer — weights reduced; dual_contact_pull is now the primary signal
     open_drawer_bonus = RewTerm(
         func=mdp.open_drawer_bonus,
-        weight=200.0,
+        weight=50.0,
         params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
     )
     multi_stage_open_drawer = RewTerm(
         func=mdp.multi_stage_open_drawer,
-        weight=50.0,
+        weight=15.0,
         params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
+    )
+
+    # 3b. Primary signal: both inner claws touching the handle while pulling
+    dual_contact_pull = RewTerm(
+        func=mdp.dual_contact_pull,
+        weight=300.0,
+        params={
+            "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
+            "contact_radius": 0.04,
+        },
     )
 
     # 4. Penalize actions for cosmetic reasons (Conditional Jerk Penalties)

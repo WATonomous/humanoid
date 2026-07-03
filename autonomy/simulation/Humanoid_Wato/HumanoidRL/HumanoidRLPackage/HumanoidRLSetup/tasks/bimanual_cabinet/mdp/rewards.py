@@ -123,6 +123,37 @@ def grasp_handle(
     return is_close * torch.sum(open_joint_pos - torch.abs(gripper_joint_pos), dim=-1)
 
 
+def dual_contact_pull(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, contact_radius: float = 0.04) -> torch.Tensor:
+    """High-priority reward: BOTH inner claws (link7 and link8) must each be within
+    contact_radius of the handle while the drawer is being pulled open.
+
+    Uses a multiplicative Gaussian gate — both fingers must be close simultaneously
+    (AND logic, not OR). Scales with drawer_pos so the signal only exists while
+    the drawer is actually moving out.
+    """
+    pose = _robot_ee_pose(env)
+    if pose is None:
+        return torch.zeros(env.num_envs, device=env.device)
+
+    _, _, lfinger_pos, rfinger_pos = pose  # lfinger=link7, rfinger=link8
+    handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
+    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
+
+    # Distance from each fingertip body to the handle centre
+    d_link7 = torch.norm(handle_pos - lfinger_pos, dim=-1, p=2)
+    d_link8 = torch.norm(handle_pos - rfinger_pos, dim=-1, p=2)
+
+    # Sharp Gaussian well — score ~0.05 at contact_radius, ~0 beyond 2x
+    k = 3.0 / contact_radius
+    score_link7 = torch.exp(-k * d_link7)
+    score_link8 = torch.exp(-k * d_link8)
+
+    # Both fingers must be close: multiplicative gate (AND logic)
+    dual_contact_score = score_link7 * score_link8
+
+    return dual_contact_score * drawer_pos
+
+
 def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Bonus for opening the drawer given by the joint position of the drawer.
     Gives a MASSIVE multiplier if the robot's hand is physically on the handle while it opens!
