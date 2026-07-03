@@ -238,8 +238,15 @@ class RewardsCfg:
     # 2b. Individual claw proximity — breadcrumb trail to get each finger near the handle
     single_claw_proximity = RewTerm(
         func=mdp.single_claw_proximity,
-        weight=30.0,
+        weight=10.0,
         params={"contact_radius": 0.06},
+    )
+
+    # 2c. Continuous approach angle gradient — rewards moving fingers toward opposite sides
+    approach_angle_reward = RewTerm(
+        func=mdp.approach_angle_reward,
+        weight=20.0,
+        params={"proximity_radius": 0.15},
     )
 
     straddle_handle = RewTerm(
@@ -258,7 +265,7 @@ class RewardsCfg:
         },
     )
 
-    # 2c. Both claws on opposite sides of the handle bar (orientation gate, no drawer movement needed)
+    # 2d. Both claws on opposite sides of the handle bar (orientation gate, no drawer movement needed)
     dual_claw_straddle = RewTerm(
         func=mdp.dual_claw_straddle,
         weight=100.0,

@@ -176,6 +176,45 @@ def single_claw_proximity(env: ManagerBasedRLEnv, contact_radius: float = 0.06) 
     return score_link7 + score_link8
 
 
+def approach_angle_reward(env: ManagerBasedRLEnv, proximity_radius: float = 0.15) -> torch.Tensor:
+    """Continuous gradient that rewards increasing the spread angle between the two fingers.
+
+    Fires whenever fingers are within proximity_radius of the handle, even when they
+    are still on the SAME side. This fills the gradient dead-zone of dual_claw_straddle
+    (which gives ~0 gradient when cos_angle > 0).
+
+    Reward = prox_gate * (1 - cos_angle) / 2
+      - cos_angle = -1 (perfect opposite)  →  reward = 1.0
+      - cos_angle =  0 (perpendicular)     →  reward = 0.5
+      - cos_angle = +1 (same side)         →  reward = 0.0
+
+    The gradient always pushes the policy to rotate the approach so fingers move
+    toward opposite sides of the handle, regardless of current configuration.
+    """
+    result = _claw_distances(env)
+    if result is None:
+        return torch.zeros(env.num_envs, device=env.device)
+
+    d_link7, d_link8, lfinger_pos, rfinger_pos, handle_pos = result
+
+    # Soft proximity gate — fires when AVERAGE finger distance is within proximity_radius
+    avg_dist = (d_link7 + d_link8) * 0.5
+    prox_gate = torch.exp(-3.0 * avg_dist / proximity_radius)
+
+    # Direction vectors from handle center to each finger (normalized)
+    vec7 = lfinger_pos - handle_pos
+    vec8 = rfinger_pos - handle_pos
+    u7 = vec7 / (torch.norm(vec7, dim=-1, keepdim=True) + 1e-6)
+    u8 = vec8 / (torch.norm(vec8, dim=-1, keepdim=True) + 1e-6)
+
+    cos_angle = (u7 * u8).sum(dim=-1)  # (N,) in [-1, +1]
+
+    # Map to [0, 1]: 1.0 = perfect opposite, 0.0 = same direction
+    angle_reward = (1.0 - cos_angle) * 0.5
+
+    return prox_gate * angle_reward
+
+
 def dual_claw_straddle(env: ManagerBasedRLEnv, contact_radius: float = 0.04) -> torch.Tensor:
     """Reward both claws being close AND on OPPOSITE sides of the handle center.
 
