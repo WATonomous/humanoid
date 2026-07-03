@@ -322,9 +322,9 @@ def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torc
 
     is_close = z_score * xy_score * bullseye_multiplier
 
-    # Open claw hook multiplier (10x for fingers < 12cm apart)
+    # Open claw hook multiplier (10x for fingers < 20cm apart)
     finger_dist = torch.norm(lfinger_pos - rfinger_pos, dim=-1, p=2)
-    is_claw_hooked = (finger_dist < 0.12).float()
+    is_claw_hooked = (finger_dist < 0.20).float()
     claw_multiplier = 1.0 + (is_claw_hooked * 9.0)
 
     return is_close * drawer_pos * claw_multiplier
@@ -375,7 +375,7 @@ def multi_stage_open_drawer(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -
     is_close = z_score * xy_score * bullseye_multiplier
 
     finger_dist = torch.norm(lfinger_pos - rfinger_pos, dim=-1, p=2)
-    is_claw_hooked = (finger_dist < 0.12).float()
+    is_claw_hooked = (finger_dist < 0.20).float()
     claw_multiplier = 1.0 + (is_claw_hooked * 9.0)
 
     open_easy = (drawer_pos > 0.01) * 0.5 * is_close * claw_multiplier
