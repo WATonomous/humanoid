@@ -1,0 +1,4 @@
+geometry_msgs/Point position_of_impact
+geometry_msgs/Vector3 hitback_direction
+float32 time_to_impact
+float32 uncertainty
