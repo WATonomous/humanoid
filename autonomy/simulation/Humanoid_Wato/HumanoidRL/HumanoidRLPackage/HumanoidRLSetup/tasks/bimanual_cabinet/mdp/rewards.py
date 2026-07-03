@@ -168,11 +168,12 @@ def single_claw_proximity(env: ManagerBasedRLEnv, contact_radius: float = 0.06) 
     # common_step_counter by num_envs * 96.
     log_interval = env.num_envs * 96
     if env.common_step_counter - _last_claw_print_step >= log_interval:
+        import sys
         print(
             f"[Claw best] iter_end={env.common_step_counter} | "
             f"link7 closest: {_min_d7_this_iter:.3f}m  "
             f"link8 closest: {_min_d8_this_iter:.3f}m",
-            flush=True,
+            flush=True, file=sys.stderr,
         )
         _last_claw_print_step = env.common_step_counter
         _min_d7_this_iter = float("inf")
