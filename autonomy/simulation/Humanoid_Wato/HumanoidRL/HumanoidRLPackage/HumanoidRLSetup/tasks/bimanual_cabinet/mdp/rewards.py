@@ -164,16 +164,17 @@ def single_claw_proximity(env: ManagerBasedRLEnv, contact_radius: float = 0.06) 
     _min_d7_this_iter = min(_min_d7_this_iter, d_link7.min().item())
     _min_d8_this_iter = min(_min_d8_this_iter, d_link8.min().item())
 
-    # One print per PPO iteration. num_steps_per_env=96, so each iteration advances
-    # common_step_counter by num_envs * 96.
-    log_interval = env.num_envs * 96
-    if env.common_step_counter - _last_claw_print_step >= log_interval:
+    # One print per PPO iteration.
+    # common_step_counter increments by 1 per env.step() call (not by num_envs).
+    # RSL-RL collects num_steps_per_env=96 steps per iteration, so counter advances by 96.
+    log_interval = 96
+    if env.common_step_counter > 0 and env.common_step_counter - _last_claw_print_step >= log_interval:
         import sys
         print(
             f"[Claw best] iter_end={env.common_step_counter} | "
             f"link7 closest: {_min_d7_this_iter:.3f}m  "
             f"link8 closest: {_min_d8_this_iter:.3f}m",
-            flush=True, file=sys.stderr,
+            flush=True,
         )
         _last_claw_print_step = env.common_step_counter
         _min_d7_this_iter = float("inf")
@@ -404,51 +405,243 @@ def print_stage_curriculum(env: ManagerBasedRLEnv, env_ids: torch.Tensor, term_n
         # Only print once (for the 0th environment) to avoid spamming the console
         if len(env_ids) > 0 and env_ids[0] == 0:
             print(f"\n=======================================================")
+    # Signed projection of each finger onto the handle bar axis
+    vec_to_link7 = lfinger_pos - handle_pos  # (N, 3)
+    vec_to_link8 = rfinger_pos - handle_pos  # (N, 3)
+
+    side_link7 = (vec_to_link7 * handle_y).sum(dim=-1)  # (N,)
+    side_link8 = (vec_to_link8 * handle_y).sum(dim=-1)  # (N,)
+
+    # Opposite sides: link7 > 0 and link8 < 0 (or vice versa)
+    # Use a soft gate: tanh of the product being negative means opposite sides
+    # product < 0  →  opposite sides  →  gate near 1.0
+    # product > 0  →  same side       →  gate near 0.0
+    opposite_side_score = torch.sigmoid(-20.0 * side_link7 * side_link8)
+
+    return dual_proximity * opposite_side_score
+
+
+def dual_contact_pull(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, contact_radius: float = 0.04) -> torch.Tensor:
+    """Maximum points: both claws on opposite sides of the handle AND the drawer is moving.
+
+    Reuses dual_claw_straddle as the contact gate, then scales by drawer_pos.
+    This is the top-of-pyramid reward — it only fires when everything else is correct.
+    """
+    straddle_score = dual_claw_straddle(env, contact_radius=contact_radius)
+    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
+    return straddle_score * drawer_pos
+
+
+def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Bonus for opening the drawer given by the joint position of the drawer.
+    Gives a MASSIVE multiplier if the robot's hand is physically on the handle while it opens!
+    """
+    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
+    
+    pose = _robot_ee_pose(env)
+    if pose is None:
+        return drawer_pos
+        
+    ee_tcp_pos, _, lfinger_pos, rfinger_pos = pose
+    handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
+    
+    # Use the exact Z-coordinate of the offset point!
+    target_z = handle_pos[..., 2]
+    dz = torch.abs(target_z - ee_tcp_pos[..., 2])
+    
+    # X/Y distance
+    dx_dy = torch.norm(handle_pos[..., :2] - ee_tcp_pos[..., :2], dim=-1, p=2)
+    
+    # ASYMMETRIC GRADIENT: The top lip of the drawer is physically higher than the handle.
+    # If the robot's hand goes higher than target_z + 2cm, it gets EXACTLY 0 points!
+    # If it is below or at the handle, it gets the continuous breadcrumb trail.
+    is_too_high = ee_tcp_pos[..., 2] > (target_z + 0.02)
+    z_score = torch.where(is_too_high, torch.zeros_like(dz), torch.exp(-50.0 * dz))
+    
+    # Wide breadcrumb trail to get the hand generally near the handle
+    xy_score = torch.where(dx_dy <= 0.15, torch.exp(-20.0 * dx_dy), torch.zeros_like(dx_dy))
+    
+    # BULLSEYE MULTIPLIER: Gives up to 5x MORE points for pulling from the exact middle!
+    # Creates an ultra-sharp gravitational well directly in the center of the handle.
+    bullseye_multiplier = 1.0 + torch.where(dx_dy <= 0.04, 4.0 * torch.exp(-150.0 * dx_dy), torch.zeros_like(dx_dy))
+    
+    is_close = z_score * xy_score * bullseye_multiplier
+    
+    # Check if the claw is actually closed!
+    # Fully open is ~10cm apart. Fully closed is ~3cm apart. 
+    finger_dist = torch.norm(lfinger_pos - rfinger_pos, dim=-1, p=2)
+    is_claw_closed = (finger_dist < 0.06).float()
+    
+    # 1x points for pulling with handle, 10x AS MANY points if claw is closed!
+    claw_multiplier = 1.0 + (is_claw_closed * 9.0)
+
+    # EXACTLY 0 points if it is pulling from the top of the shelf!
+    return is_close * drawer_pos * claw_multiplier
+
+
+def straddle_handle(env: ManagerBasedRLEnv, threshold: float) -> torch.Tensor:
+    """Reward the robot for threading its fingers on strictly opposite sides of the handle.
+    This mathematically guarantees the handle is trapped INSIDE the grip, rather than pinched from outside.
+    """
+    pose = _robot_ee_pose(env)
+    if pose is None:
+        return torch.zeros(env.num_envs, device=env.device)
+        
+    ee_tcp_pos, _, lfinger_pos, rfinger_pos = pose
+    handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
+    
+    # Only reward straddling if the hand is physically near the handle
+    distance_to_handle = torch.norm(handle_pos - ee_tcp_pos, dim=-1, p=2)
+    is_close = (distance_to_handle <= threshold).float()
+    
+    # Calculate Euclidean distances
+    dist_thumb_to_handle = torch.norm(handle_pos - rfinger_pos, dim=-1, p=2)
+    dist_index_to_handle = torch.norm(handle_pos - lfinger_pos, dim=-1, p=2)
+    dist_thumb_to_index = torch.norm(lfinger_pos - rfinger_pos, dim=-1, p=2)
+    
+    # If the handle is PERFECTLY between the two fingers, then:
+    # dist(thumb, handle) + dist(index, handle) == dist(thumb, index)
+    # We penalize any deviation from this perfect straight line!
+    linearity_deviation = (dist_thumb_to_handle + dist_index_to_handle) - dist_thumb_to_index
+    
+    # Convert deviation to a 0-to-1 score (1.0 means perfectly straddled)
+    # We use a sharp exponential curve so it only gets points if it's highly accurate
+    straddle_score = torch.exp(-50.0 * linearity_deviation)
+    
+    return is_close * straddle_score
+
+
+def multi_stage_open_drawer(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Multi-stage bonus for opening the drawer.
+
+    Depending on the drawer's position, the reward is given in three stages: easy, medium, and hard.
+    This helps the agent to learn to open the drawer in a controlled manner.
+    """
+    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
+    
+    pose = _robot_ee_pose(env)
+    if pose is None:
+        return torch.zeros(env.num_envs, device=env.device)
+        
+    ee_tcp_pos, _, lfinger_pos, rfinger_pos = pose
+    handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
+    
+    # Use the exact Z-coordinate of the offset point!
+    target_z = handle_pos[..., 2]
+    dz = torch.abs(target_z - ee_tcp_pos[..., 2])
+    
+    # X/Y distance
+    dx_dy = torch.norm(handle_pos[..., :2] - ee_tcp_pos[..., :2], dim=-1, p=2)
+    
+    # ASYMMETRIC GRADIENT to ban the top lip
+    is_too_high = ee_tcp_pos[..., 2] > (target_z + 0.02)
+    z_score = torch.where(is_too_high, torch.zeros_like(dz), torch.exp(-50.0 * dz))
+    
+    # Wide breadcrumb trail
+    xy_score = torch.where(dx_dy <= 0.15, torch.exp(-20.0 * dx_dy), torch.zeros_like(dx_dy))
+    
+    # BULLSEYE MULTIPLIER: 5x points for exact middle
+    bullseye_multiplier = 1.0 + torch.where(dx_dy <= 0.04, 4.0 * torch.exp(-150.0 * dx_dy), torch.zeros_like(dx_dy))
+    
+    is_close = z_score * xy_score * bullseye_multiplier
+    
+    # Claw closed multiplier (10x)
+    finger_dist = torch.norm(lfinger_pos - rfinger_pos, dim=-1, p=2)
+    is_claw_closed = (finger_dist < 0.06).float()
+    claw_multiplier = 1.0 + (is_claw_closed * 9.0)
+
+    # ALL milestones require is_close. If it pulls the shelf, it gets exactly 0!
+    open_easy = (drawer_pos > 0.01) * 0.5 * is_close * claw_multiplier
+    open_medium = (drawer_pos > 0.2) * is_close * claw_multiplier
+    open_hard = (drawer_pos > 0.3) * is_close * claw_multiplier
+
+    return open_easy + open_medium + open_hard
+
+
+def conditional_action_rate_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Action rate penalty that scales down as the drawer opens.
+    
+    If the drawer is completely closed, the penalty multiplier is 1.0.
+    As the drawer opens, the penalty multiplier scales down to 0.1 (so it's allowed to be slightly jerky while pulling).
+    """
+    # Base action rate penalty (squared difference of actions)
+    action_rate = torch.sum(torch.square(env.action_manager.action - env.action_manager.prev_action), dim=1)
+    
+    # Get drawer position
+    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
+    
+    # Scale multiplier from 1.0 (at 0m) down to 0.1 (at 0.35m)
+    multiplier = torch.clamp(1.0 - (drawer_pos / 0.35), min=0.1, max=1.0)
+    
+    return action_rate * multiplier
+
+
+def conditional_joint_vel_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, robot_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Joint velocity penalty that scales down as the drawer opens."""
+    # Base joint velocity penalty
+    joint_vel = torch.sum(torch.square(env.scene[robot_cfg.name].data.joint_vel), dim=1)
+    
+    # Get drawer position
+    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
+    
+    # Scale multiplier from 1.0 (at 0m) down to 0.1 (at 0.35m)
+    multiplier = torch.clamp(1.0 - (drawer_pos / 0.35), min=0.1, max=1.0)
+    
+    return joint_vel * multiplier
+
+
+def print_stage_curriculum(env: ManagerBasedRLEnv, env_ids: torch.Tensor, term_name: str, weight: float, num_steps: int) -> float:
+    """A wrapper for modify_reward_weight that prints a message exactly when the stage transitions."""
+    from isaaclab.envs.mdp import modify_reward_weight
+    
+    # env.common_step_counter increments by the number of environments each step.
+    # We print a message when the step counter crosses the threshold.
+    if env.common_step_counter >= num_steps and env.common_step_counter < num_steps + env.num_envs * 2:
+        # Only print once (for the 0th environment) to avoid spamming the console
+        if len(env_ids) > 0 and env_ids[0] == 0:
+            print(f"\n=======================================================")
             print(f"CURRICULUM UNLOCKED: STAGE 2")
             print(f"=======================================================")
             print(f"The AI has mastered reaching! Now forcing it to pull...")
             print(f"Updating reward term '{term_name}' to {weight}")
             print(f"=======================================================\n")
-            
-    return modify_reward_weight(env, env_ids, term_name, weight, num_steps)
+      return modify_reward_weight(env, env_ids, term_name, weight, num_steps)
 
 
 # ─── Debug: closest link distances ────────────────────────────────────────────
-# A module-level accumulator so we can track the MINIMUM distance seen across
-# each training step and print it once per iteration (every ~430K steps for 4096 envs).
 _link7_min_buf: list[float] = []
 _link8_min_buf: list[float] = []
-_PRINT_EVERY_STEPS: int = 430_000   # ≈ 1 RSL-RL iteration with 4096 envs
+# common_step_counter increments by 1 per env.step() call (not by num_envs).
+# RSL-RL collects ~96 steps per iteration with the bimanual cabinet config.
+# Print every 96 calls = once per training iteration.
+_PRINT_EVERY_STEPS: int = 96
+
 
 def debug_link_distances(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Weight-0 term: prints mean closest distance for link7 & link8 to the handle.
 
-    Call once per step; prints a human-readable summary each time the step counter
-    crosses a multiple of _PRINT_EVERY_STEPS so the output appears once per iteration.
-    Returns zeros so it has absolutely no effect on training.
+    Prints once per training iteration. Returns zeros — zero effect on training.
     """
     global _link7_min_buf, _link8_min_buf
 
     robot = env.scene["robot"]
     handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]  # (N, 3)
 
-    ee_ids, _   = robot.find_bodies("link7", preserve_order=True)
+    ee_ids, _    = robot.find_bodies("link7", preserve_order=True)
     thumb_ids, _ = robot.find_bodies("link8", preserve_order=True)
 
     if ee_ids and thumb_ids:
-        link7_pos = robot.data.body_pos_w[:, ee_ids[0], :]    # (N, 3)
-        link8_pos = robot.data.body_pos_w[:, thumb_ids[0], :] # (N, 3)
+        link7_pos = robot.data.body_pos_w[:, ee_ids[0], :]     # (N, 3)
+        link8_pos = robot.data.body_pos_w[:, thumb_ids[0], :]  # (N, 3)
 
         dist7 = torch.norm(handle_pos - link7_pos, dim=-1, p=2)  # (N,)
         dist8 = torch.norm(handle_pos - link8_pos, dim=-1, p=2)  # (N,)
 
-        # Accumulate the mean-closest per step
         _link7_min_buf.append(dist7.min().item())
         _link8_min_buf.append(dist8.min().item())
 
-        # Print once per iteration
         steps = env.common_step_counter
-        if steps > 0 and (steps % _PRINT_EVERY_STEPS) < env.num_envs:
+        if steps > 0 and (steps % _PRINT_EVERY_STEPS) == 0:
             avg7 = sum(_link7_min_buf) / max(len(_link7_min_buf), 1)
             avg8 = sum(_link8_min_buf) / max(len(_link8_min_buf), 1)
             print(
