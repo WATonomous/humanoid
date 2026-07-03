@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, PointStamped
 import numpy as np
 from std_msgs.msg import Bool
 
@@ -26,12 +26,12 @@ class DummyTrackNetOutput(Node):
         self.aerodynamic_characteristic_length = 3.4
 
         self.pub = self.create_publisher(
-            Pose,
+            PointStamped,
             '/shuttle_states',
             10
         )
         self.true_pub = self.create_publisher(
-            Pose,
+            PointStamped,
             '/shuttle_states_true',
             10
         )
@@ -99,21 +99,23 @@ class DummyTrackNetOutput(Node):
         self.shuttle.velocity = new_vel
         self.shuttle.position = new_pos
         self.history_position.append(new_pos)
-        true_msg = Pose()
-        true_msg.position.x = float(new_pos[0])
-        true_msg.position.y = float(new_pos[1])
-        true_msg.position.z = float(new_pos[2])
-        true_msg.orientation.w = 1.0
+        true_msg = PointStamped()
+        true_msg.header.stamp = self.get_clock().now().to_msg()
+        true_msg.header.frame_id = "robot_base_link"
+        true_msg.point.x = float(new_pos[0])
+        true_msg.point.y = float(new_pos[1])
+        true_msg.point.z = float(new_pos[2])
         self.true_pub.publish(true_msg)
 
         noise = np.random.uniform(-self.noise, self.noise, size=3)
 
         # publish noisy data
-        msg = Pose()
-        msg.position.x = float(new_pos[0]+noise[0])
-        msg.position.y = float(new_pos[1]+noise[1])
-        msg.position.z = float(new_pos[2]+noise[2])
-        msg.orientation.w = 1.0
+        msg = PointStamped()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = "robot_base_link"
+        msg.point.x = float(new_pos[0]+noise[0])
+        msg.point.y = float(new_pos[1]+noise[1])
+        msg.point.z = float(new_pos[2]+noise[2])
 
         self.pub.publish(msg)
 

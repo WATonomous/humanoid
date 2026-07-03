@@ -1,9 +1,7 @@
-
-
 import rclpy
 from rclpy.node import Node
 
-from geometry_msgs.msg import Pose, PoseStamped
+from geometry_msgs.msg import Pose, PoseStamped, PointStamped
 from std_msgs.msg import Bool
 from common_msgs.msg import PerceptionImpactEstimation
 import numpy as np
@@ -15,7 +13,6 @@ class EKFPredictionNode(Node):
         
 
         self.dt = 0.01
-
         # ---------------- STATE ----------------
         # [px, py, pz, vx, vy, vz]
         self.x = np.zeros(6)
@@ -41,8 +38,8 @@ class EKFPredictionNode(Node):
 
         # ---------------- ROS ----------------
         self.pub = self.create_publisher(Pose, '/ekf_predicted_states', 10)
-        self.sub = self.create_subscription(Pose, '/shuttle_states', self.shuttle_callback, 10)
-        self.true_sub = self.create_subscription(Pose, '/shuttle_states_true', self.shuttle_true_callback, 10)
+        self.sub = self.create_subscription(PointStamped, '/shuttle_states', self.shuttle_callback, 10)
+        self.true_sub = self.create_subscription(PointStamped, '/shuttle_states_true', self.shuttle_true_callback, 10)
         self.new_spawn = self.create_subscription(Bool, '/shuttle_spawned', self.shuttle_spawned_callback, 10)
         self.impact_estimate_pub = self.create_publisher(PerceptionImpactEstimation, '/ekf_impact', 10)
 
@@ -53,24 +50,24 @@ class EKFPredictionNode(Node):
 
         # ---------------- VELOCITY SEEDING ----------------
         self.prev_meas = None
-        self.prev_meas_increment = None
         self.velocity_initialized = False
+        self.prev_meas_time = None
 
         self.timer = self.create_timer(self.dt, self.step)
 
     # ---------------- CALLBACK ----------------
     def shuttle_callback(self, msg):
         self.latest_meas = msg
-        self.latest_meas_time = self.increments
+        self.latest_meas_time = msg.header.stamp
         self.new_meas_available = True
 
-        z = np.array([msg.position.x, msg.position.y, msg.position.z])
+        z = np.array([msg.point.x, msg.point.y, msg.point.z])
 
         if not self.velocity_initialized:
             if self.prev_meas is not None:
-                dt_elapsed = (self.increments - self.prev_meas_increment) * self.dt
+                dt_elapsed = self.latest_meas_time.sec + self.latest_meas_time.nanosec * 1e-9 - (self.prev_meas_time.sec + self.prev_meas_time.nanosec * 1e-9)
                 # guard: only seed if elapsed time is not like zero or too small
-                if dt_elapsed > self.dt:
+                if dt_elapsed > 0.001:
                     v_init = (z - self.prev_meas) / dt_elapsed
                     self.x[0:3] = z
                     self.x[3:6] = v_init
@@ -78,13 +75,13 @@ class EKFPredictionNode(Node):
                     self.get_logger().info(
                         f"Velocity seeded: {v_init}")
             self.prev_meas = z
-            self.prev_meas_increment = self.increments
+            self.prev_meas_time = msg.header.stamp
 
     def shuttle_true_callback(self, msg):
         self.true_pos = np.array([
-            msg.position.x,
-            msg.position.y,
-            msg.position.z
+            msg.point.x,
+            msg.point.y,
+            msg.point.z
         ])
 
     def shuttle_spawned_callback(self, msg):
@@ -100,15 +97,15 @@ class EKFPredictionNode(Node):
             self.true_pos = np.zeros(3)
             self.low_uncertainty = False
             self.prev_meas = None
-            self.prev_meas_increment = None
             self.velocity_initialized = False
+            self.prev_meas_time = None
 
     # ---------------- MODEL ----------------
     def f(self, x):
         p = x[0:3]
         v = x[3:6]
 
-        speed = np.linalg.norm(v) + 1e-12
+        speed = np.linalg.norm(v)
 
         dp = v
         dv = self.g - (speed / self.L) * v
@@ -179,6 +176,8 @@ class EKFPredictionNode(Node):
         impact_msg.hitback_direction.z = float(hitback_direction[2])
 
         impact_msg.uncertainty = float(np.trace(self.P))
+        impact_msg.header.stamp = self.get_clock().now().to_msg()
+        impact_msg.header.frame_id = "robot_base_link"
 
         self.impact_estimate_pub.publish(impact_msg)
 
@@ -216,9 +215,9 @@ class EKFPredictionNode(Node):
         # ===== UPDATE =====
         if self.latest_meas is not None and self.new_meas_available:
             z = np.array([
-                self.latest_meas.position.x,
-                self.latest_meas.position.y,
-                self.latest_meas.position.z
+                self.latest_meas.point.x,
+                self.latest_meas.point.y,
+                self.latest_meas.point.z
             ])
     
             H = np.zeros((3, 6))
