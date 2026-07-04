@@ -305,31 +305,35 @@ class RewardsCfg:
     )
 
     # ── STAGE 6: Pull the drawer (goal, MASSIVE — ALL gated by opposite-side straddle) ──
-    # MILESTONE: First successful pull past 1cm while straddling — huge "aha moment" bonus.
+    # The pull reward is a LINE:  total = intercept (flat bonus) + slope × distance.
+    #
+    # INTERCEPT: flat HUGE bonus the instant straddle grip + pull past 1cm is achieved.
+    # Does NOT scale — a constant step reward for being in the "pulling correctly" state.
     first_pull_bonus = RewTerm(
         func=mdp.first_pull_bonus,
-        weight=500.0,  # Massive one-time reward for discovering pulling works
+        weight=800.0,  # Flat intercept — huge constant while straddling + drawer open
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
-            "threshold": 0.01,  # drawer moved 1cm = success
+            "threshold": 0.01,       # drawer moved 1cm = pulling has started
+            "straddle_gate": 0.3,    # minimum straddle quality to count as a valid grip
         },
     )
-    # Early gradient: positive drawer velocity while straddling opposite sides.
-    # Fires before position changes, teaching sustained outward force.
-    drawer_vel_reward = RewTerm(
-        func=mdp.drawer_vel_reward,
-        weight=400.0,  # Large — want the robot to feel velocity immediately
-        params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
-    )
-    # Primary escalating goal: straddle × drawer_pos — reward grows linearly with opening.
-    # At 10cm open this contributes 10× more than at 1cm, naturally creating acceleration.
-    dual_contact_pull = RewTerm(
-        func=mdp.dual_contact_pull,
-        weight=600.0,  # Highest weight — should dominate once pulling starts
+    # SLOPE: grows linearly with HOW MUCH the drawer is pulled (straddle × drawer_pos).
+    # At 30cm open this contributes 30× more than at 1cm — the more it pulls, the bigger.
+    pull_distance_reward = RewTerm(
+        func=mdp.pull_distance_reward,
+        weight=2000.0,  # Huge slope — pulling further is overwhelmingly rewarded
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "contact_radius": 0.05,
         },
+    )
+    # Early gradient: positive drawer velocity while straddling (teaches sustained force
+    # before the position visibly moves). Gated by opposite-side straddle.
+    drawer_vel_reward = RewTerm(
+        func=mdp.drawer_vel_reward,
+        weight=400.0,
+        params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
     )
 
     # ── PENALTIES (small, proportional) ──────────────────────────────────────
