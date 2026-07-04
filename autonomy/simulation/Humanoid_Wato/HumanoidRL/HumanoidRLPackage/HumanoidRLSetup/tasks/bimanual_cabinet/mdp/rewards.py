@@ -279,17 +279,6 @@ def dual_claw_straddle(env: ManagerBasedRLEnv, contact_radius: float = 0.04) -> 
     return dual_proximity * opposite_side_score
 
 
-def dual_contact_pull(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, contact_radius: float = 0.04) -> torch.Tensor:
-    """Maximum points: both claws on opposite sides of the handle AND the drawer is moving.
-
-    Reuses dual_claw_straddle as the contact gate, then scales by drawer_pos.
-    This is the top-of-pyramid reward — it only fires when everything else is correct.
-    """
-    straddle_score = dual_claw_straddle(env, contact_radius=contact_radius)
-    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
-    return straddle_score * drawer_pos
-
-
 def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Bonus for opening the drawer given by the joint position of the drawer.
     Gives a MASSIVE multiplier if the robot's hand is physically on the handle while it opens!
@@ -426,17 +415,42 @@ def hook_grip_pull_reward(
 
 
 def drawer_vel_reward(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """Reward positive drawer joint velocity (i.e. actually pulling the drawer open).
+    """Reward positive drawer joint velocity ONLY when straddling opposite sides.
 
     This fires even before the drawer position changes, teaching the agent to apply
-    sustained outward force once it is straddling the handle.
-    Scaled by the dual_claw_straddle score so it only activates when grip is correct.
+    sustained outward force. BUT it only activates when both fingers are on opposite
+    sides of the handle bar — no straddle, no pull reward.
     """
     drawer_vel = env.scene[asset_cfg.name].data.joint_vel[:, asset_cfg.joint_ids[0]]
-    # Only reward POSITIVE velocity (pulling outward), ignore pushing back
     pulling_vel = torch.clamp(drawer_vel, min=0.0)
-    straddle_score = dual_claw_straddle(env, contact_radius=0.05)
+    straddle_score = dual_claw_straddle(env, contact_radius=0.06)  # looser for early discovery
     return pulling_vel * straddle_score
+
+
+def dual_contact_pull(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, contact_radius: float = 0.05) -> torch.Tensor:
+    """Escalating pull reward: opposite-side straddle + drawer displacement.
+
+    Returns straddle_score × drawer_pos, which naturally escalates as the drawer
+    opens further. The first 1cm of movement earns the same per-cm reward as the
+    30th cm, creating a smooth ramp that gets bigger the more the robot pulls.
+    """
+    straddle_score = dual_claw_straddle(env, contact_radius=contact_radius)
+    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
+    return straddle_score * drawer_pos
+
+
+def first_pull_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, threshold: float = 0.01) -> torch.Tensor:
+    """Massive one-time bonus: straddle grip + drawer moved past threshold.
+
+    Fires as a discrete milestone when the robot achieves opposite-side straddle AND
+    opens the drawer past the threshold for the first time. This is the "aha moment"
+    reward that teaches pulling is highly valuable once the grip is correct.
+    """
+    straddle_score = dual_claw_straddle(env, contact_radius=0.06)
+    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
+    # Sigmoid gate: near 1.0 when drawer_pos > threshold, near 0.0 when closed
+    opened = torch.sigmoid(200.0 * (drawer_pos - threshold))
+    return straddle_score * opened
 
 
 def open_claw_approach_reward(
@@ -719,6 +733,41 @@ def upright_wrist_reward(
     upright_score = dot ** 2                          # Squared: symmetric, peak at |dot|=1
 
     return prox_gate * upright_score
+
+
+def valid_grip_gate(
+    env: ManagerBasedRLEnv,
+    behind_threshold: float = 0.01,
+    gap_sign: float = 1.0,
+) -> torch.Tensor:
+    """Gate that fires when the grip is mechanically valid for pulling.
+
+    Returns 1.0 when EITHER condition is met, 0.0 otherwise:
+      1. At least one finger is behind the bar (penetrated into the gap)
+      2. OR fingers are straddling over/under (one above handle Z, one below)
+
+    This prevents the robot from earning pull rewards when both fingers are
+    draped on the front/top of the bar (invalid grip that cannot sustain force).
+    """
+    result = _claw_distances(env)
+    if result is None:
+        return torch.zeros(env.num_envs, device=env.device)
+    d7, d8, lfinger_pos, rfinger_pos, handle_pos = result
+
+    # Condition 1: at least one finger behind the bar
+    behind7 = gap_sign * (lfinger_pos[:, 0] - handle_pos[:, 0])
+    behind8 = gap_sign * (rfinger_pos[:, 0] - handle_pos[:, 0])
+    deepest_behind = torch.maximum(behind7, behind8)
+    has_finger_behind = (deepest_behind > behind_threshold).float()
+
+    # Condition 2: vertical straddle (one finger above, one below the bar)
+    dz7 = lfinger_pos[:, 2] - handle_pos[:, 2]
+    dz8 = rfinger_pos[:, 2] - handle_pos[:, 2]
+    is_vertical_straddle = ((dz7 > 0.01) & (dz8 < -0.01)) | ((dz7 < -0.01) & (dz8 > 0.01))
+    is_vertical_straddle = is_vertical_straddle.float()
+
+    # OR logic — valid if either condition is true
+    return torch.clamp(has_finger_behind + is_vertical_straddle, max=1.0)
 
 
 def dual_approach_bonus(env: ManagerBasedRLEnv, near_threshold: float = 0.06) -> torch.Tensor:
