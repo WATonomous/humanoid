@@ -216,11 +216,10 @@ class EventCfg:
             # open by pressing down on TOP of the bar. Lower friction forces it to
             # mechanically HOOK a finger behind the bar to pull. Tune upward if the
             # grip slips too much once hooking is learned.
-            # Raised back up so a top/bottom pinch grip can actually transfer pulling
-            # force. The reward now requires real inner-edge top/bottom contact, so
-            # high friction no longer enables a lazy front-face / top-drape cheat.
-            "static_friction_range": (1.0, 1.3),
-            "dynamic_friction_range": (0.9, 1.1),
+            # Lower friction so a good pinch grip slides the drawer open without
+            # requiring huge force. The edge_contact reward already blocks cheats.
+            "static_friction_range": (0.5, 0.7),
+            "dynamic_friction_range": (0.4, 0.6),
             "restitution_range": (0.0, 0.0),
             "num_buckets": 16,
         },
@@ -332,7 +331,8 @@ class RewardsCfg:
             "force_threshold": 1.0,
             "min_offset": 0.005,     # finger must be >5mm above/below bar center
             "on_bar_radius": 0.06,   # within 6cm of the bar center-line (rejects end cap)
-            "pinch_bonus": 3.0,      # top+bottom simultaneous grip bonus
+            "pinch_bonus": 5.0,      # DOMINANT top+bottom simultaneous grip bonus
+            "single_scale": 0.2,     # single-finger contact earns little — no farming
         },
     )
 

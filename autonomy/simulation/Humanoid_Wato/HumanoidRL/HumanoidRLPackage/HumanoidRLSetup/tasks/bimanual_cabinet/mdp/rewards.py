@@ -289,141 +289,6 @@ def dual_claw_straddle(env: ManagerBasedRLEnv, contact_radius: float = 0.04) -> 
     return dual_proximity * opposite_side_score * anti_cheat
 
 
-def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """Bonus for opening the drawer given by the joint position of the drawer.
-    Gives a MASSIVE multiplier if the robot's hand is physically on the handle while it opens!
-    """
-    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
-
-    pose = _robot_ee_pose(env)
-    if pose is None:
-        return drawer_pos
-
-    ee_tcp_pos, _, lfinger_pos, rfinger_pos = pose
-    handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
-
-    # Use the exact Z-coordinate of the offset point!
-    target_z = handle_pos[..., 2]
-    dz = torch.abs(target_z - ee_tcp_pos[..., 2])
-
-    # X/Y distance
-    dx_dy = torch.norm(handle_pos[..., :2] - ee_tcp_pos[..., :2], dim=-1, p=2)
-
-    # ASYMMETRIC GRADIENT: ban the top lip
-    is_too_high = ee_tcp_pos[..., 2] > (target_z + 0.02)
-    z_score = torch.where(is_too_high, torch.zeros_like(dz), torch.exp(-50.0 * dz))
-
-    # Wide breadcrumb trail to get the hand generally near the handle
-    xy_score = torch.where(dx_dy <= 0.15, torch.exp(-20.0 * dx_dy), torch.zeros_like(dx_dy))
-
-    # BULLSEYE MULTIPLIER: up to 5x for dead-center
-    bullseye_multiplier = 1.0 + torch.where(dx_dy <= 0.04, 4.0 * torch.exp(-150.0 * dx_dy), torch.zeros_like(dx_dy))
-
-    is_close = z_score * xy_score * bullseye_multiplier
-
-    # Open claw hook multiplier (10x for fingers < 20cm apart)
-    finger_dist = torch.norm(lfinger_pos - rfinger_pos, dim=-1, p=2)
-    is_claw_hooked = (finger_dist < 0.20).float()
-    claw_multiplier = 1.0 + (is_claw_hooked * 9.0)
-
-    return is_close * drawer_pos * claw_multiplier
-
-
-def straddle_handle(env: ManagerBasedRLEnv, threshold: float) -> torch.Tensor:
-    """Reward the robot for threading its fingers on strictly opposite sides of the handle."""
-    pose = _robot_ee_pose(env)
-    if pose is None:
-        return torch.zeros(env.num_envs, device=env.device)
-
-    ee_tcp_pos, _, lfinger_pos, rfinger_pos = pose
-    handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
-
-    # Only reward straddling if the hand is physically near the handle
-    distance_to_handle = torch.norm(handle_pos - ee_tcp_pos, dim=-1, p=2)
-    is_close = (distance_to_handle <= threshold).float()
-
-    dist_thumb_to_handle = torch.norm(handle_pos - rfinger_pos, dim=-1, p=2)
-    dist_index_to_handle = torch.norm(handle_pos - lfinger_pos, dim=-1, p=2)
-    dist_thumb_to_index = torch.norm(lfinger_pos - rfinger_pos, dim=-1, p=2)
-
-    linearity_deviation = (dist_thumb_to_handle + dist_index_to_handle) - dist_thumb_to_index
-    straddle_score = torch.exp(-50.0 * linearity_deviation)
-
-    return is_close * straddle_score
-
-
-def multi_stage_open_drawer(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """Multi-stage bonus for opening the drawer."""
-    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
-
-    pose = _robot_ee_pose(env)
-    if pose is None:
-        return torch.zeros(env.num_envs, device=env.device)
-
-    ee_tcp_pos, _, lfinger_pos, rfinger_pos = pose
-    handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
-
-    target_z = handle_pos[..., 2]
-    dz = torch.abs(target_z - ee_tcp_pos[..., 2])
-    dx_dy = torch.norm(handle_pos[..., :2] - ee_tcp_pos[..., :2], dim=-1, p=2)
-
-    is_too_high = ee_tcp_pos[..., 2] > (target_z + 0.02)
-    z_score = torch.where(is_too_high, torch.zeros_like(dz), torch.exp(-50.0 * dz))
-    xy_score = torch.where(dx_dy <= 0.15, torch.exp(-20.0 * dx_dy), torch.zeros_like(dx_dy))
-    bullseye_multiplier = 1.0 + torch.where(dx_dy <= 0.04, 4.0 * torch.exp(-150.0 * dx_dy), torch.zeros_like(dx_dy))
-    is_close = z_score * xy_score * bullseye_multiplier
-
-    finger_dist = torch.norm(lfinger_pos - rfinger_pos, dim=-1, p=2)
-    is_claw_hooked = (finger_dist < 0.20).float()
-    claw_multiplier = 1.0 + (is_claw_hooked * 9.0)
-
-    open_easy = (drawer_pos > 0.01) * 0.5 * is_close * claw_multiplier
-    open_medium = (drawer_pos > 0.2) * is_close * claw_multiplier
-    open_hard = (drawer_pos > 0.3) * is_close * claw_multiplier
-
-    return open_easy + open_medium + open_hard
-
-
-def hook_grip_pull_reward(
-    env: ManagerBasedRLEnv,
-    asset_cfg: SceneEntityCfg,
-    gripper_cfg: SceneEntityCfg,
-    hook_aperture: float = 0.025,
-    aperture_sigma: float = 0.01,
-    contact_radius: float = 0.05,
-) -> torch.Tensor:
-    """Maximum reward: hook grip + opposite-side straddle + positive drawer velocity.
-
-    Three conditions must all be satisfied simultaneously:
-      1. Hook aperture: each finger is at ~hook_aperture from center (Gaussian bell peak).
-         Fingers a bit open, not fully closed, perfectly wrapping the handle bar.
-      2. Opposite-side straddle: link7 and link8 on opposite sides of the handle bar Y-axis.
-      3. Positive drawer velocity: actively pulling, not just sitting there.
-
-    This is the highest-priority reward, acting as the pyramid capstone.
-    """
-    # ── 1. Hook aperture gate ─────────────────────────────────────────────────
-    # joint7 target is -hook_aperture, joint8 is +hook_aperture.
-    # Reward peaks when joints are AT the hook position; falls off as a Gaussian.
-    gripper_pos = env.scene[gripper_cfg.name].data.joint_pos[:, gripper_cfg.joint_ids]  # (N, 2)
-    j7_pos = gripper_pos[:, 0]  # joint7 (negative side)
-    j8_pos = gripper_pos[:, 1]  # joint8 (positive side)
-
-    j7_error = (j7_pos - (-hook_aperture)) ** 2
-    j8_error = (j8_pos - hook_aperture) ** 2
-    aperture_score = torch.exp(-(j7_error + j8_error) / (2 * aperture_sigma ** 2))  # (N,)
-
-    # ── 2. Opposite-side straddle gate ────────────────────────────────────────
-    # Reuse dual_claw_straddle for proximity + opposite-side check
-    straddle_score = dual_claw_straddle(env, contact_radius=contact_radius)  # (N,)
-
-    # ── 3. Positive drawer velocity ───────────────────────────────────────────
-    drawer_vel = env.scene[asset_cfg.name].data.joint_vel[:, asset_cfg.joint_ids[0]]
-    pulling_vel = torch.clamp(drawer_vel, min=0.0)
-
-    return aperture_score * straddle_score * pulling_vel
-
-
 def _finger_handle_contact(env: ManagerBasedRLEnv, force_threshold: float = 1.0):
     """Return (contact7, contact8) boolean tensors: is each finger touching the handle?
 
@@ -461,7 +326,8 @@ def edge_contact_reward(
     force_threshold: float = 1.0,
     min_offset: float = 0.005,
     on_bar_radius: float = 0.06,
-    pinch_bonus: float = 3.0,
+    pinch_bonus: float = 5.0,
+    single_scale: float = 0.2,
 ) -> torch.Tensor:
     """Reward INNER-EDGE contact at the TOP/BOTTOM of the bar (a vertical pinch grip).
 
@@ -500,13 +366,16 @@ def edge_contact_reward(
     top8 = (contact8 & on_bar8 & (dz8 > min_offset)).float()
     bot8 = (contact8 & on_bar8 & (dz8 < -min_offset)).float()
 
-    # Base reward: any valid top/bottom edge contact (capped at 2.0 for two fingers)
-    edge_any = torch.clamp(top7 + bot7 + top8 + bot8, max=2.0)
+    # SMALL single-finger term (× single_scale) — deliberately tiny so a single finger
+    # resting on the edge cannot be farmed. It only provides a faint guiding gradient.
+    single = single_scale * torch.clamp(top7 + bot7 + top8 + bot8, max=2.0)
 
-    # Pinch bonus: one finger on top AND the other on the bottom = true wrap grip
+    # DOMINANT pinch reward: one finger on TOP and the other on the BOTTOM at the same
+    # time = a true wrap grip. This requires BOTH fingers engaged (fixes single-finger
+    # asymmetry) and is the only grip that can actually pull the drawer.
     pinch = torch.clamp((top7 * bot8) + (bot7 * top8), max=1.0) * pinch_bonus
 
-    return edge_any + pinch
+    return single + pinch
 
 
 def drawer_vel_reward(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
@@ -651,43 +520,6 @@ def open_claw_approach_reward(
     open_score = torch.exp(-err / (2.0 * aperture_sigma ** 2))
 
     return prox_gate * open_score
-
-
-def finger_in_gap_reward(
-    env: ManagerBasedRLEnv,
-    gap_depth: float = 0.03,
-    proximity_radius: float = 0.08,
-    gap_sign: float = 1.0,
-) -> torch.Tensor:
-    """Reward threading a finger INTO the gap behind the handle bar (anti top-drape).
-
-    The drawer opens along world -X (toward the robot), so the hole between the bar
-    and the drawer face is on the +X side of the bar center. To hook and pull, a
-    fingertip must get PAST the bar into that gap (world X greater than handle X).
-
-    Reward = proximity_gate * clamp(deepest_finger_penetration / gap_depth, 0, 1)
-
-    NOTE: if the geometry turns out mirrored (finger should go to -X), set
-    gap_sign=-1.0 in the RewTerm params to flip the rewarded direction.
-    """
-    result = _claw_distances(env)
-    if result is None:
-        return torch.zeros(env.num_envs, device=env.device)
-    d7, d8, lfinger_pos, rfinger_pos, handle_pos = result
-
-    # Only reward penetration when the hand is actually near the handle
-    avg_dist = (d7 + d8) * 0.5
-    prox_gate = torch.exp(-3.0 * avg_dist / proximity_radius)
-
-    # Signed penetration of each finger past the bar along the pull axis (world X)
-    depth7 = gap_sign * (lfinger_pos[:, 0] - handle_pos[:, 0])
-    depth8 = gap_sign * (rfinger_pos[:, 0] - handle_pos[:, 0])
-    deepest = torch.maximum(depth7, depth8)
-
-    # Saturating reward for positive penetration up to gap_depth
-    depth_score = torch.clamp(torch.clamp(deepest, min=0.0) / gap_depth, max=1.0)
-
-    return prox_gate * depth_score
 
 
 def conditional_action_rate_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
