@@ -310,113 +310,142 @@ def _finger_handle_contact(env: ManagerBasedRLEnv, force_threshold: float = 1.0)
     return mag7 > force_threshold, mag8 > force_threshold
 
 
-def contact_pull_gate(env: ManagerBasedRLEnv, force_threshold: float = 1.0) -> torch.Tensor:
-    """Gate = 1.0 when EITHER link7 or link8 is physically touching the handle.
+def _finger_contact_force(env: ManagerBasedRLEnv):
+    """Return (f7, f8) net contact force VECTORS (N,3) on link7/link8 from the handle."""
+    def _force(name: str) -> torch.Tensor:
+        sensor = env.scene.sensors[name]
+        fmat = sensor.data.force_matrix_w  # (N, bodies, filters, 3) or None
+        if fmat is None:
+            return torch.zeros(env.num_envs, 3, device=env.device)
+        return fmat.reshape(env.num_envs, -1, 3).sum(dim=1)
+    return _force("contact_link7"), _force("contact_link8")
 
-    This is the single source of truth for "the claw is gripping the handle." It uses
-    real contact-sensor forces, so a finger merely near the handle (but not touching)
-    scores 0. Contact with any surface other than the handle also scores 0.
+
+def _inner_edge_contact(env: ManagerBasedRLEnv, force_threshold: float = 1.0, dir_margin: float = 0.2):
+    """Return (inner7, inner8) booleans: is each finger's INNER edge touching the handle?
+
+    Contact sensors alone cannot tell WHICH face touched, so we use the contact FORCE
+    DIRECTION to be certain:
+      - The inner faces of link7 and link8 face EACH OTHER.
+      - When the handle presses a finger's INNER face, the reaction force on that finger
+        points OUTWARD — away from the other finger (direction p_self - p_other).
+      - When it presses the OUTER (back) face, the force points INWARD (toward the other
+        finger) → REJECTED.
+    A contact counts as inner ONLY when force magnitude > force_threshold AND the force
+    direction projects onto the outward axis by more than dir_margin. This guarantees we
+    never mistake an outer-edge press for a grip.
     """
-    contact7, contact8 = _finger_handle_contact(env, force_threshold)
-    return (contact7 | contact8).float()
+    pose = _robot_ee_pose(env)
+    if pose is None:
+        z = torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+        return z, z
+    _, _, p7, p8 = pose
+    f7, f8 = _finger_contact_force(env)
+
+    mag7 = torch.norm(f7, dim=-1)
+    mag8 = torch.norm(f8, dim=-1)
+
+    # Outward axis for each finger (away from the other finger)
+    out7 = p7 - p8
+    out8 = p8 - p7
+    out7 = out7 / (torch.norm(out7, dim=-1, keepdim=True) + 1e-6)
+    out8 = out8 / (torch.norm(out8, dim=-1, keepdim=True) + 1e-6)
+
+    f7u = f7 / (mag7.unsqueeze(-1) + 1e-6)
+    f8u = f8 / (mag8.unsqueeze(-1) + 1e-6)
+
+    # >0 means the contact force points outward → the INNER face is what touched
+    proj7 = (f7u * out7).sum(dim=-1)
+    proj8 = (f8u * out8).sum(dim=-1)
+
+    inner7 = (mag7 > force_threshold) & (proj7 > dir_margin)
+    inner8 = (mag8 > force_threshold) & (proj8 > dir_margin)
+    return inner7, inner8
 
 
-def edge_contact_reward(
-    env: ManagerBasedRLEnv,
-    force_threshold: float = 1.0,
-    min_offset: float = 0.005,
-    on_bar_radius: float = 0.06,
-    pinch_bonus: float = 5.0,
-    single_scale: float = 0.2,
-) -> torch.Tensor:
-    """Reward INNER-EDGE contact at the TOP/BOTTOM of the bar (a vertical pinch grip).
+def good_grip_gate(env: ManagerBasedRLEnv, force_threshold: float = 1.0) -> torch.Tensor:
+    """1.0 when BOTH inner edges contact the handle (a good grip), else 0.0.
 
-    The robot currently presses the FRONT FACE near the end of the bar because any
-    contact was rewarded. This reward only counts contact that is a graspable
-    top/bottom grip:
-
-      1. The finger is actually TOUCHING the handle (contact sensor)
-      2. The finger is vertically offset from the bar center — above it (top grip) or
-         below it (bottom grip), by at least `min_offset`. Contact at the same height
-         as the bar center (a flat front-face press) scores 0.
-      3. The finger is horizontally near the bar center-line (within on_bar_radius in
-         the X/Y plane) so end-cap contact does not count.
-
-    A finger on top + a finger on bottom = a true inner-edge pinch → `pinch_bonus`.
-    Because a top finger and a bottom finger press their INNER faces against the bar,
-    this geometry implicitly guarantees inner-edge contact.
+    Over/under, left/right — ANY configuration counts as long as BOTH inner faces touch.
+    Outer-edge contact never qualifies.
     """
-    contact7, contact8 = _finger_handle_contact(env, force_threshold)
-    result = _claw_distances(env)
-    if result is None:
-        return torch.zeros(env.num_envs, device=env.device)
-    _, _, lfinger_pos, rfinger_pos, handle_pos = result
-
-    # Horizontal (X/Y) distance from the bar center-line — rejects end-cap contact
-    on_bar7 = torch.norm(lfinger_pos[:, :2] - handle_pos[:, :2], dim=-1) < on_bar_radius
-    on_bar8 = torch.norm(rfinger_pos[:, :2] - handle_pos[:, :2], dim=-1) < on_bar_radius
-
-    # Vertical offset from bar center
-    dz7 = lfinger_pos[:, 2] - handle_pos[:, 2]
-    dz8 = rfinger_pos[:, 2] - handle_pos[:, 2]
-
-    # Valid top / bottom edge contact for each finger
-    top7 = (contact7 & on_bar7 & (dz7 > min_offset)).float()
-    bot7 = (contact7 & on_bar7 & (dz7 < -min_offset)).float()
-    top8 = (contact8 & on_bar8 & (dz8 > min_offset)).float()
-    bot8 = (contact8 & on_bar8 & (dz8 < -min_offset)).float()
-
-    # SMALL single-finger term (× single_scale) — deliberately tiny so a single finger
-    # resting on the edge cannot be farmed. It only provides a faint guiding gradient.
-    single = single_scale * torch.clamp(top7 + bot7 + top8 + bot8, max=2.0)
-
-    # DOMINANT pinch reward: one finger on TOP and the other on the BOTTOM at the same
-    # time = a true wrap grip. This requires BOTH fingers engaged (fixes single-finger
-    # asymmetry) and is the only grip that can actually pull the drawer.
-    pinch = torch.clamp((top7 * bot8) + (bot7 * top8), max=1.0) * pinch_bonus
-
-    return single + pinch
+    inner7, inner8 = _inner_edge_contact(env, force_threshold)
+    return (inner7 & inner8).float()
 
 
-def drawer_vel_reward(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """Reward positive drawer velocity ONLY while a finger is TOUCHING the handle.
+def inner_edge_grip_reward(env: ManagerBasedRLEnv, force_threshold: float = 1.0, both_bonus: float = 4.0) -> torch.Tensor:
+    """Reward INNER-edge contact only — the good grip. Outer-edge contact earns NOTHING.
 
-    Fires before the drawer position changes, teaching sustained outward force.
-    Gated by real contact — no touch, no reward.
+    +1 per inner edge touching, plus a big `both_bonus` when BOTH inner edges touch
+    (the good grip). This is the sole contact-shaping reward, replacing all the old
+    geometric top/bottom heuristics.
     """
-    drawer_vel = env.scene[asset_cfg.name].data.joint_vel[:, asset_cfg.joint_ids[0]]
-    pulling_vel = torch.clamp(drawer_vel, min=0.0)
-    return pulling_vel * contact_pull_gate(env)
+    inner7, inner8 = _inner_edge_contact(env, force_threshold)
+    c7 = inner7.float()
+    c8 = inner8.float()
+    return c7 + c8 + both_bonus * (c7 * c8)
 
 
 def first_pull_bonus(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg,
     threshold: float = 0.01,
+    force_threshold: float = 1.0,
 ) -> torch.Tensor:
-    """FLAT intercept bonus: constant value the instant a finger TOUCHES + pull begins.
+    """FLAT bonus: constant the instant a GOOD GRIP (both inner edges) + pull begins.
 
-    Returns a FLAT 1.0 (scaled by weight) whenever BOTH are true, else 0.0:
-      1. A finger (link7 or link8) is in contact with the handle
-      2. Drawer pulled past `threshold` (1cm)
-
-    Does NOT scale — it is the y-intercept step of the pull reward line. The 'how much
-    you pulled' growth is handled by pull_distance_reward.
+    Returns a flat 1.0 (× weight) when both inner edges grip AND the drawer moved past
+    `threshold`. Does not scale — the y-intercept of the pull reward line.
     """
-    contact = contact_pull_gate(env) > 0.5
+    grip = good_grip_gate(env, force_threshold) > 0.5
     drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
     opened = drawer_pos > threshold
-    return (contact & opened).float()
+    return (grip & opened).float()
 
 
-def upright_pull_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, threshold: float = 0.01) -> torch.Tensor:
-    """Bonus for UPRIGHT wrist orientation WHILE touching the handle and pulling.
+def pull_distance_reward(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    max_open: float = 0.39,
+    force_threshold: float = 1.0,
+) -> torch.Tensor:
+    """MAXIMUM points for pulling with a GOOD GRIP — superlinear in open fraction.
 
-    Fires only when: a finger is in contact AND the drawer has moved past threshold.
-    Then it scales with how upright the end-effector is (fingers arranged vertically
-    rather than a flat horizontal hand). Rewards a clean, natural pulling posture.
+    Gated by good_grip_gate (BOTH inner edges touching). Returns grip * (f + 3 f^2),
+    f = drawer_pos / max_open. Fully open with a good grip is worth ~120× a 1cm nudge.
+    Only a genuine two-inner-edge grip earns any of this.
     """
-    contact = contact_pull_gate(env)
+    grip = good_grip_gate(env, force_threshold)
+    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
+    f = torch.clamp(drawer_pos / max_open, min=0.0, max=1.0)
+    return grip * (f + 3.0 * f * f)
+
+
+def continuous_pull_reward(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    force_threshold: float = 1.0,
+) -> torch.Tensor:
+    """Reward SUSTAINED pulling in ONE swing: good grip × positive drawer velocity.
+
+    A single continuous swing keeps drawer velocity high for many steps → large integral.
+    Jerky stop-start pulls have low velocity with pauses → little reward. This makes one
+    smooth pull far more valuable than many small tugs.
+    """
+    grip = good_grip_gate(env, force_threshold)
+    drawer_vel = env.scene[asset_cfg.name].data.joint_vel[:, asset_cfg.joint_ids[0]]
+    pulling_vel = torch.clamp(drawer_vel, min=0.0)
+    return grip * pulling_vel
+
+
+def upright_pull_bonus(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    threshold: float = 0.01,
+    force_threshold: float = 1.0,
+) -> torch.Tensor:
+    """Bonus for upright wrist orientation while holding a GOOD GRIP and pulling."""
+    grip = good_grip_gate(env, force_threshold)
     drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
     opened = (drawer_pos > threshold).float()
 
@@ -430,61 +459,36 @@ def upright_pull_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, thresh
     world_z[:, 2] = 1.0
     upright_score = (ee_z * world_z).sum(dim=-1) ** 2  # peak 1.0 when vertical
 
-    return contact * opened * upright_score
+    return grip * opened * upright_score
 
 
-def pull_distance_reward(
-    env: ManagerBasedRLEnv,
-    asset_cfg: SceneEntityCfg,
-    contact_radius: float = 0.05,
-    max_open: float = 0.39,
-) -> torch.Tensor:
-    """SUPERLINEAR open reward: opening FURTHER pays disproportionately more.
+# Debug print state for inner-edge contact monitoring
+_last_grip_print_step: int = -1
 
-    Gated by real contact. Uses the open fraction f = drawer_pos / max_open and returns
-    contact * (f + 3*f^2). This is deliberately superlinear so the marginal reward for
-    each extra cm INCREASES as the drawer opens:
-      - f=0.03 (≈1cm)  → 0.03 + 3*0.0008 = 0.033
-      - f=0.5  (≈20cm) → 0.5  + 3*0.25   = 1.25
-      - f=1.0  (fully) → 1.0  + 3*1.0    = 4.0
-    So fully opening is worth ~120× a 1cm nudge, killing the 'park just past 1cm' cheat.
+
+def debug_inner_edge(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """Weight-0 debug: prints INNER vs OUTER edge contact counts once per PPO iteration.
+
+    Lets you confirm the inner-edge identification is correct — outer contacts are
+    reported separately so you can be sure a grip is genuinely inner-edge.
     """
-    grip_score = contact_pull_gate(env)
-    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
-    f = torch.clamp(drawer_pos / max_open, min=0.0, max=1.0)
-    return grip_score * (f + 3.0 * f * f)
+    global _last_grip_print_step
+    inner7, inner8 = _inner_edge_contact(env)
+    any7, any8 = _finger_handle_contact(env)  # ANY contact (inner OR outer)
+    outer7 = any7 & (~inner7)
+    outer8 = any8 & (~inner8)
 
-
-def hook_pull_reward(
-    env: ManagerBasedRLEnv,
-    asset_cfg: SceneEntityCfg,
-    max_open: float = 0.39,
-    gap_sign: float = 1.0,
-    behind_scale: float = 0.03,
-) -> torch.Tensor:
-    """Reward opening the drawer WITH a finger hooked behind the handle.
-
-    = contact * open_fraction * behind_score
-
-    behind_score in [0,1] measures how far the deepest finger has hooked BEHIND the
-    bar (into the gap). So the robot earns extra for opening the drawer using the
-    proper main-inner-edge hook, rather than a shallow side-edge press.
-    """
-    grip_score = contact_pull_gate(env)
-    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
-    f = torch.clamp(drawer_pos / max_open, min=0.0, max=1.0)
-
-    result = _claw_distances(env)
-    if result is None:
-        return torch.zeros(env.num_envs, device=env.device)
-    _, _, lfinger_pos, rfinger_pos, handle_pos = result
-
-    behind7 = gap_sign * (lfinger_pos[:, 0] - handle_pos[:, 0])
-    behind8 = gap_sign * (rfinger_pos[:, 0] - handle_pos[:, 0])
-    deepest_behind = torch.maximum(behind7, behind8)
-    behind_score = torch.clamp(deepest_behind / behind_scale, min=0.0, max=1.0)
-
-    return grip_score * f * behind_score
+    log_interval = 96
+    if env.common_step_counter - _last_grip_print_step >= log_interval:
+        print(
+            f"[Grip] inner7={int(inner7.sum())} inner8={int(inner8.sum())} "
+            f"BOTH_inner={int((inner7 & inner8).sum())} | "
+            f"outer7={int(outer7.sum())} outer8={int(outer8.sum())} "
+            f"(of {env.num_envs} envs)",
+            flush=True,
+        )
+        _last_grip_print_step = env.common_step_counter
+    return torch.zeros(env.num_envs, device=env.device)
 
 
 def open_claw_approach_reward(
@@ -554,191 +558,6 @@ def print_stage_curriculum(env: ManagerBasedRLEnv, env_ids: torch.Tensor, term_n
     return modify_reward_weight(env, env_ids, term_name, weight, num_steps)
 
 
-def finger_behind_handle(
-    env: ManagerBasedRLEnv,
-    behind_offset: float = 0.03,
-    below_offset: float = 0.0,
-    sigma: float = 0.03,
-    proximity_radius: float = 0.12,
-    gap_sign: float = 1.0,
-) -> torch.Tensor:
-    """Reward the closest fingertip reaching a target point INSIDE the gap behind the bar.
-
-    This is the key signal for HOOKING (as opposed to top-draping). It builds an explicit
-    3D hook target:
-        target = handle_center + gap_sign * behind_offset (along world +X, into the gap)
-                                - below_offset            (down, below the bar's top edge)
-
-    It then rewards a Gaussian bell on the closest fingertip's distance to that point,
-    gated by overall hand proximity. Unlike distance-to-center rewards, a finger draped
-    on TOP of the bar scores poorly here because the target is behind AND below the bar,
-    so the only way to score high is to thread a fingertip into the actual gap.
-
-    NOTE: mirror geometry by setting gap_sign=-1.0 if the gap is on the -X side.
-    """
-    result = _claw_distances(env)
-    if result is None:
-        return torch.zeros(env.num_envs, device=env.device)
-    d7, d8, lfinger_pos, rfinger_pos, handle_pos = result
-
-    # Build the hook target point: behind the bar (world +X) and below its top edge
-    target = handle_pos.clone()
-    target[:, 0] = target[:, 0] + gap_sign * behind_offset
-    target[:, 2] = target[:, 2] - below_offset
-
-    dist7 = torch.norm(lfinger_pos - target, dim=-1, p=2)
-    dist8 = torch.norm(rfinger_pos - target, dim=-1, p=2)
-    nearest = torch.minimum(dist7, dist8)
-
-    # Overall hand proximity gate so this only matters once the hand is at the handle
-    avg_dist = (d7 + d8) * 0.5
-    prox_gate = torch.exp(-3.0 * avg_dist / proximity_radius)
-
-    hook_score = torch.exp(-(nearest ** 2) / (2.0 * sigma ** 2))
-    return prox_gate * hook_score
-
-
-def descend_into_gap(
-    env: ManagerBasedRLEnv,
-    proximity_radius: float = 0.10,
-    gap_sign: float = 1.0,
-) -> torch.Tensor:
-    """Reward positioning a finger BEHIND the bar and AT/BELOW its top (anti top-drape).
-
-    A hooking finger should be behind the bar (+X) and at or below the bar's top edge so
-    the fingertip is inside the gap, not draped over the top. This term rewards the
-    finger that is furthest into the gap for being both behind and low. Combined with
-    finger_behind_handle it shapes the full 'come in above the gap, then drop into it' motion.
-
-    FIX: proximity gate changed from tight product-gate to average-distance gate so
-    fingers at 5cm still receive a gradient. Also rewards approaching from the correct
-    side (reducing behind_score falloff) so the gradient fires BEFORE the finger
-    actually crosses the bar.
-    """
-    result = _claw_distances(env)
-    if result is None:
-        return torch.zeros(env.num_envs, device=env.device)
-    d7, d8, lfinger_pos, rfinger_pos, handle_pos = result
-
-    # Proximity gate on average distance — fires from ~15cm out
-    avg_dist = (d7 + d8) * 0.5
-    prox_gate = torch.exp(-3.0 * avg_dist / proximity_radius)
-
-    # How far behind the bar each fingertip is (positive = on the gap side)
-    behind7 = gap_sign * (lfinger_pos[:, 0] - handle_pos[:, 0])
-    behind8 = gap_sign * (rfinger_pos[:, 0] - handle_pos[:, 0])
-
-    # Pick the finger that is furthest into the gap
-    use7 = behind7 >= behind8
-    behind = torch.where(use7, behind7, behind8)
-    finger_z = torch.where(use7, lfinger_pos[:, 2], rfinger_pos[:, 2])
-
-    # Soft behind score — tanh so it starts giving gradient even before crossing 0
-    # Saturates at 1.0 when 3cm behind, gives 0.46 at the bar center, ~0 when far in front
-    behind_score = (torch.tanh(behind / 0.015) + 1.0) * 0.5
-
-    # Reward being at or below the bar top (not draped above it)
-    dz = finger_z - handle_pos[:, 2]  # >0 means above the bar
-    below_score = torch.sigmoid(-40.0 * dz)  # ~1 when at/below, ~0 when above
-
-    return prox_gate * behind_score * below_score
-
-
-def hook_configuration_reward(
-    env: ManagerBasedRLEnv,
-    behind_depth: float = 0.02,
-    front_depth: float = 0.02,
-    sigma_behind: float = 0.025,
-    sigma_front: float = 0.025,
-    proximity_radius: float = 0.12,
-    gap_sign: float = 1.0,
-) -> torch.Tensor:
-    """The core hook reward: one finger BEHIND the bar, the other IN FRONT.
-
-    This replaces dual_approach_bonus and asymmetry_penalty for hook shaping.
-    The correct hook configuration is inherently asymmetric:
-      - hook finger: gap_sign * (finger_x - handle_x) > behind_depth  (in the gap)
-      - front finger: gap_sign * (finger_x - handle_x) < -front_depth (in front of bar)
-
-    Reward = behind_score * front_score
-      - if behind_score = 0, reward = 0 (no gradient cheat via front only)
-      - each score is a soft Gaussian so there's always a gradient
-
-    The robot must discover that the two fingers serve different roles — this reward
-    makes that asymmetry explicit rather than accidentally emergent.
-    """
-    result = _claw_distances(env)
-    if result is None:
-        return torch.zeros(env.num_envs, device=env.device)
-    d7, d8, lfinger_pos, rfinger_pos, handle_pos = result
-
-    # Signed X offset of each finger relative to bar center (+X = behind/in gap)
-    x7 = gap_sign * (lfinger_pos[:, 0] - handle_pos[:, 0])  # link7
-    x8 = gap_sign * (rfinger_pos[:, 0] - handle_pos[:, 0])  # link8
-
-    # ── Behind score: reward whichever finger is furthest into the gap ──────────
-    # Target: finger_x = +behind_depth (inside the gap)
-    best_behind = torch.maximum(x7, x8)
-    behind_err = (best_behind - behind_depth) ** 2
-    behind_score = torch.exp(-behind_err / (2.0 * sigma_behind ** 2))
-    # Hard zero if no finger has crossed into the gap at all (no cheat via front alone)
-    behind_score = behind_score * (best_behind > 0).float()
-
-    # ── Front score: reward whichever finger is furthest in front of the bar ────
-    # Target: finger_x = -front_depth (in front of, facing the robot)
-    front7 = -x7  # positive when finger is in front
-    front8 = -x8
-    best_front = torch.maximum(front7, front8)
-    front_err = (best_front - front_depth) ** 2
-    front_score = torch.exp(-front_err / (2.0 * sigma_front ** 2))
-
-    # ── Proximity gate — only matters when both fingers are near the bar ─────────
-    avg_dist = (d7 + d8) * 0.5
-    prox_gate = torch.exp(-3.0 * avg_dist / proximity_radius)
-
-    # ── Multiplicative: BOTH must be nonzero for full reward ────────────────────
-    return prox_gate * behind_score * front_score
-
-
-def upright_wrist_reward(
-    env: ManagerBasedRLEnv,
-    proximity_radius: float = 0.15,
-) -> torch.Tensor:
-    """Reward the end-effector being in an upright orientation near the handle.
-
-    'Upright' here means the EE Z-axis (finger-spread axis) points roughly along
-    world Z (vertical), so the fingers are arranged top-bottom rather than
-    side-side or horizontal. This directly fights the 'horizontal flat hand'
-    local optimum the robot falls into.
-
-    Reward = prox_gate * dot(ee_z, world_z)^2  (squared so it's always positive,
-    peak at 1.0 when perfectly vertical, 0.0 when horizontal)
-    """
-    pose = _robot_ee_pose(env)
-    if pose is None:
-        return torch.zeros(env.num_envs, device=env.device)
-    ee_tcp_pos, ee_tcp_quat, _, _ = pose
-    handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
-
-    # Distance gate
-    dist = torch.norm(handle_pos - ee_tcp_pos, dim=-1, p=2)
-    prox_gate = torch.exp(-3.0 * dist / proximity_radius)
-
-    # EE local Z-axis in world frame
-    ee_rot = matrix_from_quat(ee_tcp_quat)          # (N, 3, 3)
-    ee_z = ee_rot[..., 2]                            # (N, 3) — finger-spread axis
-
-    # World up vector
-    world_z = torch.zeros_like(ee_z)
-    world_z[:, 2] = 1.0
-
-    # Dot product: 1 when upright, 0 when horizontal, -1 when upside-down
-    dot = (ee_z * world_z).sum(dim=-1)               # (N,)
-    upright_score = dot ** 2                          # Squared: symmetric, peak at |dot|=1
-
-    return prox_gate * upright_score
-
-
 def dual_approach_bonus(env: ManagerBasedRLEnv, near_threshold: float = 0.06) -> torch.Tensor:
     """Stepping-stone bonus: both fingers simultaneously within near_threshold of the handle.
 
@@ -785,9 +604,5 @@ def asymmetry_penalty(env: ManagerBasedRLEnv, contact_radius: float = 0.08, pena
     return prox_gate * (asymmetry_excess ** 2)
 
 
-def debug_link_distances(env: ManagerBasedRLEnv) -> torch.Tensor:
-    """Weight-0 term: redundant debug view (link distances tracked in single_claw_proximity).
-
-    Returns zeros — zero effect on training.
-    """
-    return torch.zeros(env.num_envs, device=env.device)
+# (debug_link_distances removed — replaced by debug_inner_edge, which prints inner vs
+#  outer edge contact counts per iteration.)
