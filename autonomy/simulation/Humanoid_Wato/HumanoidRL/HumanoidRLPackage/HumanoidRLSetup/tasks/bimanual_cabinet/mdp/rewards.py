@@ -564,18 +564,58 @@ def upright_pull_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, thresh
     return contact * opened * upright_score
 
 
-def pull_distance_reward(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, contact_radius: float = 0.05) -> torch.Tensor:
-    """SLOPE reward: grows with HOW MUCH the drawer is pulled, gated by real contact.
+def pull_distance_reward(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    contact_radius: float = 0.05,
+    max_open: float = 0.39,
+) -> torch.Tensor:
+    """SUPERLINEAR open reward: opening FURTHER pays disproportionately more.
 
-    This is the SLOPE of the pull reward line. Returns contact_gate × drawer_pos,
-    so reward increases linearly the further the drawer opens. Combined with the flat
-    first_pull_bonus intercept, total pull reward = intercept + slope × distance.
-
-    Gated by real contact — no touch, no reward.
+    Gated by real contact. Uses the open fraction f = drawer_pos / max_open and returns
+    contact * (f + 3*f^2). This is deliberately superlinear so the marginal reward for
+    each extra cm INCREASES as the drawer opens:
+      - f=0.03 (≈1cm)  → 0.03 + 3*0.0008 = 0.033
+      - f=0.5  (≈20cm) → 0.5  + 3*0.25   = 1.25
+      - f=1.0  (fully) → 1.0  + 3*1.0    = 4.0
+    So fully opening is worth ~120× a 1cm nudge, killing the 'park just past 1cm' cheat.
     """
     grip_score = contact_pull_gate(env)
     drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
-    return grip_score * drawer_pos
+    f = torch.clamp(drawer_pos / max_open, min=0.0, max=1.0)
+    return grip_score * (f + 3.0 * f * f)
+
+
+def hook_pull_reward(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    max_open: float = 0.39,
+    gap_sign: float = 1.0,
+    behind_scale: float = 0.03,
+) -> torch.Tensor:
+    """Reward opening the drawer WITH a finger hooked behind the handle.
+
+    = contact * open_fraction * behind_score
+
+    behind_score in [0,1] measures how far the deepest finger has hooked BEHIND the
+    bar (into the gap). So the robot earns extra for opening the drawer using the
+    proper main-inner-edge hook, rather than a shallow side-edge press.
+    """
+    grip_score = contact_pull_gate(env)
+    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
+    f = torch.clamp(drawer_pos / max_open, min=0.0, max=1.0)
+
+    result = _claw_distances(env)
+    if result is None:
+        return torch.zeros(env.num_envs, device=env.device)
+    _, _, lfinger_pos, rfinger_pos, handle_pos = result
+
+    behind7 = gap_sign * (lfinger_pos[:, 0] - handle_pos[:, 0])
+    behind8 = gap_sign * (rfinger_pos[:, 0] - handle_pos[:, 0])
+    deepest_behind = torch.maximum(behind7, behind8)
+    behind_score = torch.clamp(deepest_behind / behind_scale, min=0.0, max=1.0)
+
+    return grip_score * f * behind_score
 
 
 def open_claw_approach_reward(

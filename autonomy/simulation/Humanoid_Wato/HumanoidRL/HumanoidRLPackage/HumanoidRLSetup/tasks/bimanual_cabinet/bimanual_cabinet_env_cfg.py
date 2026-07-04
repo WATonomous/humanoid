@@ -336,28 +336,41 @@ class RewardsCfg:
         },
     )
 
-    # ── STAGE 6: Pull the drawer (goal, MASSIVE — ALL gated by real handle CONTACT) ──
-    # A finger (link7 or link8) must be physically TOUCHING the handle for any of these
-    # to fire. The pull reward is a LINE:  total = intercept (flat) + slope × distance.
+    # ── STAGE 6: Pull the drawer (goal — ALL gated by real handle CONTACT) ──────
+    # A finger (link7 or link8) must be physically TOUCHING the handle for any to fire.
     #
-    # INTERCEPT: flat HUGE bonus the instant a finger touches the handle + drawer moves 1cm.
-    # Does NOT scale — a constant step reward for being in the "gripping + pulling" state.
+    # SMALL flat bump when pulling starts (reduced from 800 → 150 so the robot can no
+    # longer 'park just past 1cm' to farm a huge flat reward — it must keep opening).
     first_pull_bonus = RewTerm(
         func=mdp.first_pull_bonus,
-        weight=800.0,
+        weight=150.0,
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
-            "threshold": 0.01,  # drawer moved 1cm = pulling has started
+            "threshold": 0.01,
         },
     )
-    # SLOPE: grows linearly with HOW MUCH the drawer is pulled (contact × drawer_pos).
-    # At 30cm open this contributes 30× more than at 1cm — the more it pulls, the bigger.
+    # PRIMARY GOAL — SUPERLINEAR: opening FURTHER pays disproportionately more.
+    # contact * (f + 3 f^2), f = open fraction. Fully open ≈ 120× a 1cm nudge.
     pull_distance_reward = RewTerm(
         func=mdp.pull_distance_reward,
-        weight=2000.0,
+        weight=2500.0,  # dominant term — the more it opens, the far bigger the reward
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "contact_radius": 0.05,
+            "max_open": 0.39,
+        },
+    )
+    # Open the drawer WITH a proper finger-behind-handle hook (main inner edge, not the
+    # shallow side edge). = contact * open_fraction * behind_score. Big incentive to use
+    # the correct hooking grip while pulling.
+    hook_pull_reward = RewTerm(
+        func=mdp.hook_pull_reward,
+        weight=1500.0,
+        params={
+            "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
+            "max_open": 0.39,
+            "gap_sign": 1.0,
+            "behind_scale": 0.03,
         },
     )
     # Early gradient: positive drawer velocity while a finger is touching the handle.
