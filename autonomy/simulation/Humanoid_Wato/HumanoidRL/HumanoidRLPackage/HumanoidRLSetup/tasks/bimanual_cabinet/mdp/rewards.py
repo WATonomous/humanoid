@@ -424,55 +424,105 @@ def hook_grip_pull_reward(
     return aperture_score * straddle_score * pulling_vel
 
 
-def drawer_vel_reward(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
-    """Reward positive drawer joint velocity ONLY when straddling opposite sides.
+def _finger_handle_contact(env: ManagerBasedRLEnv, force_threshold: float = 1.0):
+    """Return (contact7, contact8) boolean tensors: is each finger touching the handle?
 
-    This fires even before the drawer position changes, teaching the agent to apply
-    sustained outward force. BUT it only activates when both fingers are on opposite
-    sides of the handle bar — no straddle, no pull reward.
+    Reads the ContactSensor force_matrix_w for link7 and link8 (filtered to the handle
+    body only), so contact with anything OTHER than the handle does not count.
+    A finger is 'in contact' when the contact force magnitude with the handle exceeds
+    force_threshold newtons.
+    """
+    def _contact_mag(sensor_name: str) -> torch.Tensor:
+        sensor = env.scene.sensors[sensor_name]
+        fmat = sensor.data.force_matrix_w  # (N, num_bodies, num_filters, 3) or None
+        if fmat is None:
+            return torch.zeros(env.num_envs, device=env.device)
+        # Sum force magnitude across all bodies/filters for this sensor
+        return torch.norm(fmat, dim=-1).reshape(env.num_envs, -1).sum(dim=-1)
+
+    mag7 = _contact_mag("contact_link7")
+    mag8 = _contact_mag("contact_link8")
+    return mag7 > force_threshold, mag8 > force_threshold
+
+
+def contact_pull_gate(env: ManagerBasedRLEnv, force_threshold: float = 1.0) -> torch.Tensor:
+    """Gate = 1.0 when EITHER link7 or link8 is physically touching the handle.
+
+    This is the single source of truth for "the claw is gripping the handle." It uses
+    real contact-sensor forces, so a finger merely near the handle (but not touching)
+    scores 0. Contact with any surface other than the handle also scores 0.
+    """
+    contact7, contact8 = _finger_handle_contact(env, force_threshold)
+    return (contact7 | contact8).float()
+
+
+def drawer_vel_reward(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Reward positive drawer velocity ONLY while a finger is TOUCHING the handle.
+
+    Fires before the drawer position changes, teaching sustained outward force.
+    Gated by real contact — no touch, no reward.
     """
     drawer_vel = env.scene[asset_cfg.name].data.joint_vel[:, asset_cfg.joint_ids[0]]
     pulling_vel = torch.clamp(drawer_vel, min=0.0)
-    straddle_score = dual_claw_straddle(env, contact_radius=0.06)  # looser for early discovery
-    return pulling_vel * straddle_score
+    return pulling_vel * contact_pull_gate(env)
 
 
 def first_pull_bonus(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg,
     threshold: float = 0.01,
-    straddle_gate: float = 0.3,
 ) -> torch.Tensor:
-    """FLAT intercept bonus: constant value the instant straddle grip + pull begins.
+    """FLAT intercept bonus: constant value the instant a finger TOUCHES + pull begins.
 
-    This is the y-INTERCEPT of the pull reward line. It returns a FLAT 1.0 (scaled by
-    its weight) whenever BOTH conditions are met, and 0.0 otherwise:
-      1. Opposite-side straddle achieved (dual_claw_straddle > straddle_gate)
+    Returns a FLAT 1.0 (scaled by weight) whenever BOTH are true, else 0.0:
+      1. A finger (link7 or link8) is in contact with the handle
       2. Drawer pulled past `threshold` (1cm)
 
-    It does NOT scale with drawer position or straddle quality — it is a flat step.
-    The 'how much you pulled' growth is handled separately by pull_distance_reward.
+    Does NOT scale — it is the y-intercept step of the pull reward line. The 'how much
+    you pulled' growth is handled by pull_distance_reward.
     """
-    straddle_score = dual_claw_straddle(env, contact_radius=0.06)
+    contact = contact_pull_gate(env) > 0.5
     drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
-
-    straddle_ok = straddle_score > straddle_gate
     opened = drawer_pos > threshold
-    return (straddle_ok & opened).float()
+    return (contact & opened).float()
+
+
+def upright_pull_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, threshold: float = 0.01) -> torch.Tensor:
+    """Bonus for UPRIGHT wrist orientation WHILE touching the handle and pulling.
+
+    Fires only when: a finger is in contact AND the drawer has moved past threshold.
+    Then it scales with how upright the end-effector is (fingers arranged vertically
+    rather than a flat horizontal hand). Rewards a clean, natural pulling posture.
+    """
+    contact = contact_pull_gate(env)
+    drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
+    opened = (drawer_pos > threshold).float()
+
+    pose = _robot_ee_pose(env)
+    if pose is None:
+        return torch.zeros(env.num_envs, device=env.device)
+    _, ee_tcp_quat, _, _ = pose
+    ee_rot = matrix_from_quat(ee_tcp_quat)
+    ee_z = ee_rot[..., 2]
+    world_z = torch.zeros_like(ee_z)
+    world_z[:, 2] = 1.0
+    upright_score = (ee_z * world_z).sum(dim=-1) ** 2  # peak 1.0 when vertical
+
+    return contact * opened * upright_score
 
 
 def pull_distance_reward(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, contact_radius: float = 0.05) -> torch.Tensor:
-    """SLOPE reward: grows with HOW MUCH the drawer is pulled, gated by straddle.
+    """SLOPE reward: grows with HOW MUCH the drawer is pulled, gated by real contact.
 
-    This is the SLOPE of the pull reward line. Returns straddle_score × drawer_pos,
+    This is the SLOPE of the pull reward line. Returns contact_gate × drawer_pos,
     so reward increases linearly the further the drawer opens. Combined with the flat
     first_pull_bonus intercept, total pull reward = intercept + slope × distance.
 
-    Gated by opposite-side straddle — no valid grip, no reward.
+    Gated by real contact — no touch, no reward.
     """
-    straddle_score = dual_claw_straddle(env, contact_radius=contact_radius)
+    grip_score = contact_pull_gate(env)
     drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
-    return straddle_score * drawer_pos
+    return grip_score * drawer_pos
 
 
 def open_claw_approach_reward(

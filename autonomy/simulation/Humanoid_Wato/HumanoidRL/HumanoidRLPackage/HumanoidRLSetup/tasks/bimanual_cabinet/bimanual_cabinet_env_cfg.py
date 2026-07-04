@@ -16,7 +16,7 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sensors import FrameTransformerCfg
+from isaaclab.sensors import FrameTransformerCfg, ContactSensorCfg
 from isaaclab.sensors.frame_transformer import OffsetCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
@@ -53,7 +53,7 @@ class CabinetSceneCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/Cabinet",
         spawn=sim_utils.UsdFileCfg(
             usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd",
-            activate_contact_sensors=False,
+            activate_contact_sensors=True,  # needed so the handle reports contact forces
             scale=(1.5, 1.5, 1.5),  # Scaled up from 1.15 — bigger handle bar for easier hooking
         ),
         init_state=ArticulationCfg.InitialStateCfg(
@@ -98,6 +98,21 @@ class CabinetSceneCfg(InteractiveSceneCfg):
                 ),
             ),
         ],
+    )
+
+    # Contact sensors on the two inner fingers, filtered to ONLY report contact with
+    # the drawer handle. Used by the pull rewards to confirm the claw is truly gripping.
+    contact_link7 = ContactSensorCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/link7",
+        filter_prim_paths_expr=["{ENV_REGEX_NS}/Cabinet/drawer_handle_top"],
+        history_length=0,
+        track_air_time=False,
+    )
+    contact_link8 = ContactSensorCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/link8",
+        filter_prim_paths_expr=["{ENV_REGEX_NS}/Cabinet/drawer_handle_top"],
+        history_length=0,
+        track_air_time=False,
     )
 
     # plane
@@ -304,36 +319,44 @@ class RewardsCfg:
         params={"contact_radius": 0.08},  # wider radius — gradient fires from 8cm
     )
 
-    # ── STAGE 6: Pull the drawer (goal, MASSIVE — ALL gated by opposite-side straddle) ──
-    # The pull reward is a LINE:  total = intercept (flat bonus) + slope × distance.
+    # ── STAGE 6: Pull the drawer (goal, MASSIVE — ALL gated by real handle CONTACT) ──
+    # A finger (link7 or link8) must be physically TOUCHING the handle for any of these
+    # to fire. The pull reward is a LINE:  total = intercept (flat) + slope × distance.
     #
-    # INTERCEPT: flat HUGE bonus the instant straddle grip + pull past 1cm is achieved.
-    # Does NOT scale — a constant step reward for being in the "pulling correctly" state.
+    # INTERCEPT: flat HUGE bonus the instant a finger touches the handle + drawer moves 1cm.
+    # Does NOT scale — a constant step reward for being in the "gripping + pulling" state.
     first_pull_bonus = RewTerm(
         func=mdp.first_pull_bonus,
-        weight=800.0,  # Flat intercept — huge constant while straddling + drawer open
+        weight=800.0,
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
-            "threshold": 0.01,       # drawer moved 1cm = pulling has started
-            "straddle_gate": 0.3,    # minimum straddle quality to count as a valid grip
+            "threshold": 0.01,  # drawer moved 1cm = pulling has started
         },
     )
-    # SLOPE: grows linearly with HOW MUCH the drawer is pulled (straddle × drawer_pos).
+    # SLOPE: grows linearly with HOW MUCH the drawer is pulled (contact × drawer_pos).
     # At 30cm open this contributes 30× more than at 1cm — the more it pulls, the bigger.
     pull_distance_reward = RewTerm(
         func=mdp.pull_distance_reward,
-        weight=2000.0,  # Huge slope — pulling further is overwhelmingly rewarded
+        weight=2000.0,
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "contact_radius": 0.05,
         },
     )
-    # Early gradient: positive drawer velocity while straddling (teaches sustained force
-    # before the position visibly moves). Gated by opposite-side straddle.
+    # Early gradient: positive drawer velocity while a finger is touching the handle.
     drawer_vel_reward = RewTerm(
         func=mdp.drawer_vel_reward,
         weight=400.0,
         params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
+    )
+    # Posture bonus: upright wrist orientation WHILE touching the handle and pulling.
+    upright_pull_bonus = RewTerm(
+        func=mdp.upright_pull_bonus,
+        weight=150.0,
+        params={
+            "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
+            "threshold": 0.01,
+        },
     )
 
     # ── PENALTIES (small, proportional) ──────────────────────────────────────
@@ -412,6 +435,8 @@ class CabinetEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.physx.bounce_threshold_velocity = 0.01
         self.sim.physx.friction_correlation_distance = 0.00625
         self.scene.robot.init_state.pos = (-0.25, 0.0, 0.55)  # Pushed back and raised for larger cabinet
+        # Enable contact reporting on the robot so the finger ContactSensors work
+        self.scene.robot.spawn.activate_contact_sensors = True
 
 
 # PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Open-Drawer-Humanoid-Arm-v0 --headless
