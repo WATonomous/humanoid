@@ -626,6 +626,121 @@ def descend_into_gap(
     return prox_gate * behind_score * below_score
 
 
+def hook_configuration_reward(
+    env: ManagerBasedRLEnv,
+    behind_depth: float = 0.02,
+    front_depth: float = 0.02,
+    sigma_behind: float = 0.025,
+    sigma_front: float = 0.025,
+    proximity_radius: float = 0.12,
+    gap_sign: float = 1.0,
+) -> torch.Tensor:
+    """The core hook reward: one finger BEHIND the bar, the other IN FRONT.
+
+    This replaces dual_approach_bonus and asymmetry_penalty for hook shaping.
+    The correct hook configuration is inherently asymmetric:
+      - hook finger: gap_sign * (finger_x - handle_x) > behind_depth  (in the gap)
+      - front finger: gap_sign * (finger_x - handle_x) < -front_depth (in front of bar)
+
+    Reward = behind_score * front_score
+      - if behind_score = 0, reward = 0 (no gradient cheat via front only)
+      - each score is a soft Gaussian so there's always a gradient
+
+    The robot must discover that the two fingers serve different roles — this reward
+    makes that asymmetry explicit rather than accidentally emergent.
+    """
+    result = _claw_distances(env)
+    if result is None:
+        return torch.zeros(env.num_envs, device=env.device)
+    d7, d8, lfinger_pos, rfinger_pos, handle_pos = result
+
+    # Signed X offset of each finger relative to bar center (+X = behind/in gap)
+    x7 = gap_sign * (lfinger_pos[:, 0] - handle_pos[:, 0])  # link7
+    x8 = gap_sign * (rfinger_pos[:, 0] - handle_pos[:, 0])  # link8
+
+    # ── Behind score: reward whichever finger is furthest into the gap ──────────
+    # Target: finger_x = +behind_depth (inside the gap)
+    best_behind = torch.maximum(x7, x8)
+    behind_err = (best_behind - behind_depth) ** 2
+    behind_score = torch.exp(-behind_err / (2.0 * sigma_behind ** 2))
+    # Hard zero if no finger has crossed into the gap at all (no cheat via front alone)
+    behind_score = behind_score * (best_behind > 0).float()
+
+    # ── Front score: reward whichever finger is furthest in front of the bar ────
+    # Target: finger_x = -front_depth (in front of, facing the robot)
+    front7 = -x7  # positive when finger is in front
+    front8 = -x8
+    best_front = torch.maximum(front7, front8)
+    front_err = (best_front - front_depth) ** 2
+    front_score = torch.exp(-front_err / (2.0 * sigma_front ** 2))
+
+    # ── Proximity gate — only matters when both fingers are near the bar ─────────
+    avg_dist = (d7 + d8) * 0.5
+    prox_gate = torch.exp(-3.0 * avg_dist / proximity_radius)
+
+    # ── Multiplicative: BOTH must be nonzero for full reward ────────────────────
+    return prox_gate * behind_score * front_score
+
+
+def upright_wrist_reward(
+    env: ManagerBasedRLEnv,
+    proximity_radius: float = 0.15,
+) -> torch.Tensor:
+    """Reward the end-effector being in an upright orientation near the handle.
+
+    'Upright' here means the EE Z-axis (finger-spread axis) points roughly along
+    world Z (vertical), so the fingers are arranged top-bottom rather than
+    side-side or horizontal. This directly fights the 'horizontal flat hand'
+    local optimum the robot falls into.
+
+    Reward = prox_gate * dot(ee_z, world_z)^2  (squared so it's always positive,
+    peak at 1.0 when perfectly vertical, 0.0 when horizontal)
+    """
+    pose = _robot_ee_pose(env)
+    if pose is None:
+        return torch.zeros(env.num_envs, device=env.device)
+    ee_tcp_pos, ee_tcp_quat, _, _ = pose
+    handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
+
+    # Distance gate
+    dist = torch.norm(handle_pos - ee_tcp_pos, dim=-1, p=2)
+    prox_gate = torch.exp(-3.0 * dist / proximity_radius)
+
+    # EE local Z-axis in world frame
+    ee_rot = matrix_from_quat(ee_tcp_quat)          # (N, 3, 3)
+    ee_z = ee_rot[..., 2]                            # (N, 3) — finger-spread axis
+
+    # World up vector
+    world_z = torch.zeros_like(ee_z)
+    world_z[:, 2] = 1.0
+
+    # Dot product: 1 when upright, 0 when horizontal, -1 when upside-down
+    dot = (ee_z * world_z).sum(dim=-1)               # (N,)
+    upright_score = dot ** 2                          # Squared: symmetric, peak at |dot|=1
+
+    return prox_gate * upright_score
+
+
+def dual_approach_bonus(env: ManagerBasedRLEnv, near_threshold: float = 0.06) -> torch.Tensor:
+    """Stepping-stone bonus: both fingers simultaneously within near_threshold of the handle.
+
+    Fires as a discrete bonus when BOTH claws cross the threshold at the same time.
+    This bridges the gap between single_claw_proximity (OR logic, ~5cm) and
+    dual_claw_straddle (requires both close + opposite sides, ~2cm).
+    Without this, the agent has no gradient for the 5cm→2cm push with both fingers.
+    """
+    result = _claw_distances(env)
+    if result is None:
+        return torch.zeros(env.num_envs, device=env.device)
+    d7, d8, _, _, _ = result
+
+    # Soft AND: both must be within threshold — product of two Gaussian gates
+    k = 3.0 / near_threshold
+    gate7 = torch.exp(-k * d7)
+    gate8 = torch.exp(-k * d8)
+    return gate7 * gate8  # Only near 1.0 when BOTH fingers are close
+
+
 def asymmetry_penalty(env: ManagerBasedRLEnv, contact_radius: float = 0.08, penalty_threshold: float = 0.05) -> torch.Tensor:
     """Penalty for asymmetric finger distances — discourages single-finger solutions.
 

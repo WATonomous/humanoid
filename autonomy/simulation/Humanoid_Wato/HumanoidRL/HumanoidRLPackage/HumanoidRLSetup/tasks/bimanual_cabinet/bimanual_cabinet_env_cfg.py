@@ -228,157 +228,115 @@ class EventCfg:
 class RewardsCfg:
     """Reward terms for the MDP."""
 
-    # 1. Approach the handle
+    # =========================================================================
+    # CLEAN REWARD LADDER
+    # Each behavior is rewarded EXACTLY ONCE. Weights escalate monotonically by
+    # stage, and drawer-opening rewards are GATED behind a correct straddle grip
+    # so the drawer cannot be opened by cheating (top-drape / friction drag).
+    # Dynamic range is kept sane (0.5 .. 300) to avoid one reward swamping the rest.
+    # =========================================================================
+
+    # ── STAGE 1: Reach the handle (dense, small) ─────────────────────────────
     approach_ee_handle = RewTerm(func=mdp.approach_ee_handle, weight=2.0, params={"threshold": 0.2})
     align_ee_handle = RewTerm(func=mdp.align_ee_handle, weight=0.5)
 
-    # 2. Grasp the handle
-    approach_gripper_handle = RewTerm(
-        func=mdp.approach_gripper_handle, weight=5.0, params={"offset": 0.04})
-    align_grasp_around_handle = RewTerm(func=mdp.align_grasp_around_handle, weight=0.125)
-
-    # 2b. Individual claw proximity — breadcrumb trail to get each finger near the handle
+    # ── STAGE 2: Position the OPEN claw near the handle (dense, medium) ───────
+    # Breadcrumb: either finger getting near (OR logic) — keeps a gradient alive early.
     single_claw_proximity = RewTerm(
         func=mdp.single_claw_proximity,
-        weight=10.0,
+        weight=5.0,
         params={"contact_radius": 0.06},
     )
-
-    # 2b-i. Keep the claw OPEN while approaching (reward-driven, replaces hard joint limits)
+    # Keep the claw OPEN while approaching so the bar can pass BETWEEN the fingers
+    # (reward-driven, replaces hard joint limits). Kept below the pull rewards so
+    # the robot cannot get stuck maximizing posture instead of pulling.
     open_claw_approach = RewTerm(
         func=mdp.open_claw_approach_reward,
-        weight=300.0,  # Doubled again — must completely dominate over single-finger rewards
+        weight=100.0,
         params={
             "gripper_cfg": SceneEntityCfg("robot", joint_names=["joint7", "joint8"]),
-            "open_target": 0.1,         # Even more open — force wider gap
-            "aperture_sigma": 0.04,     # Slightly wider tolerance
-            "proximity_radius": 0.15,   # Larger activation radius
+            "open_target": 0.1,
+            "aperture_sigma": 0.04,
+            "proximity_radius": 0.15,
         },
     )
-
-    # 2b-ii. Thread a finger INTO the gap behind the bar (anti top-drape cheat)
-    finger_in_gap = RewTerm(
-        func=mdp.finger_in_gap_reward,
-        weight=80.0,
-        params={
-            "gap_depth": 0.03,
-            "proximity_radius": 0.08,
-            "gap_sign": 1.0,  # flip to -1.0 if the finger should penetrate toward -X instead
-        },
-    )
-
-    # 2b-iii. Dense hook target: reach a point INSIDE the gap (behind + below the bar).
-    #         This is the primary "get a finger behind the handle" gradient.
-    finger_behind_handle = RewTerm(
-        func=mdp.finger_behind_handle,
-        weight=250.0,
-        params={
-            "behind_offset": 0.03,      # 3cm behind the bar (into the gap)
-            "below_offset": 0.01,       # 1cm below the bar top edge
-            "sigma": 0.03,              # Gaussian width of the hook target
-            "proximity_radius": 0.12,
-            "gap_sign": 1.0,            # flip to -1.0 if the gap is on the -X side
-        },
-    )
-
-    # 2b-iv. Shape the descent: reward being behind the bar AND at/below its top.
-    descend_into_gap = RewTerm(
-        func=mdp.descend_into_gap,
-        weight=100.0,
-        params={"proximity_radius": 0.10, "gap_sign": 1.0},
-    )
-
-    # 2c. Continuous approach angle gradient — rewards moving fingers toward opposite sides
+    # Rotate the approach so the fingers move toward OPPOSITE sides of the bar.
     approach_angle_reward = RewTerm(
         func=mdp.approach_angle_reward,
-        weight=5.0,  # Reduced from 20 — stop competing with open_claw_approach
+        weight=10.0,
         params={"proximity_radius": 0.15},
     )
 
-    straddle_handle = RewTerm(
-        func=mdp.straddle_handle,
-        weight=40.0,
-        params={"threshold": 0.05}
+    # ── STAGE 3: Bring BOTH fingers in together (milestone, medium-high) ──────
+    # Stepping stone between single-finger proximity and full straddle.
+    dual_approach_bonus = RewTerm(
+        func=mdp.dual_approach_bonus,
+        weight=80.0,
+        params={"near_threshold": 0.06},
     )
 
-    grasp_handle = RewTerm(
-        func=mdp.grasp_handle,
-        weight=0.0,  # Disabled: we force an open claw hook instead of closing
+    # ── STAGE 4: Hook a finger BEHIND + BELOW the bar (milestone, high) ───────
+    # Dense 3D hook target inside the gap — the primary anti top-drape signal.
+    finger_behind_handle = RewTerm(
+        func=mdp.finger_behind_handle,
+        weight=150.0,
         params={
-            "threshold": 0.03,
-            "open_joint_pos": 0.06,
-            "asset_cfg": SceneEntityCfg("robot", joint_names=["joint7", "joint8"]),
+            "behind_offset": 0.03,   # 3cm behind the bar (into the gap)
+            "below_offset": 0.01,    # 1cm below the bar top edge
+            "sigma": 0.02,           # tight target — pressure to actually get inside
+            "proximity_radius": 0.12,
+            "gap_sign": 1.0,         # flip to -1.0 if the gap is on the -X side
         },
     )
-
-    # Temporarily disable conflicting grasping signals
-    approach_gripper_handle = RewTerm(
-        func=mdp.approach_gripper_handle, 
-        weight=0.0,  # Disabled — competes with open_claw_approach
-        params={"offset": 0.04}
-    )
-    align_grasp_around_handle = RewTerm(
-        func=mdp.align_grasp_around_handle, 
-        weight=0.0  # Disabled — competes with open_claw_approach
+    # Shape the descent: reward being behind the bar AND at/below its top edge.
+    descend_into_gap = RewTerm(
+        func=mdp.descend_into_gap,
+        weight=80.0,
+        params={"proximity_radius": 0.10, "gap_sign": 1.0},
     )
 
-    # 2d. Both claws on opposite sides of the handle bar (orientation gate, no drawer movement needed)
+    # ── STAGE 5: Straddle grip — both fingers close, opposite sides (gate) ────
+    # This is the GATE that every drawer-pull reward multiplies through, so the
+    # drawer only earns reward when the grip is genuinely correct.
     dual_claw_straddle = RewTerm(
         func=mdp.dual_claw_straddle,
-        weight=100.0,
-        params={"contact_radius": 0.04},
+        weight=150.0,
+        params={"contact_radius": 0.05},
     )
 
-    # 3. Open the drawer — weights reduced; dual_contact_pull is now the primary signal
-    open_drawer_bonus = RewTerm(
-        func=mdp.open_drawer_bonus,
-        weight=50.0,
+    # ── STAGE 6: Pull the drawer (goal, highest — ALL gated by straddle) ──────
+    # Early gradient: positive drawer velocity while straddling (fires before the
+    # position moves, teaching sustained outward force).
+    drawer_vel_reward = RewTerm(
+        func=mdp.drawer_vel_reward,
+        weight=200.0,
         params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
     )
-    multi_stage_open_drawer = RewTerm(
-        func=mdp.multi_stage_open_drawer,
-        weight=15.0,
-        params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
-    )
-
-    # 3b. Primary signal: both inner claws touching the handle while pulling
+    # Primary goal: straddle grip AND drawer displacement — scales with how far open.
     dual_contact_pull = RewTerm(
         func=mdp.dual_contact_pull,
         weight=300.0,
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
-            "contact_radius": 0.04,
+            "contact_radius": 0.05,
         },
     )
 
-    # 3c. Reward positive drawer velocity — fires before position changes to teach sustained force
-    drawer_vel_reward = RewTerm(
-        func=mdp.drawer_vel_reward,
-        weight=500.0,
-        params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
+    # ── PENALTIES (small, proportional) ──────────────────────────────────────
+    # Discourage the single-finger local optimum.
+    asymmetry_penalty = RewTerm(
+        func=mdp.asymmetry_penalty,
+        weight=-200.0,
+        params={"contact_radius": 0.08, "penalty_threshold": 0.05},
     )
-
-    # 3d. Grand-prize: hook grip + opposite-side straddle + pulling velocity all at once
-    hook_grip_pull_reward = RewTerm(
-        func=mdp.hook_grip_pull_reward,
-        weight=1000.0,
-        params={
-            "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
-            "gripper_cfg": SceneEntityCfg("robot", joint_names=["joint7", "joint8"]),
-            "hook_aperture": 0.14,    # target joint position 0.14 (~11.5cm total fingertip gap)
-            "aperture_sigma": 0.02,   # reward falls off outside target
-            "contact_radius": 0.05,   # how close each finger must be to handle bar
-        },
-    )
-
-    # 4. Penalize actions for cosmetic reasons (Conditional Jerk Penalties)
+    # Cosmetic smoothness — scale down as the drawer opens so they never block pulling.
     action_rate_l2 = RewTerm(
-        func=mdp.conditional_action_rate_l2, 
+        func=mdp.conditional_action_rate_l2,
         weight=-0.05,
         params={"asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"])},
     )
     joint_vel = RewTerm(
-        func=mdp.conditional_joint_vel_l2, 
+        func=mdp.conditional_joint_vel_l2,
         weight=-0.01,
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
@@ -386,16 +344,7 @@ class RewardsCfg:
         },
     )
 
-    # 4b. Asymmetry penalty — break the single-finger local optimum.
-    #     Penalizes one finger being much closer than the other near the handle.
-    asymmetry_penalty = RewTerm(
-        func=mdp.asymmetry_penalty,
-        weight=-500.0,  # Strong negative — makes single-finger solutions unprofitable
-        params={"contact_radius": 0.08, "penalty_threshold": 0.05},
-    )
-
-    # 5. Debug only — weight=0 means this has zero effect on training.
-    #    Prints link7 & link8 closest distance to handle once per iteration.
+    # ── DEBUG (weight 0 — zero training effect; prints claw distances) ────────
     debug_link_distances = RewTerm(func=mdp.debug_link_distances, weight=0.0)
 
 
