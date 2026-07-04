@@ -234,11 +234,12 @@ def dual_claw_straddle(env: ManagerBasedRLEnv, contact_radius: float = 0.04) -> 
         along WHATEVER axis they happen to be on (any line through the origin).
       - This is correct regardless of which direction the robot approaches from.
 
-    Gate 1 (proximity): both fingers within contact_radius of handle center.
+    Gate 1 (proximity): exp(-k * average finger distance), k = 3.0 / contact_radius.
     Gate 2 (opposite-side): dot(u7, u8) < 0  →  angle between them > 90°.
-    Perfect opposite sides → cos = -1 → score = 1.0
-    Perpendicular          → cos =  0 → score = 0.5
-    Same side              → cos = +1 → score ≈ 0.0
+      Perfect opposite sides → cos = -1 → score = 1.0
+      Perpendicular          → cos =  0 → score = 0.5
+      Same side              → cos = +1 → score ≈ 0.0
+    Veto: if BOTH fingers are above the bar top (top-drape), the score is zeroed.
     """
     result = _claw_distances(env)
     if result is None:
@@ -246,11 +247,13 @@ def dual_claw_straddle(env: ManagerBasedRLEnv, contact_radius: float = 0.04) -> 
 
     d_link7, d_link8, lfinger_pos, rfinger_pos, handle_pos = result
 
-    # ── Gate 1: proximity ─────────────────────────────────────────────────────
+    # ── Gate 1: proximity — use LINEAR gate instead of product-of-exponentials ──
+    # Product gate collapses near zero when both fingers are at 5cm (score ≈ 0.003).
+    # Instead: reward = exp(-k * AVERAGE distance), so both fingers at 5cm gives
+    # exp(-3.0 * 0.048 / 0.10) = exp(-1.44) = 0.24 — a usable gradient.
+    avg_dist = (d_link7 + d_link8) * 0.5
     k = 3.0 / contact_radius
-    prox_link7 = torch.exp(-k * d_link7)
-    prox_link8 = torch.exp(-k * d_link8)
-    dual_proximity = prox_link7 * prox_link8  # AND gate — both must be close
+    dual_proximity = torch.exp(-k * avg_dist)
 
     # ── Gate 2: direction-agnostic opposite-side check in handle cross-section ──
     # Vectors from handle center to each finger
@@ -276,7 +279,14 @@ def dual_claw_straddle(env: ManagerBasedRLEnv, contact_radius: float = 0.04) -> 
     # Sharpness factor 8 gives a clear threshold around cos = 0.
     opposite_side_score = torch.sigmoid(-8.0 * cos_angle)
 
-    return dual_proximity * opposite_side_score
+    # ── Top-drape veto ───────────────────────────────────────────────────────
+    # If BOTH fingers are above the bar, it's a top-drape — zero the straddle score.
+    # One finger above + one below is a legitimate vertical straddle and is allowed.
+    both_above = (lfinger_pos[:, 2] > handle_pos[:, 2] + 0.01) & \
+                 (rfinger_pos[:, 2] > handle_pos[:, 2] + 0.01)
+    anti_cheat = (~both_above).float()
+
+    return dual_proximity * opposite_side_score * anti_cheat
 
 
 def open_drawer_bonus(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
@@ -624,11 +634,20 @@ def descend_into_gap(
     the fingertip is inside the gap, not draped over the top. This term rewards the
     finger that is furthest into the gap for being both behind and low. Combined with
     finger_behind_handle it shapes the full 'come in above the gap, then drop into it' motion.
+
+    FIX: proximity gate changed from tight product-gate to average-distance gate so
+    fingers at 5cm still receive a gradient. Also rewards approaching from the correct
+    side (reducing behind_score falloff) so the gradient fires BEFORE the finger
+    actually crosses the bar.
     """
     result = _claw_distances(env)
     if result is None:
         return torch.zeros(env.num_envs, device=env.device)
     d7, d8, lfinger_pos, rfinger_pos, handle_pos = result
+
+    # Proximity gate on average distance — fires from ~15cm out
+    avg_dist = (d7 + d8) * 0.5
+    prox_gate = torch.exp(-3.0 * avg_dist / proximity_radius)
 
     # How far behind the bar each fingertip is (positive = on the gap side)
     behind7 = gap_sign * (lfinger_pos[:, 0] - handle_pos[:, 0])
@@ -639,15 +658,13 @@ def descend_into_gap(
     behind = torch.where(use7, behind7, behind8)
     finger_z = torch.where(use7, lfinger_pos[:, 2], rfinger_pos[:, 2])
 
-    # Reward being behind the bar (clamped, saturating at 3cm)
-    behind_score = torch.clamp(torch.clamp(behind, min=0.0) / 0.03, max=1.0)
+    # Soft behind score — tanh so it starts giving gradient even before crossing 0
+    # Saturates at 1.0 when 3cm behind, gives 0.46 at the bar center, ~0 when far in front
+    behind_score = (torch.tanh(behind / 0.015) + 1.0) * 0.5
 
     # Reward being at or below the bar top (not draped above it)
     dz = finger_z - handle_pos[:, 2]  # >0 means above the bar
     below_score = torch.sigmoid(-40.0 * dz)  # ~1 when at/below, ~0 when above
-
-    avg_dist = (d7 + d8) * 0.5
-    prox_gate = torch.exp(-3.0 * avg_dist / proximity_radius)
 
     return prox_gate * behind_score * below_score
 

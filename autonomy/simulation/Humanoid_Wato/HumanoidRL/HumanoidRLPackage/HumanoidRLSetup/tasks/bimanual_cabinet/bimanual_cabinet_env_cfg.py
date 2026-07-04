@@ -271,7 +271,7 @@ class RewardsCfg:
     # Stepping stone between single-finger proximity and full straddle.
     dual_approach_bonus = RewTerm(
         func=mdp.dual_approach_bonus,
-        weight=80.0,
+        weight=150.0,  # Boosted from 80 — stronger gradient for the 5cm→2cm push
         params={"near_threshold": 0.06},
     )
 
@@ -296,12 +296,12 @@ class RewardsCfg:
     )
 
     # ── STAGE 5: Straddle grip — both fingers close, opposite sides (gate) ────
-    # This is the GATE that every drawer-pull reward multiplies through, so the
-    # drawer only earns reward when the grip is genuinely correct.
+    # FIX: contact_radius increased so avg-distance gate fires at 5-6cm approach.
+    # Old product gate gave 0.003 at 5cm; new avg gate gives ~0.22 at 5cm.
     dual_claw_straddle = RewTerm(
         func=mdp.dual_claw_straddle,
         weight=150.0,
-        params={"contact_radius": 0.05},
+        params={"contact_radius": 0.08},  # wider radius — gradient fires from 8cm
     )
 
     # ── STAGE 6: Pull the drawer (goal, MASSIVE — ALL gated by opposite-side straddle) ──
