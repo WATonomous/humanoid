@@ -456,6 +456,27 @@ def contact_pull_gate(env: ManagerBasedRLEnv, force_threshold: float = 1.0) -> t
     return (contact7 | contact8).float()
 
 
+def claw_contact_reward(env: ManagerBasedRLEnv, force_threshold: float = 1.0, both_bonus: float = 2.0) -> torch.Tensor:
+    """Reward the inner claws TOUCHING the handle (pure contact, no pulling required).
+
+    Uses the finger contact sensors directly:
+      +1.0 for each finger (link7 / link8) in contact with the handle, PLUS
+      +both_bonus extra when BOTH fingers touch at the same time.
+
+    So the score is:
+      - 0.0  : no finger touching
+      - 1.0  : one finger touching
+      - 2.0 + both_bonus : both fingers touching (e.g. 4.0 with both_bonus=2.0)
+
+    This is a prerequisite-shaping reward: it pays the robot to establish and hold
+    contact, which is required before any pull reward can fire.
+    """
+    contact7, contact8 = _finger_handle_contact(env, force_threshold)
+    c7 = contact7.float()
+    c8 = contact8.float()
+    return c7 + c8 + (c7 * c8 * both_bonus)
+
+
 def drawer_vel_reward(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Reward positive drawer velocity ONLY while a finger is TOUCHING the handle.
 

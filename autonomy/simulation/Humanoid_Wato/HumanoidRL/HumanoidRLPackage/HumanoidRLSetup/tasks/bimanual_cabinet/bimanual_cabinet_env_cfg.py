@@ -319,6 +319,15 @@ class RewardsCfg:
         params={"contact_radius": 0.08},  # wider radius — gradient fires from 8cm
     )
 
+    # ── STAGE 5b: Inner claws TOUCHING the handle (real contact sensor) ────────
+    # Prerequisite-shaping: pays for establishing and holding contact before pulling.
+    # 1 per finger touching, +2 extra when both touch (max 4.0).
+    claw_contact = RewTerm(
+        func=mdp.claw_contact_reward,
+        weight=100.0,
+        params={"force_threshold": 1.0, "both_bonus": 2.0},
+    )
+
     # ── STAGE 6: Pull the drawer (goal, MASSIVE — ALL gated by real handle CONTACT) ──
     # A finger (link7 or link8) must be physically TOUCHING the handle for any of these
     # to fire. The pull reward is a LINE:  total = intercept (flat) + slope × distance.
