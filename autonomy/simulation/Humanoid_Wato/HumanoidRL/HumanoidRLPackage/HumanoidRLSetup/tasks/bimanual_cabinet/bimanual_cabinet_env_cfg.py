@@ -70,9 +70,9 @@ class CabinetSceneCfg(InteractiveSceneCfg):
             "drawers": ImplicitActuatorCfg(
                 joint_names_expr=["drawer_top_joint", "drawer_bottom_joint"],
                 effort_limit_sim=87.0,
-                # Lowered from 10.0 → 3.0 so the weak wrist (0.25 Nm) can actually pull the drawer
-                stiffness=3.0,
-                damping=0.5,
+                # Very low stiffness + damping so even a weak hook grip can slide it open
+                stiffness=1.0,
+                damping=0.1,
             ),
             "doors": ImplicitActuatorCfg(
                 joint_names_expr=["door_left_joint", "door_right_joint"],
@@ -201,8 +201,8 @@ class EventCfg:
             # open by pressing down on TOP of the bar. Lower friction forces it to
             # mechanically HOOK a finger behind the bar to pull. Tune upward if the
             # grip slips too much once hooking is learned.
-            "static_friction_range": (0.5, 0.7),
-            "dynamic_friction_range": (0.4, 0.6),
+            "static_friction_range": (0.3, 0.5),
+            "dynamic_friction_range": (0.2, 0.4),
             "restitution_range": (0.0, 0.0),
             "num_buckets": 16,
         },
