@@ -456,25 +456,57 @@ def contact_pull_gate(env: ManagerBasedRLEnv, force_threshold: float = 1.0) -> t
     return (contact7 | contact8).float()
 
 
-def claw_contact_reward(env: ManagerBasedRLEnv, force_threshold: float = 1.0, both_bonus: float = 2.0) -> torch.Tensor:
-    """Reward the inner claws TOUCHING the handle (pure contact, no pulling required).
+def edge_contact_reward(
+    env: ManagerBasedRLEnv,
+    force_threshold: float = 1.0,
+    min_offset: float = 0.005,
+    on_bar_radius: float = 0.06,
+    pinch_bonus: float = 3.0,
+) -> torch.Tensor:
+    """Reward INNER-EDGE contact at the TOP/BOTTOM of the bar (a vertical pinch grip).
 
-    Uses the finger contact sensors directly:
-      +1.0 for each finger (link7 / link8) in contact with the handle, PLUS
-      +both_bonus extra when BOTH fingers touch at the same time.
+    The robot currently presses the FRONT FACE near the end of the bar because any
+    contact was rewarded. This reward only counts contact that is a graspable
+    top/bottom grip:
 
-    So the score is:
-      - 0.0  : no finger touching
-      - 1.0  : one finger touching
-      - 2.0 + both_bonus : both fingers touching (e.g. 4.0 with both_bonus=2.0)
+      1. The finger is actually TOUCHING the handle (contact sensor)
+      2. The finger is vertically offset from the bar center — above it (top grip) or
+         below it (bottom grip), by at least `min_offset`. Contact at the same height
+         as the bar center (a flat front-face press) scores 0.
+      3. The finger is horizontally near the bar center-line (within on_bar_radius in
+         the X/Y plane) so end-cap contact does not count.
 
-    This is a prerequisite-shaping reward: it pays the robot to establish and hold
-    contact, which is required before any pull reward can fire.
+    A finger on top + a finger on bottom = a true inner-edge pinch → `pinch_bonus`.
+    Because a top finger and a bottom finger press their INNER faces against the bar,
+    this geometry implicitly guarantees inner-edge contact.
     """
     contact7, contact8 = _finger_handle_contact(env, force_threshold)
-    c7 = contact7.float()
-    c8 = contact8.float()
-    return c7 + c8 + (c7 * c8 * both_bonus)
+    result = _claw_distances(env)
+    if result is None:
+        return torch.zeros(env.num_envs, device=env.device)
+    _, _, lfinger_pos, rfinger_pos, handle_pos = result
+
+    # Horizontal (X/Y) distance from the bar center-line — rejects end-cap contact
+    on_bar7 = torch.norm(lfinger_pos[:, :2] - handle_pos[:, :2], dim=-1) < on_bar_radius
+    on_bar8 = torch.norm(rfinger_pos[:, :2] - handle_pos[:, :2], dim=-1) < on_bar_radius
+
+    # Vertical offset from bar center
+    dz7 = lfinger_pos[:, 2] - handle_pos[:, 2]
+    dz8 = rfinger_pos[:, 2] - handle_pos[:, 2]
+
+    # Valid top / bottom edge contact for each finger
+    top7 = (contact7 & on_bar7 & (dz7 > min_offset)).float()
+    bot7 = (contact7 & on_bar7 & (dz7 < -min_offset)).float()
+    top8 = (contact8 & on_bar8 & (dz8 > min_offset)).float()
+    bot8 = (contact8 & on_bar8 & (dz8 < -min_offset)).float()
+
+    # Base reward: any valid top/bottom edge contact (capped at 2.0 for two fingers)
+    edge_any = torch.clamp(top7 + bot7 + top8 + bot8, max=2.0)
+
+    # Pinch bonus: one finger on top AND the other on the bottom = true wrap grip
+    pinch = torch.clamp((top7 * bot8) + (bot7 * top8), max=1.0) * pinch_bonus
+
+    return edge_any + pinch
 
 
 def drawer_vel_reward(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:

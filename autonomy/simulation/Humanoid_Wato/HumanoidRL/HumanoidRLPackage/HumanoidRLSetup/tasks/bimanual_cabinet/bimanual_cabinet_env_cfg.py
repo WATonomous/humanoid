@@ -216,8 +216,11 @@ class EventCfg:
             # open by pressing down on TOP of the bar. Lower friction forces it to
             # mechanically HOOK a finger behind the bar to pull. Tune upward if the
             # grip slips too much once hooking is learned.
-            "static_friction_range": (0.3, 0.5),
-            "dynamic_friction_range": (0.2, 0.4),
+            # Raised back up so a top/bottom pinch grip can actually transfer pulling
+            # force. The reward now requires real inner-edge top/bottom contact, so
+            # high friction no longer enables a lazy front-face / top-drape cheat.
+            "static_friction_range": (1.0, 1.3),
+            "dynamic_friction_range": (0.9, 1.1),
             "restitution_range": (0.0, 0.0),
             "num_buckets": 16,
         },
@@ -319,13 +322,18 @@ class RewardsCfg:
         params={"contact_radius": 0.08},  # wider radius — gradient fires from 8cm
     )
 
-    # ── STAGE 5b: Inner claws TOUCHING the handle (real contact sensor) ────────
-    # Prerequisite-shaping: pays for establishing and holding contact before pulling.
-    # 1 per finger touching, +2 extra when both touch (max 4.0).
-    claw_contact = RewTerm(
-        func=mdp.claw_contact_reward,
+    # ── STAGE 5b: Inner-edge contact at the TOP/BOTTOM of the bar (vertical pinch) ──
+    # Only rewards contact that is a graspable top/bottom grip — NOT a flat front-face
+    # press and NOT the end cap. Big pinch bonus when one finger grips top, one bottom.
+    edge_contact = RewTerm(
+        func=mdp.edge_contact_reward,
         weight=100.0,
-        params={"force_threshold": 1.0, "both_bonus": 2.0},
+        params={
+            "force_threshold": 1.0,
+            "min_offset": 0.005,     # finger must be >5mm above/below bar center
+            "on_bar_radius": 0.06,   # within 6cm of the bar center-line (rejects end cap)
+            "pinch_bonus": 3.0,      # top+bottom simultaneous grip bonus
+        },
     )
 
     # ── STAGE 6: Pull the drawer (goal, MASSIVE — ALL gated by real handle CONTACT) ──
