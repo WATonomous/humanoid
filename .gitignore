@@ -19,3 +19,5 @@ log/
 autonomy/teleop/quest_teleop_server/certs/*
 datasets/
 outputs/
+
+modules/docker-compose.perception_override.yaml
