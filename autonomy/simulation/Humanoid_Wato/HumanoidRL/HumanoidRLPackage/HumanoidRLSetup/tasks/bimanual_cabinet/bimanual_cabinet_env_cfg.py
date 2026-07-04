@@ -305,11 +305,17 @@ class RewardsCfg:
 
     # ── STAGE 5: GOOD GRIP — both INNER edges touching the handle (contact sensor) ──
     # Uses contact FORCE DIRECTION to count ONLY inner-face contact. Outer-edge contact
-    # earns nothing. +1 per inner edge, +4 bonus when BOTH inner edges touch.
+    # earns nothing. +1 per inner edge, +(4 × center_mul) when BOTH touch — center_mul
+    # peaks at ×2 when gripping mid-bar, falls to ×1 at the end cap. This steers the
+    # robot away from hooking the end edge toward gripping the center of the bar.
     inner_edge_grip = RewTerm(
         func=mdp.inner_edge_grip_reward,
         weight=100.0,
-        params={"force_threshold": 1.0, "both_bonus": 4.0},
+        params={
+            "force_threshold": 1.0,
+            "both_bonus": 4.0,
+            "center_sigma": 0.04,   # Gaussian width along bar axis — peaks at center
+        },
     )
 
     # ── STAGE 6: Pull the drawer (goal — ALL gated by a GOOD GRIP: both inner edges) ──
