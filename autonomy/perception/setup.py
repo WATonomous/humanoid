@@ -34,7 +34,9 @@ setup(
     entry_points={
         "console_scripts": [
             "dummy_publisher_node = perception.dummy_publisher_node:main",
-            "pose_estimation_node = perception.pose_estimation_node:main"
+            "pose_estimation_node = perception.pose_estimation_node:main",
+            "dummy_shuttlecock_publisher = perception.dummy_shuttlecock_publisher:main",
+            "shuttlecock_localizer_node = perception.shuttlecock_localizer_node:main"
         ],
     },
 )

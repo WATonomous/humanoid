@@ -19,7 +19,7 @@
 ##   - samples             	:   starts sample ROS2 pubsub nodes
 ##   - teleop               :   starts teleop nodes
 
-ACTIVE_MODULES="teleop"
+ACTIVE_MODULES="teleop perception"
 
 ################################# MODE OF OPERATION #################################
 ## Possible modes of operation when running watod.
