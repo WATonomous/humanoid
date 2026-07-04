@@ -148,9 +148,11 @@ class ActionsCfg:
     gripper_action = mdp.BinaryJointPositionActionCfg(
         asset_name="robot",
         joint_names=["joint7", "joint8"],
-        # Force wide open claw hook (~11.5cm fingertip gap) so fingers easily hook on without crossing
+        # OPEN = wide (~11.5cm gap) so the bar can pass between the fingers on approach.
+        # CLOSE = fingers together (0.0) so the claw can actually CLAMP the bar and pull.
+        # Previously both were identical (locked open) — the claw could never pinch.
         open_command_expr={"joint7": -0.14, "joint8": 0.14},
-        close_command_expr={"joint7": -0.14, "joint8": 0.14},
+        close_command_expr={"joint7": 0.0, "joint8": 0.0},
     )
     # Dummy action to actively hold the left arm at its resting pose
     left_arm_hold = mdp.JointPositionActionCfg(
@@ -216,10 +218,10 @@ class EventCfg:
             # open by pressing down on TOP of the bar. Lower friction forces it to
             # mechanically HOOK a finger behind the bar to pull. Tune upward if the
             # grip slips too much once hooking is learned.
-            # Lower friction so a good pinch grip slides the drawer open without
-            # requiring huge force. The edge_contact reward already blocks cheats.
-            "static_friction_range": (0.5, 0.7),
-            "dynamic_friction_range": (0.4, 0.6),
+            # Higher friction so a clamped pinch grip can transfer pulling force.
+            # The contact-based rewards block cheats, so high friction is safe again.
+            "static_friction_range": (1.5, 2.0),
+            "dynamic_friction_range": (1.2, 1.6),
             "restitution_range": (0.0, 0.0),
             "num_buckets": 16,
         },
@@ -264,12 +266,12 @@ class RewardsCfg:
         weight=5.0,
         params={"contact_radius": 0.06},
     )
-    # Keep the claw OPEN while approaching so the bar can pass BETWEEN the fingers
-    # (reward-driven, replaces hard joint limits). Kept below the pull rewards so
-    # the robot cannot get stuck maximizing posture instead of pulling.
+    # Lightly encourage an OPEN claw ONLY during the far approach so the bar can pass
+    # between the fingers. Weight cut from 100 → 15: it must NOT fight the claw CLOSING
+    # to clamp the bar once in position (that conflict stalled pulling entirely).
     open_claw_approach = RewTerm(
         func=mdp.open_claw_approach_reward,
-        weight=100.0,
+        weight=15.0,
         params={
             "gripper_cfg": SceneEntityCfg("robot", joint_names=["joint7", "joint8"]),
             "open_target": 0.1,
