@@ -2,7 +2,8 @@
 
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import qos_profile_sensor_data # standard for tracking fast objects such as a birdie
+# standard for tracking fast objects such as a birdie
+from rclpy.qos import qos_profile_sensor_data
 import message_filters
 from sensor_msgs.msg import Image, CameraInfo
 from cv_bridge import CvBridge
@@ -11,24 +12,24 @@ import numpy as np
 from geometry_msgs.msg import PointStamped, Point
 from std_msgs.msg import Bool
 
+
 class ShuttlecockLocalizer(Node):
     def __init__(self):
         super().__init__('shuttlecock_localizer_node')
         self.bridge = CvBridge()
-        # holding (fx, fy, cx, cy) until CameraInfo arrives 
+        # holding (fx, fy, cx, cy) until CameraInfo arrives
         self.intrinsics = None
 
         self.create_subscription(
-            CameraInfo, 
+            CameraInfo,
             '/camera/depth/camera_info',
-            self._store_intrinsics, 
+            self._store_intrinsics,
             qos_profile_sensor_data,
         )
 
-
         self.pub = self.create_publisher(
             PointStamped,
-            '/perception/shuttlecock/detections_3d', 
+            '/perception/shuttlecock/detections_3d',
             10
         )
         visible_sub = message_filters.Subscriber(
@@ -43,16 +44,17 @@ class ShuttlecockLocalizer(Node):
             '/tracknetv3/shuttle_point'
         )
         depth_sub = message_filters.Subscriber(
-            self, 
+            self,
             Image,
             '/camera/depth/image_raw',
-            qos_profile = qos_profile_sensor_data
+            qos_profile=qos_profile_sensor_data
         )
 
         self.ts = ApproximateTimeSynchronizer(
             [det_sub, visible_sub, depth_sub],
             queue_size=10,
-            slop=0.015
+            slop=0.015,
+            allow_headerless=True,
         )
 
         self.ts.registerCallback(self._synchronized_callback)
@@ -62,15 +64,24 @@ class ShuttlecockLocalizer(Node):
         k = msg.k
         self.intrinsics = (k[0], k[4], k[2], k[5])  # fx, fy, cx, cy
         self.get_logger().info(
-            f"Got intrinsics: fx={k[0]:.1f} fy={k[4]:.1f} cx={k[2]:.1f} cy={k[5]:.1f}"
-        )
+            f"Got intrinsics: fx={
+                k[0]:.1f} fy={
+                k[4]:.1f} cx={
+                k[2]:.1f} cy={
+                    k[5]:.1f}")
 
-    def _synchronized_callback(self, det_msg: PointStamped, visible_msg: Bool, depth_msg: Image):
+    def _synchronized_callback(
+            self,
+            det_msg: PointStamped,
+            visible_msg: Bool,
+            depth_msg: Image):
         # Checking if intrinsics have been calculated first
         if self.intrinsics is None:
-            self.get_logger().warn("Waiting for camera intrinsics...", throttle_duration_sec = 2.0)
+            self.get_logger().warn(
+                "Waiting for camera intrinsics...",
+                throttle_duration_sec=2.0)
             return
-        
+
         if not visible_msg.data:
             return
 
@@ -80,7 +91,8 @@ class ShuttlecockLocalizer(Node):
 
         # convert ROS2 image message to numpy array
         try:
-            depth_img = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding = "passthrough")
+            depth_img = self.bridge.imgmsg_to_cv2(
+                depth_msg, desired_encoding="passthrough")
         except Exception as e:
             self.get_logger().error(f"Failed to convert depth image: {str(e)}")
             return
@@ -104,20 +116,21 @@ class ShuttlecockLocalizer(Node):
         point_msg = PointStamped()
         point_msg.header.stamp = det_msg.header.stamp
         point_msg.header.frame_id = "camera_link"
-        point_msg.point = Point(x = x_cam, y = y_cam, z = z_cam)
+        point_msg.point = Point(x=x_cam, y=y_cam, z=z_cam)
         self.pub.publish(point_msg)
 
         self.get_logger().info(
-            f"Successfully synced Detection (Time: {det_msg.header.stamp.sec}) "
-            " "
-            f"with Depth Image (Time: {depth_msg.header.stamp.sec})"
-            " "
-            f"Birdie Position: X = {x_cam:.3f}m, Y = {y_cam:.3f}m, Z = {z_cam:.3f}m"
-        )
+            f"Successfully synced Detection (Time: {
+                det_msg.header.stamp.sec}) " " " f"with Depth Image (Time: {
+                depth_msg.header.stamp.sec})" " " f"Birdie Position: X = {
+                x_cam:.3f}m, Y = {
+                    y_cam:.3f}m, Z = {
+                        z_cam:.3f}m")
 
     def _sample_depth(self, depth_img, u: float, v: float):
-        # median-sample around a small patch around (u.v). Returns depth in meters or none if the patch is invalid
-        r = 2 # patch radius
+        # median-sample around a small patch around (u.v). Returns depth in
+        # meters or none if the patch is invalid
+        r = 2  # patch radius
         h, w = depth_img.shape[:2]
         ui, vi = int(round(u)), int(round(v))
 
@@ -132,7 +145,7 @@ class ShuttlecockLocalizer(Node):
         # if requested pixel is outside of the frame
         if patch.size == 0:
             return None
-    
+
         # keep valid numbers only
         valid_mask = (patch > 0) & (~np.isnan(patch))
         valid_values = patch[valid_mask]
@@ -140,12 +153,13 @@ class ShuttlecockLocalizer(Node):
         # reject if less then half of the pixels in the matrix
         if len(valid_values) < 0.5 * patch.size:
             return None
-        
+
         # take the median and convert from mm to m
         median_depth_mm = np.median(valid_values)
 
-        return float(median_depth_mm/1000)
-    
+        return float(median_depth_mm / 1000)
+
+
 def main(args=None):
     rclpy.init(args=args)
     node = ShuttlecockLocalizer()
@@ -156,6 +170,7 @@ def main(args=None):
     finally:
         node.destroy_node()
         rclpy.shutdown()
+
 
 if __name__ == "__main__":
     main()
