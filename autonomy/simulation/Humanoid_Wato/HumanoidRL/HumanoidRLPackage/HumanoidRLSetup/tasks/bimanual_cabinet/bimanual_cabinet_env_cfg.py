@@ -149,10 +149,10 @@ class ActionsCfg:
         asset_name="robot",
         joint_names=["joint7", "joint8"],
         # OPEN = wide (~11.5cm gap) so the bar can pass between the fingers on approach.
-        # CLOSE = fingers together (0.0) so the claw can actually CLAMP the bar and pull.
-        # Previously both were identical (locked open) — the claw could never pinch.
+        # CLOSE = hard against physical limits (±0.082) — the tightest clamp allowed.
+        # Using the limit value directly ensures maximum clamping force without fighting the physics.
         open_command_expr={"joint7": -0.14, "joint8": 0.14},
-        close_command_expr={"joint7": 0.0, "joint8": 0.0},
+        close_command_expr={"joint7": -0.082, "joint8": 0.082},
     )
     # Dummy action to actively hold the left arm at its resting pose
     left_arm_hold = mdp.JointPositionActionCfg(
@@ -238,6 +238,21 @@ class EventCfg:
                 joint_names=["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7", "joint8"]
             ),
             "position_range": (-0.1, 0.1),
+            "velocity_range": (0.0, 0.0),
+        },
+    )
+
+    # REVERSE CURRICULUM: start each episode with the drawer at a RANDOM opening in
+    # [0, 0.20]m. Many envs begin partway open, so the policy directly experiences the
+    # high-reward pulling states it can't otherwise discover, then that knowledge
+    # propagates back toward the fully-closed start. Runs after reset_all so it
+    # overrides the default closed position.
+    reset_drawer_random = EventTerm(
+        func=mdp.reset_joints_by_offset,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
+            "position_range": (0.0, 0.20),
             "velocity_range": (0.0, 0.0),
         },
     )
@@ -335,10 +350,14 @@ class RewardsCfg:
             "force_threshold": 1.0,
         },
     )
-    # Continuous pull velocity: good grip × drawer velocity. Rewards one smooth swing.
+    # Continuous pull velocity — THE BOOTSTRAP SIGNAL. Rewards the ACT of pulling
+    # (drawer moving while gripped) densely, the instant the drawer moves at all —
+    # unlike position reward which is flat near zero. Weight boosted 400× (0.5 → 200)
+    # so applying pulling force is immediately, strongly rewarded even for tiny motion.
+    # At 0.1 m/s with good grip: 200 × 0.1 × 0.69 ≈ 13.8/step — a real gradient.
     continuous_pull_reward = RewTerm(
         func=mdp.continuous_pull_reward,
-        weight=0.5,
+        weight=200.0,
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "force_threshold": 1.0,

@@ -108,10 +108,10 @@ GRIPPER_CLOSED = {"joint7l": -0.082, "joint8l": 0.082}
 
 # Prismatic gripper PD — tuned for hold during arm motion (not from motor datasheet).
 # If fingers bounce when the shoulder moves, raise stiffness; if jittery, raise damping.
-_GRIPPER_STIFFNESS = 400.0
-_GRIPPER_DAMPING = 40.0
-_GRIPPER_EFFORT_LIMIT = 30.0  # N (sim linear-force cap; tune empirically)
-_GRIPPER_VELOCITY_LIMIT = 0.2  # m/s
+_GRIPPER_STIFFNESS = 800.0   # doubled — grip must survive arm retraction forces
+_GRIPPER_DAMPING = 80.0      # doubled — damp oscillations during pull
+_GRIPPER_EFFORT_LIMIT = 200.0  # raised from 30N — must overcome contact force during retraction
+_GRIPPER_VELOCITY_LIMIT = 0.5  # raised from 0.2 m/s — allows faster retraction
 
 
 def apply_joint_limits(robot) -> None:
