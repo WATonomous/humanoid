@@ -320,23 +320,9 @@ class RewardsCfg:
     # ── STAGE 6: Pull the drawer (goal — ALL gated by a GOOD GRIP: both inner edges) ──
     # No pull reward fires unless BOTH inner edges are in contact (good_grip_gate).
     #
-    # Flat bump the instant a good grip pulls the drawer past 1cm.
-    first_pull_bonus = RewTerm(
-        func=mdp.first_pull_bonus,
-        weight=500.0,  # Boosted — must dwarf inner_edge_grip to incentivize actually pulling
-        params={
-            "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
-            "threshold": 0.01,
-            "force_threshold": 1.0,
-        },
-    )
-    # MAXIMUM points for pulling with a good grip — STRONGLY superlinear.
-    # f = drawer_pos / max_open. Formula: good_grip * (f + 10*f^3)
-    # This makes:
-    #   - 1cm open:  0.026 + 10*0.000018 = ~0.026  (small)
-    #   - 10cm open: 0.26  + 10*0.0175   = ~0.435  (16× the 1cm value)
-    #   - full open: 1.0   + 10*1.0      = 11.0    (420× the 1cm value)
-    # Full open earns >1000× the grip reward over the episode.
+    # MAXIMUM points for pulling with a good grip — steep linear + cubic + quartic curve.
+    # Formula: good_grip * (100*f + 500*f^3 + 1000*f^4) * vel_multiplier
+    # Provides steep initial linear slope to get moving, then massive x^3 and x^4 acceleration so incentive is VERY HIGH.
     pull_distance_reward = RewTerm(
         func=mdp.pull_distance_reward,
         weight=5000.0,
