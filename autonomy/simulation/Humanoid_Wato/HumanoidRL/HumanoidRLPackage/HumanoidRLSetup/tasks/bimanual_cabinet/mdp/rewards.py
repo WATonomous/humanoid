@@ -459,7 +459,7 @@ def pull_distance_reward(
     grip = good_grip_gate(env, force_threshold)
     drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
     f = torch.clamp(drawer_pos / max_open, min=0.0, max=1.0)
-    return grip * ((10000 * f) + (1000 * f * f) + (10.0 * f * f * f) + (20 * f * f * f * f * f * f))
+    return grip * ((1000 * f) + (100 * f * f * f))
 
 
 def continuous_pull_reward(
