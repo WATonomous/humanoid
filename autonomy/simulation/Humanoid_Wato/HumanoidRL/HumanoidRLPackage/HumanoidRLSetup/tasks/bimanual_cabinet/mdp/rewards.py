@@ -132,6 +132,8 @@ def _claw_distances(env: ManagerBasedRLEnv):
 _last_claw_print_step: int = -1
 _min_d7_this_iter: float = float("inf")
 _min_d8_this_iter: float = float("inf")
+_last_f_print_step: int = -1
+_max_f_this_iter: float = 0.0
 
 
 def single_claw_proximity(env: ManagerBasedRLEnv, contact_radius: float = 0.06) -> torch.Tensor:
@@ -462,8 +464,21 @@ def pull_distance_reward(
     pulling_vel = torch.clamp(drawer_vel, min=0.0)
     vel_multiplier = 1.0 + (10.0 * pulling_vel)
 
+    global _last_f_print_step, _max_f_this_iter
+
     f = torch.clamp(drawer_pos / max_open, min=0.0, max=1.0)
-    print(f"f: {f[0]}")
+    _max_f_this_iter = max(_max_f_this_iter, f.max().item())
+
+    log_interval = 96
+    if env.common_step_counter > 0 and env.common_step_counter - _last_f_print_step >= log_interval:
+        print(
+            f"[Pull best] iter_end={env.common_step_counter} | "
+            f"max f: {_max_f_this_iter:.4f}  (open: {_max_f_this_iter * max_open * 100:.1f}cm)",
+            flush=True,
+        )
+        _last_f_print_step = env.common_step_counter
+        _max_f_this_iter = 0.0
+
     return grip * ((1000 * f) + ((100*f) * (100*f) * (100*f))) * vel_multiplier
 
 
