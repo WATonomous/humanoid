@@ -23,13 +23,13 @@ class BimanualArmCabinetPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,
-        entropy_coef=0.0,  # Set to 0.0 to force the AI to rely on its deterministic brain instead of random noise!
+        entropy_coef=0.005,  # Small entropy bonus — keeps exploration alive for pulling discovery
         num_learning_epochs=5,
         num_mini_batches=4,
-        learning_rate=5.0e-4,
+        learning_rate=1.0e-4,   # Reduced from 5e-4 — prevents large policy jumps under huge returns
         schedule="adaptive",
         gamma=0.99,
         lam=0.95,
-        desired_kl=0.02,
-        max_grad_norm=1.0,
+        desired_kl=0.01,        # Tighter KL — more conservative updates under large rewards
+        max_grad_norm=0.5,      # Tighter gradient clip — critical for stability with large returns
     )
