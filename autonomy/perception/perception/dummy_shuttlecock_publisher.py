@@ -24,7 +24,8 @@ class DummyShuttlecockPublisher(Node):
         self.det_pub = self.create_publisher(
             PointStamped, "/tracknetv3/shuttle_point", 10
         )
-        self.depth_pub = self.create_publisher(Image, "/camera/depth/image_raw", 10)
+        self.depth_pub = self.create_publisher(
+            Image, "/camera/depth/image_raw", 10)
 
         self.timer = self.create_timer(
             0.5, self._publish_all
@@ -40,10 +41,10 @@ class DummyShuttlecockPublisher(Node):
         visible_msg = Bool()
         visible_msg.data = True
         self.visible_pub.publish(visible_msg)
-        
+
         # Build and Publish CameraInfo
         info_msg = CameraInfo()
-        info_msg.header.stamp = stamp 
+        info_msg.header.stamp = stamp
         info_msg.header.frame_id = "camera_link"
         info_msg.width = 640
         info_msg.height = 480
@@ -62,13 +63,14 @@ class DummyShuttlecockPublisher(Node):
         det_msg.point.y = self.v
         det_msg.point.z = 0.0
         self.det_pub.publish(det_msg)
-        
+
         # Build and publish Image (depth) using stamp + self.depth_mm
-        depth_array = np.full((480,640), self.depth_mm, dtype=np.uint16)
+        depth_array = np.full((480, 640), self.depth_mm, dtype=np.uint16)
         depth_msg = self.bridge.cv2_to_imgmsg(depth_array, encoding="16UC1")
         depth_msg.header.stamp = stamp
         depth_msg.header.frame_id = "camera_link"
         self.depth_pub.publish(depth_msg)
+
 
 def main(args=None):
     rclpy.init(args=args)
