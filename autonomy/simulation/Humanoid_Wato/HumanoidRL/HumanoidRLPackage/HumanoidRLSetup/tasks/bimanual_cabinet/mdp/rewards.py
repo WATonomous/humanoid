@@ -412,17 +412,15 @@ def inner_edge_grip_reward(
         center_score = torch.exp(-(off_center ** 2) / (2.0 * center_sigma ** 2))
         center_mul = 1.0 + center_score  # [1, 2]
 
-    # Multiply both_bonus by drawer velocity so the grip reward only accumulates
-    # while the drawer is ACTUALLY MOVING — sitting still earns nothing from this.
-    drawer_pos_change = env.scene["cabinet"].data.joint_pos[:, 0].clamp(min=0.0)
-    motion_gate = torch.clamp(drawer_pos_change / 0.01, max=1.0)  # full after 1cm
+    # Grip reward is CAPPED — it is a constant recognition of a good grip, not a
+    # per-step income stream. Once established, the robot earns no more from holding.
+    # Pull rewards are 100-1000× larger, so the only way to earn significantly more
+    # is to actually pull the drawer open.
+    single = torch.clamp(c7 + c8, max=2.0)       # max 2.0: both fingers near
+    both_reward = both_bonus * both * center_mul   # max = 4 × 2 = 8.0 at center
 
-    # Single-finger: tiny guiding gradient, no motion required
-    single = c7 + c8
-    # Both-finger bonus: scaled by center quality AND only if drawer is moving
-    both_reward = both_bonus * both * center_mul * (1.0 + motion_gate)
-
-    return single + both_reward
+    # Hard cap per step so this reward cannot exceed 10.0 regardless of configuration
+    return torch.clamp(single + both_reward, max=10.0)
 
 
 def first_pull_bonus(
@@ -448,16 +446,20 @@ def pull_distance_reward(
     max_open: float = 0.39,
     force_threshold: float = 1.0,
 ) -> torch.Tensor:
-    """MAXIMUM points for pulling with a GOOD GRIP — superlinear in open fraction.
+    """MAXIMUM points for pulling with a GOOD GRIP — strongly superlinear in open fraction.
 
-    Gated by good_grip_gate (BOTH inner edges touching). Returns grip * (f + 3 f^2),
-    f = drawer_pos / max_open. Fully open with a good grip is worth ~120× a 1cm nudge.
-    Only a genuine two-inner-edge grip earns any of this.
+    Uses f + 10*f^3 (f = drawer_pos / max_open):
+      - 1cm open:  ~0.026  (baseline — 100× less than grip-farming maximum)
+      - 10cm open: ~0.435  (16× the 1cm value)
+      - full open: 11.0    (420× the 1cm value, >1000× the grip max over episode)
+
+    Gated by good_grip_gate (BOTH inner edges touching). Only a genuine two-inner-edge
+    grip earns any of this.
     """
     grip = good_grip_gate(env, force_threshold)
     drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
     f = torch.clamp(drawer_pos / max_open, min=0.0, max=1.0)
-    return grip * (f + 3.0 * f * f)
+    return grip * (f + (1000 * f * f) + (10.0 * f * f * f) + (20 * f * f * f * f * f * f))
 
 
 def continuous_pull_reward(

@@ -332,20 +332,26 @@ class RewardsCfg:
             "force_threshold": 1.0,
         },
     )
-    # MAXIMUM points for pulling with a good grip — superlinear in open fraction.
+    # MAXIMUM points for pulling with a good grip — STRONGLY superlinear.
+    # f = drawer_pos / max_open. Formula: good_grip * (f + 10*f^3)
+    # This makes:
+    #   - 1cm open:  0.026 + 10*0.000018 = ~0.026  (small)
+    #   - 10cm open: 0.26  + 10*0.0175   = ~0.435  (16× the 1cm value)
+    #   - full open: 1.0   + 10*1.0      = 11.0    (420× the 1cm value)
+    # Full open earns >1000× the grip reward over the episode.
     pull_distance_reward = RewTerm(
         func=mdp.pull_distance_reward,
-        weight=3000.0,  # Increased — must be overwhelmingly larger than grip-holding
+        weight=5000.0,
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "max_open": 0.39,
             "force_threshold": 1.0,
         },
     )
-    # Continuous pull in ONE swing: good grip × drawer velocity.
+    # Continuous pull velocity: good grip × drawer velocity. Rewards one smooth swing.
     continuous_pull_reward = RewTerm(
         func=mdp.continuous_pull_reward,
-        weight=800.0,  # Boosted — velocity reward must also exceed grip-holding
+        weight=1500.0,
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "force_threshold": 1.0,
