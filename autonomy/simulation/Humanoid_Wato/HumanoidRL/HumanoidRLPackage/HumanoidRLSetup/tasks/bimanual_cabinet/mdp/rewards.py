@@ -416,7 +416,13 @@ def inner_edge_grip_reward(
         handle_y = handle_mat[..., 1]
         off_center = ((tcp - handle_pos) * handle_y).sum(dim=-1)
         center_score = torch.exp(-(off_center ** 2) / (2.0 * center_sigma ** 2))
-        center_mul = 1.0 + center_score  # [1, 2]
+    # Center multiplier — LOGARITHMIC (diminishing returns after a certain point).
+    # At the center (off_center=0): center_score=1.0 → log(1 + 2×1.0) = log(3) ≈ 1.1
+    # At one sigma off: center_score=0.61 → log(1 + 2×0.61) = log(2.22) ≈ 0.8
+    # At two sigmas off: center_score=0.14 → log(1 + 2×0.14) = log(1.28) ≈ 0.25
+    # After the inflection, each extra improvement earns less — no need to obsess over
+    # perfect center alignment.
+    center_mul = torch.log(1.0 + 2.0 * center_score) / torch.log(torch.tensor(3.0, device=env.device))
 
     # Grip reward is CAPPED — it is a constant recognition of a good grip, not a
     # per-step income stream. Once established, the robot earns no more from holding.
@@ -452,28 +458,37 @@ def pull_distance_reward(
     max_open: float = 0.39,
     force_threshold: float = 1.0,
 ) -> torch.Tensor:
-    """MAXIMUM points for pulling with a GOOD GRIP — strongly superlinear in open fraction.
+    """Dense + disproportionately large pull reward using exp(5f) - 1.
 
-    Uses f + 10*f^3 (f = drawer_pos / max_open):
-      - 1cm open:  ~0.026  (baseline — 100× less than grip-farming maximum)
-      - 10cm open: ~0.435  (16× the 1cm value)
-      - full open: 11.0    (420× the 1cm value, >1000× the grip max over episode)
+    Shape: exp(5f) - 1 where f = drawer_pos / max_open
+      - 0.0001cm (f=2.6e-6): 0.000013 — real gradient immediately, guides from first micron
+      - 0.01cm   (f=0.00026): 0.0013  — continuous slope building early
+      - 1cm      (f=0.026):   0.139   — noticeable reward for early pull
+      - 10cm     (f=0.256):   2.54    — 18× the 1cm value
+      - full open (f=1.0):    147.4   — ~1060× the 1cm value, ~100× any current reward
 
-    Gated by good_grip_gate (BOTH inner edges touching). Only a genuine two-inner-edge
-    grip earns any of this.
+    The grip multiplier is log(1 + grip_score) — logarithmic diminishing returns so
+    the robot only needs a good-enough grip, not a perfect one.
     """
-    grip = good_grip_gate(env, force_threshold)
+    grip_score = good_grip_gate(env, force_threshold)  # [0, 1]
+    grip_mul = torch.log(1.0 + grip_score)  # [0, ~0.69] — logarithmic, diminishing returns
+
     drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
-    drawer_vel = env.scene[asset_cfg.name].data.joint_vel[:, asset_cfg.joint_ids[0]]
-    pulling_vel = torch.clamp(drawer_vel, min=0.0)
-    vel_multiplier = 1.0 + (10.0 * pulling_vel)
 
     global _last_f_print_step, _max_f_this_iter, _mag7_at_max_f, _mag8_at_max_f, _sum_f_this_iter, _count_f_this_iter
 
     f = torch.clamp(drawer_pos / max_open, min=0.0, max=1.0)
+    # Scale factor A ensures 0.01cm → raw output of 10 (before grip multiplier).
+    # A = 10 / (exp(5 × f_at_0.01cm) - 1) where f_at_0.01cm = 0.01/39 = 0.000256
+    # A = 10 / (exp(0.00128) - 1) = 10 / 0.001281 ≈ 7806
+    # Full open (f=1): 7806 × (exp(5) - 1) ≈ 1,151,000 — ~115,100× the 0.01cm value.
+    # This is then multiplied by the grip multiplier (max log(2) ≈ 0.69) and weight.
+    # Set weight in config to 1e-3 so full-open per-step reward ≈ 795.
+    A = 7806.0
+    distance_score = A * (torch.exp(5.0 * f) - 1.0)
 
-    # Only track f where both inner edges are gripping — ignore accidental bumps
-    gripped_f = f * (grip > 0.5).float()  # zero out ungripped envs
+    # Track for debug print
+    gripped_f = f * (grip_score > 0.5).float()
     best_gripped_idx = gripped_f.argmax().item()
     best_gripped_f = gripped_f[best_gripped_idx].item()
     if best_gripped_f > _max_f_this_iter:
@@ -502,12 +517,7 @@ def pull_distance_reward(
         _sum_f_this_iter = 0.0
         _count_f_this_iter = 0
 
-    # Pure linear reward (weight=50000, coeff=2):
-    #   10 total reward pts per f=0.0001 increment — stable gradient everywhere.
-    #   Max at f=0.5 (19.7cm): 50,000 pts/step. Max at f=1.0 (39cm): 100,000 pts/step.
-    #   Linear returns are easy for the critic to predict → PPO advantages are clean → noise decays.
-    distance_score = 2.0 * f
-    return grip * distance_score * vel_multiplier
+    return grip_mul * distance_score
 
 
 def continuous_pull_reward(

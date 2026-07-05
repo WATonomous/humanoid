@@ -320,12 +320,15 @@ class RewardsCfg:
     # ── STAGE 6: Pull the drawer (goal — ALL gated by a GOOD GRIP: both inner edges) ──
     # No pull reward fires unless BOTH inner edges are in contact (good_grip_gate).
     #
-    # MAXIMUM points for pulling with a good grip — steep linear + cubic + quartic curve.
-    # Formula: good_grip * (100*f + 500*f^3 + 1000*f^4) * vel_multiplier
-    # Provides steep initial linear slope to get moving, then massive x^3 and x^4 acceleration so incentive is VERY HIGH.
+    # Dense + massively escalating pull reward.
+    # Raw output at 0.01cm = 10 (before grip multiplier).
+    # Raw output at full open = ~1,151,000 — ~115,000× the 0.01cm value.
+    # weight=0.001 brings per-step reward to sensible range:
+    #   0.01cm: 10 × 0.69 × 0.001 = 0.0069 per step
+    #   full open: 1,151,000 × 0.69 × 0.001 = 794 per step → ~380k per episode
     pull_distance_reward = RewTerm(
         func=mdp.pull_distance_reward,
-        weight=50000.0,
+        weight=0.001,
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "max_open": 0.39,
@@ -335,7 +338,7 @@ class RewardsCfg:
     # Continuous pull velocity: good grip × drawer velocity. Rewards one smooth swing.
     continuous_pull_reward = RewTerm(
         func=mdp.continuous_pull_reward,
-        weight=1500.0,
+        weight=0.5,
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "force_threshold": 1.0,
@@ -344,7 +347,7 @@ class RewardsCfg:
     # Posture bonus: upright wrist while holding a good grip and pulling.
     upright_pull_bonus = RewTerm(
         func=mdp.upright_pull_bonus,
-        weight=150.0,
+        weight=0.2,
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "threshold": 0.01,
