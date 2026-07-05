@@ -325,7 +325,7 @@ class RewardsCfg:
     # Provides steep initial linear slope to get moving, then massive x^3 and x^4 acceleration so incentive is VERY HIGH.
     pull_distance_reward = RewTerm(
         func=mdp.pull_distance_reward,
-        weight=5000.0,
+        weight=50000.0,
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "max_open": 0.39,

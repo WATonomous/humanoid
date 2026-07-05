@@ -487,20 +487,20 @@ def pull_distance_reward(
         _sum_f_this_iter = 0.0
         _count_f_this_iter = 0
 
-    # Three-term reward with exact crossover points (weight=5000 assumed):
-    #   LINEAR  (coeff=2):     1 total reward point per f=0.0001 increment
-    #   QUAD    (coeff=2000):  crosses linear  at f=0.001  (0.039 cm) → 2*f = 2000*f²  ✓
-    #   CUBIC   (coeff=20000): crosses quadratic at f=0.1  (3.9 cm)  → 2000*f² = 20000*f³  ✓
+    # Three-term reward with exact crossover points (weight=50000):
+    #   LINEAR  (coeff=20):      100 total reward pts per f=0.0001 increment
+    #   QUAD    (coeff=20000):   crosses linear  at f=0.001  (0.039 cm)  →  20*f = 20000*f²  ✓
+    #   CUBIC   (coeff=200000):  crosses quadratic at f=0.1  (3.9 cm)   →  20000*f² = 200000*f³  ✓
     #
-    #   Total reward per step at key values:
-    #     f=0.0001 (0.004 cm):  ~1 pt        (pure linear, negligible higher terms)
-    #     f=0.001  (0.04 cm):   ~20 pts      (linear + quad equal, crossover)
-    #     f=0.01   (0.39 cm):   ~210 pts     (quad dominant)
-    #     f=0.1    (3.9 cm):    ~110,000 pts (cubic takes over from quad)
-    #     f=1.0    (39 cm):     ~110,000,000 pts  (cubic at peak — massive incentive)
+    #   Total reward per step at key values (weight=50000, grip=1, vel_mult=1):
+    #     f=0.0001 (0.004 cm):  ~100 pts          (pure linear)
+    #     f=0.001  (0.04 cm):   ~2,000 pts        (linear = quad crossover)
+    #     f=0.01   (0.39 cm):   ~11,000 pts       (quad dominant)
+    #     f=0.1    (3.9 cm):    ~1,100,000 pts    (cubic takes over from quad)
+    #     f=1.0    (39 cm):     ~1,100,000,000 pts (cubic at peak — massive incentive)
     f2 = f * f
     f3 = f2 * f
-    distance_score = (2.0 * f) + (2000.0 * f2) + (20000.0 * f3)
+    distance_score = (20.0 * f) + (20000.0 * f2) + (200000.0 * f3)
     return grip * distance_score * vel_multiplier
 
 
