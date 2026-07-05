@@ -134,6 +134,9 @@ _min_d7_this_iter: float = float("inf")
 _min_d8_this_iter: float = float("inf")
 _last_f_print_step: int = -1
 _max_f_this_iter: float = 0.0
+_grip_at_max_f: float = 0.0
+_mag7_at_max_f: float = 0.0
+_mag8_at_max_f: float = 0.0
 _sum_f_this_iter: float = 0.0
 _count_f_this_iter: int = 0
 
@@ -466,10 +469,21 @@ def pull_distance_reward(
     pulling_vel = torch.clamp(drawer_vel, min=0.0)
     vel_multiplier = 1.0 + (10.0 * pulling_vel)
 
-    global _last_f_print_step, _max_f_this_iter, _sum_f_this_iter, _count_f_this_iter
+    global _last_f_print_step, _max_f_this_iter, _grip_at_max_f, _mag7_at_max_f, _mag8_at_max_f
+    global _sum_f_this_iter, _count_f_this_iter
 
     f = torch.clamp(drawer_pos / max_open, min=0.0, max=1.0)
-    _max_f_this_iter = max(_max_f_this_iter, f.max().item())
+
+    # Track grip quality at the environment with max drawer opening
+    best_idx = f.argmax().item()
+    best_f = f[best_idx].item()
+    if best_f > _max_f_this_iter:
+        _max_f_this_iter = best_f
+        _grip_at_max_f = grip[best_idx].item()
+        f7, f8 = _finger_contact_force(env)
+        _mag7_at_max_f = torch.norm(f7[best_idx]).item()
+        _mag8_at_max_f = torch.norm(f8[best_idx]).item()
+
     _sum_f_this_iter += f.mean().item()
     _count_f_this_iter += 1
 
@@ -478,29 +492,24 @@ def pull_distance_reward(
         avg_f = _sum_f_this_iter / max(1, _count_f_this_iter)
         print(
             f"[Pull best] iter_end={env.common_step_counter} | "
-            f"max f: {_max_f_this_iter:.4f} ({_max_f_this_iter * max_open * 100:.1f}cm) | "
+            f"max f: {_max_f_this_iter:.4f} ({_max_f_this_iter * max_open * 100:.1f}cm) "
+            f"[grip={_grip_at_max_f:.0f} F7={_mag7_at_max_f:.1f}N F8={_mag8_at_max_f:.1f}N] | "
             f"avg f: {avg_f:.4f} ({avg_f * max_open * 100:.2f}cm)",
             flush=True,
         )
         _last_f_print_step = env.common_step_counter
         _max_f_this_iter = 0.0
+        _grip_at_max_f = 0.0
+        _mag7_at_max_f = 0.0
+        _mag8_at_max_f = 0.0
         _sum_f_this_iter = 0.0
         _count_f_this_iter = 0
 
-    # Three-term reward with exact crossover points (weight=50000):
-    #   LINEAR  (coeff=20):      100 total reward pts per f=0.0001 increment
-    #   QUAD    (coeff=20000):   crosses linear  at f=0.001  (0.039 cm)  →  20*f = 20000*f²  ✓
-    #   CUBIC   (coeff=200000):  crosses quadratic at f=0.1  (3.9 cm)   →  20000*f² = 200000*f³  ✓
-    #
-    #   Total reward per step at key values (weight=50000, grip=1, vel_mult=1):
-    #     f=0.0001 (0.004 cm):  ~100 pts          (pure linear)
-    #     f=0.001  (0.04 cm):   ~2,000 pts        (linear = quad crossover)
-    #     f=0.01   (0.39 cm):   ~11,000 pts       (quad dominant)
-    #     f=0.1    (3.9 cm):    ~1,100,000 pts    (cubic takes over from quad)
-    #     f=1.0    (39 cm):     ~1,100,000,000 pts (cubic at peak — massive incentive)
-    f2 = f * f
-    f3 = f2 * f
-    distance_score = (20.0 * f) + (20000.0 * f2) + (200000.0 * f3)
+    # Pure linear reward (weight=50000, coeff=2):
+    #   10 total reward pts per f=0.0001 increment — stable gradient everywhere.
+    #   Max at f=0.5 (19.7cm): 50,000 pts/step. Max at f=1.0 (39cm): 100,000 pts/step.
+    #   Linear returns are easy for the critic to predict → PPO advantages are clean → noise decays.
+    distance_score = 2.0 * f
     return grip * distance_score * vel_multiplier
 
 
