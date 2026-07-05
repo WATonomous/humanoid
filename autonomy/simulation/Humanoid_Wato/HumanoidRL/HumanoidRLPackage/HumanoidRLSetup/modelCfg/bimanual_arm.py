@@ -259,12 +259,12 @@ BIMANUAL_ARM_CFG = ArticulationCfg(
             effort_limit_sim=9.0,
             velocity_limit_sim=3.0,
         ),
-        # GL40 KV70 — wrist joint 6
+        # GL40 KV70 — wrist joint 6 (increased effort limit so wrist doesn't yield during pulling)
         "left_wrist": ImplicitActuatorCfg(
             joint_names_expr=["joint6l"],
             stiffness=170.5,
             damping=9.0,
-            effort_limit_sim=0.25,
+            effort_limit_sim=10.0,
             velocity_limit_sim=3.0,
         ),
         # GL40 KV70 rotary → linkage → two prismatic fingers (see module docstring)
