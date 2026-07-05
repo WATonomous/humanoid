@@ -5,11 +5,11 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data # standard for tracking fast objects such as a birdie
 import message_filters
 from sensor_msgs.msg import Image, CameraInfo
-from vision_msgs.msg import Detection2D
 from cv_bridge import CvBridge
 from message_filters import ApproximateTimeSynchronizer
 import numpy as np
 from geometry_msgs.msg import PointStamped, Point
+from std_msgs.msg import Bool
 
 class ShuttlecockLocalizer(Node):
     def __init__(self):
@@ -25,16 +25,22 @@ class ShuttlecockLocalizer(Node):
             qos_profile_sensor_data,
         )
 
+
         self.pub = self.create_publisher(
             PointStamped,
             '/perception/shuttlecock/detections_3d', 
             10
         )
+        visible_sub = message_filters.Subscriber(
+            self,
+            Bool,
+            "/tracknetv3/shuttle_visible"
+        )
 
         det_sub = message_filters.Subscriber(
             self,
-            Detection2D,
-            '/perception/shuttlecock/detections_2d'
+            PointStamped,
+            '/tracknetv3/shuttle_point'
         )
         depth_sub = message_filters.Subscriber(
             self, 
@@ -44,9 +50,9 @@ class ShuttlecockLocalizer(Node):
         )
 
         self.ts = ApproximateTimeSynchronizer(
-            [det_sub, depth_sub], 
-            queue_size = 10,
-            slop = 0.015
+            [det_sub, visible_sub, depth_sub],
+            queue_size=10,
+            slop=0.015
         )
 
         self.ts.registerCallback(self._synchronized_callback)
@@ -59,15 +65,18 @@ class ShuttlecockLocalizer(Node):
             f"Got intrinsics: fx={k[0]:.1f} fy={k[4]:.1f} cx={k[2]:.1f} cy={k[5]:.1f}"
         )
 
-    def _synchronized_callback(self, det_msg: Detection2D, depth_msg: Image):
+    def _synchronized_callback(self, det_msg: PointStamped, visible_msg: Bool, depth_msg: Image):
         # Checking if intrinsics have been calculated first
         if self.intrinsics is None:
             self.get_logger().warn("Waiting for camera intrinsics...", throttle_duration_sec = 2.0)
             return
+        
+        if not visible_msg.data:
+            return
 
         # extract 2d coordinates
-        u = det_msg.bbox.center.position.x
-        v = det_msg.bbox.center.position.y
+        u = det_msg.point.x
+        v = det_msg.point.y
 
         # convert ROS2 image message to numpy array
         try:
