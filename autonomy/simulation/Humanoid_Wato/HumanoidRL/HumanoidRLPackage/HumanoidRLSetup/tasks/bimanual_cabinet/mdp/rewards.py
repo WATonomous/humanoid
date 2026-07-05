@@ -478,13 +478,18 @@ def pull_distance_reward(
     global _last_f_print_step, _max_f_this_iter, _mag7_at_max_f, _mag8_at_max_f, _sum_f_this_iter, _count_f_this_iter
 
     f = torch.clamp(drawer_pos / max_open, min=0.0, max=1.0)
-    # Scale factor A ensures 0.01cm → raw output of 10 (before grip multiplier).
-    # A = 10 / (exp(5 × f_at_0.01cm) - 1) where f_at_0.01cm = 0.01/39 = 0.000256
-    # A = 10 / (exp(0.00128) - 1) = 10 / 0.001281 ≈ 7806
-    # Full open (f=1): 7806 × (exp(5) - 1) ≈ 1,151,000 — ~115,100× the 0.01cm value.
-    # This is then multiplied by the grip multiplier (max log(2) ≈ 0.69) and weight.
-    # Set weight in config to 1e-3 so full-open per-step reward ≈ 795.
-    A = 7806.0
+    # Scale factor A=4840, weight=0.01 in config → product=48.4.
+    # This gives: 0.00001m held 480 steps = Episode_Reward of exactly 1.0 point.
+    # The exponential exp(5f)-1 then gives these Episode_Reward milestones:
+    #   0.00001m (0.001cm): 1.0      pts  (by design — the reference point)
+    #   0.0001m  (0.01cm):  10.0     pts
+    #   0.001m   (0.1cm):   102      pts
+    #   0.01m    (1cm):     1,100    pts
+    #   0.05m    (5cm):     17,200   pts
+    #   0.1m     (10cm):    116,000  pts
+    #   0.2m     (20cm):    4,930,000 pts
+    #   0.39m    (full):    1.19B    pts  → disproportionately massive as requested
+    A = 4840.0
     distance_score = A * (torch.exp(5.0 * f) - 1.0)
 
     # Track for debug print

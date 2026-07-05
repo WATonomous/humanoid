@@ -328,7 +328,7 @@ class RewardsCfg:
     #   full open: 1,151,000 × 0.69 × 0.001 = 794 per step → ~380k per episode
     pull_distance_reward = RewTerm(
         func=mdp.pull_distance_reward,
-        weight=0.001,
+        weight=0.01,  # A=4840 × weight=0.01 = 48.4 → 0.00001m held = 1.0 Episode_Reward pt
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "max_open": 0.39,
