@@ -304,17 +304,16 @@ class RewardsCfg:
     )
 
     # ── STAGE 5: GOOD GRIP — both INNER edges touching the handle (contact sensor) ──
-    # Uses contact FORCE DIRECTION to count ONLY inner-face contact. Outer-edge contact
-    # earns nothing. +1 per inner edge, +(4 × center_mul) when BOTH touch — center_mul
-    # peaks at ×2 when gripping mid-bar, falls to ×1 at the end cap. This steers the
-    # robot away from hooking the end edge toward gripping the center of the bar.
+    # NOTE: Small weight — this is a GUIDING signal only, not a reward to be farmed.
+    # The real payoff is in Stage 6 where grip quality multiplies the pull reward.
+    # If this were large, the robot would learn to just hold the grip and never pull.
     inner_edge_grip = RewTerm(
         func=mdp.inner_edge_grip_reward,
-        weight=100.0,
+        weight=10.0,  # Reduced 10× from 100 — guidance only, not farmable
         params={
             "force_threshold": 1.0,
             "both_bonus": 4.0,
-            "center_sigma": 0.04,   # Gaussian width along bar axis — peaks at center
+            "center_sigma": 0.04,
         },
     )
 
@@ -324,7 +323,7 @@ class RewardsCfg:
     # Flat bump the instant a good grip pulls the drawer past 1cm.
     first_pull_bonus = RewTerm(
         func=mdp.first_pull_bonus,
-        weight=200.0,
+        weight=500.0,  # Boosted — must dwarf inner_edge_grip to incentivize actually pulling
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "threshold": 0.01,
@@ -334,18 +333,17 @@ class RewardsCfg:
     # MAXIMUM points for pulling with a good grip — superlinear in open fraction.
     pull_distance_reward = RewTerm(
         func=mdp.pull_distance_reward,
-        weight=2500.0,
+        weight=3000.0,  # Increased — must be overwhelmingly larger than grip-holding
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "max_open": 0.39,
             "force_threshold": 1.0,
         },
     )
-    # Continuous pull in ONE swing: good grip × drawer velocity. Rewards a single smooth
-    # pull far more than many small tugs.
+    # Continuous pull in ONE swing: good grip × drawer velocity.
     continuous_pull_reward = RewTerm(
         func=mdp.continuous_pull_reward,
-        weight=600.0,
+        weight=800.0,  # Boosted — velocity reward must also exceed grip-holding
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "force_threshold": 1.0,
