@@ -70,9 +70,11 @@ class CabinetSceneCfg(InteractiveSceneCfg):
             "drawers": ImplicitActuatorCfg(
                 joint_names_expr=["drawer_top_joint", "drawer_bottom_joint"],
                 effort_limit_sim=87.0,
-                # Very low stiffness + damping so even a weak hook grip can slide it open
-                stiffness=1.0,
-                damping=0.1,
+                # Near-zero stiffness and damping — the weak wrist (0.25 Nm) can
+                # barely overcome any spring resistance. With stiffness=0.1 and
+                # damping=0.05 the drawer slides open from almost any contact force.
+                stiffness=0.05,
+                damping=0.05,
             ),
             "doors": ImplicitActuatorCfg(
                 joint_names_expr=["door_left_joint", "door_right_joint"],
