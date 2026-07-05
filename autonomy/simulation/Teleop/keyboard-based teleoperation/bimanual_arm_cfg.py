@@ -43,7 +43,7 @@ def _deg(degrees: float) -> float:
 
 
 # --- Joint limits from Physics Inspector ------------------------------------
-_REVOLUTE_LIMIT = (-math.pi, math.pi)
+_REVOLUTE_LIMIT = (-2 * math.pi, 2 * math.pi)
 _JOINT7_LIMIT = (-0.05, 0.0)
 _JOINT8_LIMIT = (0.0, 0.05)
 
@@ -292,26 +292,26 @@ BIMANUAL_ARM_CFG = ArticulationCfg(
         # AK10-9 V3.0 — shoulder joints 1-2
         "left_shoulder": ImplicitActuatorCfg(
             joint_names_expr=["joint1L", "joint2l"],
-            stiffness=757.6,
-            damping=60.3,
+            stiffness=1515.2,
+            damping=120.6,
             effort_limit_sim=18.0,
-            velocity_limit_sim=3.0,
+            velocity_limit_sim=6.0,
         ),
         # AK80-9 V3.0 — elbow joints 3-5
         "left_elbow": ImplicitActuatorCfg(
             joint_names_expr=["joint3l", "joint4l", "joint5l"],
-            stiffness=615.5,
-            damping=43.5,
+            stiffness=1231.0,
+            damping=87.0,
             effort_limit_sim=9.0,
-            velocity_limit_sim=3.0,
+            velocity_limit_sim=6.0,
         ),
         # GL40 KV70 — wrist joint 6
         "left_wrist": ImplicitActuatorCfg(
             joint_names_expr=["joint6l"],
-            stiffness=170.5,
-            damping=9.0,
+            stiffness=341.0,
+            damping=18.0,
             effort_limit_sim=0.25,
-            velocity_limit_sim=3.0,
+            velocity_limit_sim=6.0,
         ),
         # GL40 KV70 rotary → linkage → two prismatic fingers (see module docstring)
         "left_gripper": ImplicitActuatorCfg(
@@ -324,10 +324,10 @@ BIMANUAL_ARM_CFG = ArticulationCfg(
         # Right arm revolute joints — hold Physics Inspector default pose
         "right_arm": ImplicitActuatorCfg(
             joint_names_expr=["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"],
-            stiffness=500.0,
-            damping=50.0,
+            stiffness=1000.0,
+            damping=100.0,
             effort_limit_sim=18.0,
-            velocity_limit_sim=3.0,
+            velocity_limit_sim=6.0,
         ),
         # Right gripper — same coupled-prismatic hold as left
         "right_gripper": ImplicitActuatorCfg(

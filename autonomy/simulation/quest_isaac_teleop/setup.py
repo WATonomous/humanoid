@@ -19,8 +19,6 @@ setup(
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
-        'console_scripts': [
-            'quest_isaac_node = quest_isaac_teleop.quest_Isaac:main',
-        ],
+        'console_scripts': [],
     },
 )
