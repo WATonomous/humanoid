@@ -134,7 +134,6 @@ _min_d7_this_iter: float = float("inf")
 _min_d8_this_iter: float = float("inf")
 _last_f_print_step: int = -1
 _max_f_this_iter: float = 0.0
-_grip_at_max_f: float = 0.0
 _mag7_at_max_f: float = 0.0
 _mag8_at_max_f: float = 0.0
 _sum_f_this_iter: float = 0.0
@@ -469,20 +468,19 @@ def pull_distance_reward(
     pulling_vel = torch.clamp(drawer_vel, min=0.0)
     vel_multiplier = 1.0 + (10.0 * pulling_vel)
 
-    global _last_f_print_step, _max_f_this_iter, _grip_at_max_f, _mag7_at_max_f, _mag8_at_max_f
-    global _sum_f_this_iter, _count_f_this_iter
+    global _last_f_print_step, _max_f_this_iter, _mag7_at_max_f, _mag8_at_max_f, _sum_f_this_iter, _count_f_this_iter
 
     f = torch.clamp(drawer_pos / max_open, min=0.0, max=1.0)
 
-    # Track grip quality at the environment with max drawer opening
-    best_idx = f.argmax().item()
-    best_f = f[best_idx].item()
-    if best_f > _max_f_this_iter:
-        _max_f_this_iter = best_f
-        _grip_at_max_f = grip[best_idx].item()
+    # Only track f where both inner edges are gripping — ignore accidental bumps
+    gripped_f = f * (grip > 0.5).float()  # zero out ungripped envs
+    best_gripped_idx = gripped_f.argmax().item()
+    best_gripped_f = gripped_f[best_gripped_idx].item()
+    if best_gripped_f > _max_f_this_iter:
+        _max_f_this_iter = best_gripped_f
         f7, f8 = _finger_contact_force(env)
-        _mag7_at_max_f = torch.norm(f7[best_idx]).item()
-        _mag8_at_max_f = torch.norm(f8[best_idx]).item()
+        _mag7_at_max_f = torch.norm(f7[best_gripped_idx]).item()
+        _mag8_at_max_f = torch.norm(f8[best_gripped_idx]).item()
 
     _sum_f_this_iter += f.mean().item()
     _count_f_this_iter += 1
@@ -493,13 +491,12 @@ def pull_distance_reward(
         print(
             f"[Pull best] iter_end={env.common_step_counter} | "
             f"max f: {_max_f_this_iter:.4f} ({_max_f_this_iter * max_open * 100:.1f}cm) "
-            f"[grip={_grip_at_max_f:.0f} F7={_mag7_at_max_f:.1f}N F8={_mag8_at_max_f:.1f}N] | "
+            f"[F7={_mag7_at_max_f:.1f}N F8={_mag8_at_max_f:.1f}N] | "
             f"avg f: {avg_f:.4f} ({avg_f * max_open * 100:.2f}cm)",
             flush=True,
         )
         _last_f_print_step = env.common_step_counter
         _max_f_this_iter = 0.0
-        _grip_at_max_f = 0.0
         _mag7_at_max_f = 0.0
         _mag8_at_max_f = 0.0
         _sum_f_this_iter = 0.0
