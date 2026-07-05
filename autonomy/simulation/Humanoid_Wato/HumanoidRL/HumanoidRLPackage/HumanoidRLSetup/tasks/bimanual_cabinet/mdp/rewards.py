@@ -387,6 +387,10 @@ def inner_edge_grip_reward(
     exact center of the bar earns full center multiplier (×2); gripping at the end
     cap earns ×1 (no bonus). This steers the claw from the image — hooking on the
     end edge — to gripping mid-bar where the pull force is most stable.
+
+    IMPORTANT: The weight on this reward must stay small (≤10). It is a GUIDING signal
+    only. If it grows large, the robot will farm this reward by holding a perfect grip
+    all episode without ever pulling. All real reward should come from the pull tier.
     """
     inner7, inner8 = _inner_edge_contact(env, force_threshold)
     c7 = inner7.float()
@@ -394,29 +398,31 @@ def inner_edge_grip_reward(
     both = c7 * c8  # 1.0 when both inner edges touch
 
     # ── Center-grip multiplier ────────────────────────────────────────────────
-    # Project the TCP midpoint onto the handle's local Y-axis (the bar length axis).
-    # Y=0 in handle-local coords is the bar center; ±half_length are the end caps.
-    # A Gaussian on this projection peaks at center (Y=0) and falls to ~0.5 at ±σ.
     pose = _robot_ee_pose(env)
     if pose is None:
         center_mul = torch.ones(env.num_envs, device=env.device)
     else:
         _, _, p7, p8 = pose
-        tcp = (p7 + p8) * 0.5  # midpoint between the two fingers (N, 3)
-        handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]  # (N, 3)
+        tcp = (p7 + p8) * 0.5
+        handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
         handle_quat = env.scene["cabinet_frame"].data.target_quat_w[..., 0, :]
         handle_mat = matrix_from_quat(handle_quat)
-        handle_y = handle_mat[..., 1]  # (N, 3) — bar long axis
-
-        # Scalar projection of (tcp - handle_center) onto bar axis
-        off_center = ((tcp - handle_pos) * handle_y).sum(dim=-1)  # (N,) signed offset
-
-        # Gaussian: 1.0 at center, falls with sigma=center_sigma
+        handle_y = handle_mat[..., 1]
+        off_center = ((tcp - handle_pos) * handle_y).sum(dim=-1)
         center_score = torch.exp(-(off_center ** 2) / (2.0 * center_sigma ** 2))
-        # Multiplier: 1.0 (no bonus at end) → 2.0 (full bonus at center)
-        center_mul = 1.0 + center_score  # range [1, 2]
+        center_mul = 1.0 + center_score  # [1, 2]
 
-    return c7 + c8 + both_bonus * both * center_mul
+    # Multiply both_bonus by drawer velocity so the grip reward only accumulates
+    # while the drawer is ACTUALLY MOVING — sitting still earns nothing from this.
+    drawer_pos_change = env.scene["cabinet"].data.joint_pos[:, 0].clamp(min=0.0)
+    motion_gate = torch.clamp(drawer_pos_change / 0.01, max=1.0)  # full after 1cm
+
+    # Single-finger: tiny guiding gradient, no motion required
+    single = c7 + c8
+    # Both-finger bonus: scaled by center quality AND only if drawer is moving
+    both_reward = both_bonus * both * center_mul * (1.0 + motion_gate)
+
+    return single + both_reward
 
 
 def first_pull_bonus(
