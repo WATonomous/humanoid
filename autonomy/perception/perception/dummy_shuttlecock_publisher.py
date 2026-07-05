@@ -3,11 +3,10 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import CameraInfo, Image
-from vision_msgs.msg import Detection2D
-from builtin_interfaces.msg import Time
-from vision_msgs.msg import Detection2D, BoundingBox2D, Pose2D, Point2D
 from cv_bridge import CvBridge
 import numpy as np
+from geometry_msgs.msg import PointStamped, Point
+from std_msgs.msg import Bool
 
 
 class DummyShuttlecockPublisher(Node):
@@ -23,7 +22,7 @@ class DummyShuttlecockPublisher(Node):
             CameraInfo, "/camera/depth/camera_info", 10
         )
         self.det_pub = self.create_publisher(
-            Detection2D, "/perception/shuttlecock/detections_2d", 10
+            PointStamped, "/tracknetv3/shuttle_point", 10
         )
         self.depth_pub = self.create_publisher(Image, "/camera/depth/image_raw", 10)
 
@@ -31,8 +30,16 @@ class DummyShuttlecockPublisher(Node):
             0.5, self._publish_all
         )  # 2Hz is plenty for a test
 
+        self.visible_pub = self.create_publisher(
+            Bool, "/tracknetv3/shuttle_visible", 10
+        )
+
     def _publish_all(self):
         stamp = self.get_clock().now().to_msg()
+
+        visible_msg = Bool()
+        visible_msg.data = True
+        self.visible_pub.publish(visible_msg)
         
         # Build and Publish CameraInfo
         info_msg = CameraInfo()
@@ -48,14 +55,13 @@ class DummyShuttlecockPublisher(Node):
         self.info_pub.publish(info_msg)
 
         # Build and publish Detection2D using stamp + self.u/self.v
-        det_image = Detection2D()
-        det_image.header.stamp = stamp
-        det_image.header.frame_id = "camera_link"
-        det_image.bbox = BoundingBox2D()
-        det_image.bbox.center.position = Point2D()
-        det_image.bbox.center.position.x = self.u
-        det_image.bbox.center.position.y = self.v
-        self.det_pub.publish(det_image)
+        det_msg = PointStamped()
+        det_msg.header.stamp = stamp
+        det_msg.header.frame_id = "camera_link"
+        det_msg.point.x = self.u
+        det_msg.point.y = self.v
+        det_msg.point.z = 0.0
+        self.det_pub.publish(det_msg)
         
         # Build and publish Image (depth) using stamp + self.depth_mm
         depth_array = np.full((480,640), self.depth_mm, dtype=np.uint16)
