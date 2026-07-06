@@ -309,7 +309,7 @@ class RewardsCfg:
     # If this were large, the robot would learn to just hold the grip and never pull.
     inner_edge_grip = RewTerm(
         func=mdp.inner_edge_grip_reward,
-        weight=10.0,  # Reduced 10× from 100 — guidance only, not farmable
+        weight=1.0,  # Reduced from 10 — grip farming dominated pull reward at 10
         params={
             "force_threshold": 1.0,
             "both_bonus": 4.0,
@@ -328,7 +328,7 @@ class RewardsCfg:
     #   full open: 1,151,000 × 0.69 × 0.001 = 794 per step → ~380k per episode
     pull_distance_reward = RewTerm(
         func=mdp.pull_distance_reward,
-        weight=0.01,  # A=4840 × weight=0.01 = 48.4 → 0.00001m held = 1.0 Episode_Reward pt
+        weight=0.1,  # Raised from 0.01 — pull reward was 7000× smaller than grip
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "max_open": 0.39,
