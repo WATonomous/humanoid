@@ -370,13 +370,17 @@ def _inner_edge_contact(env: ManagerBasedRLEnv, force_threshold: float = 1.0, di
 
 
 def good_grip_gate(env: ManagerBasedRLEnv, force_threshold: float = 1.0) -> torch.Tensor:
-    """1.0 when BOTH inner edges contact the handle (a good grip), else 0.0.
+    """1.0 when EITHER inner edge contacts the handle (relaxed grip), else 0.0.
 
-    Over/under, left/right — ANY configuration counts as long as BOTH inner faces touch.
-    Outer-edge contact never qualifies.
+    RELAXED (H2): only ONE inner edge needs to touch the handle to count as a good
+    enough grip to start pulling. Requiring BOTH inner edges simultaneously was too
+    strict — the robot could reliably get one finger's inner face on the bar but not
+    both at once, so the pull rewards never unlocked. With one inner edge the robot
+    can hook and pull from there. Outer-edge contact still never qualifies (the
+    force-direction test in _inner_edge_contact rejects it).
     """
     inner7, inner8 = _inner_edge_contact(env, force_threshold)
-    return (inner7 & inner8).float()
+    return (inner7 | inner8).float()
 
 
 def inner_edge_grip_reward(

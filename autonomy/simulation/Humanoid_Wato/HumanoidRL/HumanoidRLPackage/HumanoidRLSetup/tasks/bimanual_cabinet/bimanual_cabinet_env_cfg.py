@@ -54,10 +54,10 @@ class CabinetSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.UsdFileCfg(
             usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd",
             activate_contact_sensors=True,  # needed so the handle reports contact forces
-            scale=(1.5, 1.5, 1.5),  # Scaled up from 1.15 — bigger handle bar for easier hooking
+            scale=(1.15, 1.15, 1.15),  # Reverted to ORIGINAL size
         ),
         init_state=ArticulationCfg.InitialStateCfg(
-            pos=(0.85, 0.0, 0.55),  # Pushed back +X slightly to keep spacing with robot
+            pos=(0.75, 0.0, 0.6),  # Reverted to ORIGINAL position
             rot=(0.0, 0.0, 0.0, 1.0),
             joint_pos={
                 "door_left_joint": 0.0,
@@ -93,7 +93,7 @@ class CabinetSceneCfg(InteractiveSceneCfg):
                 prim_path="{ENV_REGEX_NS}/Cabinet/drawer_handle_top",
                 name="drawer_handle_top",
                 offset=OffsetCfg(
-                    pos=(0.454, 0.0, 0.013),  # Scaled from (0.3485, 0.0, 0.01) by 1.5/1.15 ≈ 1.304x
+                    pos=(0.3485, 0.0, 0.01),  # ORIGINAL offset — aligned with the actual handle bar at 1.15 scale
                     rot=(0.5, 0.5, -0.5, -0.5),  # align with end-effector frame
                 ),
             ),
@@ -435,15 +435,15 @@ class CabinetEnvCfg(ManagerBasedRLEnvCfg):
         # general settings
         self.decimation = 1
         self.episode_length_s = 8.0
-        self.viewer.eye = (-2.5, 2.0, 2.0)
-        self.viewer.lookat = (0.85, 0.0, 0.5)
+        self.viewer.eye = (-2.0, 2.0, 2.0)
+        self.viewer.lookat = (0.8, 0.0, 0.5)
         # simulation settings
         self.sim.dt = 1 / 60  # 60Hz
         self.sim.render_interval = self.decimation
         self.sim.physx.bounce_threshold_velocity = 0.2
         self.sim.physx.bounce_threshold_velocity = 0.01
         self.sim.physx.friction_correlation_distance = 0.00625
-        self.scene.robot.init_state.pos = (-0.25, 0.0, 0.55)  # Pushed back and raised for larger cabinet
+        self.scene.robot.init_state.pos = (-0.1, 0.0, 0.4)  # Reverted to ORIGINAL position
         # Enable contact reporting on the robot so the finger ContactSensors work
         self.scene.robot.spawn.activate_contact_sensors = True
 
