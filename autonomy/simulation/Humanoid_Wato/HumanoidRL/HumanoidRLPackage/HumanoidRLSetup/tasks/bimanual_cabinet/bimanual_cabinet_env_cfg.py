@@ -242,21 +242,6 @@ class EventCfg:
         },
     )
 
-    # REVERSE CURRICULUM: start each episode with the drawer at a RANDOM opening in
-    # [0, 0.20]m. Many envs begin partway open, so the policy directly experiences the
-    # high-reward pulling states it can't otherwise discover, then that knowledge
-    # propagates back toward the fully-closed start. Runs after reset_all so it
-    # overrides the default closed position.
-    reset_drawer_random = EventTerm(
-        func=mdp.reset_joints_by_offset,
-        mode="reset",
-        params={
-            "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
-            "position_range": (0.0, 0.20),
-            "velocity_range": (0.0, 0.0),
-        },
-    )
-
 
 @configclass
 class RewardsCfg:
