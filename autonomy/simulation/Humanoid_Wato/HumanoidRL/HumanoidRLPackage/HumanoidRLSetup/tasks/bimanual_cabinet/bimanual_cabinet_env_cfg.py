@@ -335,17 +335,15 @@ class RewardsCfg:
             "force_threshold": 1.0,
         },
     )
-    # Continuous pull velocity — THE BOOTSTRAP SIGNAL. Rewards the ACT of pulling
-    # (drawer moving while gripped) densely, the instant the drawer moves at all —
-    # unlike position reward which is flat near zero. Weight boosted 400× (0.5 → 200)
-    # so applying pulling force is immediately, strongly rewarded even for tiny motion.
-    # At 0.1 m/s with good grip: 200 × 0.1 × 0.69 ≈ 13.8/step — a real gradient.
+    # Velocity reward — momentum multiplier makes one sustained pull worth 4× jerky tugs.
     continuous_pull_reward = RewTerm(
         func=mdp.continuous_pull_reward,
-        weight=200.0,
+        weight=500.0,  # Up from 200 — continuous pull is the target behavior
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "force_threshold": 1.0,
+            "momentum_bonus": 3.0,      # up to 4× multiplier for sustained pulls
+            "velocity_threshold": 0.02,  # m/s — min velocity to count as "pulling"
         },
     )
     # Posture bonus: upright wrist while holding a good grip and pulling.

@@ -533,17 +533,40 @@ def continuous_pull_reward(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg,
     force_threshold: float = 1.0,
+    momentum_bonus: float = 3.0,
+    velocity_threshold: float = 0.02,
 ) -> torch.Tensor:
-    """Reward SUSTAINED pulling in ONE swing: good grip × positive drawer velocity.
+    """Reward SUSTAINED pulling in ONE swing: good grip × drawer velocity × momentum multiplier.
 
-    A single continuous swing keeps drawer velocity high for many steps → large integral.
-    Jerky stop-start pulls have low velocity with pauses → little reward. This makes one
-    smooth pull far more valuable than many small tugs.
+    The momentum multiplier rewards keeping velocity above `velocity_threshold` without
+    dropping. It accumulates per-env — envs that maintain continuous pulling get a
+    progressively larger multiplier, while envs that pause and restart reset to 1.0.
+    This makes one smooth long pull worth far more than many short tugs.
+
+    multiplier per env = 1.0 + momentum_bonus × (sustained_steps / max_steps_per_iter)
+    where sustained_steps increments each step velocity is above threshold while gripping.
     """
     grip = good_grip_gate(env, force_threshold)
     drawer_vel = env.scene[asset_cfg.name].data.joint_vel[:, asset_cfg.joint_ids[0]]
     pulling_vel = torch.clamp(drawer_vel, min=0.0)
-    return grip * pulling_vel
+
+    # Track how many consecutive steps each env has been pulling above threshold
+    if not hasattr(env, '_sustained_pull_steps'):
+        env._sustained_pull_steps = torch.zeros(env.num_envs, device=env.device)
+
+    # Increment where gripping + pulling above threshold, reset where not
+    active = (grip > 0.5) & (pulling_vel > velocity_threshold)
+    env._sustained_pull_steps = torch.where(
+        active,
+        env._sustained_pull_steps + 1.0,
+        torch.zeros_like(env._sustained_pull_steps)
+    )
+
+    # Momentum multiplier: grows with sustained pull, capped at 1 + momentum_bonus
+    max_steps = 96.0  # approx one PPO iteration worth of steps
+    momentum_mul = 1.0 + momentum_bonus * torch.clamp(env._sustained_pull_steps / max_steps, max=1.0)
+
+    return grip * pulling_vel * momentum_mul
 
 
 def upright_pull_bonus(
