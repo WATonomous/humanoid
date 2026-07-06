@@ -563,7 +563,7 @@ def continuous_pull_reward(
     )
 
     # Momentum multiplier: grows with sustained pull, capped at 1 + momentum_bonus
-    max_steps = 96.0  # approx one PPO iteration worth of steps
+    max_steps = 192.0  # one PPO iteration worth of steps (num_steps_per_env)
     momentum_mul = 1.0 + momentum_bonus * torch.clamp(env._sustained_pull_steps / max_steps, max=1.0)
 
     return grip * pulling_vel * momentum_mul
