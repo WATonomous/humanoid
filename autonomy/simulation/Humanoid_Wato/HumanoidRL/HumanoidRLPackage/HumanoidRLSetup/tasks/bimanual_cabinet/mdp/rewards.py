@@ -327,7 +327,12 @@ def _finger_contact_force(env: ManagerBasedRLEnv):
     return _force("contact_link7"), _force("contact_link8")
 
 
-def _inner_edge_contact(env: ManagerBasedRLEnv, force_threshold: float = 1.0, dir_margin: float = 0.2):
+def _inner_edge_contact(
+    env: ManagerBasedRLEnv,
+    force_threshold: float = 1.0,
+    dir_margin: float = 0.2,
+    top_margin: float = 0.02,
+):
     """Return (inner7, inner8) booleans: is each finger's INNER edge touching the handle?
 
     Contact sensors alone cannot tell WHICH face touched, so we use the contact FORCE
@@ -340,6 +345,13 @@ def _inner_edge_contact(env: ManagerBasedRLEnv, force_threshold: float = 1.0, di
     A contact counts as inner ONLY when force magnitude > force_threshold AND the force
     direction projects onto the outward axis by more than dir_margin. This guarantees we
     never mistake an outer-edge press for a grip.
+
+    TOP-DRAPE GUARD: a finger draped over the TOP of the bar and pulled backward presses
+    its inner face against the BACK of the bar, which produces an outward-pointing force
+    and would otherwise pass the direction test — this is the "hook the top" cheat seen
+    in training. We additionally require the contacting finger to sit at or below the
+    bar top (finger_z <= handle_z + top_margin). A finger clearly above the bar top is
+    draping on top, not hooking behind/under the bar, so its contact is REJECTED.
     """
     pose = _robot_ee_pose(env)
     if pose is None:
@@ -364,8 +376,13 @@ def _inner_edge_contact(env: ManagerBasedRLEnv, force_threshold: float = 1.0, di
     proj7 = (f7u * out7).sum(dim=-1)
     proj8 = (f8u * out8).sum(dim=-1)
 
-    inner7 = (mag7 > force_threshold) & (proj7 > dir_margin)
-    inner8 = (mag8 > force_threshold) & (proj8 > dir_margin)
+    # Top-drape guard: reject contacts from a finger sitting above the bar top.
+    handle_pos = env.scene["cabinet_frame"].data.target_pos_w[..., 0, :]
+    below_top7 = p7[:, 2] <= handle_pos[:, 2] + top_margin
+    below_top8 = p8[:, 2] <= handle_pos[:, 2] + top_margin
+
+    inner7 = (mag7 > force_threshold) & (proj7 > dir_margin) & below_top7
+    inner8 = (mag8 > force_threshold) & (proj8 > dir_margin) & below_top8
     return inner7, inner8
 
 
@@ -456,6 +473,24 @@ def first_pull_bonus(
     return (grip & opened).float()
 
 
+def inner_grip_strength(env: ManagerBasedRLEnv, force_threshold: float = 1.0, force_ceiling: float = 30.0) -> torch.Tensor:
+    """Saturating grip multiplier in [0, 1] based on INNER-EDGE contact FORCE.
+
+    GREATER EMPHASIS: the pull reward now scales with how firmly the inner edge grips —
+    a light touch earns little, a firm inner-edge grip earns the full multiplier.
+    CAPPED: saturates at 1.0 once the inner-edge contact force reaches `force_ceiling`,
+    so beyond a solid grip the multiplier stops increasing (no runaway).
+    Only forces from edges that pass the inner-edge force-direction test are counted,
+    so pressing the top/outer face contributes nothing.
+    """
+    inner7, inner8 = _inner_edge_contact(env, force_threshold)
+    f7, f8 = _finger_contact_force(env)
+    mag7 = torch.norm(f7, dim=-1)
+    mag8 = torch.norm(f8, dim=-1)
+    inner_force = mag7 * inner7.float() + mag8 * inner8.float()
+    return torch.clamp(inner_force / force_ceiling, max=1.0)
+
+
 def pull_distance_reward(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg,
@@ -474,8 +509,9 @@ def pull_distance_reward(
     The grip multiplier is log(1 + grip_score) — logarithmic diminishing returns so
     the robot only needs a good-enough grip, not a perfect one.
     """
-    grip_score = good_grip_gate(env, force_threshold)  # [0, 1]
-    grip_mul = torch.log(1.0 + grip_score)  # [0, ~0.69] — logarithmic, diminishing returns
+    # Grip multiplier scales with inner-edge contact FORCE, saturating at force_ceiling.
+    # Firmer inner-edge grip → more pull reward, capped once the grip is solid.
+    grip_mul = inner_grip_strength(env, force_threshold, force_ceiling=30.0)
 
     drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
 
@@ -508,8 +544,9 @@ def pull_distance_reward(
 
     distance_score = base_score + band_boost
 
-    # Track for debug print
-    gripped_f = f * (grip_score > 0.5).float()
+    # Track for debug print — use the actual grip gate (grip_mul > 0 means an inner
+    # edge is in contact). Previously referenced the removed `grip_score` variable.
+    gripped_f = f * (grip_mul > 0.0).float()
     best_gripped_idx = gripped_f.argmax().item()
     best_gripped_f = gripped_f[best_gripped_idx].item()
     if best_gripped_f > _max_f_this_iter:

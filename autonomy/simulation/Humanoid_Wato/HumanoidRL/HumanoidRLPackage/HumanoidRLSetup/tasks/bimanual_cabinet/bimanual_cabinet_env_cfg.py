@@ -93,7 +93,11 @@ class CabinetSceneCfg(InteractiveSceneCfg):
                 prim_path="{ENV_REGEX_NS}/Cabinet/drawer_handle_top",
                 name="drawer_handle_top",
                 offset=OffsetCfg(
-                    pos=(0.3485, 0.0, 0.01),  # ORIGINAL offset — aligned with the actual handle bar at 1.15 scale
+                    # Z lowered from +0.01 (top rim) to -0.01 so the whole approach/align/
+                    # proximity ladder aims the TCP at the bar CENTER/underside instead of the
+                    # top rim. This is the primary fix for the "hook the top" behavior — the
+                    # gripper was being guided to the top because the aim point sat there.
+                    pos=(0.3485, 0.0, -0.01),
                     rot=(0.5, 0.5, -0.5, -0.5),  # align with end-effector frame
                 ),
             ),
