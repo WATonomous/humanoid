@@ -494,7 +494,19 @@ def pull_distance_reward(
     #   0.2m     (20cm):    4,930,000 pts
     #   0.39m    (full):    1.19B    pts  → disproportionately massive as requested
     A = 4840.0
-    distance_score = A * (torch.exp(5.0 * f) - 1.0)
+    base_score = A * (torch.exp(5.0 * f) - 1.0)
+
+    # TARGETED GRADIENT BOOST: amplify the gradient in the 3cm → 20cm band.
+    # The exp(5f) curve is nearly linear here — weak gradient. This concave ramp adds
+    # extra incentive in exactly that range: steep early (3→10cm), flatter near 20cm.
+    # At 3cm: +0, at 10cm: +~9680 (≈2A), at 20cm: +9680 (saturates to boost_scale×A)
+    f_3cm  = 0.03 / max_open   # 3cm  ≈ f=0.077
+    f_20cm = 0.20 / max_open   # 20cm ≈ f=0.513
+    band = torch.clamp((f - f_3cm) / (f_20cm - f_3cm), min=0.0, max=1.0)
+    boost_scale = 2.0
+    band_boost = A * boost_scale * torch.sqrt(band)
+
+    distance_score = base_score + band_boost
 
     # Track for debug print
     gripped_f = f * (grip_score > 0.5).float()
