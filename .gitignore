@@ -16,3 +16,4 @@ log/
 autonomy/teleop/quest_teleop_server/certs/*
 datasets/
 outputs/
+*.map
