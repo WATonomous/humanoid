@@ -4,17 +4,18 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import Image
-from geometry_msgs.msg import PoseArray, Pose 
+from geometry_msgs.msg import PoseArray, Pose
 from cv_bridge import CvBridge
 from mmpose.apis import init_model, inference_topdown
 import numpy as np
+
 
 class PoseEstimation(Node):
     def __init__(self):
         super().__init__("pose_estimation_node")
         self.bridge = CvBridge()
         self.sub = self.create_subscription(
-            Image, 
+            Image,
             "/camera/color/image_raw",
             self.image_callback,
             qos_profile_sensor_data
@@ -26,22 +27,22 @@ class PoseEstimation(Node):
         )
 
         self.pub = self.create_publisher(
-            PoseArray, 
+            PoseArray,
             "/perception/pose_estimation",
             10
         )
 
         self.get_logger().info("Pose Estimation Node started")
-    
+
     def image_callback(self, msg):
-        frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8') # converting the ros2 message to a numpy array
+        frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')  # converting the ros2 message to a numpy array
         pose_array = PoseArray()
         pose_array.header = msg.header
 
         results = inference_topdown(self.model, frame)
         keypoints = results[0].pred_instances.keypoints[0]
         pose_array.header = msg.header
-        
+
         for kp in keypoints:
             pose = Pose()
             pose.position.x = float(kp[0])
@@ -51,6 +52,7 @@ class PoseEstimation(Node):
 
         self.pub.publish(pose_array)
         self.get_logger().info(f'Publishing {len(keypoints)} keypoints')
+
 
 def main(args=None):
     rclpy.init(args=args)
