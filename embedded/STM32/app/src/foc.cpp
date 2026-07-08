@@ -2,19 +2,21 @@
 /** For setup 
  * - initialize PWM
  * - initialize angle/position encoder (MT6835)
- * - intialize current sensing
  * - intialize motor driver
  * - intialize motor configurations (PID, mode) + motor.initFOC()
- * - intialize CANFD and enable RX ISR
  *
 */
 
 #include <SimpleFOC.h>
+#include <encoders/mt6835/MagneticSensorMT6835.h>
 
 BLDCMotor motor = BLDCMotor(7);
 
 // enable pin might need to be changed
 BLDCDriver3PWM driver = BLDCDriver3PWM(PA_8, PA_9, PA_10, PB_5);
+SPISettings encoderSettings = SPISettings(1e6, MSBFIRST, SPI_MODE3);
+MagneticSensorMT6835 encoder = MagneticSensorMT6835(PA_0, encoderSettings);
+float target_voltage = 0.0f;
 
 void setup()
 {
@@ -30,21 +32,26 @@ void setup()
   // might need to be changed
   driver.pwm_frequency = 20000;
 
-  // driver init
+  encoder.init();
+
   if (!driver.init()){
     Serial.println("Driver init failed!");
-    return;
+    while (1) {}
   }
 
-  // enable driver
   driver.enable();
   motor.linkDriver(&driver);
+  motor.linkSensor(&encoder);
 
   motor.voltage_limit = 2.0;
   motor.controller = MotionControlType::torque;
   motor.torque_controller = TorqueControlType::voltage;
 
-  motor.init();
+  if (!motor.init()) {
+    Serial.println("Motor init failed!");
+    while (1) {}
+  }
+  motor.initFOC();
 
   Serial.println("PWM, driver, and motor initialized.");
   delay(1000);
@@ -60,5 +67,6 @@ void setup()
  */
 void loop()
 {
-
+  motor.loopFOC();
+  motor.move(target_voltage);
 }
