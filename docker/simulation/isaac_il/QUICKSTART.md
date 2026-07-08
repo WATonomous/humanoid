@@ -59,7 +59,9 @@ $PYTHON -c "import torch; print(torch.__version__)"   # expect 2.7.0+cu128
 $PYTHON -c "import lerobot; print('ok')"
 ```
 
-Container aliases (from `.bashrc`): `$ISAACLAB`, `$TASK_ROOT`, `il-train`, `il-eval`, `il-record`.
+Container env (from `.bashrc`): `$ISAACLAB`, `$TASK_ROOT` (SO101 IL), `$RL_ROOT` (HumanoidRL).
+
+Aliases: `il-train`, `il-eval`, `il-record`, `rl-train`, `rl-play`.
 
 ---
 
@@ -183,10 +185,28 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_agent.py \
 
 ---
 
+## 8. HumanoidRL — in-hand / locomotion / etc. (inside container)
+
+Same `simulation_il` stack (Lab 2.3.2 / Sim 5.1). Repo is bind-mounted — checkpoints under `logs/rsl_rl/` on host.
+
+```bash
+cd $RL_ROOT
+
+# In-hand cube reorientation — train
+rl-train --task=Isaac-Repose-Cube-WatoHand-v0 --headless
+
+# Play (GUI; omit --headless)
+rl-play --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1
+```
+
+Task docs: `autonomy/simulation/Humanoid_Wato/HumanoidRL/.../tasks/<task>/*.md`.
+
+---
+
 ## What stays on host (not docker)
 
 | Workload | Where |
 |----------|-------|
-| HumanoidRL / in-hand RL | host `env_isaaclab` + `/home/hy/IsaacLab` |
 | SO101 IL train + sim eval | `simulation_il` docker |
+| HumanoidRL (all tasks) | `simulation_il` docker (`$RL_ROOT`) |
 | Quest / Wato teleop | `simulation` docker (Sim 4.5) |

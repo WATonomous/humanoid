@@ -21,6 +21,11 @@ class WatoHandCubeEnvCfg(inhand_env_cfg.InHandObjectEnvCfg):
             func=inhand_mdp.apply_wato_hand_joint_limits,
             mode="startup",
         )
+        # Lab 2.3.2 init uses USD-safe MCP_A defaults; restore the trained grasp pose here.
+        self.events.snap_grasp_pose = EventTerm(
+            func=inhand_mdp.snap_inhand_grasp_pose,
+            mode="startup",
+        )
 
         _grasp_scale = [0.2, 0.2]
         _splay_scale = [1.0, 1.0]

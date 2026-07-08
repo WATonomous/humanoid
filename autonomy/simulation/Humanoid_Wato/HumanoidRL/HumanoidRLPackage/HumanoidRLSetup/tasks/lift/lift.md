@@ -11,22 +11,30 @@ Pick-and-place for the SO101 follower arm (`so101_follower_good.usd`) in Isaac L
 
 ## Train & play
 
-Run from `HumanoidRL/` (the directory that contains `HumanoidRLPackage/`):
+Run inside the **`simulation_il`** container (Isaac Lab 2.3.2 / Sim 5.1). Host setup: [`docker/simulation/isaac_il/QUICKSTART.md`](../../../../../../../../docker/simulation/isaac_il/QUICKSTART.md) §0–2.
 
 ```bash
+# Host: start container
+cd ~/Desktop/humanoid && ./watod up -d && ./watod -t simulation_il_dev
+
+# Inside container — run from $RL_ROOT (HumanoidRL/)
+cd $RL_ROOT
+
 # Train (default 512 envs; SO101 USD is heavy — try 256 if OOM)
-PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py \
+PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py \
   --task=Isaac-Lift-Cube-SO101-v0 --headless
 
 # Play — omit --headless to see green goal cuboid + RGB ee_tcp frame
-PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
+PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
   --task=Isaac-Lift-Cube-SO101-Play-v0 --num_envs=1
 
 # Play — specific checkpoint
-PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
+PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
   --task=Isaac-Lift-Cube-SO101-Play-v0 --num_envs=1 \
   --checkpoint logs/rsl_rl/lift_so101/<run>/model_<iter>.pt
 ```
+
+Shorthand aliases (after image rebuild): `rl-train --task=...` / `rl-play --task=... --num_envs=1`.
 
 Checkpoints: `logs/rsl_rl/lift_so101/`. PPO defaults: `max_iterations=2000`, `experiment_name=lift_so101` (`config/HumanoidRLEnv/agents/rsl_rl_ppo_cfg.py`).
 

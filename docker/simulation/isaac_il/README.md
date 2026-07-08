@@ -18,9 +18,8 @@ Based on [NVIDIA SO-101 workshop](https://github.com/isaac-sim/Sim-to-Real-SO-10
 
 | Environment | Use |
 |-------------|-----|
-| **`simulation_il`** (this) | SO101 IL: HF train, sim eval, leader record |
+| **`simulation_il`** (this) | SO101 IL + **HumanoidRL** (RSL-RL train/play) |
 | **`simulation`** | Humanoid_Wato / quest teleop (Sim 4.5) |
-| **Host `env_isaaclab`** | HumanoidRL / in-hand — do not mix LeRobot pip installs here |
 
 ## Files
 
@@ -73,10 +72,11 @@ Set automatically in `.bashrc`:
 export ISAACLAB=/workspace/isaaclab
 export HUMANOID_ROOT=/workspace/humanoid
 export TASK_ROOT=/workspace/humanoid/autonomy/simulation/so101_vial_task
+export RL_ROOT=/workspace/humanoid/autonomy/simulation/Humanoid_Wato/HumanoidRL
 export PYTHON=/workspace/isaaclab/_isaac_sim/python.sh
 ```
 
-Aliases: `il-train`, `il-record`, `il-eval`.
+Aliases: `il-train`, `il-record`, `il-eval`, `rl-train`, `rl-play`.
 
 Sanity:
 
@@ -87,7 +87,17 @@ $PYTHON -c "import lerobot; print('ok')"
 
 ## Workflows
 
-### A. Lazy IL — HF dataset → ACT train → sim eval (no arm)
+### A. HumanoidRL — RSL-RL train / play
+
+```bash
+cd $RL_ROOT
+rl-train --task=Isaac-Repose-Cube-WatoHand-v0 --headless
+rl-play --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1
+```
+
+Checkpoints: `logs/rsl_rl/<experiment>/` (same path on host under `~/Desktop/humanoid/...`).
+
+### B. Lazy IL — HF dataset → ACT train → sim eval (no arm)
 
 See [QUICKSTART.md](QUICKSTART.md) §4–5.
 
@@ -95,7 +105,7 @@ See [QUICKSTART.md](QUICKSTART.md) §4–5.
 2. `cd $TASK_ROOT` then `lerobot_eval.py` with `--policy_type lerobot`
 3. **No `--rename_map`** for local ACT
 
-### B. Record demos (USB leader)
+### C. Record demos (USB leader)
 
 ```bash
 cd $TASK_ROOT
@@ -108,7 +118,7 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_agent.py \
 
 Keys: **S** start/stop episode, **R** reset, **C** cancel while recording.
 
-### C. GR00T eval (remote server)
+### D. GR00T eval (remote server)
 
 ```bash
 cd $TASK_ROOT

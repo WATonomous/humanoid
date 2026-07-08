@@ -243,6 +243,6 @@ class LiftEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.physx.friction_correlation_distance = 0.00625
         self.scene.robot.init_state.pos = (0.0, 0.0, 0.0)
 
-# PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Lift-Cube-SO101-v0 --headless
+# PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Lift-Cube-SO101-v0 --headless
 
-# PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py --task=Isaac-Lift-Cube-SO101-Play-v0 --num_envs=1
+# PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py --task=Isaac-Lift-Cube-SO101-Play-v0 --num_envs=1

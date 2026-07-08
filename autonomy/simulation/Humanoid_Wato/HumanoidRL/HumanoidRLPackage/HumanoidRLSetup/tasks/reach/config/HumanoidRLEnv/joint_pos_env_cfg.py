@@ -18,6 +18,6 @@ class HumanoidArmReachEnvCfg_PLAY(HumanoidArmReachEnvCfg):
         self.observations.policy.enable_corruption = False  # disable randomization for play
 
 
-# (env_isaaclab) hy@hy-LOQ-15IRX9:~/Downloads/Humanoid_Wato/HumanoidRL$ PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Reach-Humanoid-Arm-v0 --headless
+# (env_isaaclab) hy@hy-LOQ-15IRX9:~/Downloads/Humanoid_Wato/HumanoidRL$ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Reach-Humanoid-Arm-v0 --headless
 
-# (env_isaaclab) hy@hy-LOQ-15IRX9:~/Downloads/Humanoid_Wato/HumanoidRL$ PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py --task=Isaac-Reach-Humanoid-Arm-v0 --num_envs=1
+# (env_isaaclab) hy@hy-LOQ-15IRX9:~/Downloads/Humanoid_Wato/HumanoidRL$ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py --task=Isaac-Reach-Humanoid-Arm-v0 --num_envs=1

@@ -64,85 +64,70 @@ class reset_joints_within_limits_range(ManagerTermBase):
 
         # parse the parameters
         asset_cfg: SceneEntityCfg = cfg.params.get("asset_cfg", SceneEntityCfg("robot"))
-        use_default_offset = cfg.params.get("use_default_offset", False)
-        operation = cfg.params.get("operation", "abs")
+        self._use_default_offset = cfg.params.get("use_default_offset", False)
+        self._operation = cfg.params.get("operation", "abs")
+        self._position_range = cfg.params["position_range"]
+        self._velocity_range = cfg.params["velocity_range"]
         # check if the operation is valid
-        if operation not in ["abs", "scale"]:
+        if self._operation not in ["abs", "scale"]:
             raise ValueError(
-                f"For event 'reset_joints_within_limits_range', unknown operation: '{operation}'."
+                f"For event 'reset_joints_within_limits_range', unknown operation: '{self._operation}'."
                 " Please use 'abs' or 'scale'."
             )
 
         # extract the used quantities (to enable type-hinting)
         self._asset: Articulation = env.scene[asset_cfg.name]
+
+        # resolve joint ids once; ranges are rebuilt on each reset from current sim limits
+        self._pos_joint_ids = []
+        for joint_name in self._position_range:
+            self._pos_joint_ids.extend(self._asset.find_joints(joint_name)[0])
+        self._pos_joint_ids = torch.tensor(self._pos_joint_ids, device=self._asset.device)
+
+        self._vel_joint_ids = []
+        for joint_name in self._velocity_range:
+            self._vel_joint_ids.extend(self._asset.find_joints(joint_name)[0])
+        self._vel_joint_ids = torch.tensor(self._vel_joint_ids, device=self._asset.device)
+
+    def _compute_pos_ranges(self) -> torch.Tensor:
         default_joint_pos = self._asset.data.default_joint_pos[0]
-        default_joint_vel = self._asset.data.default_joint_vel[0]
-
-        # create buffers to store the joint position range
-        self._pos_ranges = self._asset.data.soft_joint_pos_limits[0].clone()
-        # parse joint position ranges
-        pos_joint_ids = []
-        for joint_name, joint_range in cfg.params["position_range"].items():
-            # find the joint ids
+        pos_ranges = self._asset.data.soft_joint_pos_limits[0].clone()
+        for joint_name, joint_range in self._position_range.items():
             joint_ids = self._asset.find_joints(joint_name)[0]
-            pos_joint_ids.extend(joint_ids)
-
-            # set the joint position ranges based on the given values
-            if operation == "abs":
+            if self._operation == "abs":
                 if joint_range[0] is not None:
-                    self._pos_ranges[joint_ids, 0] = joint_range[0]
+                    pos_ranges[joint_ids, 0] = joint_range[0]
                 if joint_range[1] is not None:
-                    self._pos_ranges[joint_ids, 1] = joint_range[1]
-            elif operation == "scale":
+                    pos_ranges[joint_ids, 1] = joint_range[1]
+            elif self._operation == "scale":
                 if joint_range[0] is not None:
-                    self._pos_ranges[joint_ids, 0] *= joint_range[0]
+                    pos_ranges[joint_ids, 0] *= joint_range[0]
                 if joint_range[1] is not None:
-                    self._pos_ranges[joint_ids, 1] *= joint_range[1]
-            else:
-                raise ValueError(
-                    f"Unknown operation: '{operation}' for joint position ranges. Please use 'abs' or 'scale'."
-                )
-            # add the default offset
-            if use_default_offset:
-                self._pos_ranges[joint_ids] += default_joint_pos[joint_ids].unsqueeze(1)
+                    pos_ranges[joint_ids, 1] *= joint_range[1]
+            if self._use_default_offset:
+                pos_ranges[joint_ids] += default_joint_pos[joint_ids].unsqueeze(1)
+        return pos_ranges[self._pos_joint_ids]
 
-        # store the joint pos ids (used later to sample the joint positions)
-        self._pos_joint_ids = torch.tensor(pos_joint_ids, device=self._pos_ranges.device)
-        self._pos_ranges = self._pos_ranges[self._pos_joint_ids]
-
-        # create buffers to store the joint velocity range
-        self._vel_ranges = torch.stack(
+    def _compute_vel_ranges(self) -> torch.Tensor:
+        default_joint_vel = self._asset.data.default_joint_vel[0]
+        vel_ranges = torch.stack(
             [-self._asset.data.soft_joint_vel_limits[0], self._asset.data.soft_joint_vel_limits[0]], dim=1
         )
-        # parse joint velocity ranges
-        vel_joint_ids = []
-        for joint_name, joint_range in cfg.params["velocity_range"].items():
-            # find the joint ids
+        for joint_name, joint_range in self._velocity_range.items():
             joint_ids = self._asset.find_joints(joint_name)[0]
-            vel_joint_ids.extend(joint_ids)
-
-            # set the joint position ranges based on the given values
-            if operation == "abs":
+            if self._operation == "abs":
                 if joint_range[0] is not None:
-                    self._vel_ranges[joint_ids, 0] = joint_range[0]
+                    vel_ranges[joint_ids, 0] = joint_range[0]
                 if joint_range[1] is not None:
-                    self._vel_ranges[joint_ids, 1] = joint_range[1]
-            elif operation == "scale":
+                    vel_ranges[joint_ids, 1] = joint_range[1]
+            elif self._operation == "scale":
                 if joint_range[0] is not None:
-                    self._vel_ranges[joint_ids, 0] = joint_range[0] * self._vel_ranges[joint_ids, 0]
+                    vel_ranges[joint_ids, 0] *= joint_range[0]
                 if joint_range[1] is not None:
-                    self._vel_ranges[joint_ids, 1] = joint_range[1] * self._vel_ranges[joint_ids, 1]
-            else:
-                raise ValueError(
-                    f"Unknown operation: '{operation}' for joint velocity ranges. Please use 'abs' or 'scale'."
-                )
-            # add the default offset
-            if use_default_offset:
-                self._vel_ranges[joint_ids] += default_joint_vel[joint_ids].unsqueeze(1)
-
-        # store the joint vel ids (used later to sample the joint positions)
-        self._vel_joint_ids = torch.tensor(vel_joint_ids, device=self._vel_ranges.device)
-        self._vel_ranges = self._vel_ranges[self._vel_joint_ids]
+                    vel_ranges[joint_ids, 1] *= joint_range[1]
+            if self._use_default_offset:
+                vel_ranges[joint_ids] += default_joint_vel[joint_ids].unsqueeze(1)
+        return vel_ranges[self._vel_joint_ids]
 
     def __call__(
         self,
@@ -160,9 +145,10 @@ class reset_joints_within_limits_range(ManagerTermBase):
 
         # sample random joint positions for each joint
         if len(self._pos_joint_ids) > 0:
+            pos_ranges = self._compute_pos_ranges()
             joint_pos_shape = (len(env_ids), len(self._pos_joint_ids))
             joint_pos[:, self._pos_joint_ids] = sample_uniform(
-                self._pos_ranges[:, 0], self._pos_ranges[:, 1], joint_pos_shape, device=joint_pos.device
+                pos_ranges[:, 0], pos_ranges[:, 1], joint_pos_shape, device=joint_pos.device
             )
             # clip the joint positions to the joint limits
             joint_pos_limits = self._asset.data.soft_joint_pos_limits[0, self._pos_joint_ids]
@@ -170,9 +156,10 @@ class reset_joints_within_limits_range(ManagerTermBase):
 
         # sample random joint velocities for each joint
         if len(self._vel_joint_ids) > 0:
+            vel_ranges = self._compute_vel_ranges()
             joint_vel_shape = (len(env_ids), len(self._vel_joint_ids))
             joint_vel[:, self._vel_joint_ids] = sample_uniform(
-                self._vel_ranges[:, 0], self._vel_ranges[:, 1], joint_vel_shape, device=joint_vel.device
+                vel_ranges[:, 0], vel_ranges[:, 1], joint_vel_shape, device=joint_vel.device
             )
             # clip the joint velocities to the joint limits
             joint_vel_limits = self._asset.data.soft_joint_vel_limits[0, self._vel_joint_ids]
@@ -194,3 +181,27 @@ def apply_wato_hand_joint_limits(
     """
     robot: Articulation = env.scene[asset_cfg.name]
     _apply_joint_limits(robot)
+
+
+def snap_inhand_grasp_pose(
+    env: "ManagerBasedEnv",
+    env_ids: torch.Tensor,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> None:
+    """Apply the tuned in-hand grasp pose after MCP_A limits are expanded at startup."""
+    from HumanoidRLPackage.HumanoidRLSetup.modelCfg.wato_hand import INHAND_GRASP_JOINT_POS
+
+    robot: Articulation = env.scene[asset_cfg.name]
+
+    for joint_name, target_pos in INHAND_GRASP_JOINT_POS.items():
+        joint_ids, _ = robot.find_joints(joint_name)
+        if isinstance(joint_ids, torch.Tensor):
+            joint_ids = joint_ids.tolist()
+        elif isinstance(joint_ids, int):
+            joint_ids = [joint_ids]
+        for joint_idx in joint_ids:
+            robot.data.default_joint_pos[:, joint_idx] = target_pos
+
+    joint_pos = robot.data.default_joint_pos[env_ids].clone()
+    joint_vel = torch.zeros_like(joint_pos)
+    robot.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids)
