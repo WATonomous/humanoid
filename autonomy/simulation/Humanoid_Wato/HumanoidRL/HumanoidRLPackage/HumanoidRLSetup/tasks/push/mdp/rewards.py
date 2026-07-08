@@ -1,13 +1,3 @@
-# Copyright (c) 2024-2025, Muammer Bay (LycheeAI), Louis Le Lay
-# All rights reserved.
-#
-# SPDX-License-Identifier: BSD-3-Clause
-#
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
-# All rights reserved.
-#
-# SPDX-License-Identifier: BSD-3-Clause
-
 """Reward terms for pushing the block up the ramp onto the box's interior floor.
 
 All positions are expressed in the per-env frame (world minus ``env_origins``);
