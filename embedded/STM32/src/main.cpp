@@ -43,9 +43,15 @@ volatile int txDone = 0;
 const static char motor_id = 'M';
 
 Commander command = Commander(Serial);
-void doTarget(char *cmd) { command.scalar(&target_velocity, cmd); }
-void doMotor(char *cmd) { command.motor(&motor, cmd); }
-void doLimit(char *cmd) { command.scalar(&motor.voltage_limit, cmd); }
+void doTarget(char* cmd) {
+  command.scalar(&target_velocity, cmd);
+}
+void doMotor(char* cmd) {
+  command.motor(&motor, cmd);
+}
+void doLimit(char* cmd) {
+  command.scalar(&motor.voltage_limit, cmd);
+}
 
 void setup() {
   HAL_Init();
@@ -143,10 +149,8 @@ void setup() {
   command.add('T', doTarget, "target velocity");
   command.add('L', doLimit, "voltage limit");
   command.add(motor_id, doMotor, "motor");
-  motor.monitor_start_char =
-      motor_id; // the same latter as the motor id in the commander
-  motor.monitor_end_char =
-      motor_id; // the same latter as the motor id in the commander
+  motor.monitor_start_char = motor_id; // the same latter as the motor id in the commander
+  motor.monitor_end_char = motor_id;   // the same latter as the motor id in the commander
 
   command.verbose = VerboseMode::machine_readable; // can be set using the
                                                    // webcontroller - optional
@@ -172,8 +176,7 @@ void loop() {
       digitalWrite(LED_PIN, HIGH);
     }
     prevTime = currTime;
-    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan2, &TxHeader, TxData_C2_To_C3) !=
-        HAL_OK) {
+    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan2, &TxHeader, TxData_C2_To_C3) != HAL_OK) {
       Error_Handler();
     }
 
@@ -187,11 +190,9 @@ void loop() {
       //   HAL_FDCAN_GetRxFifoFillLevel(&hfdcan2, FDCAN_RX_FIFO0));
     };
 
-    if (HAL_FDCAN_GetRxMessage(&hfdcan2, FDCAN_RX_FIFO0, &RxHeader,
-                               RxData_C3) == HAL_OK) {
+    if (HAL_FDCAN_GetRxMessage(&hfdcan2, FDCAN_RX_FIFO0, &RxHeader, RxData_C3) == HAL_OK) {
       target_velocity =
-          max_target_velocity *
-          (float)((RxData_C3[0] - '0') * 10 + (RxData_C3[1] - '0')) / 100.0f;
+          max_target_velocity * (float)((RxData_C3[0] - '0') * 10 + (RxData_C3[1] - '0')) / 100.0f;
     }
   }
 

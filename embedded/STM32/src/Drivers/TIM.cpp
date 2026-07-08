@@ -2,7 +2,7 @@
 #include <SimpleFOC.h>
 TIM_HandleTypeDef htim4;
 
-void HAL_TIM_MspPostInit(TIM_HandleTypeDef *timHandle) {
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle) {
 
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   if (timHandle->Instance == TIM4) {

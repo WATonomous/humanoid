@@ -8,10 +8,12 @@
 #define BOOTLOADER_SIZE (0x08008000U)
 
 // set the vector table offset of app firmware image
-static void vector_setup(void) { SCB->VTOR = BOOTLOADER_SIZE; }
+static void vector_setup(void) {
+  SCB->VTOR = BOOTLOADER_SIZE;
+}
 
 // thread for blinking led
-void blink_led(void *pvParams) {
+void blink_led(void* pvParams) {
   while (1) {
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
     // vTaskDelay(pdMS_TO_TICKS(500));
