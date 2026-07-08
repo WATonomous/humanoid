@@ -43,6 +43,8 @@ _INHAND_GRASP_JOINT_POS = {
     "DIP_4": 0.8,
 }
 
+INHAND_GRASP_JOINT_POS = _INHAND_GRASP_JOINT_POS
+
 def _quat_y_deg(deg: float) -> tuple[float, float, float, float]:
     """Quaternion (w, x, y, z) for a pure rotation about world Y."""
     half = math.radians(deg) * 0.5
@@ -56,6 +58,14 @@ _INHAND_ROT_Y_POS_160 = _quat_y_deg(160.0)
 _INHAND_PALM_UP_ROT = _INHAND_ROT_Y_POS_160
 
 INHAND_CUBE_POS = (-0.01, 0.09, 0.5)
+
+# USD-baked MCP_A hardware limits (±8.6 deg). Lab 2.3.2 validates init_state against these
+# before the expand_abduction_limits startup event runs.
+_USD_MCP_A_MAX = 0.15
+
+_INHAND_INIT_JOINT_POS = dict(_INHAND_GRASP_JOINT_POS)
+for _mcp_a in ("MCP_A_1", "MCP_A_2", "MCP_A_3", "MCP_A_4"):
+    _INHAND_INIT_JOINT_POS[_mcp_a] = min(_INHAND_SPREAD_RAD, _USD_MCP_A_MAX)
 
 INHAND_WATO_HAND_CFG = WATO_HAND_CFG.replace(
     spawn=WATO_HAND_CFG.spawn.replace(
@@ -80,7 +90,7 @@ INHAND_WATO_HAND_CFG = WATO_HAND_CFG.replace(
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.5),
         rot=_INHAND_PALM_UP_ROT,
-        joint_pos=_INHAND_GRASP_JOINT_POS,
+        joint_pos=_INHAND_INIT_JOINT_POS,
     ),
     soft_joint_pos_limit_factor=1.0,
 )
