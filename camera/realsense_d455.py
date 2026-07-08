@@ -18,16 +18,14 @@ args_cli = parser.parse_args()
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
+import os  # noqa: E402
+import torch  # noqa: E402
 
-import os
-import torch
-
-
-import isaaclab.sim as sim_utils
-from isaaclab.assets import AssetBaseCfg
-from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
-from isaaclab.sensors import CameraCfg
-from isaaclab.utils import configclass
+import isaaclab.sim as sim_utils  # noqa: E402
+from isaaclab.assets import AssetBaseCfg  # noqa: E402
+from isaaclab.scene import InteractiveScene, InteractiveSceneCfg  # noqa: E402
+from isaaclab.sensors import CameraCfg  # noqa: E402
+from isaaclab.utils import configclass  # noqa: E402
 
 
 @configclass
