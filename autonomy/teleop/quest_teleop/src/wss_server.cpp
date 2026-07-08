@@ -91,10 +91,10 @@ void WssServer::handle_session(tcp::socket socket) {
     if (!websocket::is_upgrade(req)) {
       http::response<http::string_body> res{http::status::ok, req.version()};
       res.set(http::field::content_type, "text/html");
-      res.body() =
-        "<html><body><h1>Certificate trusted.</h1>"
-        "<p>Return to <a href='https://localhost:8443'>https://localhost:8443</a> and press Start.</p>"
-        "</body></html>";
+      res.body() = "<html><body><h1>Certificate trusted.</h1>"
+                   "<p>Return to <a href='https://localhost:8443'>https://localhost:8443</a> and "
+                   "press Start.</p>"
+                   "</body></html>";
       res.prepare_payload();
       http::write(tls_stream, res);
       return;

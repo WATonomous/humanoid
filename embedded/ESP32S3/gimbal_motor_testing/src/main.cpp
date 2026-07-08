@@ -211,8 +211,12 @@ float target_velocity = 1;
 
 // instantiate the commander
 Commander command = Commander(Serial);
-void doTarget(char *cmd) { command.scalar(&target_velocity, cmd); }
-void doLimit(char *cmd) { command.scalar(&motor.voltage_limit, cmd); }
+void doTarget(char* cmd) {
+  command.scalar(&target_velocity, cmd);
+}
+void doLimit(char* cmd) {
+  command.scalar(&motor.voltage_limit, cmd);
+}
 
 void setup() {
 

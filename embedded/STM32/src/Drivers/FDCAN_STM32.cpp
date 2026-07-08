@@ -4,7 +4,7 @@
 #include <SimpleFOC.h>
 FDCAN_HandleTypeDef hfdcan2;
 
-static void check_can_bus(FDCAN_HandleTypeDef *hfdcan) {
+static void check_can_bus(FDCAN_HandleTypeDef* hfdcan) {
   FDCAN_ProtocolStatusTypeDef protocolStatus = {};
 
   HAL_FDCAN_GetProtocolStatus(hfdcan, &protocolStatus);
@@ -13,8 +13,7 @@ static void check_can_bus(FDCAN_HandleTypeDef *hfdcan) {
   }
 }
 
-void HAL_FDCAN_ErrorStatusCallback(FDCAN_HandleTypeDef *hfdcan,
-                                   uint32_t ErrorStatusITs) {
+void HAL_FDCAN_ErrorStatusCallback(FDCAN_HandleTypeDef* hfdcan, uint32_t ErrorStatusITs) {
   if (hfdcan == &hfdcan2) {
     if ((ErrorStatusITs & FDCAN_IT_BUS_OFF) != RESET) {
       check_can_bus(hfdcan);
@@ -59,7 +58,7 @@ void MX_FDCAN2_Init(void) {
 
 static uint32_t HAL_RCC_FDCAN_CLK_ENABLED = 0;
 
-void HAL_FDCAN_MspInit(FDCAN_HandleTypeDef *fdcanHandle) {
+void HAL_FDCAN_MspInit(FDCAN_HandleTypeDef* fdcanHandle) {
 
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
@@ -105,7 +104,7 @@ void HAL_FDCAN_MspInit(FDCAN_HandleTypeDef *fdcanHandle) {
   }
 }
 
-void HAL_FDCAN_MspDeInit(FDCAN_HandleTypeDef *fdcanHandle) {
+void HAL_FDCAN_MspDeInit(FDCAN_HandleTypeDef* fdcanHandle) {
 
   if (fdcanHandle->Instance == FDCAN2) {
     /* USER CODE BEGIN FDCAN2_MspDeInit 0 */
