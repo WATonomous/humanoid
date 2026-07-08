@@ -1,0 +1,187 @@
+# Push-Block Task (SO-ARM101)
+
+The arm pushes a cube along a table, up a full-width ramp, and onto the flat
+elevated interior floor of an open box. The gripper is **not** actuated — it is
+held closed and used purely as a pushing tool, so the policy can only push, never
+grasp.
+
+- **Task package:** `isaac_so_arm101.tasks.push`
+- **Gym IDs:**
+  - `Isaac-SO-ARM101-Push-Block-v0` — training (512 envs by default)
+  - `Isaac-SO-ARM101-Push-Block-Play-v0` — evaluation (16 envs, no obs corruption)
+- **RL agent:** RSL-RL PPO (`agents/rsl_rl_ppo_cfg.py`), experiment name `push_block`
+
+---
+
+## Scene & geometry
+
+All positions are in the per-env frame with the robot base at the origin. The box
+is spawned yawed −90° so its up-the-ramp direction aligns with the env **+x** axis
+— i.e. "make progress" always means "increase the block's x".
+
+| Landmark | Value | Meaning |
+|---|---|---|
+| Block | 50.8 mm cube (corner-origin USD), `BLOCK_HALF_SIZE = 0.0254` | the object to push |
+| Block start | center ≈ `(0.21, 0.0)` on the table | in front of the ramp mouth |
+| Ramp base | `RAMP_BASE_X = 0.279` | ramp meets the table (z = 0) |
+| Ramp top | `RAMP_TOP_X = 0.308` | ramp meets the interior floor |
+| Floor (visual) | `FLOOR_Z = 0.0063` | interior floor height (obs / scoop) |
+| Floor (collision) | `FLOOR_Z_COLLISION = 0.0115` | effective rest height for success check |
+| Floor extent | `x_max = 0.511`, `|y| ≤ 0.114` | interior floor footprint |
+| Target | `FLOOR_TARGET = (0.37, 0.0)` | goal point on the interior floor |
+
+The block is a dynamic `RigidObject`; the box (ramp + walls) is a static
+collider (`AssetBaseCfg`, no rigid-body API).
+
+---
+
+## Getting it running
+
+Prerequisites: an Isaac Lab 2.3 / Isaac Sim 5.1 environment with this task
+package importable, plus the host project's RSL-RL `train` / `play` /
+`list_envs` entry points (the standard Isaac Lab external-project workflow). The
+commands below assume those entry points are available and are run from the host
+project root.
+
+This folder provides only the task itself — the environment configs, MDP terms
+(rewards, observations, events, terminations, curriculum), and the PPO agent
+config. It does not ship the training/eval launcher scripts or the robot/box/block
+assets; those come from the host project.
+
+Confirm the task is registered:
+
+```bash
+uv run list_envs | grep Push
+```
+
+Sanity-check the environment with dummy agents (opens the GUI):
+
+```bash
+uv run zero_agent   --task Isaac-SO-ARM101-Push-Block-Play-v0   # zero actions
+uv run random_agent --task Isaac-SO-ARM101-Push-Block-Play-v0   # random actions
+```
+
+### Train
+
+```bash
+uv run train --task Isaac-SO-ARM101-Push-Block-v0 --headless
+```
+
+Useful flags (provided by the host project's RSL-RL training entry point):
+
+- `--headless` — no GUI (recommended for training)
+- `--num_envs N` — override env count (default 512; the aggressive curriculum runs used 4096)
+- `--max_iterations N` — override the 1500-iteration default
+- `--seed N`, `--video` — reproducibility / record rollout videos
+
+Checkpoints are written to `logs/rsl_rl/push_block/<timestamp>[_<run_name>]/`
+(`save_interval = 50`).
+
+**Resume / finetune** from an existing checkpoint:
+
+```bash
+uv run train --task Isaac-SO-ARM101-Push-Block-v0 --headless \
+  --resume --load_run <folder_name> --checkpoint model_1998.pt \
+  --run_name my_finetune --max_iterations 3000
+```
+
+### Evaluate (play)
+
+```bash
+uv run play --task Isaac-SO-ARM101-Push-Block-Play-v0 --load_run <folder_name>
+```
+
+Play exports `exported/policy.pt` (TorchScript) and `policy.onnx` before the
+sim loop. **Gotcha:** `--checkpoint <name>` is resolved literally against the CWD
+and ignores `--load_run` — pass a full absolute path to `--checkpoint`, or omit it
+and rely on `--load_run` alone.
+
+---
+
+## Observations & actions
+
+**Actions** (`ActionsCfg`): joint-position targets for the arm only —
+`shoulder_.*`, `elbow_flex`, `wrist_.*` (scale 0.5, default offset). The gripper
+joint has no action term, so its PD actuator holds it closed. 5 action dims.
+
+**Observations** (`ObservationsCfg.PolicyCfg`, concatenated, corruption on in
+training): joint pos/vel (relative), EE position in root frame, block center in
+root frame, block orientation, block linear velocity, constant ramp geometry
+(base x, top x, floor z, target xy, push-dir xy), and last action. 37 dims total.
+
+---
+
+## Reward function
+
+Weighted sum of the terms below (`RewardsCfg` in `push_env_cfg.py`, implemented in
+`mdp/rewards.py`). Everything is expressed in the env frame with **+x = up the
+ramp**.
+
+| Term | Weight | What it does |
+|---|---:|---|
+| `ee_behind_block` | **+2.0** | tanh reach reward for keeping the EE just *behind* the block (`center − 0.05·x̂`), the side you push from |
+| `push_progress` | **+5.0** | dense signed block x-velocity, clamped to ±0.5 — rewards advancing up the ramp, penalizes sliding back |
+| `backslide` | **−8.0** | extra asymmetric penalty on the *backward* (−x) block speed only |
+| `block_to_target` | **+8.0** | tanh distance from block center to the floor target `(0.37, 0)`, wide kernel `std = 0.15` |
+| `block_to_target_fine` | **+5.0** | same, sharp kernel `std = 0.05` — precise final placement |
+| `block_on_floor` | **+30.0** | **success bonus**: block center inside the floor footprint, at floor rest height, and nearly at rest (`speed < 0.05`) |
+| `scoop_penalty` | **−40.0** | location-aware anti-cheat: penalizes block height above the *local* support surface, but only when the block is *outside* the ramp+box footprint (≈0 on the ramp/floor where height gain is required) — stops the arm from lifting/scooping the block in open table space |
+| `lateral_deviation` | **−10.0** | penalizes sideways drift `|y|` beyond a 0.06 m corridor |
+| `ee_reposition` | **0.0 → 1.5** | shaping to route the EE behind an *off-corridor* block toward the ramp mouth; off by default, switched on by the curriculum at stage ≥ 2 |
+| `action_rate` | −1e-4 → −1e-2 | action-smoothness penalty (raised by curriculum at 10 k steps) |
+| `joint_vel` | −1e-4 → −1e-2 | joint-velocity penalty (raised by curriculum at 10 k steps) |
+
+### How the shaping fits together
+
+1. **Get behind the block** — `ee_behind_block` pulls the EE to the push point.
+2. **Drive it up the ramp** — `push_progress` rewards +x motion; `backslide`
+   punishes losing ground; `lateral_deviation` keeps it in the corridor.
+3. **Land it on the target** — `block_to_target` (coarse) + `_fine` (precise)
+   guide the block to `(0.37, 0)`.
+4. **Settle it** — `block_on_floor` pays a large one-shot bonus once the block is
+   inside the footprint, at floor height, and at rest.
+5. **Don't cheat** — `scoop_penalty` makes lifting the block in open space
+   costly, while staying ≈0 on the ramp/floor where climbing is legitimate.
+6. **Reposition when needed** — for hard spawns beside/behind the box,
+   `ee_reposition` (enabled by the curriculum) routes the EE to push the block
+   back toward the ramp mouth rather than straight +x.
+
+### Terminations (`TerminationsCfg`)
+
+- `time_out` — episode length 5.0 s.
+- `object_dropping` — block falls below −0.05 m (off the table).
+- `block_off_course` — block leaves the corridor: `x < 0.05`, `x > 0.55`, or
+  `|y| > 0.20`.
+
+---
+
+## Spawn curriculum
+
+`CurriculumCfg.spawn` (`mdp/curriculums.py`, `spawn_offset_curriculum`)
+performance-gates the block's spawn randomization. It widens the block's spawn
+*offset* range one stage at a time around the fixed `(0.21, 0)` anchor:
+
+| Stage | x offset | y offset | notes |
+|---|---|---|---|
+| 0 | (−0.06, 0.02) | (−0.06, 0.06) | moderate, ramp-approach side |
+| 1 | (−0.10, 0.05) | (−0.12, 0.12) | wider, out to the ramp mouth edges |
+| 2 | (−0.12, 0.20) | (−0.20, 0.20) | **reaches beside the box** → `ee_reposition` turns on |
+| 3 | (−0.14, 0.30) | (−0.26, 0.26) | full reachable table incl. beside/behind box |
+
+Yaw is always fully randomized. A stage advances only once **both** hold: the
+policy has trained at that stage for ≥ `min_stage_steps` (1200 env steps), **and**
+the rolling `block_on_floor` success rate over the last 100 episodes clears
+`threshold = 0.70`. The dwell gate prevents a competent (resumed) policy from
+cascading through all stages within one PPO iteration. Box-footprint spawns are
+rejected and re-sampled so a widened range never drops the block inside the walls.
+
+Logged under `Curriculum/spawn/{stage, success_rate, x_off_hi, reposition_active}`.
+
+---
+
+## PPO config (`agents/rsl_rl_ppo_cfg.py`)
+
+`num_steps_per_env = 24`, `max_iterations = 1500`, MLP actor/critic
+`[256, 128, 64]` (ELU), `learning_rate = 3.333e-5` (adaptive schedule),
+`gamma = 0.98`, `lam = 0.95`, `entropy_coef = 0.006`, `clip = 0.2`,
+`desired_kl = 0.01`.
