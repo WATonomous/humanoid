@@ -47,7 +47,7 @@ void setup()
   motor.init();
 
   Serial.println("PWM, driver, and motor initialized.");
-  _delay(1000);
+  delay(1000);
 
 }
 
