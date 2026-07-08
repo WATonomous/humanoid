@@ -61,7 +61,8 @@ RUN apt-get update && \
       usbutils \
       libusb-1.0-0-dev \
       pkg-config \
-      libgtk-3-dev
+      libgtk-3-dev \
+      wget
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -76,14 +77,49 @@ RUN python3 -m pip install --no-cache-dir \
       ccimport>=0.4.4 \
       pybind11>=2.6.0 \
       cv_bridge \
-      numpy \
+      numpy==1.26.4 \
       fire \
       opencv-python
+
+# Install PyTorch CPU
+RUN pip install torch==2.1.0 torchvision==0.16.0 \
+    --index-url https://download.pytorch.org/whl/cpu
+
+# Install mmcv built for torch2.1.0
+RUN pip install mmcv==2.1.0 \
+    -f https://download.openmmlab.com/mmcv/dist/cpu/torch2.1.0/index.html
+
+# Install mmpose and dependencies
+RUN pip install --no-cache-dir mmpose==1.3.2 --no-deps && \
+    pip install --no-cache-dir mmdet==3.3.0 --no-deps && \
+    pip install --no-cache-dir \
+      scipy \
+      pycocotools \
+      shapely \
+      terminaltables \
+      munkres \
+      json_tricks \
+      tqdm \
+      setuptools==65.5.0
+
+# Pin numpy to 1.x for cv_bridge compatibility
+RUN pip install numpy==1.26.4 --force-reinstall
+
+# Patch xtcocotools references to use pycocotools
+RUN find /usr/local/lib/python3.10/dist-packages/mmpose/ \
+    -name "*.py" \
+    -exec sed -i \
+    's/from xtcocotools/from pycocotools/g;s/import xtcocotools/import pycocotools/g' {} +
 
 # Dependency Cleanup
 WORKDIR /
 RUN apt-get -qq autoremove -y && apt-get -qq autoclean && apt-get -qq clean && \
     rm -rf /root/.ros /tmp/* /var/lib/apt/lists/* /usr/share/doc/*
+
+# Download RTMPose model
+RUN mkdir -p /root/models && \
+    wget -q https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-s_simcc-body7_pt-body7_420e-256x192-acd4a1ef_20230504.pth \
+    -O /root/models/rtmpose-s.pth
 
 ################################ Build ################################
 FROM dependencies AS build
