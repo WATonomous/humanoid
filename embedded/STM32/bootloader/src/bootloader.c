@@ -8,8 +8,8 @@ static void jump_to_main() {
   // define function pointer
   typedef void (*void_func)(void);
 
-  uint32_t *reset_vector_entry = (uint32_t *)(MAIN_START_ADDR + 4U);
-  uint32_t *reset_vector = (uint32_t *)(*reset_vector_entry);
+  uint32_t* reset_vector_entry = (uint32_t*)(MAIN_START_ADDR + 4U);
+  uint32_t* reset_vector = (uint32_t*)(*reset_vector_entry);
 
   void_func jump_func = (void_func)reset_vector;
 
