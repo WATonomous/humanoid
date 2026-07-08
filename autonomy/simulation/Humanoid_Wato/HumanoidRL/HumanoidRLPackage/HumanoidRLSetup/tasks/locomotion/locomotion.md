@@ -15,24 +15,30 @@ Legacy aliases `Isaac-Velocity-*` register the same configs for backward compati
 
 ## Train & play
 
-Run from `HumanoidRL/` (the directory that contains `HumanoidRLPackage/`):
+Run inside the **`simulation_il`** container (Isaac Lab 2.3.2 / Sim 5.1). Host setup: [`docker/simulation/isaac_il/QUICKSTART.md`](../../../../../../../../docker/simulation/isaac_il/QUICKSTART.md) §0–2.
 
 ```bash
-# Replace with your path below
+# Host: start container
+cd ~/Desktop/humanoid && ./watod up -d && ./watod -t simulation_il_dev
+
+# Inside container — run from $RL_ROOT (HumanoidRL/)
+cd $RL_ROOT
 
 # Train — flat terrain
-PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py \
+PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py \
   --task=Isaac-Locomotion-Flat-G1-v0 --headless
 
 # Play — loads latest checkpoint from logs/rsl_rl/g1_flat/
-PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
+PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
   --task=Isaac-Locomotion-Flat-G1-Play-v0 --num_envs=1
 
 # Play — specific checkpoint
-PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
+PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
   --task=Isaac-Locomotion-Flat-G1-Play-v0 --num_envs=1 \
   --checkpoint logs/rsl_rl/g1_flat/<run>/model_<iter>.pt
 ```
+
+Shorthand aliases (after image rebuild): `rl-train --task=...` / `rl-play --task=... --num_envs=1`.
 
 Rough-terrain variants: replace `Flat` with `Rough` and use experiment dir `logs/rsl_rl/g1_rough/`.
 

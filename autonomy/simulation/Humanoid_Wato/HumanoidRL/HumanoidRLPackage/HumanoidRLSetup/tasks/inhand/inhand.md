@@ -15,22 +15,30 @@ Task setup and MDP code are adapted from [Isaac Lab](https://github.com/isaac-si
 
 ## Train & play
 
-Run from `HumanoidRL/` (the directory that contains `HumanoidRLPackage/`):
+Run inside the **`simulation_il`** container (Isaac Lab 2.3.2 / Sim 5.1). Host setup: [`docker/simulation/isaac_il/QUICKSTART.md`](../../../../../../../../docker/simulation/isaac_il/QUICKSTART.md) §0–2.
 
 ```bash
+# Host: start container
+cd ~/Desktop/humanoid && ./watod up -d && ./watod -t simulation_il_dev
+
+# Inside container — run from $RL_ROOT (HumanoidRL/)
+cd $RL_ROOT
+
 # Train (default 2048 envs; try 1024 or 512 if OOM)
-PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py \
+PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py \
   --task=Isaac-Repose-Cube-WatoHand-v0 --headless
 
 # Play — omit --headless to see goal-orientation marker
-PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
+PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
   --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1
 
 # Play — specific checkpoint
-PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
+PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
   --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1 \
   --checkpoint logs/rsl_rl/wato_hand_cube/<run>/model_<iter>.pt
 ```
+
+Shorthand aliases (after image rebuild): `rl-train --task=...` / `rl-play --task=... --num_envs=1`.
 
 Checkpoints: `logs/rsl_rl/wato_hand_cube/`. PPO defaults: `max_iterations=5000`, `experiment_name=wato_hand_cube` (`config/wato_hand/agents/rsl_rl_ppo_cfg.py`).
 

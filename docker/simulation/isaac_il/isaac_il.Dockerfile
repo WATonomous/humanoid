@@ -179,9 +179,12 @@ RUN cat >> /root/.bashrc <<'EOF'
 export ISAACLAB=/workspace/isaaclab
 export HUMANOID_ROOT=/workspace/humanoid
 export TASK_ROOT=/workspace/humanoid/autonomy/simulation/so101_vial_task
+export RL_ROOT=/workspace/humanoid/autonomy/simulation/Humanoid_Wato/HumanoidRL
 alias il-train='$PYTHON -m lerobot.scripts.lerobot_train'
 alias il-record='cd $TASK_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_agent.py'
 alias il-eval='cd $TASK_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_eval.py'
+alias rl-train='cd $RL_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py'
+alias rl-play='cd $RL_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py'
 EOF
 
 RUN cat >> /root/.bashrc <<'EOF'

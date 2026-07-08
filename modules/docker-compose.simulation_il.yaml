@@ -25,6 +25,10 @@ x-simulation_il_env: &simulation_il_env
   - QT_X11_NO_MITSHM=1
   - TELEOP_PORT=${TELEOP_PORT:-/dev/ttyACM0}
   - TELEOP_ID=${TELEOP_ID:-leader_arm_1}
+  - ISAACLAB=/workspace/isaaclab
+  - HUMANOID_ROOT=/workspace/humanoid
+  - TASK_ROOT=/workspace/humanoid/autonomy/simulation/so101_vial_task
+  - RL_ROOT=/workspace/humanoid/autonomy/simulation/Humanoid_Wato/HumanoidRL
 
 services:
   simulation_il:

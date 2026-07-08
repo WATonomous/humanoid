@@ -287,6 +287,6 @@ class CabinetEnvCfg(ManagerBasedRLEnvCfg):
         self.scene.robot.init_state.pos = (-0.1, 0.0, 0.4)
 
 
-# PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Open-Drawer-Humanoid-Arm-v0 --headless
+# PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Open-Drawer-Humanoid-Arm-v0 --headless
 
-# PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py --task=Isaac-Open-Drawer-Humanoid-Arm-v0 --num_envs=1
+# PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py --task=Isaac-Open-Drawer-Humanoid-Arm-v0 --num_envs=1
