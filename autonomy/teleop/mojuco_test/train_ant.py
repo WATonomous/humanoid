@@ -5,6 +5,7 @@ from brax.training.agents.ppo import train as ppo
 from brax.io import model
 import time
 
+
 def main():
     # 1. Load the built-in MuJoCo Ant environment
     env_name = "ant"
@@ -17,7 +18,7 @@ def main():
 
     print(f"Hardware detected: {jax.devices()[0]}")
     print("Spawning 1,024 parallel ants. Training for 5,000,000 steps...")
-    
+
     start_time = time.time()
 
     # 3. Start the Reinforcement Learning Loop (PPO Algorithm)
@@ -49,6 +50,7 @@ def main():
     brain_file = "ant_brain.pkl"
     model.save_params(brain_file, params)
     print(f" Neural Network saved as '{brain_file}'. Ready for playback!")
+
 
 if __name__ == "__main__":
     main()
