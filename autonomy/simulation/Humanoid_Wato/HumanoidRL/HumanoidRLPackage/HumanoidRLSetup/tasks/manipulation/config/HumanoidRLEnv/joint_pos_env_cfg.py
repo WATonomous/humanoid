@@ -1,77 +1,10 @@
-import math
 from isaaclab.utils import configclass
 from HumanoidRLPackage.HumanoidRLSetup.tasks.manipulation.reach_env_cfg import ReachEnvCfg
 
 
-# Config on top of the base ReachEnvCfg, can override any settings
 @configclass
 class HumanoidArmReachEnvCfg(ReachEnvCfg):
-    def __post_init__(self):
-        super().__post_init__()
-
-        marker_scale = 0.02
-
-        self.commands.ee_pose.goal_pose_visualizer_cfg.markers["frame"].scale = (
-            marker_scale, marker_scale, marker_scale)
-        self.commands.ee_pose.current_pose_visualizer_cfg.markers["frame"].scale = (
-            marker_scale, marker_scale, marker_scale)
-
-        # self.commands.ee_pose_2.goal_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
-        # self.commands.ee_pose_2.current_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
-
-        # self.commands.ee_pose_3.goal_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
-        # self.commands.ee_pose_3.current_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
-
-        # self.commands.ee_pose_4.goal_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
-        # self.commands.ee_pose_4.current_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
-
-        # self.commands.ee_pose_5.goal_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
-        # self.commands.ee_pose_5.current_pose_visualizer_cfg.markers["frame"].scale = (marker_scale, marker_scale, marker_scale)
-
-        # override events
-        self.events.reset_robot_joints.params["position_range"] = (0.75, 1.25)
-        # override rewards
-        self.rewards.end_effector_position_tracking.params["asset_cfg"].body_names = [
-            "DIP_INDEX_v1_.*"]
-        self.rewards.end_effector_position_tracking_fine_grained.params["asset_cfg"].body_names = [
-            "DIP_INDEX_v1_.*"]
-        # self.rewards.end_effector_orientation_tracking.params["asset_cfg"].body_names = ["DIP_INDEX_v1_.*"]
-
-        # self.rewards.end_effector_2_position_tracking.params["asset_cfg"].body_names = ["DIP_MIDDLE_v1_.*"]
-        # self.rewards.end_effector_2_position_tracking_fine_grained.params["asset_cfg"].body_names = ["DIP_MIDDLE_v1_.*"]
-        # self.rewards.end_effector_2_orientation_tracking.params["asset_cfg"].body_names = ["DIP_MIDDLE_v1_.*"]
-
-        # self.rewards.end_effector_3_position_tracking.params["asset_cfg"].body_names = ["DIP_RING_v1_.*"]
-        # self.rewards.end_effector_3_position_tracking_fine_grained.params["asset_cfg"].body_names = ["DIP_RING_v1_.*"]
-        # self.rewards.end_effector_3_orientation_tracking.params["asset_cfg"].body_names = ["DIP_RING_v1_.*"]
-
-        # self.rewards.end_effector_4_position_tracking.params["asset_cfg"].body_names = ["DIP_PINKY_v1_.*"]
-        # self.rewards.end_effector_4_position_tracking_fine_grained.params["asset_cfg"].body_names = ["DIP_PINKY_v1_.*"]
-        # self.rewards.end_effector_4_orientation_tracking.params["asset_cfg"].body_names = ["DIP_PINKY_v1_.*"]
-
-        # self.rewards.end_effector_5_position_tracking.params["asset_cfg"].body_names = ["IP_THUMB_v1_.*"]
-        # self.rewards.end_effector_5_position_tracking_fine_grained.params["asset_cfg"].body_names = ["IP_THUMB_v1_.*"]
-        # self.rewards.end_effector_5_orientation_tracking.params["asset_cfg"].body_names = ["TIP_B_5"]
-
-        # override command generator body
-        # end-effector is along x-direction
-        self.commands.ee_pose.body_name = "DIP_INDEX_v1_.*"
-        # self.commands.ee_pose.ranges.pitch = (math.pi / 2, math.pi / 2) # this rotate the pose
-
-        # self.commands.ee_pose_2.body_name = "DIP_MIDDLE_v1_.*"
-        # self.commands.ee_pose_2.ranges.pitch = (math.pi / 2, math.pi / 2)
-
-        # self.commands.ee_pose_3.body_name = "DIP_RING_v1_.*"
-        # self.commands.ee_pose_3.ranges.pitch = (math.pi / 2, math.pi / 2)
-
-        # self.commands.ee_pose_4.body_name = "DIP_PINKY_v1_.*"
-        # self.commands.ee_pose_4.ranges.pitch = (math.pi / 2, math.pi / 2)
-
-        # self.commands.ee_pose_5.body_name = "IP_THUMB_v1_.*"
-        # self.commands.ee_pose_5.ranges.pitch = (math.pi / 2, math.pi / 2)
-
-        # self.commands.ee_pose.ranges.yaw = (-math.pi / 2, -math.pi / 2)
-        # self.commands.ee_pose_2.ranges.yaw = (-math.pi / 2, -math.pi / 2)
+    pass
 
 
 @configclass

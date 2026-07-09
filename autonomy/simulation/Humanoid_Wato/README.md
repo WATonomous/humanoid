@@ -1,1 +1,0 @@
-# Isaac Lab Humanoid RL

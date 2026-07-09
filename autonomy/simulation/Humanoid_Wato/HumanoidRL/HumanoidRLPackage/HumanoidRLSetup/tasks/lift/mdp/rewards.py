@@ -6,6 +6,7 @@ import torch
 
 from isaaclab.assets import RigidObject
 from isaaclab.managers import SceneEntityCfg
+from isaaclab.sensors import FrameTransformer
 from isaaclab.utils.math import combine_frame_transforms
 
 if TYPE_CHECKING:
@@ -13,38 +14,28 @@ if TYPE_CHECKING:
 
 
 def object_is_lifted(
-    env: ManagerBasedRLEnv, minimal_height: float, object_cfg: SceneEntityCfg = SceneEntityCfg("object")
+    env: ManagerBasedRLEnv, minimal_height: float, object_cfg: SceneEntityCfg = SceneEntityCfg("cube")
 ) -> torch.Tensor:
     """Reward the agent for lifting the object above the minimal height."""
     object: RigidObject = env.scene[object_cfg.name]
+
+    # above return 1.0, else 0.0
     return torch.where(object.data.root_pos_w[:, 2] > minimal_height, 1.0, 0.0)
 
 
 def object_ee_distance(
     env: ManagerBasedRLEnv,
     std: float,
-    object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
+    object_cfg: SceneEntityCfg = SceneEntityCfg("cube"),
     ee_frame_cfg: SceneEntityCfg = SceneEntityCfg("ee_frame"),
 ) -> torch.Tensor:
-    """Reward the agent for reaching the object using tanh-kernel.
-    Uses ee_frame sensor if present, else robot articulation body (e.g. DIP_INDEX for humanoid arm).
-    """
-    object: RigidObject = env.scene[object_cfg.name]
-    cube_pos_w = object.data.root_pos_w
-
-    try:
-        ee_w = env.scene[ee_frame_cfg.name].data.target_pos_w[..., 0, :]
-    except KeyError:
-        robot = env.scene["robot"]
-        ids, _ = robot.find_bodies("DIP_INDEX_v1_.*", preserve_order=True)
-        ee_w = (
-            robot.data.body_pos_w[:, ids[0], :]
-            if ids
-            else torch.zeros(env.num_envs, 3, device=env.device)
-        )
-
-    object_ee_distance = torch.norm(cube_pos_w - ee_w, dim=1)
-    return 1 - torch.tanh(object_ee_distance / std)
+    """End-effector to cube reward using tanh-kernel (TCP via FrameTransformer)."""
+    cube: RigidObject = env.scene[object_cfg.name]
+    ee_frame: FrameTransformer = env.scene[ee_frame_cfg.name]
+    cube_pos_w = cube.data.root_pos_w
+    ee_w = ee_frame.data.target_pos_w[..., 0, :]
+    distance = torch.norm(cube_pos_w - ee_w, dim=1)
+    return 1 - torch.tanh(distance / std)
 
 
 def object_goal_distance(
@@ -53,18 +44,17 @@ def object_goal_distance(
     minimal_height: float,
     command_name: str,
     robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
+    object_cfg: SceneEntityCfg = SceneEntityCfg("cube"),
 ) -> torch.Tensor:
-    """Reward the agent for tracking the goal pose using tanh-kernel."""
-    # extract the used quantities (to enable type-hinting)
+    """ Cube to target pos reward using tanh-kernel, only awarded if above object_is_lifted() threshold """
     robot: RigidObject = env.scene[robot_cfg.name]
     object: RigidObject = env.scene[object_cfg.name]
     command = env.command_manager.get_command(command_name)
-    # compute the desired position in the world frame
+
     des_pos_b = command[:, :3]
     des_pos_w, _ = combine_frame_transforms(
         robot.data.root_pos_w, robot.data.root_quat_w, des_pos_b)
-    # distance of the end-effector to the object: (num_envs,)
+
     distance = torch.norm(des_pos_w - object.data.root_pos_w, dim=1)
     # rewarded if the object is lifted above the threshold
     return (object.data.root_pos_w[:, 2] > minimal_height) * (1 - torch.tanh(distance / std))
