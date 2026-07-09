@@ -1,7 +1,7 @@
 # Quest 2 Bimanual Arm Teleop
 
 Hand-tracking data from a Quest 2 headset drives both arms in Isaac Sim 5.1
-in real time. Everything runs inside a **single `simulation_il` container** —
+in real time. Everything runs inside a **single `simulation_isaac` container** —
 no separate teleop container is needed.
 
 ```
@@ -21,7 +21,7 @@ run_quest_bimanual_teleop.py                   │
 Isaac Sim 5.1  (rendered on host monitor) ◄────┘
 ```
 
-All four processes run inside `simulation_il_dev`. The Quest browser connects
+All four processes run inside `simulation_isaac_dev`. The Quest browser connects
 back to the host via `adb reverse` USB tunnels — no Wi-Fi or external network
 needed.
 
@@ -33,10 +33,10 @@ needed.
 
 The old architecture used two containers:
 - `teleop` — ran `quest_teleop_node` + `webxr_server` + a UDP relay bridge
-- `simulation_il` — received hand data over UDP sockets, had no ROS 2
+- `simulation_isaac` — received hand data over UDP sockets, had no ROS 2
 
-The UDP bridge was only needed because `simulation_il` had no ROS 2. We
-eliminated it by building ROS 2 Humble from source inside `simulation_il` and
+The UDP bridge was only needed because `simulation_isaac` had no ROS 2. We
+eliminated it by building ROS 2 Humble from source inside `simulation_isaac` and
 having `run_quest_bimanual_teleop.py` subscribe to `/quest_teleop` directly.
 
 ### Why ROS 2 is built from source (not apt)
@@ -79,7 +79,7 @@ Dockerfile change:
 
 ```bash
 # From repo root on the host
-ACTIVE_MODULES="simulation_il" ./watod build
+ACTIVE_MODULES="simulation_isaac" ./watod build
 ```
 
 Takes 10–20 minutes the first time. Subsequent builds use Docker layer cache
@@ -120,7 +120,7 @@ required for teleop to work, but useful so the Quest can load pages.
 Start the container first, then open 5 terminals:
 
 ```bash
-ACTIVE_MODULES="simulation_il" ./watod up -d
+ACTIVE_MODULES="simulation_isaac" ./watod up -d
 ```
 
 ### Terminal 1 — Host: Internet sharing (optional)
@@ -146,7 +146,7 @@ This terminal is done.
 ### Terminal 3 — simulation\_il\_dev: ROS 2 hand tracking node
 
 ```bash
-cd ~/Documents/Wato/humanoid && ./watod -t simulation_il_dev
+cd ~/Documents/Wato/humanoid && ./watod -t simulation_isaac_dev
 ```
 
 `.bashrc` automatically runs `colcon build` when you shell in. Wait for:
@@ -173,7 +173,7 @@ Wait for `[INFO] WSS server listening on port 9090`. Leave running.
 ### Terminal 4 — simulation\_il\_dev: HTTPS WebXR page server
 
 ```bash
-cd ~/Documents/Wato/humanoid && ./watod -t simulation_il_dev
+cd ~/Documents/Wato/humanoid && ./watod -t simulation_isaac_dev
 ```
 
 Wait for `Summary: 2 packages finished`, then:
@@ -187,7 +187,7 @@ Wait for `Serving at https://0.0.0.0:8443`. Leave running.
 ### Terminal 5 — simulation\_il\_dev: Isaac Sim + IK script
 
 ```bash
-cd ~/Documents/Wato/humanoid && ./watod -t simulation_il_dev
+cd ~/Documents/Wato/humanoid && ./watod -t simulation_isaac_dev
 ```
 
 Wait for `Summary: 2 packages finished`, then:
@@ -254,7 +254,7 @@ You should see `QuestHandPose` messages at ~30 Hz when the Quest is active.
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `colcon build` fails silently on shell entry | Image wasn't rebuilt after Dockerfile changed | `ACTIVE_MODULES="simulation_il" ./watod build` |
+| `colcon build` fails silently on shell entry | Image wasn't rebuilt after Dockerfile changed | `ACTIVE_MODULES="simulation_isaac" ./watod build` |
 | `Cannot run the interpreter /usr/bin/python3.11` | Same as above | Rebuild image |
 | `ros2: command not found` | Image predates ros2cli addition | Rebuild image, or use direct binary path (see Terminal 3 note) |
 | `quest_teleop_node: No such file or directory` | Build didn't finish yet | Wait for `Summary: 2 packages finished` |

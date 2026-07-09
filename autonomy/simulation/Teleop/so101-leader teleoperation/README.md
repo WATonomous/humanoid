@@ -91,7 +91,7 @@ Optional HDRI sky randomization: copy workshop `assets/hdri/` to `assets/lerobot
 
 For workshop-parity **Gym envs**, automatic success detection, policy eval, and depth/seg MP4 sidecars, use:
 
-**[`docker/simulation/isaac_lab/QUICKSTART.md`](../../../../docker/simulation/isaac_lab/QUICKSTART.md)** — watod `simulation_il` Docker (recommended).
+**[`docker/simulation/isaac_lab/QUICKSTART.md`](../../../../docker/simulation/isaac_lab/QUICKSTART.md)** — watod `simulation_isaac` Docker (recommended).
 
 Task reference: `autonomy/simulation/so101_vial_task/README.md` (`lerobot_agent.py`, `lerobot_eval.py`).
 

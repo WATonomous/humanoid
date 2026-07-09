@@ -4,7 +4,7 @@ Workshop-parity stack for the SO101 **vial → rack** task: registered Gym envs,
 
 ## Run this (recommended)
 
-Use the **`simulation_il`** watod Docker image (Isaac Lab 2.3.2 + LeRobot). Do **not** use host `env_isaaclab` for IL — wrong Python/stack version.
+Use the **`simulation_isaac`** watod Docker image (Isaac Lab 2.3.2 + LeRobot). Do **not** use host `env_isaaclab` for IL — wrong Python/stack version.
 
 | Doc | Contents |
 |-----|----------|
@@ -13,8 +13,8 @@ Use the **`simulation_il`** watod Docker image (Isaac Lab 2.3.2 + LeRobot). Do *
 
 ```bash
 # host
-ACTIVE_MODULES="simulation_il"   # in watod-config.local.sh
-./watod up -d && ./watod -t simulation_il_dev
+ACTIVE_MODULES="simulation_isaac"   # in watod-config.local.sh
+./watod up -d && ./watod -t simulation_isaac_dev
 ```
 
 Assets: `./assets/lerobot/sync_so101_vial_assets.sh --full` (see [`assets/lerobot/README.md`](../../../assets/lerobot/README.md)).
@@ -32,7 +32,7 @@ Observation groups: `policy` (joints), `visual` (RGB/depth/seg), `subtask` (gras
 
 Cameras: `ego` (gripper), `external_D455` (lightbox) — matches [CursedRock17/so101_teleop_vials_sim_and_real](https://huggingface.co/datasets/CursedRock17/so101_teleop_vials_sim_and_real).
 
-## 1. Train ACT (inside `simulation_il` container)
+## 1. Train ACT (inside `simulation_isaac` container)
 
 ```bash
 il-train \

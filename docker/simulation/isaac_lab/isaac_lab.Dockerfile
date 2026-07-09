@@ -68,7 +68,7 @@ RUN cp /usr/lib/x86_64-linux-gnu/libtinyxml2.so*  /opt/ros/humble/lib/ 2>/dev/nu
 
 # ── Stage 2: Isaac Sim + IL stack ────────────────────────────────────────────
 # SO101 sim IL: NVIDIA workshop stack (Isaac Lab 2.3.2 / Sim 5.1 / Python 3.11 / torch 2.7).
-# Launch via watod: ACTIVE_MODULES="simulation_il" ./watod up -d && ./watod -t simulation_il_dev
+# Launch via watod: ACTIVE_MODULES="simulation_isaac" ./watod up -d && ./watod -t simulation_isaac_dev
 FROM nvcr.io/nvidia/isaac-lab:2.3.2
 
 ENV PYTHON=/workspace/isaaclab/_isaac_sim/python.sh

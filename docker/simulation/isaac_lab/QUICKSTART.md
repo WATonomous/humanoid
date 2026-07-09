@@ -1,7 +1,7 @@
 # SO101 sim IL
 
 Exact workflow used for **HF dataset → ACT train → sim eval** (no physical arm).
-Stack: Isaac Lab 2.3.2 / Sim 5.1 / LeRobot 0.4.3 / ACT / watod `simulation_il`.
+Stack: Isaac Lab 2.3.2 / Sim 5.1 / LeRobot 0.4.3 / ACT / watod `simulation_isaac`.
 
 Full reference: [README.md](README.md). Task/env details: [`autonomy/simulation/so101_vial_task/README.md`](../../../autonomy/simulation/so101_vial_task/README.md).
 
@@ -21,7 +21,7 @@ Create `watod-config.local.sh` (git-ignored):
 
 ```bash
 cat > watod-config.local.sh <<'EOF'
-ACTIVE_MODULES="simulation_il"
+ACTIVE_MODULES="simulation_isaac"
 MODE_OF_OPERATION="develop"
 EOF
 ```
@@ -32,13 +32,13 @@ EOF
 
 ```bash
 cd ~/Desktop/humanoid
-./watod build simulation_il_dev
+./watod build simulation_isaac_dev
 ```
 
 If `import torch` fails inside container (packaging error), rebuild clean:
 
 ```bash
-./watod build --no-cache simulation_il_dev
+./watod build --no-cache simulation_isaac_dev
 ```
 
 ---
@@ -47,7 +47,7 @@ If `import torch` fails inside container (packaging error), rebuild clean:
 
 ```bash
 ./watod up -d
-./watod -t simulation_il_dev
+./watod -t simulation_isaac_dev
 ```
 
 ---
@@ -164,7 +164,7 @@ If Isaac hung and Ctrl+C fails:
 
 ```bash
 ./watod down
-# or: docker kill $(docker ps -q --filter name=simulation_il)
+# or: docker kill $(docker ps -q --filter name=simulation_isaac)
 ./watod up -d
 ```
 
@@ -187,7 +187,7 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_agent.py \
 
 ## 8. HumanoidRL — in-hand / locomotion / etc. (inside container)
 
-Same `simulation_il` stack (Lab 2.3.2 / Sim 5.1). Repo is bind-mounted — checkpoints under `logs/rsl_rl/` on host.
+Same `simulation_isaac` stack (Lab 2.3.2 / Sim 5.1). Repo is bind-mounted — checkpoints under `logs/rsl_rl/` on host.
 
 ```bash
 cd $RL_ROOT
@@ -207,6 +207,6 @@ Task docs: `autonomy/simulation/Humanoid_Wato/HumanoidRL/.../tasks/<task>/*.md`.
 
 | Workload | Where |
 |----------|-------|
-| SO101 IL train + sim eval | `simulation_il` docker |
-| HumanoidRL (all tasks) | `simulation_il` docker (`$RL_ROOT`) |
+| SO101 IL train + sim eval | `simulation_isaac` docker |
+| HumanoidRL (all tasks) | `simulation_isaac` docker (`$RL_ROOT`) |
 | Quest / Wato teleop | `simulation` docker (Sim 4.5) |

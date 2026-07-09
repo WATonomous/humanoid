@@ -1,4 +1,4 @@
-"""Quest bimanual arm teleoperation — runs inside the simulation_il container.
+"""Quest bimanual arm teleoperation — runs inside the simulation_isaac container.
 
 Both arms are controlled via Quest hand tracking.  Hand pose data arrives via
 ROS 2 /quest_teleop topic published by quest_teleop_node (also in this container).
@@ -20,7 +20,7 @@ two stages (see _QUEST_TO_WORLD and _base_delta below).
 
 Usage
 -----
-Inside the simulation_il container:
+Inside the simulation_isaac container:
     ISAAC_LAB=/workspace/isaaclab \\
     PYTHONPATH=/workspace/humanoid/autonomy/simulation/quest_isaac_teleop:$PYTHONPATH \\
     /workspace/isaaclab/isaaclab.sh -p \\

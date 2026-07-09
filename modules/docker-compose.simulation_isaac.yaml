@@ -1,6 +1,6 @@
 version: "3.8"
 
-x-simulation_il_volumes: &simulation_il_volumes
+x-simulation_isaac_volumes: &simulation_isaac_volumes
   - /tmp/.X11-unix:/tmp/.X11-unix:rw
   - ${XAUTHORITY:-${HOME}/.Xauthority}:/root/.Xauthority:rw
   - ${MONO_DIR}:/workspace/humanoid:rw
@@ -16,7 +16,7 @@ x-simulation_il_volumes: &simulation_il_volumes
   - ${ISAAC_SIM_CACHE_DIR}/data:/root/.local/share/ov/data:rw
   - ${MONO_DIR}/autonomy/teleop/quest_teleop/certs:/certs:ro
 
-x-simulation_il_env: &simulation_il_env
+x-simulation_isaac_env: &simulation_isaac_env
   - ACCEPT_EULA=Y
   - PRIVACY_CONSENT=Y
   - NVIDIA_VISIBLE_DEVICES=all
@@ -31,17 +31,17 @@ x-simulation_il_env: &simulation_il_env
   - RL_ROOT=/workspace/humanoid/autonomy/simulation/Humanoid_Wato/HumanoidRL
 
 services:
-  simulation_il:
-    build: &simulation_il_build
+  simulation_isaac:
+    build: &simulation_isaac_build
       context: ..
       dockerfile: docker/simulation/isaac_lab/isaac_lab.Dockerfile
       cache_from:
-        - "${SIMULATION_IL_IMAGE:?}:${TAG}"
-        - "${SIMULATION_IL_IMAGE:?}:main"
-    image: "${SIMULATION_IL_IMAGE:?}:${TAG}"
+        - "${SIMULATION_ISAAC_IMAGE:?}:${TAG}"
+        - "${SIMULATION_ISAAC_IMAGE:?}:main"
+    image: "${SIMULATION_ISAAC_IMAGE:?}:${TAG}"
     privileged: true
     gpus: all
-    environment: *simulation_il_env
+    environment: *simulation_isaac_env
     profiles: [deploy]
     deploy:
       resources:
@@ -49,20 +49,20 @@ services:
           devices:
             - driver: nvidia
               capabilities: [gpu]
-    volumes: *simulation_il_volumes
+    volumes: *simulation_isaac_volumes
     network_mode: host
     stdin_open: true
     tty: true
     command: sleep infinity
 
-  simulation_il_dev:
-    build: *simulation_il_build
-    image: "${SIMULATION_IL_IMAGE:?}:dev_${TAG}"
+  simulation_isaac_dev:
+    build: *simulation_isaac_build
+    image: "${SIMULATION_ISAAC_IMAGE:?}:dev_${TAG}"
     privileged: true
     gpus: all
-    environment: *simulation_il_env
+    environment: *simulation_isaac_env
     profiles: [develop]
-    volumes: *simulation_il_volumes
+    volumes: *simulation_isaac_volumes
     network_mode: host
     stdin_open: true
     tty: true

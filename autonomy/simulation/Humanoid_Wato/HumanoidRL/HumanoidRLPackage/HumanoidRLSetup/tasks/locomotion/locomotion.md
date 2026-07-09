@@ -15,11 +15,11 @@ Legacy aliases `Isaac-Velocity-*` register the same configs for backward compati
 
 ## Train & play
 
-Run inside the **`simulation_il`** container (Isaac Lab 2.3.2 / Sim 5.1). Host setup: [`docker/simulation/isaac_lab/QUICKSTART.md`](../../../../../../../../docker/simulation/isaac_lab/QUICKSTART.md) §0–2.
+Run inside the **`simulation_isaac`** container (Isaac Lab 2.3.2 / Sim 5.1). Host setup: [`docker/simulation/isaac_lab/QUICKSTART.md`](../../../../../../../../docker/simulation/isaac_lab/QUICKSTART.md) §0–2.
 
 ```bash
 # Host: start container
-cd ~/Desktop/humanoid && ./watod up -d && ./watod -t simulation_il_dev
+cd ~/Desktop/humanoid && ./watod up -d && ./watod -t simulation_isaac_dev
 
 # Inside container — run from $RL_ROOT (HumanoidRL/)
 cd $RL_ROOT

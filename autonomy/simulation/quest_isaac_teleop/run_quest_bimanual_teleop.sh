@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Launch Quest bimanual teleop inside the simulation_il container.
+# Launch Quest bimanual teleop inside the simulation_isaac container.
 #
 # Run this from the repo root (on the host):
-#   ./watod -t simulation_il_dev
+#   ./watod -t simulation_isaac_dev
 #
 # Then inside the container:
 #   cd /workspace/humanoid/autonomy/simulation/quest_isaac_teleop

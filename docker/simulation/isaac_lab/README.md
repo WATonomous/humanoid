@@ -1,4 +1,4 @@
-# SO101 sim IL (watod `simulation_il`)
+# SO101 sim IL (watod `simulation_isaac`)
 
 Workshop-parity Docker stack for SO101 **imitation learning** in sim: teleop, record, ACT/GR00T eval.
 
@@ -18,7 +18,7 @@ Based on [NVIDIA SO-101 workshop](https://github.com/isaac-sim/Sim-to-Real-SO-10
 
 | Environment | Use |
 |-------------|-----|
-| **`simulation_il`** (this) | SO101 IL + **HumanoidRL** (RSL-RL train/play) |
+| **`simulation_isaac`** (this) | SO101 IL + **HumanoidRL** (RSL-RL train/play) |
 | **`simulation`** | Humanoid_Wato / quest teleop (Sim 4.5) |
 
 ## Files
@@ -26,7 +26,7 @@ Based on [NVIDIA SO-101 workshop](https://github.com/isaac-sim/Sim-to-Real-SO-10
 | Path | Role |
 |------|------|
 | `docker/simulation/isaac_lab/isaac_lab.Dockerfile` | Image build |
-| `modules/docker-compose.simulation_il.yaml` | watod compose service |
+| `modules/docker-compose.simulation_isaac.yaml` | watod compose service |
 | `autonomy/simulation/so101_vial_task/` | Gym envs + `lerobot_agent.py` / `lerobot_eval.py` |
 | `assets/lerobot/` | Workshop USD/HDRI assets |
 
@@ -43,7 +43,7 @@ mkdir -p ~/docker/isaac-sim/{cache/kit,cache/ov,cache/pip,cache/glcache,cache/co
 `watod-config.local.sh` (create in repo root, do not commit):
 
 ```bash
-ACTIVE_MODULES="simulation_il"
+ACTIVE_MODULES="simulation_isaac"
 MODE_OF_OPERATION="develop"
 ```
 
@@ -52,15 +52,15 @@ GUI uses **X11 to host display** (same as [workshop `teleop-docker`](https://git
 ## Build and launch
 
 ```bash
-./watod build simulation_il_dev          # first time: large NGC pull
+./watod build simulation_isaac_dev          # first time: large NGC pull
 ./watod up -d
-./watod -t simulation_il_dev             # bash inside container
+./watod -t simulation_isaac_dev             # bash inside container
 ```
 
 Rebuild after Dockerfile changes or broken torch:
 
 ```bash
-./watod build --no-cache simulation_il_dev
+./watod build --no-cache simulation_isaac_dev
 ./watod down && ./watod up -d
 ```
 
@@ -175,7 +175,7 @@ exit
 ## Upgrade image
 
 ```bash
-./watod build --no-cache simulation_il_dev
+./watod build --no-cache simulation_isaac_dev
 ./watod down && ./watod up -d
 ```
 

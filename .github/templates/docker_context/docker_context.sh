@@ -25,7 +25,7 @@ while read -r module; do
 
     # Skip Isaac Sim modules (need GPU/NGC/X11; no multi-stage CI Dockerfile)
     # TODO: Add custom handling for embedded testing
-    if [[ 'simulation' = $module_out || 'simulation_il' = $module_out || 'embedded' = $module_out ]]; then
+    if [[ 'simulation' = $module_out || 'simulation_isaac' = $module_out || 'embedded' = $module_out ]]; then
         continue
     fi
 

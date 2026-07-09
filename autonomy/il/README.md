@@ -142,7 +142,7 @@ Output: `datasets/record_so101_sim_vision/001/`.
 
 ## Train (LeRobot)
 
-**SO101 vial sim IL (recommended):** inside `simulation_il` Docker — [`docker/simulation/isaac_lab/QUICKSTART.md`](../../docker/simulation/isaac_lab/QUICKSTART.md) (`il-train`, `--policy.push_to_hub=false`, `--steps=...`).
+**SO101 vial sim IL (recommended):** inside `simulation_isaac` Docker — [`docker/simulation/isaac_lab/QUICKSTART.md`](../../docker/simulation/isaac_lab/QUICKSTART.md) (`il-train`, `--policy.push_to_hub=false`, `--steps=...`).
 
 **Generic / host** (outside Isaac docker):
 
