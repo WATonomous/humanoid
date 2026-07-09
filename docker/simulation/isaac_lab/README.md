@@ -25,7 +25,7 @@ Based on [NVIDIA SO-101 workshop](https://github.com/isaac-sim/Sim-to-Real-SO-10
 
 | Path | Role |
 |------|------|
-| `docker/simulation/isaac_il/isaac_il.Dockerfile` | Image build |
+| `docker/simulation/isaac_lab/isaac_lab.Dockerfile` | Image build |
 | `modules/docker-compose.simulation_il.yaml` | watod compose service |
 | `autonomy/simulation/so101_vial_task/` | Gym envs + `lerobot_agent.py` / `lerobot_eval.py` |
 | `assets/lerobot/` | Workshop USD/HDRI assets |

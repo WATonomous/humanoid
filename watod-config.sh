@@ -13,7 +13,7 @@
 ##   - infrastructure     	:   starts visualization tools
 ##   - interfacing          :   starts interfacing nodes
 ##	 - perception			:	starts perception nodes
-##	 - simulation_il		:	starts sim (Humanoid_Wato / quest teleop, SO101 IL, Lab 2.3.2) — see docker/simulation/isaac_il/QUICKSTART.md
+##	 - simulation_il		:	starts sim (Humanoid_Wato / quest teleop, SO101 IL, Lab 2.3.2) — see docker/simulation/isaac_lab/QUICKSTART.md
 ##   - behaviour            :   starts behaviour nodes       
 ##   - samples             	:   starts sample ROS2 pubsub nodes
 ##   - teleop               :   starts teleop nodes
