@@ -172,6 +172,29 @@ RUN mkdir -p /root/ament_ws/src && \
     ln -s /workspace/humanoid/autonomy/wato_msgs/common_msgs /root/ament_ws/src/common_msgs && \
     ln -s /workspace/humanoid/autonomy/teleop /root/ament_ws/src/teleop
 
+# ── cuRobo (GPU motion planning for pick_place_gen demo generation) ──────────
+# New-API cuRobo JIT-compiles CUDA kernels at runtime via NVRTC (cuda-core
+# backend) — no nvcc/build-time compile. It needs CUDA headers (cudart, nvrtc,
+# cccl) matching torch's CUDA (12.8). Kernels JIT fine on Blackwell (sm_120).
+RUN curl -sSL -o /tmp/cuda-keyring.deb \
+        https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb && \
+    dpkg -i /tmp/cuda-keyring.deb && rm /tmp/cuda-keyring.deb && \
+    apt-get update && apt-get install -y --no-install-recommends \
+        cuda-cudart-dev-12-8 cuda-cccl-12-8 cuda-nvrtc-dev-12-8 cuda-profiler-api-12-8 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Pinned to the commit validated with the wato_bimanual_arm robot config.
+# Constraints protect torch/numpy pins. Post-install fixups:
+#  - websockets>=13 required by curobo's viser dep (repo code imports none;
+#    verified nothing else pins 12.x)
+#  - lxml restored to the image's shipped 5.4.0 (constraints would downgrade
+#    it to 4.9.4, breaking dex-retargeting's >=5.2.2 requirement)
+RUN git clone https://github.com/NVlabs/curobo.git /workspace/curobo && \
+    cd /workspace/curobo && git checkout a35a708 && \
+    $PYTHON -m pip install -e /workspace/curobo -c /tmp/constraints.txt && \
+    $PYTHON -m pip install -c /tmp/constraints.txt "cuda-core[cu12]" && \
+    $PYTHON -m pip install --no-deps websockets==16.0 lxml==5.4.0
+
 COPY docker/simulation/isaac_lab/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
