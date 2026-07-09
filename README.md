@@ -1,68 +1,104 @@
-# WATonomous + UWRL Humanoid Project
-Dockerized ROS2 setup controlling and interfacing with Humanoid Robot
-https://watonomous.github.io/humanoid-docs/index.html 
+# WATonomous Humanoid - UWaterloo's First Humanoid Robot 
 
-## Repo Structure
+Dockerized ROS 2 stack for controlling and interfacing with the humanoid robot, plus Isaac Lab / MuJoCo simulation, teleop, and imitation learning.
+
+Published docs: https://watonomous.github.io/humanoid-docs/index.html
+
+## Quick start (watod)
+
+1. Copy config and pick a module:
+
+```bash
+cp watod-config.sh watod-config.local.sh
+# edit ACTIVE_MODULES and MODE_OF_OPERATION="develop"
+```
+
+2. Build and run:
+
+```bash
+./watod build
+./watod up -d
+./watod -t <service>_dev    # shell into a develop container
+```
+
+| `ACTIVE_MODULES` | What it runs |
+|------------------|--------------|
+| `samples` | Reference ROS 2 pub/sub pipeline |
+| `interfacing` | CAN / hardware interfacing |
+| `perception` | Perception (cameras, GPU) |
+| `behaviour` | `joint_command`, `voxel_grid` |
+| `simulation_isaac` | **Isaac Lab 2.3.2** — SO101 IL, HumanoidRL, Quest teleop |
+| `simulation_mj` | MuJoCo / mjlab RL (`mjlabs` service) |
+
+**Isaac Lab sim (recommended):** see [docker/simulation/isaac_lab/QUICKSTART.md](docker/simulation/isaac_lab/QUICKSTART.md).
+
+## Repo map
+
 ```
 humanoid
-├── watod-setup-env.sh
-├── docker
-│   ├── samples
-│   │   └── cpp
-│   │       ├── Dockerfile.aggregator
-│   │       ├── Dockerfile.producer
-│   │       └── Dockerfile.transformer
-│   └── wato_ros_entrypoint.sh
-├── docs
-├── modules
-│   └── docker-compose.samples.yaml
-├── scripts
-├── autonomy
-│   ├── perception
-│   ├── wato_msgs
-│   │   └── sample_msgs
-│   │       ├── CMakeLists.txt
-│   │       ├── msg
-│   │       └── package.xml
-│   ├── samples
-│   │   ├── README.md
-│   │   └── cpp
-│   │       ├── aggregator
-│   │       ├── image
-│   │       ├── producer
-│   │       ├── README.md
-│   │       └── transformer
-│   ├── controller
-│   ├── interfacing
-│   ├── simulation
-├── embedded
-│   ├── ESP32
-│   ├── STM32
-│   ├── torque-testing
-└── watod
+├── watod                     # Compose orchestrator
+├── watod-config.sh           # Defaults (copy → watod-config.local.sh)
+├── watod_scripts/            # Dev-env / Docker helpers
+├── modules/                  # docker-compose.<module>.yaml
+├── docker/                   # Dockerfiles per stack
+│   ├── base/
+│   ├── samples/
+│   ├── interfacing/
+│   ├── perception/
+│   ├── behaviour/
+│   └── simulation/
+│       ├── isaac_lab/        # Isaac Lab + LeRobot (primary sim)
+│       └── mjlabs/           # MuJoCo / mjlab
+├── autonomy/
+│   ├── samples/              # ROS 2 coding patterns
+│   ├── wato_msgs/            # Shared messages
+│   ├── interfacing/          # CAN, DBC, aggregator
+│   ├── perception/
+│   ├── behaviour/            # joint_command, voxel_grid, octo_map
+│   ├── simulation/           # Isaac tasks, teleop, HumanoidRL
+│   ├── teleop/               # Quest / rosbridge packages
+│   └── il/                   # Imitation learning recording
+├── assets/lerobot/           # SO101 USD / vial-task assets
+├── docs/                     # Doc conventions + architecture map
+├── embedded/                 # STM32, ESP32S3 firmware
+├── utils/                    # Package scaffolding helpers
+└── camera/                   # Host RealSense utility
 ```
-## Documentation
-Documentation structure of this repo can be found [docs/README.md](docs/README.md)
 
-Before developing please read these documents.
+## Simulation
 
-1. [Documentation Structure of Repo](docs/README.md)
-2. [WATO Infrastructure Development Docs](https://github.com/WATonomous/wato_monorepo/tree/main/docs/dev/)
-3. [ROS Node/Core Structure Docs](autonomy/samples/README.md)
+| Stack | Module | Docs |
+|-------|--------|------|
+| Isaac Lab 2.3.2 / Sim 5.1 (SO101 IL, HumanoidRL, Quest) | `simulation_isaac` | [QUICKSTART](docker/simulation/isaac_lab/QUICKSTART.md) · [full README](docker/simulation/isaac_lab/README.md) |
+| MuJoCo / mjlab | `simulation_mj` | [mjlabs_setup.md](mjlabs_setup.md) |
+| SO101 vial Gym envs | (inside `simulation_isaac`) | [so101_vial_task](autonomy/simulation/so101_vial_task/README.md) |
+| Quest bimanual teleop | (inside `simulation_isaac`) | [quest_isaac_teleop](autonomy/simulation/quest_isaac_teleop/README.md) |
+| Other teleop variants | host or container | [Teleop.md](autonomy/simulation/Teleop/Teleop.md) |
 
+Isaac Lab needs Linux, NVIDIA GPU, Docker GPU passthrough, and X11 (`xhost +local:docker`).
 
-## CAN Setup
-If you are stimulating the robot using canable, you will need to set up the CAN interface.
+## Development areas
 
-Run the setup script:
+| Area | Start here |
+|------|------------|
+| ROS node patterns | [autonomy/samples/README.md](autonomy/samples/README.md) |
+| Imitation learning | [autonomy/il/README.md](autonomy/il/README.md) · Isaac [QUICKSTART](docker/simulation/isaac_lab/QUICKSTART.md) |
+| CAN / hardware | [autonomy/interfacing/can/README.md](autonomy/interfacing/can/README.md) |
+| Messages | [autonomy/wato_msgs/common_msgs/README.md](autonomy/wato_msgs/common_msgs/README.md) |
+| New ROS package | [utils/README.md](utils/README.md) |
+| Doc conventions | [docs/README.md](docs/README.md) |
+| WATO infra (external) | [wato_monorepo/docs/dev](https://github.com/WATonomous/wato_monorepo/tree/main/docs/dev/) |
+
+## CAN setup
+
+If you are talking to the robot over CANable, install host udev rules:
+
 ```bash
 ./autonomy/interfacing/can/scripts/can_udev.sh install
 ```
 
-This configures the mount rules on the host pc
+## Requirements
 
-
-## Dependencies:
-- Ubuntu >= 22.04, Windows (WSL), and MacOS.
-
-
+- Ubuntu ≥ 22.04 (WSL / macOS may work for non-GPU stacks)
+- Docker + watod (`./watod`)
+- NVIDIA GPU + drivers for Isaac Lab, perception, and mjlab
