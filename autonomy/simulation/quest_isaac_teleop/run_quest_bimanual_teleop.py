@@ -46,7 +46,7 @@ sys.path.insert(0, str(_KEYBOARD_TELEOP_DIR))
 
 # Bimanual arm URDF + mesh paths for Pink IK's Pinocchio model
 _BIMANUAL_ROOT = _SIM_DIR / "Humanoid_Wato" / "wato_bimanual_arm"
-_URDF_PATH = str(_BIMANUAL_ROOT / "urdf" / "armDouble.SLDASM.urdf")
+_URDF_PATH = str(_BIMANUAL_ROOT / "urdf" / "bimanual_arm.urdf")
 _MESH_DIR = str(_BIMANUAL_ROOT / "meshes")
 
 # ── CLI args ──────────────────────────────────────────────────────────────────

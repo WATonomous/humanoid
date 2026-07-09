@@ -1,8 +1,8 @@
 """
 Bimanual arm articulation config for keyboard teleoperation.
 
-Robot model: Humanoid_Wato/wato_bimanual_arm (armDouble.SLDASM.usd)
-Joint limits/poses: Isaac Sim Physics Inspector (/World/armDouble_SLDASM/root_joint)
+Robot model: Humanoid_Wato/wato_bimanual_arm (bimanual_arm.usd)
+Joint limits/poses: Isaac Sim Physics Inspector (/World/bimanual_arm/root_joint)
 Motor specs: https://watonomous.github.io/humanoid-docs/mechanical/index.html
 
   Shoulder joints 1-2  AK10-9 V3.0  18 Nm rated / 53 Nm peak
@@ -35,7 +35,7 @@ from isaaclab.assets.articulation import ArticulationCfg
 
 _THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 _BIMANUAL_ROOT = os.path.abspath(os.path.join(_THIS_DIR, "..", "..", "Humanoid_Wato", "wato_bimanual_arm"))
-_ARM_USD_PATH = os.path.join(_BIMANUAL_ROOT, "urdf", "armDouble.SLDASM", "armDouble.SLDASM.usd")
+_ARM_USD_PATH = os.path.join(_BIMANUAL_ROOT, "urdf", "bimanual_arm", "bimanual_arm.usd")
 
 
 def _deg(degrees: float) -> float:

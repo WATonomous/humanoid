@@ -1,11 +1,11 @@
 #usda 1.0
 (
-    defaultPrim = "armDouble_SLDASM"
+    defaultPrim = "bimanual_arm"
     upAxis = "Z"
 )
 
-over "armDouble_SLDASM" (
-    prepend references = @./armDouble.SLDASM.usd@
+over "bimanual_arm" (
+    prepend references = @./bimanual_arm.usd@
 )
 {
     over "joints"
