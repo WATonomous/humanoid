@@ -34,7 +34,7 @@ services:
   simulation_il:
     build: &simulation_il_build
       context: ..
-      dockerfile: docker/simulation/isaac_il/isaac_il.Dockerfile
+      dockerfile: docker/simulation/isaac_lab/isaac_lab.Dockerfile
       cache_from:
         - "${SIMULATION_IL_IMAGE:?}:${TAG}"
         - "${SIMULATION_IL_IMAGE:?}:main"
