@@ -496,6 +496,7 @@ def pull_distance_reward(
     asset_cfg: SceneEntityCfg,
     max_open: float = 0.39,
     force_threshold: float = 1.0,
+    dual_grip_bonus: float = 1.0,
 ) -> torch.Tensor:
     """Dense + disproportionately large pull reward using exp(5f) - 1.
 
@@ -512,6 +513,16 @@ def pull_distance_reward(
     # Grip multiplier scales with inner-edge contact FORCE, saturating at force_ceiling.
     # Firmer inner-edge grip → more pull reward, capped once the grip is solid.
     grip_mul = inner_grip_strength(env, force_threshold, force_ceiling=30.0)
+
+    # ── DUAL-GRIP MULTIPLIER ──────────────────────────────────────────────────
+    # Pulling with BOTH inner edges gripping earns the MOST points. A single inner
+    # edge still earns the full base pull reward (one-finger hook remains valid), but
+    # when both inner edges are in contact the whole pull reward is multiplied by
+    # (1 + dual_grip_bonus). With dual_grip_bonus=3.0 this gives 4× the reward for a
+    # proper two-finger grip, making it the unambiguously best strategy.
+    inner7, inner8 = _inner_edge_contact(env, force_threshold)
+    both_inner = (inner7 & inner8).float()
+    dual_mul = 1.0 + dual_grip_bonus * both_inner
 
     drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
 
@@ -575,7 +586,7 @@ def pull_distance_reward(
         _sum_f_this_iter = 0.0
         _count_f_this_iter = 0
 
-    return grip_mul * distance_score
+    return grip_mul * distance_score * dual_mul
 
 
 def continuous_pull_reward(

@@ -337,6 +337,9 @@ class RewardsCfg:
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "max_open": 0.39,
             "force_threshold": 1.0,
+            # Both inner edges gripping gives 4× the pull reward (1 + 3.0).
+            # Single-edge pull still earns the full base reward (hook-and-pull stays valid).
+            "dual_grip_bonus": 3.0,
         },
     )
     # Velocity reward — momentum multiplier makes one sustained pull worth 4× jerky tugs.
