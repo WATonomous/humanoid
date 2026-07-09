@@ -41,7 +41,7 @@ from isaaclab.app import AppLauncher
 # ── path setup (must be before AppLauncher so PYTHONPATH is correct) ─────────
 _THIS_DIR = Path(__file__).resolve().parent
 _SIM_DIR = _THIS_DIR.parent
-_KEYBOARD_TELEOP_DIR = _SIM_DIR / "Teleop" / "keyboard-based teleoperation"
+_KEYBOARD_TELEOP_DIR = _SIM_DIR / "Teleop" / "keyboard_based_teleoperation"
 sys.path.insert(0, str(_KEYBOARD_TELEOP_DIR))
 
 # Bimanual arm URDF + mesh paths for Pink IK's Pinocchio model

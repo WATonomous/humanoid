@@ -20,7 +20,7 @@ Isaac Sim requires `warp-lang==1.5.0`. Run this once to install the correct vers
 
 ## Step 2: Run teleop
 
-From this directory (`keyboard-based teleoperation/`):
+From this directory (`keyboard_based_teleoperation/`):
 
 ```bash
 PYTHONPATH=$(pwd) <path>/IsaacLab/isaaclab.sh -p keyboard_teleop.py

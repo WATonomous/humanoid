@@ -1,5 +1,5 @@
 """
-wato_hand_ros2_node.py (camera-based teleoperation)
+wato_hand_ros2_node.py (camera_based_teleoperation)
 ===================================================
 This ROS2 node runs inside the Docker container.
 It subscribes to raw hand landmark data published by hand_landmark_publisher.py

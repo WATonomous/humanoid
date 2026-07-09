@@ -21,7 +21,7 @@ simulation_app = app_launcher.app
 
 # Import bimanual_arm_cfg from keyboard teleoperation (same robot model as keyboard_teleop.py)
 _KEYBOARD_TELEOP_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../Teleop/keyboard-based teleoperation")
+    os.path.join(os.path.dirname(__file__), "../../Teleop/keyboard_based_teleoperation")
 )
 sys.path.insert(0, _KEYBOARD_TELEOP_DIR)
 

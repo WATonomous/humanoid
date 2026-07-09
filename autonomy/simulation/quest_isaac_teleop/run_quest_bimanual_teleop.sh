@@ -13,7 +13,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ISAAC_LAB="${ISAAC_LAB:-/workspace/isaaclab}"
 
-export PYTHONPATH="${SCRIPT_DIR}:${SCRIPT_DIR}/../Teleop/keyboard-based teleoperation:${SCRIPT_DIR}/../Humanoid_Wato:${PYTHONPATH}"
+export PYTHONPATH="${SCRIPT_DIR}:${SCRIPT_DIR}/../Teleop/keyboard_based_teleoperation:${SCRIPT_DIR}/../Humanoid_Wato:${PYTHONPATH}"
 
 
 exec "${ISAAC_LAB}/isaaclab.sh" -p \

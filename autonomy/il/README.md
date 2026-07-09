@@ -91,7 +91,7 @@ Output: `datasets/record/001/` with LeRobot tree + `trajectories.h5`.
 
 ## Isaac Sim (keyboard teleop)
 
-From `autonomy/simulation/Teleop/keyboard-based teleoperation/`:
+From `autonomy/simulation/Teleop/keyboard_based_teleoperation/`:
 
 ```bash
 pip install -e ../../../il[record]
@@ -108,7 +108,7 @@ Output: `datasets/record_sim/001/`.
 
 ## Isaac Sim (SO101 teleop)
 
-**Keyboard** or **physical SO101 Leader** drives the SO101 follower in sim. From `autonomy/simulation/Teleop/so101-leader teleoperation/`:
+**Keyboard** or **physical SO101 Leader** drives the SO101 follower in sim. From `autonomy/simulation/Teleop/so101_leader_teleoperation/`:
 
 ```bash
 pip install -e ../../../il[record]

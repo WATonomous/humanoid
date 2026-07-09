@@ -83,14 +83,14 @@ ros2 launch rosbridge_example rosbridge_example.launch.py
 ### Terminal 2 — ROS2 landmark-to-joints node
 ```bash
 source /opt/ros/humble/setup.bash
-cd "/workspace/isaaclab/final_repo/humanoid/autonomy/simulation/Teleop/camera-based teleoperation"
+cd "/workspace/isaaclab/final_repo/humanoid/autonomy/simulation/Teleop/camera_based_teleoperation"
 python wato_hand_ros2_node.py
 ```
 
 ### Terminal 3 — Isaac Lab simulation
 ```bash
 source /opt/ros/humble/setup.bash
-cd "/workspace/isaaclab/final_repo/humanoid/autonomy/simulation/Teleop/camera-based teleoperation"
+cd "/workspace/isaaclab/final_repo/humanoid/autonomy/simulation/Teleop/camera_based_teleoperation"
 /workspace/isaaclab/isaaclab.sh -p wato_hand_isaaclab_teleop.py
 ```
 
@@ -100,7 +100,7 @@ cd "/workspace/isaaclab/final_repo/humanoid/autonomy/simulation/Teleop/camera-ba
 ```powershell
 # PowerShell — activate venv from root first, then cd
 .\myenv\Scripts\Activate.ps1
-cd "autonomy\simulation\Teleop\camera-based teleoperation"
+cd "autonomy\simulation\Teleop\camera_based_teleoperation"
 pip install mediapipe==0.10.35 roslibpy opencv-python
 python hand_landmark_publisher.py
 ```
@@ -153,7 +153,7 @@ ros2 topic echo /wato/hand_joint_angles
 
 | Problem | Fix |
 |---------|-----|
-| `teleop_tuned_arm_cfg` import error | Check you are running from `camera-based teleoperation/` |
+| `teleop_tuned_arm_cfg` import error | Check you are running from `camera_based_teleoperation/` |
 | `right_arm_assembly.urdf not found` | Verify `Humanoid_Wato/arm_assembly/right_arm_assembly.urdf` exists |
 | rosbridge connection refused | Check Terminal 1 is running and SSH tunnel is active (`-L 9090:localhost:9090`) |
 | Hand landmarks not appearing | Run `ros2 topic echo /wato/hand_landmarks` to confirm `hand_landmark_publisher.py` is publishing |

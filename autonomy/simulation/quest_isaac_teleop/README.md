@@ -296,7 +296,7 @@ too sluggish in the end-range, raise `gain` further or lower `lm_damping`.
 If it becomes unstable (oscillating), lower `gain` or raise `lm_damping`.
 
 Actuator responsiveness (how fast joints track the IK output) is set in
-`autonomy/simulation/Teleop/keyboard-based\ teleoperation/bimanual_arm_cfg.py`
+`autonomy/simulation/Teleop/keyboard_based_teleoperation/bimanual_arm_cfg.py`
 via `stiffness` and `damping` on each `ImplicitActuatorCfg`. Current values
 are 2× the original motor datasheet figures for faster sim tracking.
 

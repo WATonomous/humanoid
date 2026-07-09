@@ -33,6 +33,6 @@ Source: [isaac-sim/Sim-to-Real-SO-101-Workshop](https://github.com/isaac-sim/Sim
 Used by:
 - `simulation_isaac` watod Docker — [`docker/simulation/isaac_lab/QUICKSTART.md`](../../docker/simulation/isaac_lab/QUICKSTART.md)
 - `autonomy/simulation/so101_vial_task/`
-- `autonomy/simulation/Teleop/so101-leader teleoperation/`
+- `autonomy/simulation/Teleop/so101_leader_teleoperation/`
 
 Run `./assets/lerobot/sync_so101_vial_assets.sh --full` before first sim IL eval if you see `[WARNING] No textures found`.
