@@ -44,7 +44,7 @@ This folder was deleted as it was only used for certain mjlab setup tests:
 The testing folder has 4 main files:
 
 1. **`cpu_test_headless.py`** → Runs RL training purely on the CPU with an environment count of 1024.
-2. **`cpu_test_webview.py`** → Runs a live view of the given URDF (I used the `wato_binaural_arm` for testing).
+2. **`cpu_test_webview.py`** → Runs a live view of the given URDF (I used the `wato_bimanual_arm` for testing).
 3. **`train_ant.py`** → Trains a basic quadruped model, the mjlabs "Ant," to move as fast as possible. Generates the `ant_brain.pkl` file containing the optimized neural network weights → <https://gymnasium.farama.org/environments/mujoco/ant/>
 4. **`enjoy_ant.py`** → Generates an HTML file after loading `ant_brain.pkl`, containing the video of a single environment using the "best strategy" as trained by `train_ant.py`.
     

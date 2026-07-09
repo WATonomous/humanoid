@@ -30,7 +30,6 @@ TAG=${TAG/\//-}
 
 # List of active profiles to run, defined in docker-compose.yaml.
 # Possible values:
-##   - infrastructure     	:   starts visualization tools
 ##   - interfacing          :   starts interfacing nodes
 ##	 - perception			:	starts perception nodes
 ##	 - controller		    :	starts controller nodes
@@ -54,8 +53,6 @@ SAMPLES_PRODUCER_IMAGE=${SAMPLES_PRODUCER_IMAGE:-"$REGISTRY_URL/samples/samples_
 SAMPLES_TRANSFORMER_IMAGE=${SAMPLES_TRANSFORMER_IMAGE:-"$REGISTRY_URL/samples/samples_transformer"}
 
 # Images
-INFRASTRUCTURE_FOXGLOVE_IMAGE=${INFRASTRUCTURE_FOXGLOVE_IMAGE:-"$REGISTRY_URL/infrastructure/foxglove"}
-
 BEHAVIOUR_VOXEL_IMAGE=${BEHAVIOUR_VOXEL_IMAGE:-"$REGISTRY_URL/behaviour/voxel_grid"}
 
 BEHAVIOUR_JOINT_COMMAND_IMAGE=${BEHAVIOUR_JOINT_COMMAND_IMAGE:-"$REGISTRY_URL/behaviour/joint_command"}
@@ -75,7 +72,6 @@ TELEOP_IMAGE=${TELEOP_IMAGE:-"$REGISTRY_URL/teleop"}
 ## --------------------------- Ports ------------------------------
 
 BASE_PORT=${BASE_PORT:-$(($(id -u)*20))}
-FOXGLOVE_BRIDGE_PORT=${FOXGLOVE_BRIDGE_PORT:-$((BASE_PORT++))}
 
 ## -------------------- Environment Variables -------------------------
 
@@ -98,7 +94,6 @@ echo "TAG=$TAG" >> "$MODULES_DIR/.env"
 
 # Ports
 echo "BASE_PORT=$BASE_PORT" >> "$MODULES_DIR/.env"
-echo "FOXGLOVE_BRIDGE_PORT=$FOXGLOVE_BRIDGE_PORT" >> "$MODULES_DIR/.env"
 
 # ROS2 Samples
 echo "SAMPLES_AGGREGATOR_IMAGE=$SAMPLES_AGGREGATOR_IMAGE" >> "$MODULES_DIR/.env"
@@ -106,7 +101,6 @@ echo "SAMPLES_PRODUCER_IMAGE=$SAMPLES_PRODUCER_IMAGE" >> "$MODULES_DIR/.env"
 echo "SAMPLES_TRANSFORMER_IMAGE=$SAMPLES_TRANSFORMER_IMAGE" >> "$MODULES_DIR/.env"
 
 # Images
-echo "INFRASTRUCTURE_FOXGLOVE_IMAGE=$INFRASTRUCTURE_FOXGLOVE_IMAGE" >> "$MODULES_DIR/.env"
 echo "INTERFACING_IMAGE=$INTERFACING_IMAGE" >> "$MODULES_DIR/.env"
 
 echo "BEHAVIOUR_VOXEL_IMAGE=$BEHAVIOUR_VOXEL_IMAGE" >> "$MODULES_DIR/.env"
