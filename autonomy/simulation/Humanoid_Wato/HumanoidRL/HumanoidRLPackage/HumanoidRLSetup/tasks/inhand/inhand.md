@@ -15,7 +15,7 @@ Task setup and MDP code are adapted from [Isaac Lab](https://github.com/isaac-si
 
 ## Train & play
 
-Run inside the **`simulation_il`** container (Isaac Lab 2.3.2 / Sim 5.1). Host setup: [`docker/simulation/isaac_il/QUICKSTART.md`](../../../../../../../../docker/simulation/isaac_il/QUICKSTART.md) §0–2.
+Run inside the **`simulation_il`** container (Isaac Lab 2.3.2 / Sim 5.1). Host setup: [`docker/simulation/isaac_lab/QUICKSTART.md`](../../../../../../../../docker/simulation/isaac_lab/QUICKSTART.md) §0–2.
 
 ```bash
 # Host: start container

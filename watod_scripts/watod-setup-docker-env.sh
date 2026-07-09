@@ -34,7 +34,7 @@ TAG=${TAG/\//-}
 ##   - interfacing          :   starts interfacing nodes
 ##	 - perception			:	starts perception nodes
 ##	 - controller		    :	starts controller nodes
-##	 - simulation_il		:	starts sim (Humanoid_Wato / quest teleop, SO101 IL, Lab 2.3.2) — see docker/simulation/isaac_il/QUICKSTART.md
+##	 - simulation_il		:	starts sim (Humanoid_Wato / quest teleop, SO101 IL, Lab 2.3.2) — see docker/simulation/isaac_lab/QUICKSTART.md
 ##	 - behaviour			:	starts behaviour nodes
 ##   - samples             	:   starts sample ROS2 pubsub nodes
 ACTIVE_MODULES=${ACTIVE_MODULES:-""}
@@ -62,7 +62,7 @@ BEHAVIOUR_JOINT_COMMAND_IMAGE=${BEHAVIOUR_JOINT_COMMAND_IMAGE:-"$REGISTRY_URL/be
 
 PERCEPTION_IMAGE=${PERCEPTION_IMAGE:-"$REGISTRY_URL/perception/perception_module"}
 
-SIMULATION_IL_IMAGE=${SIMULATION_IL_IMAGE:-"$REGISTRY_URL/simulation/isaac_il"}
+SIMULATION_IL_IMAGE=${SIMULATION_IL_IMAGE:-"$REGISTRY_URL/simulation/isaac_lab"}
 
 ISAAC_SIM_CACHE_DIR=${ISAAC_SIM_CACHE_DIR:-"$HOME/docker/isaac-sim"}
 

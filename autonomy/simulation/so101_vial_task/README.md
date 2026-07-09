@@ -8,8 +8,8 @@ Use the **`simulation_il`** watod Docker image (Isaac Lab 2.3.2 + LeRobot). Do *
 
 | Doc | Contents |
 |-----|----------|
-| **[`docker/simulation/isaac_il/QUICKSTART.md`](../../../docker/simulation/isaac_il/QUICKSTART.md)** | Exact copy-paste: build, train ACT, eval |
-| **[`docker/simulation/isaac_il/README.md`](../../../docker/simulation/isaac_il/README.md)** | Full setup, troubleshooting, workflows |
+| **[`docker/simulation/isaac_lab/QUICKSTART.md`](../../../docker/simulation/isaac_lab/QUICKSTART.md)** | Exact copy-paste: build, train ACT, eval |
+| **[`docker/simulation/isaac_lab/README.md`](../../../docker/simulation/isaac_lab/README.md)** | Full setup, troubleshooting, workflows |
 
 ```bash
 # host
@@ -47,7 +47,7 @@ il-train \
   --job_name=so101_hf_smoke
 ```
 
-See [QUICKSTART.md](../../../docker/simulation/isaac_il/QUICKSTART.md) for full train/eval commands and pitfalls.
+See [QUICKSTART.md](../../../docker/simulation/isaac_lab/QUICKSTART.md) for full train/eval commands and pitfalls.
 
 ## 2. Policy eval in sim (inside container)
 

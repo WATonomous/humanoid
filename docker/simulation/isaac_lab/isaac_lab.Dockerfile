@@ -172,7 +172,7 @@ RUN mkdir -p /root/ament_ws/src && \
     ln -s /workspace/humanoid/autonomy/wato_msgs/common_msgs /root/ament_ws/src/common_msgs && \
     ln -s /workspace/humanoid/autonomy/teleop /root/ament_ws/src/teleop
 
-COPY docker/simulation/isaac_il/entrypoint.sh /entrypoint.sh
+COPY docker/simulation/isaac_lab/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 RUN cat >> /root/.bashrc <<'EOF'

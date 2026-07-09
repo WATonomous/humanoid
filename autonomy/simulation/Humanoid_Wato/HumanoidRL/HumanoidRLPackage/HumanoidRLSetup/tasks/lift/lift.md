@@ -11,7 +11,7 @@ Pick-and-place for the SO101 follower arm (`so101_follower_good.usd`) in Isaac L
 
 ## Train & play
 
-Run inside the **`simulation_il`** container (Isaac Lab 2.3.2 / Sim 5.1). Host setup: [`docker/simulation/isaac_il/QUICKSTART.md`](../../../../../../../../docker/simulation/isaac_il/QUICKSTART.md) §0–2.
+Run inside the **`simulation_il`** container (Isaac Lab 2.3.2 / Sim 5.1). Host setup: [`docker/simulation/isaac_lab/QUICKSTART.md`](../../../../../../../../docker/simulation/isaac_lab/QUICKSTART.md) §0–2.
 
 ```bash
 # Host: start container
