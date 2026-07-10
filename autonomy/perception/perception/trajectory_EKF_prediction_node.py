@@ -70,20 +70,26 @@ class EKFPredictionNode(Node):
         z = np.array([msg.point.x, msg.point.y, msg.point.z])
 
         if not self.velocity_initialized:
-            if self.prev_meas is not None:
-                dt_elapsed = self.latest_meas_time.sec + self.latest_meas_time.nanosec * \
-                    1e-9 - (self.prev_meas_time.sec +
-                            self.prev_meas_time.nanosec * 1e-9)
+                # Always initialize position from the first measurement so published state/impact
+                # estimation aren't based on (0, 0, 0).
+                if self.prev_meas is None:
+                    self.x[0:3] = z
+                    self.prev_meas = z
+                    self.prev_meas_time = msg.header.stamp
+                    return
+                dt_elapsed = (self.latest_meas_time.sec + self.latest_meas_time.nanosec * 1e-9) - (
+                    self.prev_meas_time.sec + self.prev_meas_time.nanosec * 1e-9
+                )
                 # guard: only seed if elapsed time is not like zero or too small
                 if dt_elapsed > 0.001:
                     v_init = (z - self.prev_meas) / dt_elapsed
                     self.x[0:3] = z
                     self.x[3:6] = v_init
                     self.velocity_initialized = True
-                    self.get_logger().info(
-                        f"Velocity seeded: {v_init}")
-            self.prev_meas = z
-            self.prev_meas_time = msg.header.stamp
+                    self.get_logger().info(f"Velocity seeded: {v_init}")
+                    
+                self.prev_meas = z
+                self.prev_meas_time = msg.header.stamp
 
     def shuttle_true_callback(self, msg):
         self.true_pos = np.array([
