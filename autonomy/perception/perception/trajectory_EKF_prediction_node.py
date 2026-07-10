@@ -168,10 +168,15 @@ class EKFPredictionNode(Node):
             future_x = self.f(future_x)
             if future_x[0]**2 + future_x[1]**2 + future_x[2]**2 <= self.bounding_sphere_radius**2:
                 impact = True
-                # using the negative of the normalized velocity at impact to estimate the ideal racket facing orientation for a hit back
-                hitback_direction = - \
-                    (future_x[3:6]/np.linalg.norm(future_x[3:6]))
-                time_to_impact = i * self.dt
+                # using the negative of the normalized velocity at impact to estimate the ideal
+                # racket facing orientation for a hit back
+                vel = future_x[3:6]
+                vel_norm = np.linalg.norm(vel)
+                if vel_norm > 1e-9:
+                    hitback_direction = -(vel / vel_norm)
+                else:
+                    hitback_direction = np.zeros(3)
+                time_to_impact = (i + 1) * self.dt
                 position_of_impact = future_x[0:3]
                 break
         if (impact):
