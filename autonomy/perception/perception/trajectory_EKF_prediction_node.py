@@ -84,6 +84,7 @@ class EKFPredictionNode(Node):
                         f"Velocity seeded: {v_init}")
             self.prev_meas = z
             self.prev_meas_time = msg.header.stamp
+            #test change
 
     def shuttle_true_callback(self, msg):
         self.true_pos = np.array([
