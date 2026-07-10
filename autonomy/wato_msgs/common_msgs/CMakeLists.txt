@@ -22,6 +22,7 @@ set(msg_files
     msg/MotorCmd.msg
     msg/MotorFeedback.msg
     msg/QuestHandPose.msg
+    msg/PerceptionImpactEstimation.msg
     )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
