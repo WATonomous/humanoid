@@ -496,64 +496,60 @@ def pull_distance_reward(
     asset_cfg: SceneEntityCfg,
     max_open: float = 0.39,
     force_threshold: float = 1.0,
+    dual_grip_bonus: float = 1.0,
 ) -> torch.Tensor:
-    """Dense pull reward: HIGH-SLOPE LINEAR up to 3cm, then C1-smooth QUADRATIC beyond.
+    """Extremely steep, continuously-accelerating pull reward using C*(exp(k*f) - 1).
 
-    Shape (per-step, weight=0.01):
-      - Linear  0→3cm:  steep constant slope m=500 (in f-space) — strong early gradient
-      - Quadratic 3→39cm: attached at 3cm with equal slope (C1 continuity), grows to
-        S_max=2000 at full open
+    Shape: C * (exp(k*f) - 1) where f = drawer_pos / max_open, C=1000, k=10.
+    Calibrated so the slope AT THE ORIGIN is exactly 10,000 points per unit of f —
+    i.e. every f=0.0001 of drawer opening is worth 1 point right from the first
+    micron of pull. Because the curve is exponential, the score doesn't just grow
+    linearly at that rate — it keeps accelerating, so later progress is worth far
+    more than early progress:
+      - f=0.0001  (0.039mm): 1.0        pts  (the calibration point — 1 pt per 0.0001f)
+      - f=0.001   (0.39mm):  10.05      pts
+      - f=0.01    (3.9mm):   105.17     pts
+      - f=0.1     (3.9cm):   1,718.28   pts
+      - f=0.5     (19.5cm):  147,413    pts
+      - f=1.0     (full, 39cm): 22,025,466 pts — continuously ramps up to a huge payoff
 
-    C1 junction at f₀ = 0.03/max_open ensures no kink (no gradient discontinuity),
-    so the policy gradient is smooth across the transition.
-
-    Values at weight=0.01:
-      0.1cm → 0.13   (real signal from the first micron)
-      1cm   → 1.28
-      3cm   → 3.85   (junction — same from both sides)
-      10cm  → 9.5
-      20cm  → 31.5
-      39cm  → 200    (per-step) → ~96k per episode at full open
-
-    The critic now sees episode returns in the range 0–100k instead of 0–billions,
-    which is enough to make pull reward dominant while keeping the critic stable.
+    The grip multiplier is a saturating function of inner-edge contact force so the
+    robot only needs a good-enough grip, not a perfect one.
     """
-    # ── Grip multipliers ─────────────────────────────────────────────────────
+    # Grip multiplier scales with inner-edge contact FORCE, saturating at force_ceiling.
+    # Firmer inner-edge grip → more pull reward, capped once the grip is solid.
     grip_mul = inner_grip_strength(env, force_threshold, force_ceiling=30.0)
 
-    # No dual-edge bonus — the accepted grip is a single-finger hook-from-below
-    # (fingers curling under the bar and pulling back). This is fully captured by
-    # inner_grip_strength which scales with contact force on whichever inner edge
-    # is in contact. dual_mul is 1.0 everywhere.
-    dual_mul = torch.ones(env.num_envs, device=env.device)
+    # ── DUAL-GRIP MULTIPLIER ──────────────────────────────────────────────────
+    # Pulling with BOTH inner edges gripping earns the MOST points. A single inner
+    # edge still earns the full base pull reward (one-finger hook remains valid), but
+    # when both inner edges are in contact the whole pull reward is multiplied by
+    # (1 + dual_grip_bonus). With dual_grip_bonus=3.0 this gives 4× the reward for a
+    # proper two-finger grip, making it the unambiguously best strategy.
+    inner7, inner8 = _inner_edge_contact(env, force_threshold)
+    both_inner = (inner7 & inner8).float()
+    dual_mul = 1.0 + dual_grip_bonus * both_inner
 
-    # ── Drawer fraction ───────────────────────────────────────────────────────
     drawer_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids[0]]
 
     global _last_f_print_step, _max_f_this_iter, _mag7_at_max_f, _mag8_at_max_f, _sum_f_this_iter, _count_f_this_iter
 
     f = torch.clamp(drawer_pos / max_open, min=0.0, max=1.0)
+    # C=1000, k=10 → slope at the origin is C*k = 10,000 pts per unit of f, i.e.
+    # every f=0.0001 (0.039mm at max_open=0.39m) is worth ~1.0 point immediately.
+    # Because it's exponential in f, the reward keeps accelerating well past that:
+    #   f=0.0001 (0.039mm): 1.0         pts  (calibration point)
+    #   f=0.001  (0.39mm):  10.05       pts
+    #   f=0.01   (3.9mm):   105.17      pts
+    #   f=0.1    (3.9cm):   1,718.28    pts
+    #   f=0.5    (19.5cm):  147,413     pts
+    #   f=1.0    (full):    22,025,466  pts — scores continuously climb very high
+    C = 1000.0
+    k = 10.0
+    distance_score = C * (torch.exp(k * f) - 1.0)
 
-    # ── Piecewise C1 curve ────────────────────────────────────────────────────
-    # Linear parameters
-    m    = 500.0             # slope of linear segment (and slope at junction)
-    f0   = 0.03 / max_open  # junction at 3cm ≈ f=0.07692
-    S_max = 2000.0           # target score at full open (f=1)
-
-    # Quadratic coefficients — derived analytically for C1 continuity:
-    #   c = m * f0            (continuity)
-    #   b = m                 (equal derivative)
-    #   a*(1-f0)^2 + m*(1-f0) + c = S_max  → solve for a
-    c_coef = m * f0
-    b_coef = m
-    a_coef = (S_max - b_coef * (1.0 - f0) - c_coef) / ((1.0 - f0) ** 2)
-
-    linear_score = m * f
-    quad_score   = a_coef * (f - f0) ** 2 + b_coef * (f - f0) + c_coef
-
-    distance_score = torch.where(f < f0, linear_score, quad_score)
-
-    # ── Debug tracking ────────────────────────────────────────────────────────
+    # Track for debug print — use the actual grip gate (grip_mul > 0 means an inner
+    # edge is in contact). Previously referenced the removed `grip_score` variable.
     gripped_f = f * (grip_mul > 0.0).float()
     best_gripped_idx = gripped_f.argmax().item()
     best_gripped_f = gripped_f[best_gripped_idx].item()
@@ -583,7 +579,7 @@ def pull_distance_reward(
         _sum_f_this_iter = 0.0
         _count_f_this_iter = 0
 
-    return grip_mul * distance_score * dual_mul * dual_mul
+    return grip_mul * distance_score * dual_mul
 
 
 def continuous_pull_reward(

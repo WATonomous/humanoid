@@ -54,7 +54,15 @@ import time
 import torch
 
 from packaging import version
-from rsl_rl.runners import DistillationRunner, OnPolicyRunner
+from rsl_rl.runners import OnPolicyRunner
+
+try:
+    # DistillationRunner was added in a later rsl-rl-lib release. Older versions
+    # (e.g. the one pinned in some Isaac Sim containers) don't export it, so import
+    # it optionally and only fail if a task actually requests class_name="DistillationRunner".
+    from rsl_rl.runners import DistillationRunner
+except ImportError:
+    DistillationRunner = None
 
 from isaaclab.envs import DirectMARLEnv, multi_agent_to_single_agent
 from isaaclab.utils.assets import retrieve_file_path
@@ -66,7 +74,12 @@ from isaaclab_rl.rsl_rl import (
     export_policy_as_jit,
     export_policy_as_onnx,
 )
-from isaaclab_rl.utils.pretrained_checkpoint import get_published_pretrained_checkpoint
+try:
+    # Not present in all isaaclab_rl versions/installs; only needed for
+    # --use_pretrained_checkpoint (downloading a checkpoint from Nucleus).
+    from isaaclab_rl.utils.pretrained_checkpoint import get_published_pretrained_checkpoint
+except ImportError:
+    get_published_pretrained_checkpoint = None
 
 import HumanoidRLPackage.HumanoidRLSetup.tasks  # noqa: F401
 from isaaclab_tasks.utils import get_checkpoint_path, parse_env_cfg
@@ -90,6 +103,13 @@ def main():
     log_root_path = os.path.abspath(log_root_path)
     print(f"[INFO] Loading experiment from directory: {log_root_path}")
     if args_cli.use_pretrained_checkpoint:
+        if get_published_pretrained_checkpoint is None:
+            raise ImportError(
+                "--use_pretrained_checkpoint was passed but "
+                "isaaclab_rl.utils.pretrained_checkpoint is not available in this "
+                "isaaclab_rl install. Omit --use_pretrained_checkpoint to load a "
+                "local checkpoint instead."
+            )
         resume_path = get_published_pretrained_checkpoint("rsl_rl", train_task_name)
         if not resume_path:
             print("[INFO] Unfortunately a pre-trained checkpoint is currently unavailable for this task.")
@@ -127,12 +147,23 @@ def main():
 
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     # load previously trained model
-    if agent_cfg.class_name == "OnPolicyRunner":
+    # class_name was added to RslRlOnPolicyRunnerCfg in a later isaaclab_rl release
+    # (to select between OnPolicyRunner/DistillationRunner). Older installs don't
+    # have this field at all, so default to "OnPolicyRunner" — the only runner
+    # trained by train.py in this repo.
+    runner_class_name = getattr(agent_cfg, "class_name", "OnPolicyRunner")
+    if runner_class_name == "OnPolicyRunner":
         runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
-    elif agent_cfg.class_name == "DistillationRunner":
+    elif runner_class_name == "DistillationRunner":
+        if DistillationRunner is None:
+            raise ImportError(
+                "agent_cfg.class_name is 'DistillationRunner' but the installed rsl-rl-lib "
+                f"version ({installed_rsl_rl_version}) does not provide it. Upgrade rsl-rl-lib "
+                "or switch this task's runner config to OnPolicyRunner."
+            )
         runner = DistillationRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
     else:
-        raise ValueError(f"Unsupported runner class: {agent_cfg.class_name}")
+        raise ValueError(f"Unsupported runner class: {runner_class_name}")
     runner.load(resume_path)
 
     # obtain the trained policy for inference
@@ -158,7 +189,11 @@ def main():
     dt = env.unwrapped.step_dt
 
     # reset environment
+    # Some isaaclab_rl versions return just the obs tensor from get_observations();
+    # others return a (obs, extras) tuple (gymnasium reset() convention). Handle both.
     obs = env.get_observations()
+    if isinstance(obs, tuple):
+        obs = obs[0]
     timestep = 0
     # simulate environment
     while simulation_app.is_running():

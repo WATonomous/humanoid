@@ -324,16 +324,22 @@ class RewardsCfg:
     # ── STAGE 6: Pull the drawer (goal — ALL gated by a GOOD GRIP: both inner edges) ──
     # No pull reward fires unless BOTH inner edges are in contact (good_grip_gate).
     #
-    # C1-smooth linear→quadratic pull reward. Per-step at weight=0.01:
-    #   0.1cm→0.13, 1cm→1.28, 3cm→3.85 (junction), 10cm→9.5, 39cm→200
-    # Episode return at full open ≈ 96k — dominant but critic-stable.
+    # Extremely steep, continuously-accelerating pull reward: C*(exp(k*f) - 1) with
+    # C=1000, k=10, calibrated so every f=0.0001 (~0.039mm of drawer travel) is worth
+    # 1.0 raw point right from the start, then keeps accelerating hard as the drawer
+    # opens further (see pull_distance_reward docstring for the full milestone table).
+    # weight=1.0 preserves that "0.0001f = 1 point" calibration directly in the
+    # logged Episode_Reward/pull_distance_reward metric.
     pull_distance_reward = RewTerm(
         func=mdp.pull_distance_reward,
-        weight=0.1,  # Raised from 0.01 — pull reward was 7000× smaller than grip
+        weight=1.0,  # Raised from 0.1 — keeps the "f=0.0001 -> 1pt" calibration exact
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "max_open": 0.39,
             "force_threshold": 1.0,
+            # Both inner edges gripping gives 4× the pull reward (1 + 3.0).
+            # Single-edge pull still earns the full base reward (hook-and-pull stays valid).
+            "dual_grip_bonus": 3.0,
         },
     )
     # Velocity reward — momentum multiplier makes one sustained pull worth 4× jerky tugs.
