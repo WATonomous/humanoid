@@ -36,7 +36,7 @@ simulation_app = app_launcher.app
 
 # Import bimanual_arm_cfg from keyboard teleoperation (same robot model as keyboard_teleop.py)
 _KEYBOARD_TELEOP_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../Teleop/keyboard-based teleoperation")
+    os.path.join(os.path.dirname(__file__), "../../Teleop/keyboard_based_teleoperation")
 )
 sys.path.insert(0, _KEYBOARD_TELEOP_DIR)
 
@@ -48,11 +48,11 @@ from bimanual_arm_cfg import (  # noqa: E402
     LEFT_FINGER_TIP_BODIES,
     LEFT_GRIPPER_JOINTS,
     RIGHT_ARM_JOINTS,
+    RIGHT_GRIPPER_JOINTS,
     apply_joint_limits,
     compute_tip_ik_jacobian,
     compute_gripper_tip_pose_b,
     compute_gripper_tip_pose_w,
-    get_default_joint_pos,
     resolve_body_ids,
     resolve_joint_name,
 )
@@ -81,6 +81,12 @@ UDP_PORT = 5005
 
 # Sim-to-real publish period (matches joint_command_node's expected command rate).
 PUBLISH_PERIOD = 0.02  # seconds (20 ms)
+
+# Grace period before any command is sent to real hardware. joint_command_node applies
+# no velocity/delta rate-limiting to the very first ArmPose message it ever receives, so
+# this gives you time to manually position the real arm near the sim's starting pose
+# before that unramped first command goes out.
+PUBLISH_START_DELAY = 5.0  # seconds
 
 
 def init_udp():
@@ -163,10 +169,15 @@ class TableTopSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75)),
     )
 
+    # Spawned at the active/correct arm's (link7/link8, unsuffixed chain) actual measured
+    # fingertip midpoint at its default pose -- the old value (0.26, -0.23, 0.15) was
+    # ~0.31 units from the OTHER (passive, joint1L..6l) arm's resting hand but ~0.95 units
+    # from this arm's, meaning the IK was starting by reaching almost a meter toward where
+    # the wrong arm's hand rests. Drag the cube from here once the sim is running.
     cube = AssetBaseCfg(
         prim_path="/World/cube",
         spawn=sim_utils.CuboidCfg(size=[0.1, 0.1, 0.1]),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.26, -0.23, 0.15)),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.24, 0.64, 0.53)),
     )
 
     robot = BIMANUAL_ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
@@ -211,14 +222,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     left_arm_ids = robot_entity_cfg.joint_ids
     left_gripper_ids = _joint_ids(robot, LEFT_GRIPPER_JOINTS)
     right_joint_ids = _joint_ids(robot, RIGHT_ARM_JOINTS)
-    right_gripper_ids = _joint_ids(robot, ["joint7", "joint8"])
+    right_gripper_ids = _joint_ids(robot, RIGHT_GRIPPER_JOINTS)
 
     gripper_open_targets = torch.tensor(
         [[GRIPPER_OPEN[name] for name in LEFT_GRIPPER_JOINTS]],
         device=sim.device,
     )
 
-    joint_position = get_default_joint_pos(robot)
+    joint_position = robot.data.default_joint_pos.clone()
     joint_vel = robot.data.default_joint_vel.clone()
     robot.write_joint_state_to_sim(joint_position, joint_vel)
     right_default_pos = joint_position[:, right_joint_ids].clone()
@@ -231,6 +242,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     # Sim-to-real: accumulate sim time and publish joint targets every 20ms,
     # independent of the physics step size.
     time_since_publish = 0.0
+    elapsed_time = 0.0
+    started_publishing = False
+    if ros_pub is not None or udp_sock is not None:
+        print(f"[INFO] Waiting {PUBLISH_START_DELAY:.0f}s before publishing to real "
+              f"hardware -- position the real arm near the sim's starting pose now.")
 
     while simulation_app.is_running():
         cube_pos_w, cube_quat_w = scene["cube"].get_world_poses()
@@ -271,10 +287,18 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         )
 
         # Send desired left-arm joint targets to the real arm via ROS2 or UDP bridge,
-        # throttled to PUBLISH_PERIOD (20ms) regardless of the physics step size.
-        time_since_publish += sim_dt
-        if time_since_publish >= PUBLISH_PERIOD:
+        # throttled to PUBLISH_PERIOD (20ms) regardless of the physics step size, and
+        # held off entirely for PUBLISH_START_DELAY seconds after startup. time_since_publish
+        # only starts accumulating once the delay has passed, so it can't build up a backlog
+        # during the hold and then burst-publish to "catch up" once it ends.
+        elapsed_time += sim_dt
+        if elapsed_time >= PUBLISH_START_DELAY:
+            time_since_publish += sim_dt
+        if elapsed_time >= PUBLISH_START_DELAY and time_since_publish >= PUBLISH_PERIOD:
             time_since_publish -= PUBLISH_PERIOD
+            if not started_publishing and (ros_pub is not None or udp_sock is not None):
+                started_publishing = True
+                print("[INFO] Publishing to real hardware now.")
             if ros_pub is not None:
                 publish_joint_pos(joint_pos_des)
             elif udp_sock is not None:

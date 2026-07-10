@@ -14,6 +14,13 @@ Motor specs: https://watonomous.github.io/humanoid-docs/mechanical/index.html
 Only the left arm is actuated for teleop. The right arm is held at the
 Physics Inspector default pose below.
 
+NOTE: the joint1..joint8 (unsuffixed) chain is the physically-correct left arm
+(the one on the test stand) -- confirmed by direct viewport comparison against
+the real hardware. The joint1L..joint8l ("L"-suffixed) chain is actually the
+other (right) arm, despite the naming. LEFT_*/RIGHT_* constants below and the
+actuator gain groups have been assigned accordingly so the motor-tuned gains
+follow the real actively-controlled arm.
+
 Gripper actuation note
 ----------------------
 On hardware, ONE GL40 rotary motor closes/opens the gripper through a
@@ -68,7 +75,7 @@ JOINT_POS_LIMITS = {
 
 # --- Default poses from Physics Inspector (revolute: deg -> rad) ------------
 _DEFAULT_JOINT_POS = {
-    # Right arm — held fixed during teleop
+    # Right arm (joint1L..joint8l) — held fixed during teleop
     "joint1": _deg(-140.8),
     "joint2": _deg(55.7),
     "joint3": _deg(-66.0),
@@ -77,7 +84,7 @@ _DEFAULT_JOINT_POS = {
     "joint6": _deg(3.5),
     "joint7": -0.05,
     "joint8": 0.05,
-    # Left arm — teleoperated
+    # Left arm (joint1..joint8, unsuffixed) — teleoperated
     "joint1L": _deg(139.2),
     "joint2l": _deg(66.1),
     "joint3l": _deg(147.9),
@@ -88,22 +95,27 @@ _DEFAULT_JOINT_POS = {
     "joint8l": 0.05,
 }
 
-RIGHT_ARM_JOINTS = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7", "joint8"]
-LEFT_ARM_JOINTS = ["joint1L", "joint2l", "joint3l", "joint4l", "joint5l", "joint6l"]
-LEFT_GRIPPER_JOINTS = ["joint7l", "joint8l"]
+# Physically-correct left arm (unsuffixed chain) is teleoperated/IK-controlled;
+# the "L"-suffixed chain is the other (right) arm, held at its default pose.
+RIGHT_ARM_JOINTS = ["joint1L", "joint2l", "joint3l", "joint4l", "joint5l", "joint6l"]
+LEFT_ARM_JOINTS = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]
+LEFT_GRIPPER_JOINTS = ["joint7", "joint8"]
+RIGHT_GRIPPER_JOINTS = ["joint7l", "joint8l"]
 # Jacobian anchor is the wrist link; IK pose target is the fingertip center (see below).
-LEFT_EE_BODY = "link6l"
-LEFT_FINGER_TIP_BODIES = ("link7l", "link8l")
-# Distal mesh points in each finger link frame (link7l.STL +X, link8l.STL -X).
+LEFT_EE_BODY = "link6"
+LEFT_FINGER_TIP_BODIES = ("link7", "link8")
+# Distal mesh points in each finger link frame, recomputed from link7/link8's own local
+# mesh bounding box (NOT the same numbers as the other arm's link7l/link8l -- their
+# local frames/finger lengths differ, confirmed via mesh bbox inspection).
 LEFT_FINGER_DISTAL_TIP_LOCAL = {
-    "link7l": (0.13211595, -0.04057075, -0.00434997),
-    "link8l": (-0.13211595, -0.04057075, -0.00435003),
+    "link7": (0.00336207, -0.04057072, -0.00434997),
+    "link8": (-0.00336207, -0.04057072, -0.00435003),
 }
 
 # Gripper finger targets (joint7: [-0.05, 0], joint8: [0, 0.05])
 # Synchronized pair mimics single GL40 motor driving both fingers via linkage.
-GRIPPER_OPEN = {"joint7l": -0.05, "joint8l": 0.05}
-GRIPPER_CLOSED = {"joint7l": 0.0, "joint8l": 0.0}
+GRIPPER_OPEN = {"joint7": -0.05, "joint8": 0.05, "joint7l": -0.05, "joint8l": 0.05}
+GRIPPER_CLOSED = {"joint7": 0.0, "joint8": 0.0, "joint7l": 0.0, "joint8l": 0.0}
 
 # Prismatic gripper PD — tuned for hold during arm motion (not from motor datasheet).
 # If fingers bounce when the shoulder moves, raise stiffness; if jittery, raise damping.
@@ -289,9 +301,9 @@ BIMANUAL_ARM_CFG = ArticulationCfg(
     ),
     init_state=ArticulationCfg.InitialStateCfg(joint_pos=_DEFAULT_JOINT_POS),
     actuators={
-        # AK10-9 V3.0 — shoulder joints 1-2
+        # AK10-9 V3.0 — shoulder joints 1-2 (physically-correct left arm, unsuffixed chain)
         "left_shoulder": ImplicitActuatorCfg(
-            joint_names_expr=["joint1L", "joint2l"],
+            joint_names_expr=["joint1", "joint2"],
             stiffness=1515.2,
             damping=120.6,
             effort_limit_sim=18.0,
@@ -299,7 +311,7 @@ BIMANUAL_ARM_CFG = ArticulationCfg(
         ),
         # AK80-9 V3.0 — elbow joints 3-5
         "left_elbow": ImplicitActuatorCfg(
-            joint_names_expr=["joint3l", "joint4l", "joint5l"],
+            joint_names_expr=["joint3", "joint4", "joint5"],
             stiffness=1231.0,
             damping=87.0,
             effort_limit_sim=9.0,
@@ -307,7 +319,7 @@ BIMANUAL_ARM_CFG = ArticulationCfg(
         ),
         # GL40 KV70 — wrist joint 6
         "left_wrist": ImplicitActuatorCfg(
-            joint_names_expr=["joint6l"],
+            joint_names_expr=["joint6"],
             stiffness=341.0,
             damping=18.0,
             effort_limit_sim=0.25,
@@ -315,15 +327,15 @@ BIMANUAL_ARM_CFG = ArticulationCfg(
         ),
         # GL40 KV70 rotary → linkage → two prismatic fingers (see module docstring)
         "left_gripper": ImplicitActuatorCfg(
-            joint_names_expr=["joint7l", "joint8l"],
+            joint_names_expr=["joint7", "joint8"],
             stiffness=_GRIPPER_STIFFNESS,
             damping=_GRIPPER_DAMPING,
             effort_limit_sim=_GRIPPER_EFFORT_LIMIT,
             velocity_limit_sim=_GRIPPER_VELOCITY_LIMIT,
         ),
-        # Right arm revolute joints — hold Physics Inspector default pose
+        # Right arm revolute joints ("L"-suffixed chain) — hold Physics Inspector default pose
         "right_arm": ImplicitActuatorCfg(
-            joint_names_expr=["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"],
+            joint_names_expr=["joint1L", "joint2l", "joint3l", "joint4l", "joint5l", "joint6l"],
             stiffness=1000.0,
             damping=100.0,
             effort_limit_sim=18.0,
@@ -331,7 +343,7 @@ BIMANUAL_ARM_CFG = ArticulationCfg(
         ),
         # Right gripper — same coupled-prismatic hold as left
         "right_gripper": ImplicitActuatorCfg(
-            joint_names_expr=["joint7", "joint8"],
+            joint_names_expr=["joint7l", "joint8l"],
             stiffness=_GRIPPER_STIFFNESS,
             damping=_GRIPPER_DAMPING,
             effort_limit_sim=_GRIPPER_EFFORT_LIMIT,

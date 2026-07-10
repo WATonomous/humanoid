@@ -80,15 +80,18 @@ from bimanual_arm_cfg import (
     LEFT_EE_BODY,
     LEFT_GRIPPER_JOINTS,
     RIGHT_ARM_JOINTS,
+    RIGHT_GRIPPER_JOINTS,
     apply_joint_limits,
     resolve_joint_name,
 )
 
 # Fingertip IK (same as task_space_test.py) — kept local, not shared via bimanual_arm_cfg.
-_FINGER_TIP_BODIES = ("link7l", "link8l")
+# link7/link8 is the physically-correct left arm's gripper (unsuffixed chain); local tip
+# offsets recomputed from its own mesh bbox (link7l/link8l's frame/finger length differ).
+_FINGER_TIP_BODIES = ("link7", "link8")
 _FINGER_DISTAL_TIP_LOCAL = {
-    "link7l": (0.13211595, -0.04057075, -0.00434997),
-    "link8l": (-0.13211595, -0.04057075, -0.00435003),
+    "link7": (0.00336207, -0.04057072, -0.00434997),
+    "link8": (-0.00336207, -0.04057072, -0.00435003),
 }
 
 
@@ -223,7 +226,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     left_arm_ids = robot_entity_cfg.joint_ids
     left_gripper_ids = _joint_ids(robot, LEFT_GRIPPER_JOINTS)
     right_joint_ids = _joint_ids(robot, RIGHT_ARM_JOINTS)
-    right_gripper_ids = _joint_ids(robot, ["joint7", "joint8"])
+    right_gripper_ids = _joint_ids(robot, RIGHT_GRIPPER_JOINTS)
     right_default_pos = robot.data.default_joint_pos[:, right_joint_ids].clone()
 
     joint_pos = robot.data.default_joint_pos.clone()

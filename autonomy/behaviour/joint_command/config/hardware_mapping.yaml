@@ -1,21 +1,21 @@
 left:
   shoulder:
     pitch:
-      can_id: 0x01
+      can_id: 0x0E
       lower_limit: -90
       upper_limit: 90
       direction: 1
       zero_offset: 0
       limit_range: true
     roll:
-      can_id: 0x02
+      can_id: 0x0C
       lower_limit: -90
       upper_limit: 90
       direction: 1
       zero_offset: 0
       limit_range: true
     yaw:
-      can_id: 0x03
+      can_id: 0x0D
       lower_limit: -90
       upper_limit: 90
       direction: 1
@@ -23,14 +23,14 @@ left:
       limit_range: true
   elbow:
     pitch:
-      can_id: 0x04
+      can_id: 0x0A
       lower_limit: -130
       upper_limit: 0
       direction: 1
       zero_offset: 0
       limit_range: true
     roll:
-      can_id: 0x05
+      can_id: 0x0B
       lower_limit: -130
       upper_limit: 0
       direction: 1
@@ -38,7 +38,7 @@ left:
       limit_range: true
   wrist:
     pitch:
-      can_id: 0x06
+      can_id: 0x16
       lower_limit: -90
       upper_limit: 90
       direction: 1
@@ -46,30 +46,35 @@ left:
       limit_range: true
   gripper:
     open_close:
-      can_id: 0x07
+      can_id: 0x15
       lower_limit: 0
       upper_limit: 100
       direction: 1
       zero_offset: 0
       limit_range: true
+  # PLACEHOLDER: hand is not wired/used yet. can_id values below (0x40-0x4E) are
+  # deliberately outside the arm's real CAN ID range (0x0A-0x0E, 0x15, 0x16) so they
+  # don't collide with real motors. Do NOT reuse these joints/IDs until the hand is
+  # actually wired -- confirm real hand CAN IDs the same way the arm's were verified
+  # (see autonomy/behaviour/joint_command/scripts/motor_mapping_test.py) before use.
   hand:
     pinky:
       mcp:
-        can_id: 0x07
+        can_id: 0x40
         lower_limit: 0
         upper_limit: 90
         direction: 1
         zero_offset: 0
         limit_range: true
       pip:
-        can_id: 0x08
+        can_id: 0x41
         lower_limit: 0
         upper_limit: 90
         direction: 1
         zero_offset: 0
         limit_range: true
       dip:
-        can_id: 0x09
+        can_id: 0x42
         lower_limit: 0
         upper_limit: 90
         direction: 1
@@ -77,21 +82,21 @@ left:
         limit_range: true
     ring:
       mcp:
-        can_id: 0x0A
+        can_id: 0x43
         lower_limit: 0
         upper_limit: 90
         direction: 1
         zero_offset: 0
         limit_range: true
       pip:
-        can_id: 0x0B
+        can_id: 0x44
         lower_limit: 0
         upper_limit: 90
         direction: 1
         zero_offset: 0
         limit_range: true
       dip:
-        can_id: 0x0C
+        can_id: 0x45
         lower_limit: 0
         upper_limit: 90
         direction: 1
@@ -99,21 +104,21 @@ left:
         limit_range: true
     middle:
       mcp:
-        can_id: 0x0D
+        can_id: 0x46
         lower_limit: 0
         upper_limit: 90
         direction: 1
         zero_offset: 0
         limit_range: true
       pip:
-        can_id: 0x0E
+        can_id: 0x47
         lower_limit: 0
         upper_limit: 90
         direction: 1
         zero_offset: 0
         limit_range: true
       dip:
-        can_id: 0x0F
+        can_id: 0x48
         lower_limit: 0
         upper_limit: 90
         direction: 1
@@ -121,21 +126,21 @@ left:
         limit_range: true
     index:
       mcp:
-        can_id: 0x10
+        can_id: 0x49
         lower_limit: 0
         upper_limit: 90
         direction: 1
         zero_offset: 0
         limit_range: true
       pip:
-        can_id: 0x11
+        can_id: 0x4A
         lower_limit: 0
         upper_limit: 90
         direction: 1
         zero_offset: 0
         limit_range: true
       dip:
-        can_id: 0x12
+        can_id: 0x4B
         lower_limit: 0
         upper_limit: 90
         direction: 1
@@ -143,21 +148,21 @@ left:
         limit_range: true
     thumb:
       cmc:
-        can_id: 0x13
+        can_id: 0x4C
         lower_limit: 0
         upper_limit: 60
         direction: 1
         zero_offset: 0
         limit_range: true
       mcp:
-        can_id: 0x14
+        can_id: 0x4D
         lower_limit: 0
         upper_limit: 70
         direction: 1
         zero_offset: 0
         limit_range: true
       ip:
-        can_id: 0x15
+        can_id: 0x4E
         lower_limit: 0
         upper_limit: 80
         direction: 1
