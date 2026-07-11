@@ -207,7 +207,9 @@ class EKFPredictionNode(Node):
 
         impact_msg.uncertainty = float(np.trace(self.P))
         impact_msg.header.stamp = self.get_clock().now().to_msg()
-        impact_msg.header.frame_id = "robot_base_link"
+        impact_msg.header.frame_id = (
+            self.latest_meas.header.frame_id if self.latest_meas is not None else "robot_base_link"
+        )
 
         self.impact_estimate_pub.publish(impact_msg)
 
