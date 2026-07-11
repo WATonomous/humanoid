@@ -173,7 +173,7 @@ class EKFPredictionNode(Node):
         return F
 
     # ---------------- IMPACT ESTIMATION ----------------
-def estimate_impact(self):
+    def estimate_impact(self):
         # Avoid publishing a false "impact at origin" before the filter is initialized.
         if self.latest_meas is None or not self.velocity_initialized:
             return
