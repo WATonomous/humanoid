@@ -44,7 +44,8 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     can-utils \
     net-tools \
-    iproute2  \
+    iproute2 \
+    python3-yaml \
     $(cat /tmp/colcon_install_list) \
     && rm -rf /var/lib/apt/lists/*
 

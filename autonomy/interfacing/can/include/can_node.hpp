@@ -38,6 +38,9 @@ private:
   const dbcppp::ISignal* findSignalByName(const dbcppp::IMessage* msg,
                                           const std::string& signal_name); // O(signal_num)
 
+  // Decode() returns raw bits; RawToPhys applies sign + DBC scale/offset.
+  static double decodeSignalPhysical(const dbcppp::ISignal* signal, const uint8_t* data);
+
   static constexpr size_t max_payload_per_frame = 8; // CAN frame max bytes
   static constexpr size_t data_chunk_size = 8;
 
