@@ -256,9 +256,8 @@ def save_sidecar(path: Path, results: Dict[str, Any]) -> None:
 
 def apply_result_to_joint(joint: Dict[str, Any], result: Dict[str, Any]) -> None:
     if "can_id" in result:
-        # Keep hex-looking IDs in YAML when small / conventional
-        cid = int(result["can_id"])
-        joint["can_id"] = cid
+        # Store as int; yaml.safe_dump will emit decimal by default.
+        joint["can_id"] = int(result["can_id"])
     if "zero_offset" in result:
         joint["zero_offset"] = float(result["zero_offset"])
     if "lower_limit" in result:
