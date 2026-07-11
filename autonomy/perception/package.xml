@@ -8,6 +8,7 @@
   <license>Apache-2.0</license>
 
   <depend>rclpy</depend>
+  <depend>python3-numpy</depend>
 
   <depend>common_msgs</depend>
   <depend>sensor_msgs</depend>
