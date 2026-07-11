@@ -557,7 +557,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--skip-missing",
         action="store_true",
-        help="Warn about YAML can_ids not on the bus (still prompt; use i to remap or s to skip)",
+        help="Warn about YAML can_ids not on the bus (still prompt; type a new id at the per-joint prompt, or s to skip)",
     )
     p.add_argument(
         "--discover-seconds",
