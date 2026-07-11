@@ -191,8 +191,8 @@ def main():
     parser.add_argument("--host", type=str, default="127.0.0.1")
     parser.add_argument("--port", type=int, default=5005)
     parser.add_argument("--only-joint", type=str, default=None,
-                         help="bypass joint_command_node and only publish a raw MotorCmd "
-                              "for this one joint, e.g. shoulder_roll. Nothing else moves.")
+                        help="bypass joint_command_node and only publish a raw MotorCmd "
+                        "for this one joint, e.g. shoulder_roll. Nothing else moves.")
     args = parser.parse_args()
 
     rclpy.init()
