@@ -244,18 +244,20 @@ class EKFPredictionNode(Node):
             y = z - H @ self.x
 
             S = H @ self.P @ H.T + self.R
-            K = self.P @ H.T @ np.linalg.inv(S)
-
+            PHt = self.P @ H.T
+            K = np.linalg.solve(S.T, PHt.T).T
             self.x = self.x + K @ y
 
             I = np.eye(6)
-            self.P = (I - K @ H) @ self.P
+            I_KH = I - K @ H
+            self.P = I_KH @ self.P @ I_KH.T + K @ self.R @ K.T
 
         # ===== PUBLISH =====
         msg = Pose()
         msg.position.x = float(self.x[0])
         msg.position.y = float(self.x[1])
         msg.position.z = float(self.x[2])
+        msg.orientation.w = 1.0
         if (self.latest_meas is not None and self.new_meas_available):
             self.get_logger().debug(
                 f"Total Error: {np.linalg.norm(self.true_pos - self.x[0:3])}")
