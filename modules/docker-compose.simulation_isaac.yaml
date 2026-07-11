@@ -1,5 +1,3 @@
-version: "3.8"
-
 x-simulation_isaac_volumes: &simulation_isaac_volumes
   - /tmp/.X11-unix:/tmp/.X11-unix:rw
   - ${XAUTHORITY:-${HOME}/.Xauthority}:/root/.Xauthority:rw

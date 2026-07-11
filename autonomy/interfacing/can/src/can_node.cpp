@@ -101,6 +101,37 @@ const dbcppp::ISignal* CanNode::findSignalByName(const dbcppp::IMessage* msg,
   return nullptr;
 }
 
+double CanNode::decodeSignalPhysical(const dbcppp::ISignal* signal, const uint8_t* data) {
+  if (!signal || !data) {
+    return 0.0;
+  }
+
+  // Decode() returns a uint64 bit pattern. For signed signals dbcppp may leave the
+  // value sign-extended in that uint64; assigning it (or RawToPhys without a proper
+  // signed cast) yields ~2^64. Mask + sign-extend, then apply DBC scale ourselves.
+  uint64_t raw = signal->Decode(data);
+  const uint64_t bit_size = signal->BitSize();
+  if (bit_size == 0 || bit_size > 64) {
+    return 0.0;
+  }
+
+  if (bit_size < 64) {
+    const uint64_t mask = (1ULL << bit_size) - 1ULL;
+    raw &= mask;
+    if (signal->ValueType() == dbcppp::ISignal::EValueType::Signed) {
+      const uint64_t sign_bit = 1ULL << (bit_size - 1ULL);
+      if (raw & sign_bit) {
+        raw |= ~mask;
+      }
+    }
+  }
+
+  const double numeric = (signal->ValueType() == dbcppp::ISignal::EValueType::Signed)
+                             ? static_cast<double>(static_cast<int64_t>(raw))
+                             : static_cast<double>(raw);
+  return numeric * signal->Factor() + signal->Offset();
+}
+
 void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) {
   RCLCPP_INFO(this->get_logger(), "Received MotorCMD motor=%d control_type=%d",
               static_cast<int>(msg->motor_id), static_cast<int>(msg->control_type));
@@ -253,14 +284,16 @@ void CanNode::receiveCanMessages() {
         // Publish to ROS topic
         auto feedback_msg = common_msgs::msg::MotorFeedback();
         feedback_msg.motor_id = device_id;
-        feedback_msg.position =
-            findSignalByName(dbc_msg, "FbkPosition")->Decode(message.data.data());
-        feedback_msg.velocity = findSignalByName(dbc_msg, "FbkSpeed")->Decode(message.data.data());
-        feedback_msg.current = findSignalByName(dbc_msg, "FbkCurrent")->Decode(message.data.data());
-        feedback_msg.temperature = static_cast<uint8_t>(
-            findSignalByName(dbc_msg, "FbkTemperature")->Decode(message.data.data()));
-        feedback_msg.error_code = static_cast<uint8_t>(
-            findSignalByName(dbc_msg, "FbkErrorCode")->Decode(message.data.data()));
+        feedback_msg.position = static_cast<float>(
+            decodeSignalPhysical(findSignalByName(dbc_msg, "FbkPosition"), message.data.data()));
+        feedback_msg.velocity = static_cast<float>(
+            decodeSignalPhysical(findSignalByName(dbc_msg, "FbkSpeed"), message.data.data()));
+        feedback_msg.current = static_cast<float>(
+            decodeSignalPhysical(findSignalByName(dbc_msg, "FbkCurrent"), message.data.data()));
+        feedback_msg.temperature = static_cast<int8_t>(
+            decodeSignalPhysical(findSignalByName(dbc_msg, "FbkTemperature"), message.data.data()));
+        feedback_msg.error_code = static_cast<int8_t>(
+            decodeSignalPhysical(findSignalByName(dbc_msg, "FbkErrorCode"), message.data.data()));
         RCLCPP_DEBUG(this->get_logger(),
                      "Received feedback for motor %d: pos=%.2f vel=%.2f "
                      "current=%.2f temp=%d error=%d",

@@ -23,9 +23,9 @@ fi
 while read -r module; do
     module_out=$(basename "$(echo "$module" | sed -n 's/modules\/docker-compose\.\(.*\)\.yaml/\1/p')")
 
-    # Skip Isaac Sim modules (need GPU/NGC/X11; no multi-stage CI Dockerfile)
+    # Skip GPU / non-CI modules
     # TODO: Add custom handling for embedded testing
-    if [[ 'simulation' = $module_out || 'simulation_isaac' = $module_out || 'embedded' = $module_out ]]; then
+    if [[ 'simulation' = $module_out || 'simulation_isaac' = $module_out || 'simulation_mj' = $module_out || 'embedded' = $module_out ]]; then
         continue
     fi
 

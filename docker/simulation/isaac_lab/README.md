@@ -18,8 +18,8 @@ Based on [NVIDIA SO-101 workshop](https://github.com/isaac-sim/Sim-to-Real-SO-10
 
 | Environment | Use |
 |-------------|-----|
-| **`simulation_isaac`** (this) | SO101 IL + **HumanoidRL** (RSL-RL train/play) |
-| **`simulation`** | Humanoid_Wato / quest teleop (Sim 4.5) |
+| **`simulation_isaac`** (this) | SO101 IL + **HumanoidRL** + Quest / Wato teleop |
+| **`simulation_mj`** | MuJoCo / mjlab (`mjlabs`) |
 
 ## Files
 

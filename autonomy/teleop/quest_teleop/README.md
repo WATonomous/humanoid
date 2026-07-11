@@ -7,33 +7,35 @@ hand poses over WSS to `quest_teleop_node`, which publishes:
 /quest_teleop
 ```
 
-## Start the Controller
+For the full Quest + Isaac Sim workflow, prefer
+[quest_isaac_teleop/README.md](../../simulation/quest_isaac_teleop/README.md)
+(`ACTIVE_MODULES="simulation_isaac"`, shell into `simulation_isaac_dev`).
 
-### 1. Start the teleop container
+## Start the Controller (standalone)
 
-From the repo root:
+### 1. Start the Isaac Lab container
 
 ```bash
-cd ~/Wato/humanoid
+# watod-config.local.sh
+ACTIVE_MODULES="simulation_isaac"
+MODE_OF_OPERATION="develop"
+
 ./watod up -d
-Go inside the container you just setup. 
+./watod -t simulation_isaac_dev
 ```
 
 ### 2. Build and source the workspace
 
-Inside the `teleop` container:
+Inside the container (`.bashrc` may already colcon-build on entry):
 
 ```bash
 cd /root/ament_ws
 colcon build --packages-select common_msgs quest_teleop
+source /opt/ros/humble/setup.bash
 source install/setup.bash
 ```
 
-Run the build again after changing `quest_teleop` or `common_msgs`.
-
 ### 3. Start the ROS controller node
-
-Inside the same container:
 
 ```bash
 ros2 run quest_teleop quest_teleop_node
@@ -43,17 +45,11 @@ This starts the secure WebSocket server on port `9090`.
 
 ### 4. Start the Quest WebXR page
 
-From a second host terminal, enter the `teleop` container:
+From a second host terminal:
 
 ```bash
-cd ~/Wato/humanoid
-./watod -t teleop
-```
-
-Then run:
-
-```bash
-python3 /root/ament_ws/src/teleop/quest_teleop/scripts/webxr_server.py
+./watod -t simulation_isaac_dev
+python3 /workspace/humanoid/autonomy/teleop/quest_teleop/scripts/webxr_server.py
 ```
 
 This serves the Quest page on port `8443`.
@@ -105,8 +101,8 @@ common_msgs/msg/QuestHandPose
 Only do this if the certs are missing or stale:
 
 ```bash
-mkdir ~/Wato/humanoid/autonomy/teleop/quest_teleop/certs
-cd ~/Wato/humanoid/autonomy/teleop/quest_teleop/certs
+mkdir -p autonomy/teleop/quest_teleop/certs
+cd autonomy/teleop/quest_teleop/certs
 openssl genrsa -out key.pem 2048
 openssl req -new -x509 -key key.pem -out cert.pem -days 365 \
   -subj "/CN=localhost"
