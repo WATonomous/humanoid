@@ -189,7 +189,11 @@ def main():
     dt = env.unwrapped.step_dt
 
     # reset environment
+    # Some isaaclab_rl versions return just the obs tensor from get_observations();
+    # others return a (obs, extras) tuple (gymnasium reset() convention). Handle both.
     obs = env.get_observations()
+    if isinstance(obs, tuple):
+        obs = obs[0]
     timestep = 0
     # simulate environment
     while simulation_app.is_running():

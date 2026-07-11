@@ -187,7 +187,11 @@ def main() -> None:
         pair_width_stats = {}
         foot_rel_vel_x_abs_sum = None
 
+    # Some isaaclab_rl versions return just the obs tensor from get_observations();
+    # others return a (obs, extras) tuple (gymnasium reset() convention). Handle both.
     obs = env.get_observations()
+    if isinstance(obs, tuple):
+        obs = obs[0]
     for step_idx in range(args_cli.steps):
         with torch.inference_mode():
             actions = policy(obs)
