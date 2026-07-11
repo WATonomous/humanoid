@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, PointStamped
 from std_msgs.msg import Bool
 from common_msgs.msg import PerceptionImpactEstimation
 import numpy as np
