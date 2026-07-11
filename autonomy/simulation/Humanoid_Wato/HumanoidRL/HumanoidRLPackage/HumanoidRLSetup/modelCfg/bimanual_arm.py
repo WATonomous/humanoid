@@ -35,7 +35,7 @@ from isaaclab.assets.articulation import ArticulationCfg
 
 _THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 _BIMANUAL_ROOT = os.path.abspath(os.path.join(_THIS_DIR, "..", "..", "..", "..", "wato_bimanual_arm"))
-_ARM_USD_PATH = os.path.join(_BIMANUAL_ROOT, "urdf", "armDouble.SLDASM", "armDouble.SLDASM.usd")
+_ARM_URDF_PATH = os.path.join(_BIMANUAL_ROOT, "urdf", "armDouble.SLDASM.urdf")
 
 
 def _deg(degrees: float) -> float:

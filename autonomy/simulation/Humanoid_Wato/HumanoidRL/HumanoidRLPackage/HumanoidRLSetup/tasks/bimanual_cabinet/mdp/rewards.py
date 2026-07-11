@@ -437,13 +437,13 @@ def inner_edge_grip_reward(
         handle_y = handle_mat[..., 1]
         off_center = ((tcp - handle_pos) * handle_y).sum(dim=-1)
         center_score = torch.exp(-(off_center ** 2) / (2.0 * center_sigma ** 2))
-    # Center multiplier — LOGARITHMIC (diminishing returns after a certain point).
-    # At the center (off_center=0): center_score=1.0 → log(1 + 2×1.0) = log(3) ≈ 1.1
-    # At one sigma off: center_score=0.61 → log(1 + 2×0.61) = log(2.22) ≈ 0.8
-    # At two sigmas off: center_score=0.14 → log(1 + 2×0.14) = log(1.28) ≈ 0.25
-    # After the inflection, each extra improvement earns less — no need to obsess over
-    # perfect center alignment.
-    center_mul = torch.log(1.0 + 2.0 * center_score) / torch.log(torch.tensor(3.0, device=env.device))
+        # Center multiplier — LOGARITHMIC (diminishing returns after a certain point).
+        # At the center (off_center=0): center_score=1.0 → log(1 + 2×1.0) = log(3) ≈ 1.1
+        # At one sigma off: center_score=0.61 → log(1 + 2×0.61) = log(2.22) ≈ 0.8
+        # At two sigmas off: center_score=0.14 → log(1 + 2×0.14) = log(1.28) ≈ 0.25
+        # After the inflection, each extra improvement earns less — no need to obsess over
+        # perfect center alignment.
+        center_mul = torch.log(1.0 + 2.0 * center_score) / torch.log(torch.tensor(3.0, device=env.device))
 
     # Grip reward is CAPPED — it is a constant recognition of a good grip, not a
     # per-step income stream. Once established, the robot earns no more from holding.
@@ -516,9 +516,17 @@ def pull_distance_reward(
     The grip multiplier is a saturating function of inner-edge contact force so the
     robot only needs a good-enough grip, not a perfect one.
     """
+    # Compute inner-edge contact once and reuse for both grip multipliers below.
+    inner7, inner8 = _inner_edge_contact(env, force_threshold)
+
     # Grip multiplier scales with inner-edge contact FORCE, saturating at force_ceiling.
     # Firmer inner-edge grip → more pull reward, capped once the grip is solid.
-    grip_mul = inner_grip_strength(env, force_threshold, force_ceiling=30.0)
+    force_ceiling = 30.0
+    f7_vec, f8_vec = _finger_contact_force(env)
+    mag7 = torch.norm(f7_vec, dim=-1)
+    mag8 = torch.norm(f8_vec, dim=-1)
+    inner_force = mag7 * inner7.float() + mag8 * inner8.float()
+    grip_mul = torch.clamp(inner_force / force_ceiling, max=1.0)
 
     # ── DUAL-GRIP MULTIPLIER ──────────────────────────────────────────────────
     # Pulling with BOTH inner edges gripping earns the MOST points. A single inner
@@ -526,7 +534,6 @@ def pull_distance_reward(
     # when both inner edges are in contact the whole pull reward is multiplied by
     # (1 + dual_grip_bonus). With dual_grip_bonus=3.0 this gives 4× the reward for a
     # proper two-finger grip, making it the unambiguously best strategy.
-    inner7, inner8 = _inner_edge_contact(env, force_threshold)
     both_inner = (inner7 & inner8).float()
     dual_mul = 1.0 + dual_grip_bonus * both_inner
 
@@ -548,16 +555,14 @@ def pull_distance_reward(
     k = 10.0
     distance_score = C * (torch.exp(k * f) - 1.0)
 
-    # Track for debug print — use the actual grip gate (grip_mul > 0 means an inner
-    # edge is in contact). Previously referenced the removed `grip_score` variable.
+    # Track for debug print — use the already-computed contact forces (f7_vec, f8_vec).
     gripped_f = f * (grip_mul > 0.0).float()
     best_gripped_idx = gripped_f.argmax().item()
     best_gripped_f = gripped_f[best_gripped_idx].item()
     if best_gripped_f > _max_f_this_iter:
         _max_f_this_iter = best_gripped_f
-        f7, f8 = _finger_contact_force(env)
-        _mag7_at_max_f = torch.norm(f7[best_gripped_idx]).item()
-        _mag8_at_max_f = torch.norm(f8[best_gripped_idx]).item()
+        _mag7_at_max_f = mag7[best_gripped_idx].item()
+        _mag8_at_max_f = mag8[best_gripped_idx].item()
 
     _sum_f_this_iter += f.mean().item()
     _count_f_this_iter += 1
