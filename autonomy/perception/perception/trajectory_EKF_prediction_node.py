@@ -9,7 +9,7 @@ import numpy as np
 
 class EKFPredictionNode(Node):
     def __init__(self):
-        super().__init__('ekf_prediction_node')
+        super().__init__('trajectory_EKF_prediction_node')
         self.dt = 0.01
         # ---------------- STATE ----------------
         # [px, py, pz, vx, vy, vz]
