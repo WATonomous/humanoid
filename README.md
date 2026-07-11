@@ -59,7 +59,7 @@ humanoid
 │   ├── perception/
 │   ├── behaviour/            # joint_command, voxel_grid
 │   ├── simulation/           # Isaac tasks, teleop, HumanoidRL
-│   ├── teleop/               # Quest / rosbridge packages
+│   ├── teleop/               # Quest WebXR → ROS 2 bridge
 │   └── il/                   # Imitation learning recording
 ├── assets/lerobot/           # SO101 USD / vial-task assets
 ├── docs/                     # Doc conventions + architecture map
