@@ -268,7 +268,7 @@ class EKFPredictionNode(Node):
         msg.position.y = float(self.x[1])
         msg.position.z = float(self.x[2])
         msg.orientation.w = 1.0
-        if (self.latest_meas is not None and self.new_meas_available):
+        if self.true_pos_valid and self.latest_meas is not None and self.new_meas_available:
             self.get_logger().debug(
                 f"Total Error: {np.linalg.norm(self.true_pos - self.x[0:3])}")
 
