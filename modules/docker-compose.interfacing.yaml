@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   interfacing:
     build: &interfacing
@@ -14,7 +12,14 @@ services:
     privileged: true
     network_mode: host # Allow the container to access the host's network interfaces
     cap_add: # Grant the capability to configure network interfaces
-      - NET_ADMIN 
+      - NET_ADMIN
+    environment:
+      # Avoid FastDDS SHM isolation between can_node and docker-exec shells
+      - FASTDDS_BUILTIN_TRANSPORTS=UDPv4
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_DOMAIN_ID=0
     volumes:
       - /dev:/dev # Allow access to host devices
       - ${MONO_DIR}/autonomy/interfacing:/root/ament_ws/src/interfacing
+      # For calibrate_arm.py --write-mapping
+      - ${MONO_DIR}/autonomy/behaviour/joint_command/config/hardware_mapping.yaml:/calibration/hardware_mapping.yaml

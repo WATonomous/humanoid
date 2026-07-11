@@ -1,3 +1,5 @@
+# 6-DOF arm + 1-DOF gripper. joint_command uses the six arm joints only;
+# gripper is kept for future / manual MotorCmd use. Hand DOFs live elsewhere when needed.
 left:
   shoulder:
     pitch:

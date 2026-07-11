@@ -38,18 +38,6 @@ git pull origin rijul
 cd /workspace/isaaclab
 ```
 
-### Build colcon workspace (ROS2 bridge)
-```bash
-mkdir -p final_repo/humanoid/autonomy/teleop/colcon_teleop_ws/src
-cd final_repo/humanoid/autonomy/teleop/colcon_teleop_ws/src
-
-ln -s /workspace/isaaclab/final_repo/humanoid/autonomy/wato_msgs/sample_msgs sample_msgs
-ln -s /workspace/isaaclab/final_repo/humanoid/autonomy/teleop/rosbridge_example rosbridge_example
-
-cd ..
-colcon build
-```
-
 ### Install ROS2 rosbridge
 ```bash
 apt-get update && apt-get install -y ros-humble-rosbridge-server
@@ -76,8 +64,7 @@ python3 -c 'import json; p="/isaac-sim/kit/data/Kit/Isaac-Sim/4.5/user.config.js
 ### Terminal 1 — rosbridge server
 ```bash
 source /opt/ros/humble/setup.bash
-source /workspace/isaaclab/final_repo/humanoid/autonomy/teleop/colcon_teleop_ws/install/setup.bash
-ros2 launch rosbridge_example rosbridge_example.launch.py
+ros2 launch rosbridge_server rosbridge_websocket_launch.xml
 ```
 
 ### Terminal 2 — ROS2 landmark-to-joints node

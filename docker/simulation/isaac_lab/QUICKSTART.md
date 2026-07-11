@@ -209,4 +209,4 @@ Task docs: `autonomy/simulation/Humanoid_Wato/HumanoidRL/.../tasks/<task>/*.md`.
 |----------|-------|
 | SO101 IL train + sim eval | `simulation_isaac` docker |
 | HumanoidRL (all tasks) | `simulation_isaac` docker (`$RL_ROOT`) |
-| Quest / Wato teleop | `simulation` docker (Sim 4.5) |
+| Quest / Wato teleop | `simulation_isaac` docker |

@@ -7,18 +7,17 @@
 
 ## ----------------------- watod Configuration File Override ----------------------------
 ## ACTIVE Modules CONFIGURATION
-## List of active modules to run, defined in docker-compose.yaml.
+## List of active modules to run (each needs modules/docker-compose.<name>.yaml).
 ##
 ## Possible values:
-##   - infrastructure     	:   starts visualization tools
-##   - interfacing          :   starts interfacing nodes
-##	 - perception			:	starts perception nodes
-##	 - simulation_isaac		:	starts sim (Humanoid_Wato / quest teleop, SO101 IL, Lab 2.3.2) — see docker/simulation/isaac_lab/QUICKSTART.md
-##   - behaviour            :   starts behaviour nodes       
-##   - samples             	:   starts sample ROS2 pubsub nodes
-##   - teleop               :   starts teleop nodes
+##   - interfacing          :   CAN / hardware interfacing
+##   - perception           :   perception nodes
+##   - behaviour            :   joint_command, voxel_grid
+##   - samples              :   sample ROS 2 pub/sub nodes
+##   - simulation_isaac     :   Isaac Lab (SO101 IL, HumanoidRL, Quest teleop)
+##   - simulation_mj        :   MuJoCo / mjlab (mjlabs service)
 
-ACTIVE_MODULES="teleop"
+ACTIVE_MODULES="samples"
 
 ################################# MODE OF OPERATION #################################
 ## Possible modes of operation when running watod.

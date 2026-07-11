@@ -28,14 +28,14 @@ TAG=$(echo ${TAG:-$BRANCH} | tr / -)
 # replace / with -
 TAG=${TAG/\//-}
 
-# List of active profiles to run, defined in docker-compose.yaml.
+# List of active modules (each needs modules/docker-compose.<name>.yaml).
 # Possible values:
-##   - interfacing          :   starts interfacing nodes
-##	 - perception			:	starts perception nodes
-##	 - controller		    :	starts controller nodes
-##	 - simulation_isaac		:	starts sim (Humanoid_Wato / quest teleop, SO101 IL, Lab 2.3.2) — see docker/simulation/isaac_lab/QUICKSTART.md
-##	 - behaviour			:	starts behaviour nodes
-##   - samples             	:   starts sample ROS2 pubsub nodes
+##   - interfacing          :   CAN / hardware interfacing
+##   - perception           :   perception nodes
+##   - behaviour            :   joint_command, voxel_grid
+##   - samples              :   sample ROS 2 pub/sub nodes
+##   - simulation_isaac     :   Isaac Lab (SO101 IL, HumanoidRL, Quest teleop)
+##   - simulation_mj        :   MuJoCo / mjlab (mjlabs service)
 ACTIVE_MODULES=${ACTIVE_MODULES:-""}
 
 # Docker Registry to pull/push images
@@ -63,11 +63,7 @@ SIMULATION_ISAAC_IMAGE=${SIMULATION_ISAAC_IMAGE:-"$REGISTRY_URL/simulation/isaac
 
 ISAAC_SIM_CACHE_DIR=${ISAAC_SIM_CACHE_DIR:-"$HOME/docker/isaac-sim"}
 
-BEHAVIOUR_OCTO_IMAGE=${BEHAVIOUR_OCTO_IMAGE:-"$REGISTRY_URL/behaviour/octomap_server"}
-
 INTERFACING_IMAGE=${INTERFACING_IMAGE:-"$REGISTRY_URL/interfacing"}
-
-TELEOP_IMAGE=${TELEOP_IMAGE:-"$REGISTRY_URL/teleop"}
 
 ## --------------------------- Ports ------------------------------
 
@@ -110,5 +106,3 @@ echo "SIMULATION_ISAAC_IMAGE=$SIMULATION_ISAAC_IMAGE" >> "$MODULES_DIR/.env"
 echo "ISAAC_SIM_CACHE_DIR=$ISAAC_SIM_CACHE_DIR" >> "$MODULES_DIR/.env"
 echo "HF_HOME=${HF_HOME:-$HOME/.cache/huggingface}" >> "$MODULES_DIR/.env"
 echo "XAUTHORITY=${XAUTHORITY:-$HOME/.Xauthority}" >> "$MODULES_DIR/.env"
-echo "BEHAVIOUR_OCTO_IMAGE=$BEHAVIOUR_OCTO_IMAGE" >> "$MODULES_DIR/.env"
-echo "TELEOP_IMAGE=$TELEOP_IMAGE" >> "$MODULES_DIR/.env"
