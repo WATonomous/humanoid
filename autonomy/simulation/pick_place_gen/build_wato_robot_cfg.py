@@ -1,7 +1,7 @@
 """Build the cuRobo robot config for the wato_bimanual_arm left arm.
 
 Three steps, one reproducible entrypoint:
-  1. Write a patched URDF copy (armDouble.SLDASM.curobo.urdf) with the real
+  1. Write a patched URDF copy (bimanual_arm_curobo.urdf) with the real
      Physics Inspector joint limits — the SolidWorks export has every limit
      as (0, 0), which would clamp all joints to zero in cuRobo.
   2. Run cuRobo's RobotBuilder to fit collision spheres (MorphIt) and the

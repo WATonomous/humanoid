@@ -196,10 +196,19 @@ committed episodes, videos, and metadata stay intact.
 
 ## Rebuilding the robot model
 
-`build_wato_robot_cfg.py` (a) writes `armDouble.SLDASM.curobo.urdf` with real
+`build_wato_robot_cfg.py` (a) writes `bimanual_arm_curobo.urdf` with real
 joint limits (the SolidWorks export has all limits `(0,0)`), (b) MorphIt-fits
 collision spheres (`--protrusion-weight 100`; the default 10 over-inflates
 thin links), (c) locks the right arm + grippers, adds the `attached_object`
 frame, and auto-ignores sphere pairs that overlap at the default pose (the
 physical robot holds that pose, so they are fit artifacts). Output:
 `curobo_cfg/wato_bimanual_left.yml`.
+
+**TODO — merge `bimanual_arm_curobo.urdf` back into `bimanual_arm.urdf`.**
+The cuRobo URDF exists only because the shared `bimanual_arm.urdf` ships with
+all joint limits `(0,0)`, which cuRobo reads directly and would clamp every
+joint to zero. The two are otherwise the same robot and should be one file —
+but `bimanual_arm.urdf` is also loaded by the quest teleop pipeline
+(`run_quest_bimanual_teleop.py`), so patching its limits in place risks
+changing that pipeline's IK. Merge once the real limits are confirmed safe for
+teleop (or teleop is migrated to the patched file), then delete the copy.

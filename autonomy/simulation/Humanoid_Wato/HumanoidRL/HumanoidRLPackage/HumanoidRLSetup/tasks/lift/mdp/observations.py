@@ -25,5 +25,5 @@ def object_position_in_robot_root_frame(
     # Convert to robot body frame (to body frame use subtract_frame_transform() instead of combine_frame_transform())
     object_pos_b, _ = subtract_frame_transforms(
         robot.data.root_pos_w, robot.data.root_quat_w, object_pos_w)
-
+a
     return object_pos_b

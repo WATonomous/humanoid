@@ -77,13 +77,37 @@ class Orchestrator:
         self._transit_obstacles = obstacles[1:]  # object is in-hand during transit
         self.expert.set_world(obstacles)
 
-        segments = self.expert.plan_pick(state["q_arm"], tip_grasp, yaws)
+        # Off-nominal approach detour. The nominal hover sits exactly
+        # hover_offset dead-above the grasp every episode, so the policy never
+        # sees the gripper approach from a displaced start and correct back.
+        # First move to a laterally-jittered hover, THEN plan the grasp from
+        # there: plan_grasp's own approach segment becomes the converge-back
+        # (recovery) leg, and its descent stays clean/vertical regardless of
+        # where we start. Falls back to the straight nominal pick if the detour
+        # or the pick-from-detour fails to plan.
+        q_start = np.asarray(state["q_arm"])
+        detour = []
+        if p.noise.enabled and p.noise.hover_jitter > 0:
+            hover_tip = tip_grasp.copy()
+            hover_tip[2] += p.motion.hover_offset
+            # off-nominal displacement: lateral (x, y) + vertical (z), same SD
+            hover_tip[:2] += self.rng.normal(0.0, p.noise.hover_jitter, 2)
+            hover_tip[2] += self.rng.normal(0.0, p.noise.hover_jitter)
+            leg = self.expert.plan_move(q_start, hover_tip, top_down_wrist_quat(base_yaw))
+            if leg is not None and len(leg):
+                detour = list(leg)
+                q_start = np.asarray(leg[-1])
+
+        segments = self.expert.plan_pick(q_start, tip_grasp, yaws)
+        if segments is None and detour:
+            detour = []
+            segments = self.expert.plan_pick(np.asarray(state["q_arm"]), tip_grasp, yaws)
         if segments is None:
             self.failure_reason = "plan_pick_failed"
             self.phase = "FAILED"
             return False
         self._segments = segments
-        self._queue = list(segments["approach"])
+        self._queue = detour + list(segments["approach"])
         self._grasp_yaw = base_yaw
         self._hold = None
         self._to("APPROACH")

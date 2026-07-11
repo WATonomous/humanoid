@@ -64,7 +64,10 @@ class MotionParams:
 class NoiseParams:
     """Per-episode diversity + per-step actuation noise (recovery signal)."""
     enabled: bool = True
-    hover_jitter: float = 0.03             # random lateral offset on approach hover [m]
+    hover_jitter: float = 0.01             # SD [m] of the off-nominal approach-hover
+                                           # detour (lateral + vertical); the pick then
+                                           # converges back before the clean vertical
+                                           # descent (0 = straight nominal approach)
     via_point_prob: float = 0.7            # probability of a random transit via-point
     via_point_lateral: float = 0.08        # via-point lateral magnitude [m]
     via_point_vertical: float = 0.05       # via-point vertical magnitude [m]

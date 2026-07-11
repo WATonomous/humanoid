@@ -1408,6 +1408,6 @@ kinematics:
     - attached_object
   tool_frames:
   - link6l
-  urdf_path: /workspace/humanoid/autonomy/simulation/Humanoid_Wato/wato_bimanual_arm/urdf/armDouble.SLDASM.curobo.urdf
+  urdf_path: /workspace/humanoid/autonomy/simulation/Humanoid_Wato/wato_bimanual_arm/urdf/bimanual_arm_curobo.urdf
   use_external_assets: false
   use_global_cumul: true
