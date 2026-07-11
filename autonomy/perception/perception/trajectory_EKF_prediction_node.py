@@ -186,11 +186,13 @@ class EKFPredictionNode(Node):
                     time_to_impact = (i + 1) * self.dt
                     position_of_impact = future_x[0:3]
                     break
-        if (impact):
+        if impact:
             self.get_logger().debug(
                 f"Impact estimated in {time_to_impact:.2f} seconds at position {position_of_impact} with hit back racket direction {hitback_direction}")
         else:
             self.get_logger().debug("No impact estimated in the next 2 seconds")
+            return
+
         # Publish the impact estimate
         impact_msg = PerceptionImpactEstimation()
         impact_msg.time_to_impact = float(time_to_impact)
