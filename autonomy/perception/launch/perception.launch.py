@@ -46,8 +46,10 @@ def generate_launch_description():
             name='dummy_tracknet_output',
             output='screen',
         ),
-        Node(package="perception",
-             executable="trajectory_EKF_prediction_node",
-             name="trajectory_EKF_prediction_node",
-             output="screen")
+        Node(
+            package='perception',
+            executable='trajectory_EKF_prediction_node',
+            name='trajectory_EKF_prediction_node',
+            output='screen',
+        ),
     ])
