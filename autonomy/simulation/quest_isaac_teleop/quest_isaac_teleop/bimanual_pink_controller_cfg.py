@@ -15,6 +15,14 @@ ARM_JOINTS = RIGHT_ARM_JOINTS + LEFT_ARM_JOINTS
 # Order must match the teleop pipeline output.
 GRIPPER_JOINTS = ["joint7", "joint8", "joint7l", "joint8l"]
 
+# NOTE: not currently imported by run_quest_bimanual_teleop.py — that script
+# uses its own GRIPPER_OPEN/GRIPPER_CLOSED (left) from bimanual_arm_cfg.py and
+# a local _RIGHT_GRIPPER_OPEN/_RIGHT_GRIPPER_CLOSED (right), which use the
+# OPPOSITE open/closed convention from the values below (there: open=±0.05,
+# closed=0.0). Only WATO_BIMANUAL_IK_ACTION_CFG (currently unused by the live
+# teleop loop) would consume these. If you wire that action config in, or
+# consolidate gripper constants, reconcile this convention first or gripper
+# open/close will invert.
 GRIPPER_OPEN = {"joint7": 0.0, "joint8": 0.0, "joint7l": 0.0, "joint8l": 0.0}
 GRIPPER_CLOSED = {"joint7": -0.05, "joint8": 0.05, "joint7l": -0.05, "joint8l": 0.05}
 
@@ -26,21 +34,29 @@ WATO_BIMANUAL_IK_CONTROLLER_CFG = PinkIKControllerCfg(
     show_ik_warnings=True,
     fail_on_joint_limit_violation=False,
     variable_input_tasks=[
+        # gain/lm_damping were previously retuned to gain=8.0, lm_damping=0.5 (from
+        # gain=0.5, lm_damping=12) in the same commit that introduced the crossed
+        # left/right hand mapping bug — pushing gain 16x higher and damping 24x
+        # lower simultaneously is a recipe for oscillation near singularities,
+        # amplified further by the Quest wrist stream only updating at ~30 Hz
+        # against a 100 Hz solve loop. These values are a more conservative
+        # midpoint; retune live per README "Tuning" guidance (raise lm_damping /
+        # lower gain if oscillating, do the opposite if tracking feels laggy).
         LocalFrameTaskCfg(
             frame=RIGHT_EE_LINK,
             base_link_frame_name=BASE_LINK,
             position_cost=8.0,
             orientation_cost=5.0,
-            lm_damping=0.5,
-            gain=8.0,
+            lm_damping=2.0,
+            gain=3.0,
         ),
         LocalFrameTaskCfg(
             frame=LEFT_EE_LINK,
             base_link_frame_name=BASE_LINK,
             position_cost=8.0,
             orientation_cost=5.0,
-            lm_damping=0.5,
-            gain=8.0,
+            lm_damping=2.0,
+            gain=3.0,
         ),
         NullSpacePostureTaskCfg(
             cost=0.05,

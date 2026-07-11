@@ -11,8 +11,13 @@ Motor specs: https://watonomous.github.io/humanoid-docs/mechanical/index.html
   Gripper              GL40 KV70     0.25 Nm rated / 0.73 Nm peak
                        (rotary motor + linkage → prismatic finger travel in URDF)
 
-Only the left arm is actuated for teleop. The right arm is held at the
-Physics Inspector default pose below.
+In this module's own keyboard-teleop script, only the left arm is actuated;
+the right arm is held at the Physics Inspector default pose below. Note that
+run_quest_bimanual_teleop.py also imports BIMANUAL_ARM_CFG from here and
+drives BOTH arms via Pink IK — the "right_arm" ImplicitActuatorCfg gains
+below were tuned for a held-still pose, not for continuous IK tracking, so
+re-check them if the right arm feels sluggish or unresponsive under Quest
+teleop.
 
 Gripper actuation note
 ----------------------
@@ -289,20 +294,26 @@ BIMANUAL_ARM_CFG = ArticulationCfg(
     ),
     init_state=ArticulationCfg.InitialStateCfg(joint_pos=_DEFAULT_JOINT_POS),
     actuators={
-        # AK10-9 V3.0 — shoulder joints 1-2
+        # AK10-9 V3.0 — shoulder joints 1-2. effort_limit_sim uses the motor's
+        # peak rating (53 Nm), not rated (18 Nm): at rated torque the shoulder
+        # actuator saturates against gravity load when the arm is extended
+        # (largest moment arm), causing the commanded IK target to visibly
+        # undershoot on upward reach specifically — this is a simulation-only
+        # cap (not applied to real hardware limits), so raising it is safe here.
         "left_shoulder": ImplicitActuatorCfg(
             joint_names_expr=["joint1L", "joint2l"],
             stiffness=1515.2,
             damping=120.6,
-            effort_limit_sim=18.0,
+            effort_limit_sim=53.0,
             velocity_limit_sim=6.0,
         ),
-        # AK80-9 V3.0 — elbow joints 3-5
+        # AK80-9 V3.0 — elbow joints 3-5. Same rated (9 Nm) vs peak (22 Nm)
+        # saturation concern as the shoulder, above.
         "left_elbow": ImplicitActuatorCfg(
             joint_names_expr=["joint3l", "joint4l", "joint5l"],
             stiffness=1231.0,
             damping=87.0,
-            effort_limit_sim=9.0,
+            effort_limit_sim=22.0,
             velocity_limit_sim=6.0,
         ),
         # GL40 KV70 — wrist joint 6
@@ -321,12 +332,32 @@ BIMANUAL_ARM_CFG = ArticulationCfg(
             effort_limit_sim=_GRIPPER_EFFORT_LIMIT,
             velocity_limit_sim=_GRIPPER_VELOCITY_LIMIT,
         ),
-        # Right arm revolute joints — hold Physics Inspector default pose
-        "right_arm": ImplicitActuatorCfg(
-            joint_names_expr=["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"],
-            stiffness=1000.0,
-            damping=100.0,
-            effort_limit_sim=18.0,
+        # Right arm — mirrors left_shoulder/left_elbow/left_wrist above.
+        # Previously one coarse "right_arm" group at uniform stiffness=1000/
+        # damping=100/effort=18 for all 6 joints, tuned for holding a static
+        # pose (this file's own keyboard-teleop script never actuates the
+        # right arm). run_quest_bimanual_teleop.py drives both arms via Pink
+        # IK, so the right arm needs the same per-joint-type torque headroom
+        # as the left, especially the shoulder on upward reach (see note above).
+        "right_shoulder": ImplicitActuatorCfg(
+            joint_names_expr=["joint1", "joint2"],
+            stiffness=1515.2,
+            damping=120.6,
+            effort_limit_sim=53.0,
+            velocity_limit_sim=6.0,
+        ),
+        "right_elbow": ImplicitActuatorCfg(
+            joint_names_expr=["joint3", "joint4", "joint5"],
+            stiffness=1231.0,
+            damping=87.0,
+            effort_limit_sim=22.0,
+            velocity_limit_sim=6.0,
+        ),
+        "right_wrist": ImplicitActuatorCfg(
+            joint_names_expr=["joint6"],
+            stiffness=341.0,
+            damping=18.0,
+            effort_limit_sim=0.25,
             velocity_limit_sim=6.0,
         ),
         # Right gripper — same coupled-prismatic hold as left

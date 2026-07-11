@@ -287,13 +287,31 @@ in `quest_isaac_teleop/bimanual_pink_controller_cfg.py`:
 
 | Parameter | Effect | Current value |
 |-----------|--------|---------------|
-| `gain` | How much of the pose error the solver corrects per time-step. Higher = faster convergence, but may overshoot. | `8.0` |
-| `lm_damping` | Levenberg–Marquardt regularisation. Higher = smoother but slower, especially near the target. | `0.5` |
+| `gain` | How much of the pose error the solver corrects per time-step. Higher = faster convergence, but may overshoot. | `3.0` |
+| `lm_damping` | Levenberg–Marquardt regularisation. Higher = smoother but slower, especially near the target. | `2.0` |
 
 Pink IK uses a proportional controller: joint velocity ∝ `gain × error`. This
 means the arm naturally slows down as it approaches the target. If it feels
 too sluggish in the end-range, raise `gain` further or lower `lm_damping`.
 If it becomes unstable (oscillating), lower `gain` or raise `lm_damping`.
+
+`gain=3.0`/`lm_damping=2.0` is a conservative starting point — a previous
+tune (`gain=8.0`, `lm_damping=0.5`) pushed both far in the aggressive
+direction at once and was flagged as needing "further tuning." Since the
+Quest wrist stream only updates at ~30 Hz against a 100 Hz solve loop, low
+damping directly translates hand-tracking noise into visible jitter — retune
+live in sim rather than assuming these numbers are final.
+
+**If the arm undershoots specifically on upward reach** (tracks fine
+horizontally but doesn't lift as far as the real wrist moves), check
+`effort_limit_sim` on the shoulder/elbow `ImplicitActuatorCfg` blocks in
+`bimanual_arm_cfg.py` before touching IK gains — lifting the arm against
+gravity at extension needs more torque than any other direction, and a cap
+set to the motor's *rated* torque (not *peak*) will saturate there first and
+visibly lag the commanded target. Shoulder/elbow are currently set to peak
+(53 Nm / 22 Nm); if it's still undershooting, the next suspects are IK
+singularity damping near full extension (`lm_damping`, above) or an actual
+kinematic reach limit.
 
 Actuator responsiveness (how fast joints track the IK output) is set in
 `autonomy/simulation/Teleop/keyboard_based_teleoperation/bimanual_arm_cfg.py`
@@ -317,20 +335,24 @@ changes the determinant sign and breaks orientation.
 
 ### Wrist orientation alignment
 
-**Observed issue:** when the simulation first starts, the robot EE orientation
-does not match the user's physical wrist orientation. Rotating the wrist in one
-physical axis can drive the EE in a different axis in sim (~30° misalignment on
-the right arm, ~90° on the left arm in testing).
+**Observed issue:** rotating the wrist in one physical axis drove the EE in a
+different axis in sim (~30° misalignment on the right arm, ~90° on the left
+arm in testing). Should now be corrected automatically by the calibration
+below — if you still see a fixed-angle offset after that change, something
+about the calibration's neutral-pose assumption isn't holding (see caveat).
 
 **Root cause:** the Quest wrist tracking frame and the robot's link6/link6l
 URDF frame have different axis conventions. After the Quest→World→Base frame
 remap, the rotation axes do not 1:1 correspond between the physical wrist and
 the EE.
 
-**Current knob:** `_WRIST_ORIENT_OFFSET` (line ~135 in
-`run_quest_bimanual_teleop.py`) is a `(w, x, y, z)` quaternion applied as a
-conjugation on the world-frame orientation delta before converting to base
-frame. Identity `[1, 0, 0, 0]` = no correction. Common trial values:
+**Current knob:** `_WRIST_ORIENT_OFFSET_LEFT` / `_WRIST_ORIENT_OFFSET_RIGHT`
+(line ~135 in `run_quest_bimanual_teleop.py`) are independent `(w, x, y, z)`
+quaternions, one per arm, applied as a conjugation on the world-frame
+orientation delta before converting to base frame. They're separate because
+the measured misalignment differs per arm (~30° right, ~90° left) — a single
+shared offset can't correct both simultaneously. Identity `[1, 0, 0, 0]` = no
+correction. Common trial values (tune each arm independently):
 
 | Value | Meaning |
 |-------|---------|
@@ -340,25 +362,35 @@ frame. Identity `[1, 0, 0, 0]` = no correction. Common trial values:
 | `[0.707, 0, 0.707, 0]` | 90° about world Y |
 | `[0.707, 0.707, 0, 0]` | 90° about world X |
 
-**Possible automatic fix (not yet implemented):** at startup, compute the
-rotation from "Quest wrist in world frame" to "robot EE in world frame" using
-the home poses captured on the first message, and apply that as the per-arm
-correction automatically:
+**Automatic calibration (implemented):** each arm now computes its own
+correction automatically the moment that wrist is first homed, instead of
+relying on a hand-tuned magic quaternion. In the per-arm homing block in
+`run_quest_bimanual_teleop.py`, right after `home_ee_quat_b_*` is captured:
 
 ```python
-# In the first-message block, after home poses are captured:
-ee_quat_w_l  = quat_mul(root_quat_w, home_ee_quat_b_left)
-ee_quat_w_r  = quat_mul(root_quat_w, home_ee_quat_b_right)
-q_home_w_l   = quat_mul(quat_mul(quest_to_world_quat, quest_home_left_quat.unsqueeze(0)),
-                         quat_inv(quest_to_world_quat))
-q_home_w_r   = quat_mul(quat_mul(quest_to_world_quat, quest_home_right_quat.unsqueeze(0)),
-                         quat_inv(quest_to_world_quat))
-orient_corr_left  = quat_mul(ee_quat_w_l, quat_inv(q_home_w_l))   # (1, 4)
-orient_corr_right = quat_mul(ee_quat_w_r, quat_inv(q_home_w_r))   # (1, 4)
+ee_quat_w_l = quat_mul(root_quat_w, home_ee_quat_b_left)
+q_home_w_l = quat_mul(quat_mul(quest_to_world_quat, quest_home_left_quat.unsqueeze(0)),
+                      quat_inv(quest_to_world_quat))
+left_wrist_orient_offset = quat_mul(
+    _WRIST_ORIENT_OFFSET_LEFT.to(device).unsqueeze(0),
+    quat_mul(ee_quat_w_l, quat_inv(q_home_w_l)),
+)
 ```
 
-Then replace `wrist_orient_offset` in the orientation loop with
-`quat_mul(wrist_orient_offset, orient_corr_left/right)`. This absorbs the
-fixed frame offset automatically at the cost of making the calibration
-sensitive to whatever wrist orientation the user holds at the moment the first
-message arrives.
+(mirrored for the right arm using `_WRIST_ORIENT_OFFSET_RIGHT` /
+`home_ee_quat_b_right` / `quest_home_right_quat`.) This reconciles "Quest
+wrist orientation, remapped into world frame" with "actual EE orientation, in
+world frame," both measured at the instant of homing, and folds the result
+into the same conjugation the orientation-delta loop already applies — so
+`_WRIST_ORIENT_OFFSET_LEFT`/`_RIGHT` above are now just an optional manual
+*pre*-correction on top of the auto-calibrated value, not the sole knob.
+
+**Caveat:** this assumes the operator's wrist is in a comfortable/neutral
+pose at the exact moment that arm is homed (first tracked frame after the
+script starts or after that hand re-enters tracking). If orientation still
+feels off, re-home with your wrist relaxed rather than fighting it with the
+manual offset constants. This has not been validated in sim/hardware — watch
+for it converging to a *consistent* fixed axis error across restarts (which
+would suggest the assumption doesn't hold, e.g. the "neutral" home pose isn't
+actually neutral) versus disappearing (which confirms the calibration
+worked).
