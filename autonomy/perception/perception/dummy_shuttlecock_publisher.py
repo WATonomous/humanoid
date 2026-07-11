@@ -5,7 +5,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import CameraInfo, Image
 from cv_bridge import CvBridge
 import numpy as np
-from geometry_msgs.msg import PointStamped, Point
+from geometry_msgs.msg import PointStamped
 from std_msgs.msg import Bool
 
 
