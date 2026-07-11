@@ -16,7 +16,8 @@ class DummyShuttlecockPublisher(Node):
         self.fx = self.fy = 500.0
         self.cx, self.cy = 320.0, 240.0
         self.u, self.v = 370.0, 290.0
-        self.depth_mm = 2000  # 2.0m, will be read back as uint16 mm by the real node
+        # 2.0m, will be read back as uint16 mm by the real node
+        self.depth_mm = 2000
         self.bridge = CvBridge()
         self.info_pub = self.create_publisher(
             CameraInfo, "/camera/depth/camera_info", 10

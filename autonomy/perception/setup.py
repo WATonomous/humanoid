@@ -10,7 +10,10 @@ setup(
     packages=[package_name],
     data_files=[
         # Install marker file in the package index
-        ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
+        (
+            "share/ament_index/resource_index/packages",
+            ["resource/" + package_name],
+        ),
         # Include our package.xml file
         (os.path.join("share", package_name), ["package.xml"]),
         # Include all launch files.
@@ -35,8 +38,10 @@ setup(
         "console_scripts": [
             "dummy_publisher_node = perception.dummy_publisher_node:main",
             "pose_estimation_node = perception.pose_estimation_node:main",
-            "dummy_shuttlecock_publisher = perception.dummy_shuttlecock_publisher:main",
-            "shuttlecock_localizer_node = perception.shuttlecock_localizer_node:main"
+            "dummy_shuttlecock_publisher = "
+            "perception.dummy_shuttlecock_publisher:main",
+            "shuttlecock_localizer_node = "
+            "perception.shuttlecock_localizer_node:main",
         ],
     },
 )

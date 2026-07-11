@@ -103,7 +103,8 @@ class ShuttlecockLocalizer(Node):
         # bail if depth sample returns none (invalid patch)
         if z_cam is None:
             self.get_logger().warn(
-                "Birdie detected, but depth patch is invalid (too many 0s/NaNs).",
+                "Birdie detected, but depth patch is invalid "
+                "(too many 0s/NaNs).",
                 throttle_duration_sec=1.0,
             )
             return
