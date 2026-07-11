@@ -74,7 +74,12 @@ from isaaclab_rl.rsl_rl import (
     export_policy_as_jit,
     export_policy_as_onnx,
 )
-from isaaclab_rl.utils.pretrained_checkpoint import get_published_pretrained_checkpoint
+try:
+    # Not present in all isaaclab_rl versions/installs; only needed for
+    # --use_pretrained_checkpoint (downloading a checkpoint from Nucleus).
+    from isaaclab_rl.utils.pretrained_checkpoint import get_published_pretrained_checkpoint
+except ImportError:
+    get_published_pretrained_checkpoint = None
 
 import HumanoidRLPackage.HumanoidRLSetup.tasks  # noqa: F401
 from isaaclab_tasks.utils import get_checkpoint_path, parse_env_cfg
@@ -98,6 +103,13 @@ def main():
     log_root_path = os.path.abspath(log_root_path)
     print(f"[INFO] Loading experiment from directory: {log_root_path}")
     if args_cli.use_pretrained_checkpoint:
+        if get_published_pretrained_checkpoint is None:
+            raise ImportError(
+                "--use_pretrained_checkpoint was passed but "
+                "isaaclab_rl.utils.pretrained_checkpoint is not available in this "
+                "isaaclab_rl install. Omit --use_pretrained_checkpoint to load a "
+                "local checkpoint instead."
+            )
         resume_path = get_published_pretrained_checkpoint("rsl_rl", train_task_name)
         if not resume_path:
             print("[INFO] Unfortunately a pre-trained checkpoint is currently unavailable for this task.")
