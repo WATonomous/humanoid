@@ -351,7 +351,7 @@ def run(args: argparse.Namespace) -> int:
             if parse_can_id(joint["can_id"]) not in seen
         ]
         if missing:
-            print("YAML can_id not on bus (still offered — press i to remap, or s to skip):")
+            print("YAML can_id not on bus (still offered — you can type a new id at the per-joint prompt, or s to skip):")
             for name, mid in missing:
                 print(f"  {name}  mapped={mid} (0x{mid:02X})")
 
