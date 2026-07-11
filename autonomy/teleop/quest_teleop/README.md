@@ -30,8 +30,8 @@ Inside the container (`.bashrc` may already colcon-build on entry):
 
 ```bash
 cd /root/ament_ws
-colcon build --packages-select common_msgs quest_teleop
 source /opt/ros/humble/setup.bash
+colcon build --packages-select common_msgs quest_teleop
 source install/setup.bash
 ```
 
