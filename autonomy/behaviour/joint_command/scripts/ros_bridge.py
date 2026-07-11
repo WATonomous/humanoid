@@ -100,14 +100,18 @@ class RosBridge(Node):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind((host, port))
         self.sock.settimeout(0.1)
+        self.allowed_host = host
         self.get_logger().info(f"Listening for UDP joint packets on {host}:{port}")
 
     def spin_forever(self):
         while rclpy.ok():
             try:
-                data, _ = self.sock.recvfrom(1024)
+                data, addr = self.sock.recvfrom(1024)
             except socket.timeout:
                 rclpy.spin_once(self, timeout_sec=0.0)
+                continue
+            if addr[0] != self.allowed_host:
+                self.get_logger().warn(f"Dropping packet from unexpected source {addr[0]}")
                 continue
             if len(data) != PACKET_SIZE:
                 self.get_logger().warn(
@@ -141,6 +145,7 @@ class SingleJointBridge(Node):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind((host, port))
         self.sock.settimeout(0.1)
+        self.allowed_host = host
         self.index = JOINT_INDEX[label]
         self.cfg = cfg
         self.prev_target = None
@@ -153,9 +158,12 @@ class SingleJointBridge(Node):
     def spin_forever(self):
         while rclpy.ok():
             try:
-                data, _ = self.sock.recvfrom(1024)
+                data, addr = self.sock.recvfrom(1024)
             except socket.timeout:
                 rclpy.spin_once(self, timeout_sec=0.0)
+                continue
+            if addr[0] != self.allowed_host:
+                self.get_logger().warn(f"Dropping packet from unexpected source {addr[0]}")
                 continue
             if len(data) != PACKET_SIZE:
                 self.get_logger().warn(
