@@ -36,7 +36,11 @@ class EKFPredictionNode(Node):
         self.sub = self.create_subscription(
             PointStamped, '/shuttle_states', self.shuttle_callback, 10)
         self.true_sub = self.create_subscription(
-            PointStamped, '/shuttle_states_true', self.shuttle_true_callback, 10)
+            PointStamped,
+            '/shuttle_states_true',
+            self.shuttle_true_callback,
+            10
+        )
         self.new_spawn = self.create_subscription(
             Bool, '/shuttle_spawned', self.shuttle_spawned_callback, 10)
         self.impact_estimate_pub = self.create_publisher(
@@ -58,8 +62,13 @@ class EKFPredictionNode(Node):
     def shuttle_callback(self, msg):
 
         if self.latest_meas_time is not None:
-            dt_elapsed = (msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
-                          - (self.latest_meas_time.sec + self.latest_meas_time.nanosec * 1e-9))
+            dt_elapsed = (
+                msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+                - (
+                    self.latest_meas_time.sec
+                    + self.latest_meas_time.nanosec * 1e-9
+                )
+            )
             # over 3 seconds of no measurements, assume new shuttle
             if dt_elapsed > 3:
                 self.shuttle_spawned_callback(Bool(data=True))
@@ -71,8 +80,8 @@ class EKFPredictionNode(Node):
         z = np.array([msg.point.x, msg.point.y, msg.point.z])
 
         if not self.velocity_initialized:
-            # Always initialize position from the first measurement so published state/impact
-            # estimation aren't based on (0, 0, 0).
+            # Always initialize position from the first measurement so
+            # published state/impact estimation aren't based on (0, 0, 0).
             if self.prev_meas is None:
                 self.x[0:3] = z
                 self.prev_meas = z
@@ -80,10 +89,15 @@ class EKFPredictionNode(Node):
                 return
 
             dt_elapsed = (
-                self.latest_meas_time.sec + self.latest_meas_time.nanosec * 1e-9
-                - (self.prev_meas_time.sec + self.prev_meas_time.nanosec * 1e-9)
+                self.latest_meas_time.sec
+                + self.latest_meas_time.nanosec * 1e-9
+                - (
+                    self.prev_meas_time.sec
+                    + self.prev_meas_time.nanosec * 1e-9
+                )
             )
-            # Keep position synced to the latest measurement while we wait to seed velocity.
+            # Keep position synced to the latest measurement while we wait
+            # to seed velocity.
             self.x[0:3] = z
 
             # guard: only seed if elapsed time is not like zero or too small
@@ -103,6 +117,7 @@ class EKFPredictionNode(Node):
             msg.point.z
         ])
         self.true_pos_valid = True
+
     def shuttle_spawned_callback(self, msg):
         if msg.data:
             self.get_logger().info("Shuttle spawned → resetting EKF state")
@@ -146,14 +161,14 @@ class EKFPredictionNode(Node):
         F[0:3, 3:6] = np.eye(3) * self.dt
 
         # dv/dv nonlinear drag term
-        I = np.eye(3)
+        identity = np.eye(3)
 
         # derivative of (|v| v)
         outer = np.outer(v, v) / speed
 
-        drag_jac = (1 / self.L) * (speed * I + outer)
+        drag_jac = (1 / self.L) * (speed * identity + outer)
 
-        F[3:6, 3:6] = I - drag_jac * self.dt
+        F[3:6, 3:6] = identity - drag_jac * self.dt
 
         return F
 
@@ -170,7 +185,8 @@ def estimate_impact(self):
         hitback_direction = np.zeros(3)
 
         already_impacted = (
-            future_x[0]**2 + future_x[1]**2 + future_x[2]**2 <= self.bounding_sphere_radius**2
+            future_x[0]**2 + future_x[1]**2 + future_x[2]**2
+            <= self.bounding_sphere_radius**2
         )
         if already_impacted:
             impact = True
@@ -178,23 +194,37 @@ def estimate_impact(self):
             position_of_impact = future_x[0:3]
             vel = future_x[3:6]
             vel_norm = np.linalg.norm(vel)
-            hitback_direction = -(vel / vel_norm) if vel_norm > 1e-9 else np.zeros(3)
+            hitback_direction = (
+                -(vel / vel_norm) if vel_norm > 1e-9 else np.zeros(3)
+            )
         else:
             for i in range(int(self.look_ahead_time / self.dt)):
                 future_x = self.f(future_x)
-                if future_x[0]**2 + future_x[1]**2 + future_x[2]**2 <= self.bounding_sphere_radius**2:
+                if (
+                    future_x[0]**2 + future_x[1]**2 + future_x[2]**2
+                    <= self.bounding_sphere_radius**2
+                ):
                     impact = True
                     vel = future_x[3:6]
                     vel_norm = np.linalg.norm(vel)
-                    hitback_direction = -(vel / vel_norm) if vel_norm > 1e-9 else np.zeros(3)
+                    hitback_direction = (
+                        -(vel / vel_norm) if vel_norm > 1e-9
+                        else np.zeros(3)
+                    )
                     time_to_impact = (i + 1) * self.dt
                     position_of_impact = future_x[0:3]
                     break
         if impact:
             self.get_logger().debug(
-                f"Impact estimated in {time_to_impact:.2f} seconds at position {position_of_impact} with hit back racket direction {hitback_direction}")
+                "Impact estimated in "
+                f"{time_to_impact:.2f} seconds at position "
+                f"{position_of_impact} with hit back racket direction "
+                f"{hitback_direction}"
+            )
         else:
-            self.get_logger().debug("No impact estimated in the next 2 seconds")
+            self.get_logger().debug(
+                "No impact estimated in the next 2 seconds"
+            )
             return
 
         # Publish the impact estimate
@@ -212,7 +242,9 @@ def estimate_impact(self):
         impact_msg.uncertainty = float(np.trace(self.P))
         impact_msg.header.stamp = self.get_clock().now().to_msg()
         impact_msg.header.frame_id = (
-            self.latest_meas.header.frame_id if self.latest_meas is not None else "robot_base_link"
+            self.latest_meas.header.frame_id
+            if self.latest_meas is not None
+            else "robot_base_link"
         )
 
         self.impact_estimate_pub.publish(impact_msg)
@@ -221,12 +253,22 @@ def estimate_impact(self):
 
     def step(self):
         self.increments += 1
-        if self.true_pos_valid and (self.true_pos[0]**2 + self.true_pos[1]**2 + self.true_pos[2]**2 <= self.bounding_sphere_radius**2):
+        if (
+            self.true_pos_valid
+            and (
+                self.true_pos[0]**2
+                + self.true_pos[1]**2
+                + self.true_pos[2]**2
+                <= self.bounding_sphere_radius**2
+            )
+        ):
             self.get_logger().debug(
                 f"Shuttle has impacted at true position {self.true_pos}")
         if (np.trace(self.P) < 2):
             if (not self.low_uncertainty):
-                self.get_logger().info("Low uncertainty → reducing process noise")
+                self.get_logger().info(
+                    "Low uncertainty → reducing process noise"
+                )
             self.process_noise_pos = 1e-5
             self.process_noise_vel = 1e-5
             self.low_uncertainty = True
@@ -261,8 +303,8 @@ def estimate_impact(self):
             K = np.linalg.solve(S.T, PHt.T).T
             self.x = self.x + K @ y
 
-            I = np.eye(6)
-            I_KH = I - K @ H
+            identity = np.eye(6)
+            I_KH = identity - K @ H
             self.P = I_KH @ self.P @ I_KH.T + K @ self.R @ K.T
 
         # ==== IMPACT ESTIMATION (post-update) ====
@@ -274,7 +316,11 @@ def estimate_impact(self):
         msg.position.y = float(self.x[1])
         msg.position.z = float(self.x[2])
         msg.orientation.w = 1.0
-        if self.true_pos_valid and self.latest_meas is not None and self.new_meas_available:
+        if (
+            self.true_pos_valid
+            and self.latest_meas is not None
+            and self.new_meas_available
+        ):
             self.get_logger().debug(
                 f"Total Error: {np.linalg.norm(self.true_pos - self.x[0:3])}")
 

@@ -48,7 +48,8 @@ class DummyTrackNetOutput(Node):
         # units in meters
         # (0,0) is center of court
         # position based on dimensions of a badminton court, 13.4m long
-        # x spread is based on width of court, y spread is length, z spread is based on net height to max shuttlecock height
+        # x spread is based on width of court, y spread is length,
+        # z spread is based on net height to max shuttlecock height
         msg = Bool()
         msg.data = True
         self.new_spawn.publish(msg)

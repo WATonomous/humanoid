@@ -7,7 +7,6 @@ from sensor_msgs.msg import Image
 from geometry_msgs.msg import PoseArray, Pose
 from cv_bridge import CvBridge
 from mmpose.apis import init_model, inference_topdown
-import numpy as np
 
 
 class PoseEstimation(Node):
@@ -21,7 +20,9 @@ class PoseEstimation(Node):
             qos_profile_sensor_data
         )
         self.model = init_model(
-            "/usr/local/lib/python3.10/dist-packages/mmpose/.mim/configs/body_2d_keypoint/rtmpose/coco/rtmpose-s_8xb256-420e_coco-256x192.py",
+            "/usr/local/lib/python3.10/dist-packages/mmpose/.mim/configs/"
+            "body_2d_keypoint/rtmpose/coco/"
+            "rtmpose-s_8xb256-420e_coco-256x192.py",
             "/root/models/rtmpose-s.pth",
             device="cpu",
         )
@@ -35,7 +36,8 @@ class PoseEstimation(Node):
         self.get_logger().info("Pose Estimation Node started")
 
     def image_callback(self, msg):
-        frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')  # converting the ros2 message to a numpy array
+        # converting the ros2 message to a numpy array
+        frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         pose_array = PoseArray()
         pose_array.header = msg.header
 

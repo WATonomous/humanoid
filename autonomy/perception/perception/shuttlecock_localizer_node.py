@@ -64,7 +64,8 @@ class ShuttlecockLocalizer(Node):
         k = msg.k
         self.intrinsics = (k[0], k[4], k[2], k[5])  # fx, fy, cx, cy
         self.get_logger().info(
-            f"Got intrinsics: fx={k[0]:.1f} fy={k[4]:.1f} cx={k[2]:.1f} cy={k[5]:.1f}"
+            f"Got intrinsics: fx={k[0]:.1f} fy={k[4]:.1f} "
+            f"cx={k[2]:.1f} cy={k[5]:.1f}"
         )
 
     def _synchronized_callback(
@@ -118,9 +119,12 @@ class ShuttlecockLocalizer(Node):
         self.pub.publish(point_msg)
 
         self.get_logger().info(
-            f"Successfully synced Detection (Time: {det_msg.header.stamp.sec}) "
-            f"with Depth Image (Time: {depth_msg.header.stamp.sec}) "
-            f"Birdie Position: X={x_cam:.3f}m, Y={y_cam:.3f}m, Z={z_cam:.3f}m"
+            f"Successfully synced Detection (Time: "
+            f"{det_msg.header.stamp.sec}) "
+            f"with Depth Image (Time: "
+            f"{depth_msg.header.stamp.sec}) "
+            f"Birdie Position: X={x_cam:.3f}m, "
+            f"Y={y_cam:.3f}m, Z={z_cam:.3f}m"
         )
 
     def _sample_depth(self, depth_img, u: float, v: float):

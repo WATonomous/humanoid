@@ -16,7 +16,11 @@ def generate_launch_description():
             executable='dummy_publisher_node',
             name='dummy_publisher_node',
             output='screen',
-            arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')],
+            arguments=[
+                '--ros-args',
+                '--log-level',
+                LaunchConfiguration('log_level')
+            ],
             remappings=[
                 # Add any topic remappings here if needed
             ]
