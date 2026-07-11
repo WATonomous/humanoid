@@ -18,8 +18,11 @@ cp watod-config.sh watod-config.local.sh
 ```bash
 ./watod build
 ./watod up -d
-./watod -t <service>_dev    # shell into a develop container
+./watod -t <service>           # e.g. interfacing, mjlabs
+./watod -t <service>_dev        # when the module defines a _dev service
 ```
+
+Most modules expose `<name>_dev` under `MODE_OF_OPERATION=develop`. **`interfacing`** and **`mjlabs`** do not — shell into `interfacing` / `mjlabs` directly.
 
 | `ACTIVE_MODULES` | What it runs |
 |------------------|--------------|
@@ -54,9 +57,9 @@ humanoid
 │   ├── wato_msgs/            # Shared messages
 │   ├── interfacing/          # CAN, DBC, aggregator
 │   ├── perception/
-│   ├── behaviour/            # joint_command, voxel_grid, octo_map
+│   ├── behaviour/            # joint_command, voxel_grid
 │   ├── simulation/           # Isaac tasks, teleop, HumanoidRL
-│   ├── teleop/               # Quest / rosbridge packages
+│   ├── teleop/               # Quest WebXR → ROS 2 bridge
 │   └── il/                   # Imitation learning recording
 ├── assets/lerobot/           # SO101 USD / vial-task assets
 ├── docs/                     # Doc conventions + architecture map
@@ -89,12 +92,16 @@ Isaac Lab needs Linux, NVIDIA GPU, Docker GPU passthrough, and X11 (`xhost +loca
 | Doc conventions | [docs/README.md](docs/README.md) |
 | WATO infra (external) | [wato_monorepo/docs/dev](https://github.com/WATonomous/wato_monorepo/tree/main/docs/dev/) |
 
-## CAN setup
+## CAN / arm bring-up
 
-If you are talking to the robot over CANable, install host udev rules:
+Full checklist (power, CANable udev, calibrate, smoke test):
+
+→ [autonomy/interfacing/can/README.md](autonomy/interfacing/can/README.md)
+
+Open arm work (sim mirror of calibrated joints in Isaac Lab, VR teleop, etc.) is listed there under **Open arm tasks**.
 
 ```bash
-./autonomy/interfacing/can/scripts/can_udev.sh install
+./autonomy/interfacing/can/scripts/can_udev.sh install   # once per host → /dev/canable
 ```
 
 ## Requirements

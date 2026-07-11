@@ -143,7 +143,7 @@ adb reverse tcp:9090 tcp:9090
 No output = success. Run `adb devices` first to confirm the Quest is detected.
 This terminal is done.
 
-### Terminal 3 — simulation\_il\_dev: ROS 2 hand tracking node
+### Terminal 3 — simulation_isaac_dev: ROS 2 hand tracking node
 
 ```bash
 cd ~/Documents/Wato/humanoid && ./watod -t simulation_isaac_dev
@@ -170,7 +170,7 @@ Wait for `[INFO] WSS server listening on port 9090`. Leave running.
 > `/root/ament_ws/install/quest_teleop/lib/quest_teleop/quest_teleop_node`
 > Then rebuild the image to get `ros2` CLI support.
 
-### Terminal 4 — simulation\_il\_dev: HTTPS WebXR page server
+### Terminal 4 — simulation_isaac_dev: HTTPS WebXR page server
 
 ```bash
 cd ~/Documents/Wato/humanoid && ./watod -t simulation_isaac_dev
@@ -184,7 +184,7 @@ python3 /workspace/humanoid/autonomy/teleop/quest_teleop/scripts/webxr_server.py
 
 Wait for `Serving at https://0.0.0.0:8443`. Leave running.
 
-### Terminal 5 — simulation\_il\_dev: Isaac Sim + IK script
+### Terminal 5 — simulation_isaac_dev: Isaac Sim + IK script
 
 ```bash
 cd ~/Documents/Wato/humanoid && ./watod -t simulation_isaac_dev

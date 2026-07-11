@@ -73,7 +73,15 @@ install(DIRECTORY
 # Install scripts with execute permissions
 install(PROGRAMS
   scripts/setup_can.sh
-  DESTINATION share/${PROJECT_NAME}/scripts)
+  scripts/can_udev.sh
+  scripts/calibrate_arm.py
+  DESTINATION share/${PROJECT_NAME}/scripts
+)
+# Also expose calibrator on PATH via lib/<pkg>
+install(PROGRAMS
+  scripts/calibrate_arm.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 # Testing and Development
 find_package(ament_lint_auto REQUIRED)

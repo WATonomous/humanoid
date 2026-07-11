@@ -1,77 +1,97 @@
-## CAN Interfacing Package Documentation
+# CAN interfacing (`can` package)
 
-The documentation for the CAN interfacing package follows a standard WATonomous package level scheme. As shown below:
-```
-can/
-├── CMakeLists.txt
-├── README.md
-├── package.xml
-├── config/
-│   └── params.yaml
-├── include/
-│   ├── can_core.hpp
-│   └── can_node.hpp
-├── launch/
-│   └── can.launch.py
-├── scripts/
-│   └── setup_can.sh
-├── src/
-│   ├── can_core.cpp
-│   └── can_node.cpp
-└── test/
-    └── test_can.cpp
+ROS 2 bridge: `/interfacing/motorCMD` ↔ CAN ↔ `/interfacing/motorFeedback`.
+
+Wiring / power: [Electrical docs](https://watonomous.github.io/humanoid-docs/electrical/index.html) · Architecture: [Interfacing docs](https://watonomous.github.io/humanoid-docs/interfacing/index.html)
+
+## Arm bring-up
+
+### Hardware
+1. Battery + E-stop (closed = powered). Motor power is separate from CAN.
+2. CANable USB → host; CAN_H/CAN_L → arm (120 Ω termination).
+
+### Host (once per machine)
+
+```bash
+./autonomy/interfacing/can/scripts/can_udev.sh install   # → /dev/canable
 ```
 
-TODO: Define can messages for hand - ideally reuse 
+`watod-config.local.sh`:
 
-#### Inputs & Outputs
-- DBC defining all of the can bus messages
-- config/params.yaml file defining can bus parameters
+```bash
+ACTIVE_MODULES="interfacing"
+MODE_OF_OPERATION="develop"
+```
 
-#### Key Features
+```bash
+./watod build && ./watod up -d
+./watod -t interfacing
+source /opt/watonomous/setup.bash
+```
 
-**Architecture Design Pattern: Core vs Node Separation**
+`can.launch.py` brings up `can_node` + SLCAN (`/dev/canable` → `can0` @ 1 Mbps). The compose file sets `FASTDDS_BUILTIN_TRANSPORTS=UDPv4` so shells can discover `can_node`.
 
-This package follows a clean architecture pattern that separates concerns between hardware abstraction and ROS integration:
+### Verify
 
-- **CanCore** (`can_core.hpp/.cpp`): 
-  - Pure C++ class handling low-level CAN bus operations
-  - Hardware abstraction layer for CAN communication
-  - Reusable component independent of ROS
-  - Responsibilities: socket management, frame transmission/reception, interface setup
-  - Could be used in non-ROS applications or embedded systems
+```bash
+ros2 node list                  # /can_node
+candump can0                    # e.g. 0x290A–0x290E
+ros2 topic echo /interfacing/motorFeedback common_msgs/msg/MotorFeedback --once
+# filter one motor:  ... | grep -A6 "motor_id: 14"
+```
 
-- **CanNode** (`can_node.hpp/.cpp`):
-  - ROS 2 Node class managing ROS ecosystem integration
-  - Message translation between ROS and CAN protocols
-  - ROS-specific functionality: publishers, subscribers, parameters, timers
-  - Responsibilities: ROS message handling, topic management, service calls
+### Smoke test (optional)
 
-- **CAN Format - IMPORTANT**
-  - Can messages are defined in the dbc
-  - All messages are extended - meaning that their can_id starts with a 8 to signify a larger id
-  - DBC file can be edited using SavyCAN or VectorCAN data base editors
-  - CAN ID 6 byte can message id - 2 byte device id `MMMMMMDD#DATADATA`
+Arm clear, hand on E-stop. Command **near** last feedback — do not jump to `0` blind.
 
-#### Usage
+```bash
+ros2 topic pub --once /interfacing/motorCMD common_msgs/msg/MotorCmd \
+  "{motor_id: 14, control_type: 4, position: 649.0}"
+```
 
-**Building the Package**
-Build the package using the standard ROS 2 build process within the interfacing container.
+`control_type`: `4` position (deg), `5` set origin, `8` disable.
 
-**Running the CAN Node**
-1. Start the interfacing container
-2. Access the container: `sudo ./watod -t interfacing`
-3. Source the environment: `source ./watod_ros_entrypoint.sh`
-4. `./watod up`
+### Calibrate (`calibrate_arm.py`)
 
-**Note**: The launch file includes a test controller node for development/testing. To disable it for production use, comment out the test controller section in `launch/can.launch.py` (lines marked with "TEST CONTROLLER NODE" comments).
+Per joint: confirm motor id → home zero → one end Enter → other end Enter. Writes `zero_offset`, limits, and remapped `can_id` with `--write-mapping`.
 
-#### Configuration
-- Relevant parameters, environment variables, or dependencies
+The script source is bind-mounted; run it from the mount so you get the latest prompts without rebuilding:
 
-#### Config 
-- Configuration files, environment variables, or command-line arguments
-  - `config/params.yaml`: Contains parameters for CAN interface setup, such as:
-    - `can_interface`: Name of the CAN interface (e.g., `can0`)
-    - `baud_rate`: CAN bus speed (e.g., `500000`)
-    - `frame_timeout`: Timeout for receiving frames in milliseconds
+```bash
+source /opt/watonomous/setup.bash
+python3 /root/ament_ws/src/interfacing/can/scripts/calibrate_arm.py \
+  --arm-side left --write-mapping --mapping /calibration/hardware_mapping.yaml
+# or after rebuild:  ros2 run can calibrate_arm.py --arm-side left --write-mapping
+```
+
+Prompt per joint: **Is motor id N?** → **Enter** = yes · type `14` / `0x0E` = correct id · **s** = skip · **q** = quit.
+
+---
+
+## Open arm tasks (onboarding / assignable)
+
+Work that should land **before** heavy IK / teleop so new people do not fight broken joint frames:
+
+| Status | Task | Why |
+|--------|------|-----|
+| **TODO** | **Light joint mirror (preferred for calib verify)** — publish `sensor_msgs/JointState` from `/interfacing/motorFeedback` + `hardware_mapping.yaml`, show the arm URDF in **RViz2** (or Foxglove). Optional: overlay commanded vs measured | Fast check that zeros / signs / `can_id`s match reality; no GPU sim required. URDFs already exist under `Humanoid_Wato/arm_assembly/` |
+| **TODO** (later) | **Full sim parity** — same live joint stream into Isaac Lab / mjlab when validating teleop, IK, or policies | Heavier; use after the RViz check is green |
+| **TODO** | **VR teleop of the physical arm** — Quest (or similar) → real motors via teleop + `joint_command` / CAN | End-to-end teleop UX; assignable to one member |
+| In progress | Interactive calibration (`calibrate_arm.py`) + correct `can_id` / `zero_offset` in YAML | Foundation for the tasks above |
+
+Suggested acceptance (light path): move one real joint → same joint moves the same way in RViz; home pose in real ≈ home in the URDF.
+
+---
+
+## Topics / config
+
+| Topic | Direction |
+|-------|-----------|
+| `/interfacing/motorCMD` (`MotorCmd`) | ROS → CAN |
+| `/interfacing/motorFeedback` (`MotorFeedback`) | CAN → ROS |
+
+| Param (`config/params.yaml`) | Default |
+|------------------------------|---------|
+| `can_interface` / `device_path` / `bustype` / `bitrate` | `can0` / `/dev/canable` / `slcan` / `1000000` |
+
+DBC: `autonomy/interfacing/dbc/humanoid.dbc`. Debug: `candump can0`.
