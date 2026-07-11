@@ -123,9 +123,14 @@ def main() -> None:
     base_env = env.unwrapped
     robot = base_env.scene["robot"]
 
-    if agent_cfg.class_name == "OnPolicyRunner":
+    # class_name was added to RslRlOnPolicyRunnerCfg in a later isaaclab_rl release
+    # (to select between OnPolicyRunner/DistillationRunner). Older installs don't
+    # have this field at all, so default to "OnPolicyRunner" — the only runner
+    # trained by train.py in this repo.
+    runner_class_name = getattr(agent_cfg, "class_name", "OnPolicyRunner")
+    if runner_class_name == "OnPolicyRunner":
         runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
-    elif agent_cfg.class_name == "DistillationRunner":
+    elif runner_class_name == "DistillationRunner":
         if DistillationRunner is None:
             raise ImportError(
                 "agent_cfg.class_name is 'DistillationRunner' but the installed rsl-rl-lib "
@@ -134,7 +139,7 @@ def main() -> None:
             )
         runner = DistillationRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
     else:
-        raise ValueError(f"Unsupported runner class: {agent_cfg.class_name}")
+        raise ValueError(f"Unsupported runner class: {runner_class_name}")
     runner.load(resume_path)
     policy = runner.get_inference_policy(device=base_env.device)
 
