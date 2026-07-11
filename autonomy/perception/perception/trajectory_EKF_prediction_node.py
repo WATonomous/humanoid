@@ -223,7 +223,7 @@ class EKFPredictionNode(Node):
             )
         else:
             self.get_logger().debug(
-                "No impact estimated in the next 2 seconds"
+                f"No impact estimated in the next {self.look_ahead_time} seconds"
             )
             return
 
