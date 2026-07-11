@@ -498,17 +498,23 @@ def pull_distance_reward(
     force_threshold: float = 1.0,
     dual_grip_bonus: float = 1.0,
 ) -> torch.Tensor:
-    """Dense + disproportionately large pull reward using exp(5f) - 1.
+    """Extremely steep, continuously-accelerating pull reward using C*(exp(k*f) - 1).
 
-    Shape: exp(5f) - 1 where f = drawer_pos / max_open
-      - 0.0001cm (f=2.6e-6): 0.000013 — real gradient immediately, guides from first micron
-      - 0.01cm   (f=0.00026): 0.0013  — continuous slope building early
-      - 1cm      (f=0.026):   0.139   — noticeable reward for early pull
-      - 10cm     (f=0.256):   2.54    — 18× the 1cm value
-      - full open (f=1.0):    147.4   — ~1060× the 1cm value, ~100× any current reward
+    Shape: C * (exp(k*f) - 1) where f = drawer_pos / max_open, C=1000, k=10.
+    Calibrated so the slope AT THE ORIGIN is exactly 10,000 points per unit of f —
+    i.e. every f=0.0001 of drawer opening is worth 1 point right from the first
+    micron of pull. Because the curve is exponential, the score doesn't just grow
+    linearly at that rate — it keeps accelerating, so later progress is worth far
+    more than early progress:
+      - f=0.0001  (0.039mm): 1.0        pts  (the calibration point — 1 pt per 0.0001f)
+      - f=0.001   (0.39mm):  10.05      pts
+      - f=0.01    (3.9mm):   105.17     pts
+      - f=0.1     (3.9cm):   1,718.28   pts
+      - f=0.5     (19.5cm):  147,413    pts
+      - f=1.0     (full, 39cm): 22,025,466 pts — continuously ramps up to a huge payoff
 
-    The grip multiplier is log(1 + grip_score) — logarithmic diminishing returns so
-    the robot only needs a good-enough grip, not a perfect one.
+    The grip multiplier is a saturating function of inner-edge contact force so the
+    robot only needs a good-enough grip, not a perfect one.
     """
     # Grip multiplier scales with inner-edge contact FORCE, saturating at force_ceiling.
     # Firmer inner-edge grip → more pull reward, capped once the grip is solid.
@@ -529,31 +535,18 @@ def pull_distance_reward(
     global _last_f_print_step, _max_f_this_iter, _mag7_at_max_f, _mag8_at_max_f, _sum_f_this_iter, _count_f_this_iter
 
     f = torch.clamp(drawer_pos / max_open, min=0.0, max=1.0)
-    # Scale factor A=4840, weight=0.01 in config → product=48.4.
-    # This gives: 0.00001m held 480 steps = Episode_Reward of exactly 1.0 point.
-    # The exponential exp(5f)-1 then gives these Episode_Reward milestones:
-    #   0.00001m (0.001cm): 1.0      pts  (by design — the reference point)
-    #   0.0001m  (0.01cm):  10.0     pts
-    #   0.001m   (0.1cm):   102      pts
-    #   0.01m    (1cm):     1,100    pts
-    #   0.05m    (5cm):     17,200   pts
-    #   0.1m     (10cm):    116,000  pts
-    #   0.2m     (20cm):    4,930,000 pts
-    #   0.39m    (full):    1.19B    pts  → disproportionately massive as requested
-    A = 4840.0
-    base_score = A * (torch.exp(5.0 * f) - 1.0)
-
-    # TARGETED GRADIENT BOOST: amplify the gradient in the 3cm → 20cm band.
-    # The exp(5f) curve is nearly linear here — weak gradient. This concave ramp adds
-    # extra incentive in exactly that range: steep early (3→10cm), flatter near 20cm.
-    # At 3cm: +0, at 10cm: +~9680 (≈2A), at 20cm: +9680 (saturates to boost_scale×A)
-    f_3cm  = 0.03 / max_open   # 3cm  ≈ f=0.077
-    f_20cm = 0.20 / max_open   # 20cm ≈ f=0.513
-    band = torch.clamp((f - f_3cm) / (f_20cm - f_3cm), min=0.0, max=1.0)
-    boost_scale = 2.0
-    band_boost = A * boost_scale * torch.sqrt(band)
-
-    distance_score = base_score + band_boost
+    # C=1000, k=10 → slope at the origin is C*k = 10,000 pts per unit of f, i.e.
+    # every f=0.0001 (0.039mm at max_open=0.39m) is worth ~1.0 point immediately.
+    # Because it's exponential in f, the reward keeps accelerating well past that:
+    #   f=0.0001 (0.039mm): 1.0         pts  (calibration point)
+    #   f=0.001  (0.39mm):  10.05       pts
+    #   f=0.01   (3.9mm):   105.17      pts
+    #   f=0.1    (3.9cm):   1,718.28    pts
+    #   f=0.5    (19.5cm):  147,413     pts
+    #   f=1.0    (full):    22,025,466  pts — scores continuously climb very high
+    C = 1000.0
+    k = 10.0
+    distance_score = C * (torch.exp(k * f) - 1.0)
 
     # Track for debug print — use the actual grip gate (grip_mul > 0 means an inner
     # edge is in contact). Previously referenced the removed `grip_score` variable.

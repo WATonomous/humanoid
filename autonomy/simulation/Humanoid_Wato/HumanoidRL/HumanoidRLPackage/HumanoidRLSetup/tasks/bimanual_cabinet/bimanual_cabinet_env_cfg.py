@@ -324,15 +324,15 @@ class RewardsCfg:
     # ── STAGE 6: Pull the drawer (goal — ALL gated by a GOOD GRIP: both inner edges) ──
     # No pull reward fires unless BOTH inner edges are in contact (good_grip_gate).
     #
-    # Dense + massively escalating pull reward.
-    # Raw output at 0.01cm = 10 (before grip multiplier).
-    # Raw output at full open = ~1,151,000 — ~115,000× the 0.01cm value.
-    # weight=0.001 brings per-step reward to sensible range:
-    #   0.01cm: 10 × 0.69 × 0.001 = 0.0069 per step
-    #   full open: 1,151,000 × 0.69 × 0.001 = 794 per step → ~380k per episode
+    # Extremely steep, continuously-accelerating pull reward: C*(exp(k*f) - 1) with
+    # C=1000, k=10, calibrated so every f=0.0001 (~0.039mm of drawer travel) is worth
+    # 1.0 raw point right from the start, then keeps accelerating hard as the drawer
+    # opens further (see pull_distance_reward docstring for the full milestone table).
+    # weight=1.0 preserves that "0.0001f = 1 point" calibration directly in the
+    # logged Episode_Reward/pull_distance_reward metric.
     pull_distance_reward = RewTerm(
         func=mdp.pull_distance_reward,
-        weight=0.1,  # Raised from 0.01 — pull reward was 7000× smaller than grip
+        weight=1.0,  # Raised from 0.1 — keeps the "f=0.0001 -> 1pt" calibration exact
         params={
             "asset_cfg": SceneEntityCfg("cabinet", joint_names=["drawer_top_joint"]),
             "max_open": 0.39,
