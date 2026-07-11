@@ -3,21 +3,21 @@
 left:
   shoulder:
     pitch:
-      can_id: 0x01
+      can_id: 0x0E
       lower_limit: -90
       upper_limit: 90
       direction: 1
       zero_offset: 0
       limit_range: true
     roll:
-      can_id: 0x02
+      can_id: 0x0C
       lower_limit: -90
       upper_limit: 90
       direction: 1
       zero_offset: 0
       limit_range: true
     yaw:
-      can_id: 0x03
+      can_id: 0x0D
       lower_limit: -90
       upper_limit: 90
       direction: 1
@@ -25,14 +25,14 @@ left:
       limit_range: true
   elbow:
     pitch:
-      can_id: 0x04
+      can_id: 0x0A
       lower_limit: -130
       upper_limit: 0
       direction: 1
       zero_offset: 0
       limit_range: true
     roll:
-      can_id: 0x05
+      can_id: 0x0B
       lower_limit: -130
       upper_limit: 0
       direction: 1
@@ -40,7 +40,7 @@ left:
       limit_range: true
   wrist:
     pitch:
-      can_id: 0x06
+      can_id: 0x16
       lower_limit: -90
       upper_limit: 90
       direction: 1
@@ -48,9 +48,10 @@ left:
       limit_range: true
   gripper:
     open_close:
-      can_id: 0x07
+      can_id: 0x15
       lower_limit: 0
       upper_limit: 100
       direction: 1
       zero_offset: 0
       limit_range: true
+ 
