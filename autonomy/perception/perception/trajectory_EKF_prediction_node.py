@@ -15,6 +15,7 @@ class EKFPredictionNode(Node):
         # [px, py, pz, vx, vy, vz]
         self.x = np.zeros(6)
         self.true_pos = np.zeros(3)
+        self.true_pos_valid = False
         self.increments = 0
 
         # ---------------- COVARIANCE ----------------
@@ -82,10 +83,12 @@ class EKFPredictionNode(Node):
                 self.latest_meas_time.sec + self.latest_meas_time.nanosec * 1e-9
                 - (self.prev_meas_time.sec + self.prev_meas_time.nanosec * 1e-9)
             )
+            # Keep position synced to the latest measurement while we wait to seed velocity.
+            self.x[0:3] = z
+
             # guard: only seed if elapsed time is not like zero or too small
             if dt_elapsed > 0.001:
                 v_init = (z - self.prev_meas) / dt_elapsed
-                self.x[0:3] = z
                 self.x[3:6] = v_init
                 self.velocity_initialized = True
                 self.get_logger().info(f"Velocity seeded: {v_init}")
@@ -99,7 +102,7 @@ class EKFPredictionNode(Node):
             msg.point.y,
             msg.point.z
         ])
-
+        self.true_pos_valid = True
     def shuttle_spawned_callback(self, msg):
         if msg.data:
             self.get_logger().info("Shuttle spawned → resetting EKF state")
@@ -111,6 +114,7 @@ class EKFPredictionNode(Node):
             self.new_meas_available = False
             self.latest_meas_time = None
             self.true_pos = np.zeros(3)
+            self.true_pos_valid = False
             self.low_uncertainty = False
             self.prev_meas = None
             self.velocity_initialized = False
@@ -161,27 +165,30 @@ class EKFPredictionNode(Node):
         position_of_impact = np.zeros(3)
         hitback_direction = np.zeros(3)
 
-        if (future_x[0]**2 + future_x[1]**2 + future_x[2]**2 <= self.bounding_sphere_radius**2):
-            self.get_logger().debug("Already impacted")
-            return
-        for i in range(int(self.look_ahead_time / self.dt)):
-            future_x = self.f(future_x)
-            if future_x[0]**2 + future_x[1]**2 + future_x[2]**2 <= self.bounding_sphere_radius**2:
-                impact = True
-                # using the negative of the normalized velocity at impact to estimate the ideal
-                # racket facing orientation for a hit back
-                vel = future_x[3:6]
-                vel_norm = np.linalg.norm(vel)
-                if vel_norm > 1e-9:
-                    hitback_direction = -(vel / vel_norm)
-                else:
-                    hitback_direction = np.zeros(3)
-                time_to_impact = (i + 1) * self.dt
-                position_of_impact = future_x[0:3]
-                break
+        already_impacted = (
+            future_x[0]**2 + future_x[1]**2 + future_x[2]**2 <= self.bounding_sphere_radius**2
+        )
+        if already_impacted:
+            impact = True
+            time_to_impact = 0.0
+            position_of_impact = future_x[0:3]
+            vel = future_x[3:6]
+            vel_norm = np.linalg.norm(vel)
+            hitback_direction = -(vel / vel_norm) if vel_norm > 1e-9 else np.zeros(3)
+        else:
+            for i in range(int(self.look_ahead_time / self.dt)):
+                future_x = self.f(future_x)
+                if future_x[0]**2 + future_x[1]**2 + future_x[2]**2 <= self.bounding_sphere_radius**2:
+                    impact = True
+                    vel = future_x[3:6]
+                    vel_norm = np.linalg.norm(vel)
+                    hitback_direction = -(vel / vel_norm) if vel_norm > 1e-9 else np.zeros(3)
+                    time_to_impact = (i + 1) * self.dt
+                    position_of_impact = future_x[0:3]
+                    break
         if (impact):
             self.get_logger().debug(
-                f"Impact estimated in {time_to_impact:.2f} seconds at position {position_of_impact} with hit back racket direction {hitback_direction})")
+                f"Impact estimated in {time_to_impact:.2f} seconds at position {position_of_impact} with hit back racket direction {hitback_direction}")
         else:
             self.get_logger().debug("No impact estimated in the next 2 seconds")
         # Publish the impact estimate
@@ -206,7 +213,7 @@ class EKFPredictionNode(Node):
 
     def step(self):
         self.increments += 1
-        if (self.true_pos[0]**2 + self.true_pos[1]**2 + self.true_pos[2]**2 <= self.bounding_sphere_radius**2):
+        if self.true_pos_valid and (self.true_pos[0]**2 + self.true_pos[1]**2 + self.true_pos[2]**2 <= self.bounding_sphere_radius**2):
             self.get_logger().debug(
                 f"Shuttle has impacted at true position {self.true_pos}")
         if (np.trace(self.P) < 2):
@@ -219,8 +226,6 @@ class EKFPredictionNode(Node):
             self.process_noise_pos = 1e-2
             self.process_noise_vel = 1e-2
 
-        # ====IMPACT ESTIMATION =====
-        self.estimate_impact()
         # ===== PREDICT =====
         F = self.F_jacobian(self.x)   # old state
         self.x = self.f(self.x)
@@ -251,6 +256,9 @@ class EKFPredictionNode(Node):
             I = np.eye(6)
             I_KH = I - K @ H
             self.P = I_KH @ self.P @ I_KH.T + K @ self.R @ K.T
+
+        # ==== IMPACT ESTIMATION (post-update) ====
+        self.estimate_impact()
 
         # ===== PUBLISH =====
         msg = Pose()

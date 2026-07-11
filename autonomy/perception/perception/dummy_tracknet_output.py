@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 
-from geometry_msgs.msg import Pose, PointStamped
+from geometry_msgs.msg import PointStamped
 import numpy as np
 from std_msgs.msg import Bool
 
@@ -15,7 +15,7 @@ class Shuttle:
 class DummyTrackNetOutput(Node):
 
     def __init__(self):
-        super().__init__('ball_sim')
+        super().__init__('dummy_tracknet_output')
 
         self.shuttle = None
         self.dt = 0.02  # 50Hz

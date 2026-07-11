@@ -16,9 +16,7 @@ def generate_launch_description():
             executable='dummy_publisher_node',
             name='dummy_publisher_node',
             output='screen',
-            parameters=[
-                {'log_level': LaunchConfiguration('log_level')}
-            ],
+            arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')],
             remappings=[
                 # Add any topic remappings here if needed
             ]
@@ -38,11 +36,12 @@ def generate_launch_description():
                 'enable_depth': True
             }]
         ),
-        Node(package="perception", 
-             executable="dummy_tracknet_output",
-               name="dummy_tracknet_output", 
-               output="screen"),
-               
+        Node(
+            package='perception',
+            executable='dummy_tracknet_output',
+            name='dummy_tracknet_output',
+            output='screen',
+        ),
         Node(package="perception",
              executable="trajectory_EKF_prediction_node",
              name="trajectory_EKF_prediction_node",
