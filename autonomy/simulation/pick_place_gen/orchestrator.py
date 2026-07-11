@@ -74,6 +74,8 @@ class Orchestrator:
         if state.get("place_object_pos") is not None:
             obstacles.append(("place_object", state["place_object_pos"],
                               state["place_object_quat"], state["place_object_size"]))
+        # Static extras (e.g. tray walls): obstacles during both pick and transit.
+        obstacles.extend(state.get("extra_obstacles", []))
         self._transit_obstacles = obstacles[1:]  # object is in-hand during transit
         self.expert.set_world(obstacles)
 

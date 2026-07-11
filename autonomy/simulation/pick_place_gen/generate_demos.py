@@ -12,6 +12,7 @@ Run from the repo inside the simulation_il container:
 """
 import argparse
 import math
+import os
 import sys
 import time
 from collections import Counter
@@ -126,7 +127,29 @@ class GroundTruth:
                 "place_object_quat": pl_quat,
                 "place_object_size": np.array(p.place.stack_object_size),
             })
+        elif p.place.mode == "tray":
+            state["extra_obstacles"] = _tray_wall_obstacles(p.place)
         return state
+
+
+def _tray_wall_obstacles(place) -> list:
+    """4 thin wall cuboids forming the tray rim (interior left open), so the
+    planner keeps the arm clear of the walls while transiting over the tray.
+    Returns (name, pos(3), quat_wxyz(4), dims(3)) tuples in the env frame."""
+    s = place.tray_scale
+    cx, cy = place.tray_center
+    hx = wc.TRAY_FOOTPRINT[0] / 2 * s
+    hy = wc.TRAY_FOOTPRINT[1] / 2 * s
+    t = max(wc.TRAY_WALL_THICK * s, 0.006)  # floor for planner reliability
+    h = wc.TRAY_WALL_HEIGHT * s * place.tray_height_scale
+    zc = wc.TABLE_TOP_Z + h / 2
+    q = [1.0, 0.0, 0.0, 0.0]
+    return [
+        ("tray_wall_xp", [cx + hx, cy, zc], q, [t, 2 * hy, h]),
+        ("tray_wall_xn", [cx - hx, cy, zc], q, [t, 2 * hy, h]),
+        ("tray_wall_yp", [cx, cy + hy, zc], q, [2 * hx, t, h]),
+        ("tray_wall_yn", [cx, cy - hy, zc], q, [2 * hx, t, h]),
+    ]
 
 
 def sample_place_target(gt: GroundTruth, params, rng) -> tuple:
@@ -137,6 +160,13 @@ def sample_place_target(gt: GroundTruth, params, rng) -> tuple:
         support_z = pl_pos[2] + params.place.stack_object_size[2] / 2
         target = np.array([pl_pos[0], pl_pos[1], support_z + params.object.size[2] / 2])
         return target, support_z
+    if params.place.mode == "tray":
+        # Fixed target: the centre of the tray interior. support_z = tray floor
+        # (scales with the wall-height scale, not the footprint scale).
+        sz = params.place.tray_scale * params.place.tray_height_scale
+        support_z = wc.TABLE_TOP_Z + sz * wc.TRAY_FLOOR_LOCAL_Z
+        cx, cy = params.place.tray_center
+        return np.array([cx, cy, support_z + params.object.size[2] / 2]), support_z
     for _ in range(200):
         xy = rng.uniform(
             [params.place.x_range[0], params.place.y_range[0]],
@@ -233,7 +263,29 @@ def build_recorder(params, gt, args):
         buffer_capacity_s=45.0,
     )
     recorder.init_dataset()
-    return recorder
+    return recorder, dataset_root
+
+
+def _fix_output_ownership(path) -> None:
+    """The datagen container runs as root, so recorded files land root-owned and
+    the host user cannot delete/manage them without sudo. Chown the finished
+    dataset to match the bind-mounted repo root's owner (= the host user), so it
+    behaves like a normal user file. No-op unless running as root on a real path.
+    """
+    if not path or not os.path.exists(path) or getattr(os, "geteuid", lambda: 1000)() != 0:
+        return
+    try:
+        ref = os.stat(wc.REPO_ROOT)  # bind-mounted -> owned by the host user
+    except OSError:
+        return
+    try:
+        for root, _dirs, files in os.walk(path):
+            os.chown(root, ref.st_uid, ref.st_gid)
+            for name in files:
+                os.chown(os.path.join(root, name), ref.st_uid, ref.st_gid)
+        print(f"[ownership] {path} -> uid {ref.st_uid}:{ref.st_gid} (host user; no sudo needed)")
+    except OSError as e:
+        print(f"[ownership] could not chown {path}: {e}")
 
 
 def main():
@@ -254,7 +306,9 @@ def main():
     assert expert.joint_names == shim.LEFT_ARM_JOINTS, expert.joint_names
     orch = Orchestrator(expert, params, rng)
 
-    recorder = build_recorder(params, gt, args_cli) if args_cli.record else None
+    recorder, dataset_root = (
+        build_recorder(params, gt, args_cli) if args_cli.record else (None, None)
+    )
     debug_dir = Path(args_cli.save_debug_images) if args_cli.save_debug_images else None
 
     control_dt = params.episode.sim_dt * params.episode.decimation
@@ -334,6 +388,7 @@ def main():
 
     if recorder is not None:
         recorder.finalize()
+        _fix_output_ownership(dataset_root)
 
     wall = time.time() - t_start
     print("\n===== pick-and-place generation report =====")

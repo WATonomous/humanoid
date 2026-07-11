@@ -22,12 +22,15 @@ def reset_objects_min_separation(
     z_values: list[float],
     min_separation: float,
     asset_cfgs: list[SceneEntityCfg],
+    keepout: tuple[float, float, float, float] | None = None,
     max_resamples: int = 25,
 ):
     """Sample poses for several objects jointly, enforcing pairwise XY separation.
 
     Positions are env-local; z is absolute per object (resting height on the
-    table). Velocities are zeroed.
+    table). Velocities are zeroed. If ``keepout`` = (cx, cy, hx, hy) is given, no
+    object may land inside that env-local rectangle (e.g. the tray footprint), so
+    objects can be sampled from a box that surrounds the tray on all sides.
     """
     device = env.device
     n_env = len(env_ids)
@@ -38,10 +41,15 @@ def reset_objects_min_separation(
     hi = torch.tensor([x_range[1], y_range[1]], device=device)
     for k in range(n_obj):
         xy[:, k] = sample_uniform(lo, hi, (n_env, 2), device=device)
+
+    def _in_keepout(pts: torch.Tensor) -> torch.Tensor:  # (..., 2) -> (...)
+        if keepout is None:
+            return torch.zeros(pts.shape[:-1], dtype=torch.bool, device=device)
+        cx, cy, hx, hy = keepout
+        return (pts[..., 0] - cx).abs().lt(hx) & (pts[..., 1] - cy).abs().lt(hy)
+
     for _ in range(max_resamples):
-        if n_obj < 2:
-            break
-        bad = torch.zeros(n_env, n_obj, dtype=torch.bool, device=device)
+        bad = _in_keepout(xy)
         for a in range(n_obj):
             for b in range(a + 1, n_obj):
                 too_close = (xy[:, a] - xy[:, b]).norm(dim=-1) < min_separation

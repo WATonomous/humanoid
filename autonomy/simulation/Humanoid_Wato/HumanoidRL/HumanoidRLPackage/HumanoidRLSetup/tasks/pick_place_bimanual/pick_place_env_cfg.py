@@ -35,7 +35,7 @@ from .robot_cfg_shim import (
 
 _TABLE_CENTER = (
     wc.TABLE_X_MIN + wc.TABLE_DIMS[0] / 2,
-    -0.10,
+    -0.20,
     wc.TABLE_TOP_Z - wc.TABLE_DIMS[2] / 2,
 )
 
@@ -60,6 +60,30 @@ def _cuboid_object_cfg(prim_name: str, size, mass, color, init_pos) -> RigidObje
                 static_friction=0.9, dynamic_friction=0.8, restitution=0.0
             ),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=tuple(color)),
+        ),
+    )
+
+
+def _tray_cfg(place) -> RigidObjectCfg:
+    """White, kinematic (immovable but collidable) tray from tray.usda, scaled
+    and positioned so its interior centre lands at place.tray_center. The asset
+    origin is a corner, so the root is offset by scale * TRAY_LOCAL_CENTER."""
+    s = place.tray_scale
+    sz = s * place.tray_height_scale  # wall-height scale (footprint unchanged)
+    root = (
+        place.tray_center[0] - s * wc.TRAY_LOCAL_CENTER[0],
+        place.tray_center[1] - s * wc.TRAY_LOCAL_CENTER[1],
+        wc.TABLE_TOP_Z,  # tray bottom rests on the table top
+    )
+    return RigidObjectCfg(
+        prim_path="{ENV_REGEX_NS}/Tray",
+        init_state=RigidObjectCfg.InitialStateCfg(pos=root),
+        spawn=sim_utils.UsdFileCfg(
+            usd_path=wc.TRAY_USDA,
+            scale=(s, s, sz),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.95, 0.95, 0.95)),
         ),
     )
 
@@ -99,7 +123,7 @@ class PickPlaceSceneCfg(InteractiveSceneCfg):
             physics_material=sim_utils.RigidBodyMaterialCfg(
                 static_friction=0.9, dynamic_friction=0.8, restitution=0.0
             ),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.45, 0.35, 0.25)),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.02, 0.02, 0.02)),
         ),
     )
 
@@ -117,6 +141,7 @@ class PickPlaceSceneCfg(InteractiveSceneCfg):
     # Filled by make_env_cfg from PickPlaceTaskParams:
     object: RigidObjectCfg = None
     place_object: RigidObjectCfg = None
+    tray: RigidObjectCfg = None
     camera_external: TiledCameraCfg = None
     camera_wrist: TiledCameraCfg = None
 
@@ -212,6 +237,8 @@ def apply_task_params(cfg: "PickPlaceBimanualEnvCfg", params: PickPlaceTaskParam
 
     reset_assets = [SceneEntityCfg("object")]
     z_values = [obj_rest_z]
+    cfg.scene.place_object = None
+    cfg.scene.tray = None
     if params.place.mode == "stack":
         pl = params.place
         stack_rest_z = wc.TABLE_TOP_Z + pl.stack_object_size[2] / 2 + 0.002
@@ -221,9 +248,22 @@ def apply_task_params(cfg: "PickPlaceBimanualEnvCfg", params: PickPlaceTaskParam
         )
         reset_assets.append(SceneEntityCfg("place_object"))
         z_values.append(stack_rest_z)
-    else:
-        cfg.scene.place_object = None
+    elif params.place.mode == "tray":
+        # Fixed tray; not randomized, so it stays out of reset_assets. The cube
+        # spawn band (object.x_range/y_range) is set to avoid the tray footprint.
+        cfg.scene.tray = _tray_cfg(params.place)
 
+    # In tray mode the cube may spawn anywhere in its band EXCEPT on the tray,
+    # so it can appear on any side of the tray (not just -y). Keep-out = tray
+    # footprint + cube half-size + margin, in the env frame.
+    keepout = None
+    if params.place.mode == "tray":
+        s = params.place.tray_scale
+        keepout = (
+            params.place.tray_center[0], params.place.tray_center[1],
+            wc.TRAY_FOOTPRINT[0] / 2 * s + obj.size[0] / 2 + 0.01,
+            wc.TRAY_FOOTPRINT[1] / 2 * s + obj.size[1] / 2 + 0.01,
+        )
     cfg.events.reset_objects.params = {
         "x_range": obj.x_range,
         "y_range": obj.y_range,
@@ -231,6 +271,7 @@ def apply_task_params(cfg: "PickPlaceBimanualEnvCfg", params: PickPlaceTaskParam
         "z_values": z_values,
         "min_separation": params.place.min_separation,
         "asset_cfgs": reset_assets,
+        "keepout": keepout,
     }
     if params.noise.enabled:
         fr = params.noise.friction_range
@@ -288,6 +329,13 @@ def apply_task_params(cfg: "PickPlaceBimanualEnvCfg", params: PickPlaceTaskParam
     # 53 Nm applied in free space). Path-level self-collision safety is
     # guaranteed by the cuRobo planner instead.
     cfg.scene.robot.spawn.articulation_props.enabled_self_collisions = False
+
+    # Demo readability: bind a single blue visual material over the whole arm
+    # USD. Applied to this task's robot copy only (BIMANUAL_ARM_CFG.replace deep-
+    # copies the spawn), so the shared teleop config is untouched.
+    cfg.scene.robot.spawn.visual_material = sim_utils.PreviewSurfaceCfg(
+        diffuse_color=(0.1, 0.3, 0.9)
+    )
 
     # Actuator effort overrides (see EpisodeParams for rationale/flags).
     ep_lim = params.episode

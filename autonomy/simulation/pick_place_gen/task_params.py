@@ -33,8 +33,9 @@ class ObjectParams:
 @dataclass
 class PlaceParams:
     """Where to place it."""
-    mode: str = "table"                    # "table": pose on the table | "stack": on top of place_object
-    x_range: tuple = wc.WORKSPACE_X        # target sample range (both modes)
+    mode: str = "table"                    # "table": random pose on the table | "stack": on top of
+                                           # place_object | "tray": centre of a fixed tray (tray.usda)
+    x_range: tuple = wc.WORKSPACE_X        # target sample range (table mode)
     y_range: tuple = wc.WORKSPACE_Y
     min_separation: float = 0.12           # min XY distance object <-> target at reset [m]
     xy_tolerance: float = 0.03             # success: object center within this XY radius [m]
@@ -43,6 +44,12 @@ class PlaceParams:
     stack_object_size: tuple = (0.05, 0.05, 0.05)
     stack_object_mass: float = 0.10
     stack_object_color: tuple = (0.1, 0.2, 0.8)
+    # tray mode only: a fixed white tray; the cube is placed in its centre
+    tray_scale: float = 0.7                # footprint scale on the tray asset (0.20x0.16 m)
+    tray_height_scale: float = 1.0         # extra scale on the wall HEIGHT only (relative
+                                           # to tray_scale); <1 gives lower walls so the
+                                           # gripper clears the rim when grasping nearby
+    tray_center: tuple = (0.33, -0.16)     # tray interior centre in the env frame [m]
 
 
 @dataclass

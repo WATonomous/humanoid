@@ -1,0 +1,22 @@
+# Tray pilot — recording run WITH cameras (external + wrist).
+# Same readable layout as tray_demo (blue arm, red cube, black table, white
+# tray), but cameras stay enabled so frames are recorded into the dataset.
+#   PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p ../../pick_place_gen/generate_demos.py \
+#       --headless --enable_cameras --num_episodes 25 --seed 0 --record \
+#       --schema .../dataset_schema_pick_place_bimanual.yaml \
+#       --dataset_root .../datasets/record_pick_place_tray \
+#       --task_params ../../pick_place_gen/params/tray_pilot.yaml
+
+object:
+  color: [1.0, 0.0, 0.0]       # red cube
+  x_range: [0.27, 0.45]        # spawn around the tray (keep-out carves out the tray)
+  y_range: [-0.40, -0.09]
+
+place:
+  mode: tray
+  tray_scale: 0.7
+  tray_height_scale: 0.4       # walls 60% shorter so the gripper clears the rim
+  tray_center: [0.33, -0.26]
+  xy_tolerance: 0.035
+
+# cameras: omitted -> enabled by default (external + wrist), 640x480 RGB, recorded.

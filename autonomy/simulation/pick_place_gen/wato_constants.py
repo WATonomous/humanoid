@@ -123,3 +123,15 @@ HOVER_Z = (0.12, 0.22)
 TABLE_X_MIN = 0.18
 TABLE_DIMS = (0.9, 1.2, 0.05)  # top surface at TABLE_TOP_Z
 NUM_GRASP_YAWS = 8
+
+# Tray asset (place-into-tray demo mode). tray.usda is an open-top box; its
+# local origin sits at a CORNER (mesh spans local x[0,0.20] y[0,0.16] z[0,0.03]),
+# so the interior centre is offset from the prim origin by TRAY_LOCAL_CENTER.
+# Geometry read from the asset; scaled uniformly by PlaceParams.tray_scale.
+TRAY_USDA = os.path.join(REPO_ROOT, "assets", "lerobot", "so101_vial_task", "usd", "tray.usda")
+TRAY_FOOTPRINT = (0.20, 0.16)        # local x,y extent at scale 1.0 [m]
+TRAY_LOCAL_CENTER = (0.10, 0.08)     # interior centre in tray-local frame [m]
+TRAY_INTERIOR_HALF = (0.075, 0.055)  # interior half-extent at scale 1.0 [m]
+TRAY_FLOOR_LOCAL_Z = 0.005           # inner floor height above the prim origin [m]
+TRAY_WALL_HEIGHT = 0.03              # rim height at scale 1.0 [m]
+TRAY_WALL_THICK = 0.004              # wall thickness at scale 1.0 [m]
