@@ -1,0 +1,28 @@
+# Place-the-cube-in-a-tray demo — readable colors + fixed tray target.
+#   blue arm (set in the env cfg) · red cube · black table · white tray.
+# The cube spawns in a band in FRONT of / beside the tray (clear of its
+# footprint) and cuRobo places it in the middle of the tray.
+#
+# Run non-headless to watch it:
+#   PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p ../../pick_place_gen/generate_demos.py \
+#       --num_episodes 3 --seed 0 \
+#       --task_params ../../pick_place_gen/params/tray_demo.yaml
+
+object:
+  color: [1.0, 0.0, 0.0]       # red cube
+  # Spawn box widened beyond the validated grasp box so the cube has room on
+  # BOTH the +y and -y sides of the tray (and a little +x). The tray keep-out
+  # (set in the env cfg) carves out the tray footprint. Edge poses may raise the
+  # plan_pick_failed rate a little; those episodes are just discarded.
+  x_range: [0.27, 0.45]
+  y_range: [-0.40, -0.09]
+
+place:
+  mode: tray
+  tray_scale: 0.7              # tray footprint 0.20x0.16 m -> ~0.14x0.11 m
+  tray_height_scale: 0.4       # walls 60% shorter so the gripper clears the rim
+  tray_center: [0.33, -0.26]   # moved ~10 cm in -y from the previous demo
+  xy_tolerance: 0.035          # success: cube landed near the tray centre
+
+cameras:
+  enabled: false               # visual demo; enable + --enable_cameras to record

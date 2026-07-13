@@ -1,0 +1,79 @@
+# Fork of the simulation_isaac (isaac_lab) container that adds cuRobo, for the
+# pick_place_gen IL data-generation pipeline. Everything (scripts, task package,
+# datasets) is bind-mounted from the repo, so this image differs from the shared
+# one only by the cuRobo dependency layer. See
+# docker/simulation/isaac_lab_il_datagen/isaac_lab_il_datagen.Dockerfile.
+
+x-isaac_lab_il_datagen_volumes: &isaac_lab_il_datagen_volumes
+  - /tmp/.X11-unix:/tmp/.X11-unix:rw
+  - ${XAUTHORITY:-${HOME}/.Xauthority}:/root/.Xauthority:rw
+  - ${MONO_DIR}:/workspace/humanoid:rw
+  - /dev:/dev
+  - /run/udev:/run/udev:ro
+  - ${HF_HOME:-${HOME}/.cache/huggingface}:/root/.cache/huggingface:rw
+  - ${ISAAC_SIM_CACHE_DIR}/cache/kit:/isaac-sim/kit/cache:rw
+  - ${ISAAC_SIM_CACHE_DIR}/cache/ov:/root/.cache/ov:rw
+  - ${ISAAC_SIM_CACHE_DIR}/cache/pip:/root/.cache/pip:rw
+  - ${ISAAC_SIM_CACHE_DIR}/cache/glcache:/root/.cache/nvidia/GLCache:rw
+  - ${ISAAC_SIM_CACHE_DIR}/cache/computecache:/root/.nv/ComputeCache:rw
+  - ${ISAAC_SIM_CACHE_DIR}/logs:/root/.nvidia-omniverse/logs:rw
+  - ${ISAAC_SIM_CACHE_DIR}/data:/root/.local/share/ov/data:rw
+  - ${MONO_DIR}/autonomy/teleop/quest_teleop/certs:/certs:ro
+
+x-isaac_lab_il_datagen_env: &isaac_lab_il_datagen_env
+  - ACCEPT_EULA=Y
+  - PRIVACY_CONSENT=Y
+  - NVIDIA_VISIBLE_DEVICES=all
+  - NVIDIA_DRIVER_CAPABILITIES=all
+  - DISPLAY=${DISPLAY}
+  - QT_X11_NO_MITSHM=1
+  - TELEOP_PORT=${TELEOP_PORT:-/dev/ttyACM0}
+  - TELEOP_ID=${TELEOP_ID:-leader_arm_1}
+  - ISAACLAB=/workspace/isaaclab
+  - HUMANOID_ROOT=/workspace/humanoid
+  - TASK_ROOT=/workspace/humanoid/autonomy/simulation/so101_vial_task
+  - RL_ROOT=/workspace/humanoid/autonomy/simulation/Humanoid_Wato/HumanoidRL
+
+services:
+  isaac_lab_il_datagen:
+    build: &isaac_lab_il_datagen_build
+      context: ..
+      dockerfile: docker/simulation/isaac_lab_il_datagen/isaac_lab_il_datagen.Dockerfile
+      args:
+        # Base = the shared isaac_lab image (single source of truth via the same
+        # var the simulation_isaac module uses). Pinned to :main so the fork is
+        # decoupled from per-branch base churn — it only ever adds cuRobo on top
+        # of the mainline base. Build or pull that base first.
+        BASE_IMAGE: "${SIMULATION_ISAAC_IMAGE:?}:main"
+      cache_from:
+        - "${ISAAC_LAB_IL_DATAGEN_IMAGE:?}:${TAG}"
+        - "${ISAAC_LAB_IL_DATAGEN_IMAGE:?}:main"
+    image: "${ISAAC_LAB_IL_DATAGEN_IMAGE:?}:${TAG}"
+    privileged: true
+    gpus: all
+    environment: *isaac_lab_il_datagen_env
+    profiles: [deploy]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    volumes: *isaac_lab_il_datagen_volumes
+    network_mode: host
+    stdin_open: true
+    tty: true
+    command: sleep infinity
+
+  isaac_lab_il_datagen_dev:
+    build: *isaac_lab_il_datagen_build
+    image: "${ISAAC_LAB_IL_DATAGEN_IMAGE:?}:dev_${TAG}"
+    privileged: true
+    gpus: all
+    environment: *isaac_lab_il_datagen_env
+    profiles: [develop]
+    volumes: *isaac_lab_il_datagen_volumes
+    network_mode: host
+    stdin_open: true
+    tty: true
+    command: sleep infinity

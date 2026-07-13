@@ -15,8 +15,63 @@ from tqdm import tqdm
 from humanoid_il.episode_keys import EpisodeFlags, EpisodeKeyboard
 
 
+def _encode_video_frames_subprocess(
+    imgs_dir: Path | str,
+    video_path: Path | str,
+    fps: int,
+    vcodec: str = "libsvtav1",
+    pix_fmt: str = "yuv420p",
+    g: int | None = 2,
+    crf: int | None = 30,
+    overwrite: bool = False,
+    **_ignored: Any,
+) -> None:
+    """Drop-in replacement for lerobot's encode_video_frames using the ffmpeg CLI.
+
+    lerobot encodes videos in-process through PyAV/SVT-AV1, which leaks
+    ~0.6 GB of native memory per encoded episode when running inside Isaac
+    Sim (measured; the leak eventually freezes the host). Encoding in a
+    short-lived ffmpeg subprocess produces identical output (same codec and
+    parameters) while the leaked memory dies with the child process.
+    """
+    video_path = Path(video_path)
+    if video_path.exists() and not overwrite:
+        return
+    video_path.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-framerate", str(fps),
+        "-i", str(Path(imgs_dir) / "frame-%06d.png"),
+        "-c:v", vcodec,
+        "-pix_fmt", pix_fmt,
+    ]
+    if vcodec == "libsvtav1":
+        cmd += ["-preset", "12"]
+    if g is not None:
+        cmd += ["-g", str(g)]
+    if crf is not None:
+        cmd += ["-crf", str(crf)]
+    cmd.append(str(video_path))
+    subprocess.run(cmd, check=True, capture_output=True)
+
+
+def _install_subprocess_video_encoder() -> None:
+    """Route lerobot's video encoding through the ffmpeg CLI (idempotent).
+
+    lerobot offers no encoder hook, so the module-level symbol is replaced.
+    Covers both the sequential path and the per-camera worker processes
+    (which resolve the same module attribute after fork).
+    """
+    import lerobot.datasets.lerobot_dataset as lerobot_dataset
+
+    lerobot_dataset.encode_video_frames = _encode_video_frames_subprocess
+
+
 class SimLeRobotRecorder:
     """Buffer frames in GPU tensors, flush to a LeRobot dataset asynchronously.
+
+    Episodes travel through a fixed pool of pinned CPU slots (constant
+    memory, at most _NUM_CPU_SLOTS episodes in flight).
 
     Designed for Isaac Sim where observations are already on-device — batching
     the PCIe transfer to one copy-per-episode avoids per-frame overhead.
@@ -49,6 +104,8 @@ class SimLeRobotRecorder:
         instance_id_seg: bool = False,
         num_episodes: int | None = None,
         buffer_capacity_s: float = 120.0,
+        robot_type: str = "so101_follower",
+        extra_features: dict[str, list[str]] | None = None,
     ) -> None:
         self.fps = fps
         self.save_mp4 = save_mp4
@@ -61,6 +118,9 @@ class SimLeRobotRecorder:
         self.dataset_root = Path(dataset_root)
         self.task_name = task_name
         self.num_episodes = num_episodes
+        self.robot_type = robot_type
+        # extra float32 vector features: {feature_name: [component names]}
+        self.extra_features = dict(extra_features or {})
         self.num_recorded_episodes = 0
 
         self._capacity = int(buffer_capacity_s * fps)
@@ -71,8 +131,11 @@ class SimLeRobotRecorder:
         self._rgb_bufs: dict[str, torch.Tensor] = {}
         self._depth_bufs: dict[str, torch.Tensor] = {}
         self._seg_bufs: dict[str, torch.Tensor] = {}
+        self._extra_bufs: dict[str, torch.Tensor] = {}
 
         self._episode_queue: queue.Queue = queue.Queue()
+        # reusable pinned CPU episode slots; see _allocate_cpu_slots
+        self._free_slots: queue.Queue = queue.Queue()
         self._stop_event = threading.Event()
         self._processor_thread = threading.Thread(
             target=self._async_processor, daemon=True
@@ -150,12 +213,24 @@ class SimLeRobotRecorder:
                 "shape": (spec["height"], spec["width"], 3),
                 "names": ["height", "width", "channels"],
             }
+        for name, comp_names in self.extra_features.items():
+            features[name] = {
+                "dtype": "float32",
+                "fps": self.fps,
+                "shape": (len(comp_names),),
+                "names": list(comp_names),
+            }
         return features
+
+    _NUM_CPU_SLOTS = 2
 
     def init_dataset(self) -> None:
         """Create or re-open the LeRobot dataset on disk."""
         from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
+        _install_subprocess_video_encoder()
+        if self._free_slots.empty():
+            self._allocate_cpu_slots()
         root = self.dataset_root
         if root.exists():
             try:
@@ -172,7 +247,7 @@ class SimLeRobotRecorder:
             fps=self.fps,
             features=self._build_features(),
             root=root,
-            robot_type="so101_follower",
+            robot_type=self.robot_type,
         )
         print(f"[INFO]: Created new dataset at {root}")
 
@@ -194,6 +269,10 @@ class SimLeRobotRecorder:
                 self._seg_bufs[name] = torch.zeros(
                     (cap, h, w, 3), dtype=torch.uint8, device=dev
                 )
+        for name, comp_names in self.extra_features.items():
+            self._extra_bufs[name] = torch.zeros(
+                (cap, len(comp_names)), dtype=torch.float32, device=dev
+            )
 
     @staticmethod
     def _as_tensor(
@@ -212,6 +291,7 @@ class SimLeRobotRecorder:
         visual_buffers: dict[str, np.ndarray | torch.Tensor],
         depth_buffers: dict[str, np.ndarray | torch.Tensor] | None = None,
         instance_id_seg_buffers: dict[str, np.ndarray | torch.Tensor] | None = None,
+        extras: dict[str, np.ndarray | torch.Tensor] | None = None,
     ) -> None:
         """Push one timestep of data into the GPU buffers."""
         if self._current_frame >= self._capacity:
@@ -239,41 +319,73 @@ class SimLeRobotRecorder:
                     instance_id_seg_buffers[name], torch.uint8, self.device
                 )
 
+        for name in self.extra_features:
+            if extras is None or name not in extras:
+                raise KeyError(f"extra feature '{name}' missing from extras")
+            self._extra_bufs[name][i] = self._as_tensor(
+                extras[name], torch.float32, self.device
+            )
+
         self._current_frame += 1
 
-    def save_episode(self) -> None:
-        """Batch-copy the current episode to CPU and enqueue for async saving."""
-        print("[INFO]: Copying episode to CPU...")
-        n = self._current_frame
-        episode: dict[str, Any] = {
-            "total_frames": n,
-            "action": (
-                self._action_buf[:n].cpu().numpy().copy()
-                if self._action_buf is not None
-                else np.zeros((0, len(self.joint_names)), dtype=np.float32)
-            ),
-            "observation": (
-                self._obs_buf[:n].cpu().numpy().copy()
-                if self._obs_buf is not None
-                else np.zeros((0, len(self.joint_names)), dtype=np.float32)
-            ),
-            "rgb": {
-                name: self._rgb_bufs[name][:n].cpu().numpy().copy()
-                for name in self.cameras
-            },
-        }
-        if self.depth:
-            episode["depth"] = {
-                name: self._depth_bufs[name][:n].cpu().numpy().copy()
-                for name in self.cameras
-            }
-        if self.instance_id_seg:
-            episode["seg"] = {
-                name: self._seg_bufs[name][:n].cpu().numpy().copy()
-                for name in self.cameras
-            }
+    def _allocate_cpu_slots(self) -> None:
+        """Preallocate reusable pinned CPU episode slots (once per session).
 
-        self._episode_queue.put(episode)
+        Copying episodes into fresh pageable CPU memory every save leaked
+        ~0.6 GB of RSS per episode inside Isaac Sim (the freed pages were
+        never returned to the OS), eventually freezing the host. Two pinned
+        slots, allocated once and reused, keep memory constant and make the
+        device-to-host DMA faster. Two slots also bound how many episodes
+        can be in flight — save_episode() blocks when both are busy.
+        """
+        dim = len(self.joint_names)
+        cap = self._capacity
+        for _ in range(self._NUM_CPU_SLOTS):
+            slot: dict[str, Any] = {
+                "total_frames": 0,
+                "action": torch.empty((cap, dim), dtype=torch.float32, pin_memory=True),
+                "observation": torch.empty((cap, dim), dtype=torch.float32, pin_memory=True),
+                "rgb": {}, "depth": {}, "seg": {}, "extras": {},
+            }
+            for name, spec in self.cameras.items():
+                h, w = spec["height"], spec["width"]
+                slot["rgb"][name] = torch.empty((cap, h, w, 3), dtype=torch.uint8, pin_memory=True)
+                if self.depth:
+                    slot["depth"][name] = torch.empty((cap, h, w, 1), dtype=torch.float32, pin_memory=True)
+                if self.instance_id_seg:
+                    slot["seg"][name] = torch.empty((cap, h, w, 3), dtype=torch.uint8, pin_memory=True)
+            for name, comp_names in self.extra_features.items():
+                slot["extras"][name] = torch.empty(
+                    (cap, len(comp_names)), dtype=torch.float32, pin_memory=True
+                )
+            self._free_slots.put(slot)
+
+    def save_episode(self) -> None:
+        """Copy the episode into a reusable pinned CPU slot and enqueue it.
+
+        Blocks while both CPU slots are in flight (writer backpressure).
+        """
+        if self._action_buf is None:
+            print("[WARN]: save_episode called with no buffered frames, skipping")
+            return
+        if self._free_slots.empty():
+            print("[INFO]: Waiting for a free episode slot (writer catching up)...")
+        slot = self._free_slots.get()
+
+        n = self._current_frame
+        slot["total_frames"] = n
+        slot["action"][:n].copy_(self._action_buf[:n])
+        slot["observation"][:n].copy_(self._obs_buf[:n])
+        for name in self.cameras:
+            slot["rgb"][name][:n].copy_(self._rgb_bufs[name][:n])
+            if self.depth:
+                slot["depth"][name][:n].copy_(self._depth_bufs[name][:n])
+            if self.instance_id_seg:
+                slot["seg"][name][:n].copy_(self._seg_bufs[name][:n])
+        for name in self.extra_features:
+            slot["extras"][name][:n].copy_(self._extra_bufs[name][:n])
+
+        self._episode_queue.put(slot)
         self._clear_buffers()
         print("[INFO]: Episode queued for saving.")
 
@@ -288,6 +400,7 @@ class SimLeRobotRecorder:
         self._rgb_bufs = {}
         self._depth_bufs = {}
         self._seg_bufs = {}
+        self._extra_bufs = {}
         self._current_frame = 0
 
     def _async_processor(self) -> None:
@@ -303,9 +416,34 @@ class SimLeRobotRecorder:
             except Exception as exc:
                 print(f"[ERROR]: Episode processing failed: {exc}")
             finally:
+                self._free_slots.put(episode)  # recycle the pinned slot
                 self._episode_queue.task_done()
+                self._trim_native_heap()
+
+    @staticmethod
+    def _trim_native_heap() -> None:
+        """Return freed glibc heap pages to the OS.
+
+        Each episode moves ~0.7 GB of frames through this thread; inside
+        Isaac Sim (many threads, many malloc arenas) glibc retains the freed
+        pages indefinitely, growing RSS by ~0.6 GB per saved episode until
+        the host runs out of memory. malloc_trim(0) after each episode
+        returns them (measured: flat RSS with, linear growth without).
+        """
+        import ctypes
+
+        try:
+            ctypes.CDLL("libc.so.6").malloc_trim(0)
+        except OSError:
+            pass  # non-glibc platform: nothing to trim
 
     def _process_episode(self, episode: dict[str, Any]) -> None:
+        """Write one episode (a pinned CPU slot) to the LeRobot dataset.
+
+        Tensor rows handed to add_frame are views into the slot; lerobot
+        copies/encodes everything before this method returns, after which
+        the slot is recycled by the caller.
+        """
         from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
         n = episode["total_frames"]
@@ -317,15 +455,17 @@ class SimLeRobotRecorder:
             }
             for name in self.cameras:
                 frame[f"observation.images.{name}"] = episode["rgb"][name][i]
+            for name in self.extra_features:
+                frame[name] = episode["extras"][name][i]
             self.dataset.add_frame(frame)
 
         if self.save_mp4:
             for name in self.cameras:
-                self._save_rgb_video(episode["rgb"][name][:n], name)
-                if self.depth and "depth" in episode:
-                    self._save_depth_video(episode["depth"][name][:n], name)
-                if self.instance_id_seg and "seg" in episode:
-                    self._save_seg_video(episode["seg"][name][:n], name)
+                self._save_rgb_video(episode["rgb"][name][:n].numpy(), name)
+                if self.depth and episode["depth"]:
+                    self._save_depth_video(episode["depth"][name][:n].numpy(), name)
+                if self.instance_id_seg and episode["seg"]:
+                    self._save_seg_video(episode["seg"][name][:n].numpy(), name)
 
         self.dataset.save_episode()
         self.dataset.finalize()

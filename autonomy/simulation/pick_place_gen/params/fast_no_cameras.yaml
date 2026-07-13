@@ -1,0 +1,3 @@
+# State-only fast generation (also omit --enable_cameras on the CLI).
+cameras:
+  enabled: false

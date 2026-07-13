@@ -1,0 +1,50 @@
+# Dataset schema: generalized pick-and-place, wato_bimanual_arm LEFT arm.
+# Produced by autonomy/simulation/pick_place_gen/generate_demos.py (cuRobo
+# expert, success-gated episodes). fps = control 50 Hz / record_divisor 2.
+robot_id: wato_bimanual_left_sim_v1
+repo_id: humanoid/pick_place_bimanual_left
+fps: 25
+
+# observation.state AND action are joint positions in this order
+# (action = commanded targets, state = measured):
+joint_names:
+  - joint1L
+  - joint2l
+  - joint3l
+  - joint4l
+  - joint5l
+  - joint6l
+  - joint7l
+  - joint8l
+
+# privileged ground truth recorded per frame as observation.environment_state
+# (robot base frame; quaternions wxyz):
+env_state_names:
+  - object_x
+  - object_y
+  - object_z
+  - object_qw
+  - object_qx
+  - object_qy
+  - object_qz
+  - target_x
+  - target_y
+  - target_z
+  - target_qw
+  - target_qx
+  - target_qy
+  - target_qz
+
+images:
+  external:
+    height: 480
+    width: 640
+    enabled: true
+  wrist:
+    height: 480
+    width: 640
+    enabled: true
+
+record:
+  root: datasets/record_pick_place_bimanual
+  use_videos: true
