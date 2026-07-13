@@ -1,7 +1,7 @@
 # Copyright (c) 2022-2025, The Isaac Lab Project Developers.
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Inspect LEGR joint limits and one-joint-at-a-time action response."""
+"""Inspect locomotion joint limits and one-joint-at-a-time action response."""
 
 import argparse
 

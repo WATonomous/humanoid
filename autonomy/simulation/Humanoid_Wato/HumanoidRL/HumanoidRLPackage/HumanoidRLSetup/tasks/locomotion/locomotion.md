@@ -1,129 +1,65 @@
-# Locomotion: G1 velocity tracking
+# Locomotion: Wato Humanoid V1 velocity tracking
 
-Velocity-commanded bipedal locomotion for the Unitree G1 in Isaac Lab. The agent receives random base velocity commands $(v_x, v_y, \omega_z)$ and is rewarded for tracking them while staying upright.
+Velocity-commanded bipedal locomotion for **Wato Humanoid Simulation Model V1** in Isaac Lab. The agent receives base velocity commands $(v_x, v_y, \omega_z)$ and is rewarded for tracking them while staying upright.
+
+Asset: `autonomy/simulation/Humanoid_Wato/Wato Humanoid Simultion Model V1/` (SolidWorks URDF).
+Training uses `urdf/Wato_Humanoid_V1_isaac.urdf`, which adds a Z-up `base` link and a fixed joint so the CAD Y-long frame stands in Isaac without a spawn rotation.
 
 **Environments**
 
 | Task ID | Terrain | Mode |
 | :--- | :--- | :--- |
-| `Isaac-Locomotion-Flat-G1-v0` | Plane | Train |
-| `Isaac-Locomotion-Flat-G1-Play-v0` | Plane | Play |
-| `Isaac-Locomotion-Rough-G1-v0` | Procedural rough | Train |
-| `Isaac-Locomotion-Rough-G1-Play-v0` | Procedural rough | Play |
+| `Isaac-Locomotion-Flat-WatoHumanoid-v0` | Plane | Train |
+| `Isaac-Locomotion-Flat-WatoHumanoid-Play-v0` | Plane | Play |
+| `Isaac-Locomotion-Rough-WatoHumanoid-v0` | Procedural rough | Train |
+| `Isaac-Locomotion-Rough-WatoHumanoid-Play-v0` | Procedural rough | Play |
 
-Legacy aliases `Isaac-Velocity-*` register the same configs for backward compatibility with existing checkpoints and scripts.
+Legacy aliases `Isaac-Velocity-*` register the same configs.
 
 ## Train & play
 
-Run inside the **`simulation_isaac`** container (Isaac Lab 2.3.2 / Sim 5.1). Host setup: [`docker/simulation/isaac_lab/QUICKSTART.md`](../../../../../../../../docker/simulation/isaac_lab/QUICKSTART.md) §0–2.
+Run inside the **`simulation_isaac`** container (Isaac Lab 2.3.2 / Sim 5.1). Host setup: [`docker/simulation/isaac_lab/QUICKSTART.md`](../../../../../../../../docker/simulation/isaac_lab/QUICKSTART.md).
 
 ```bash
-# Host: start container
+# Host
 cd ~/Desktop/humanoid && ./watod up -d && ./watod -t simulation_isaac_dev
 
-# Inside container — run from $RL_ROOT (HumanoidRL/)
+# Inside container — from $RL_ROOT
 cd $RL_ROOT
 
 # Train — flat terrain
-PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py \
-  --task=Isaac-Locomotion-Flat-G1-v0 --headless
+rl-train --task=Isaac-Locomotion-Flat-WatoHumanoid-v0 --headless
 
-# Play — loads latest checkpoint from logs/rsl_rl/g1_flat/
-PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
-  --task=Isaac-Locomotion-Flat-G1-Play-v0 --num_envs=1
+# Play — loads latest under logs/rsl_rl/wato_humanoid_flat/
+rl-play --task=Isaac-Locomotion-Flat-WatoHumanoid-Play-v0 --num_envs=1
 
 # Play — specific checkpoint
-PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
-  --task=Isaac-Locomotion-Flat-G1-Play-v0 --num_envs=1 \
-  --checkpoint logs/rsl_rl/g1_flat/<run>/model_<iter>.pt
+rl-play --task=Isaac-Locomotion-Flat-WatoHumanoid-Play-v0 --num_envs=1 \
+  --checkpoint logs/rsl_rl/wato_humanoid_flat/<run>/model_<iter>.pt
 ```
 
-Shorthand aliases (after image rebuild): `rl-train --task=...` / `rl-play --task=... --num_envs=1`.
+Rough-terrain variants: replace `Flat` with `Rough` and use `logs/rsl_rl/wato_humanoid_rough/`.
 
-Rough-terrain variants: replace `Flat` with `Rough` and use experiment dir `logs/rsl_rl/g1_rough/`.
+**Spawn / joint smoke checks**
 
-## LEGR leg model
+```bash
+PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/diagnose_spawn.py \
+  --task=Isaac-Locomotion-Flat-WatoHumanoid-v0 --headless --num_envs=1 --steps=10
 
-The local LEGR leg model lives under:
-
-```text
-autonomy/simulation/Humanoid_Wato/UsdModelAssets/LEGR/
+PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/diagnose_joints.py \
+  --task=Isaac-Locomotion-Flat-WatoHumanoid-v0 --headless --num_envs=1
 ```
 
-The original SolidWorks URDF export is preserved as `urdf/LEGR.urdf`. The Isaac Lab import path uses
-`urdf/LEGR_isaac.urdf`, which fixes reversed mirrored joint limits and changes the left ankle pitch joint
-`U_P_L` from fixed to revolute to mirror `U_P_R`. It also adds an upright `base` link above the original
-`Hip` link so the locomotion task has a stable root body name after fixed joints are merged during USD
-conversion.
+## Joints & bodies
 
-Registered LEGR task IDs:
+| Role | Names |
+| :--- | :--- |
+| Root body | `base` (merged upright root from isaac URDF) |
+| Feet (contacts) | `Foot_L`, `Foot_R` |
+| Hip flexion | `Hip_F_L`, `Hip_F_R` |
+| Hip abduction | `Hip_A_L`, `Hip_A_R` |
+| Hip rotation | `Hip_R_L`, `Hip_R_R` |
+| Knee | `Knee_L`, `Knee_R` |
+| Ankle pitch / roll | `Ankle_P_*`, `Ankle_R_*` |
 
-| Task ID | Terrain | Mode |
-| :--- | :--- | :--- |
-| `Isaac-Locomotion-Flat-LEGR-v0` | Plane | Train |
-| `Isaac-Locomotion-Flat-LEGR-Play-v0` | Plane | Play |
-| `Isaac-Locomotion-Rough-LEGR-v0` | Procedural rough | Train |
-| `Isaac-Locomotion-Rough-LEGR-Play-v0` | Procedural rough | Play |
-
-PowerShell smoke train from `HumanoidRL/`:
-
-```powershell
-$env:ISAACLAB_ROOT = "<path-to-IsaacLab>"
-$env:PYTHONPATH = (Get-Location).Path
-$env:WARP_CACHE_PATH = "<repo-root>\.warp_cache"
-
-& "$env:ISAACLAB_ROOT\isaaclab.bat" -p HumanoidRLPackage\rsl_rl_scripts\train.py --task Isaac-Locomotion-Flat-LEGR-v0 --headless --num_envs 1 --max_iterations 1
-```
-
-PowerShell spawn/contact diagnostic from `HumanoidRL/`:
-
-```powershell
-& "$env:ISAACLAB_ROOT\isaaclab.bat" -p HumanoidRLPackage\rsl_rl_scripts\diagnose_spawn.py --task Isaac-Locomotion-Flat-LEGR-v0 --headless --num_envs 1 --steps 10
-```
-
-PowerShell play with the D3D12 experience:
-
-```powershell
-& "$env:ISAACLAB_ROOT\isaaclab.bat" -p HumanoidRLPackage\rsl_rl_scripts\play.py --task Isaac-Locomotion-Flat-LEGR-Play-v0 --num_envs 1 --checkpoint logs\rsl_rl\legr_flat\<run>\model_<iter>.pt --experience "$env:ISAACLAB_ROOT\apps\isaaclab.python.d3d12.kit" --rendering_mode performance
-```
-
-## Reward (G1 flat)
-
-Total reward is the weighted sum of all terms below. Config: `config/g1/flat_env_cfg.py`.
-
-| Category | Reward Function | Symbol | Weight | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| **Task** | Track linear velocity (XY) | $r_{\text{track\_lin\_vel\_xy\_exp}}$ | 1.0 | Exponential reward for tracking commanded linear velocity in the XY plane. |
-| | Track angular velocity (Z) | $r_{\text{track\_ang\_vel\_z\_exp}}$ | 1.0 | Exponential reward for tracking commanded yaw rate. |
-| **Penalties** | Linear velocity (Z) L2 | $r_{\text{lin\_vel\_z\_l2}}$ | −0.2 | L2 penalty on base vertical velocity. |
-| | Angular velocity (XY) L2 | $r_{\text{ang\_vel\_xy\_l2}}$ | −0.05 | L2 penalty on base roll/pitch rates. |
-| | Joint torques L2 | $r_{\text{dof\_torques\_l2}}$ | $-2.0 \times 10^{-6}$ | L2 penalty on hip/knee torques. |
-| | Joint accelerations L2 | $r_{\text{dof\_acc\_l2}}$ | $-1.0 \times 10^{-7}$ | L2 penalty on joint accelerations. |
-| | Action rate L2 | $r_{\text{action\_rate\_l2}}$ | −0.005 | L2 penalty on action smoothness. |
-| | Feet air time | $r_{\text{feet\_air\_time}}$ | 0.75 | Reward for foot air time above threshold (0.4 s) when moving. |
-| | Undesired contacts | $r_{\text{undesired\_contacts}}$ | −1.0 | Penalty for thigh contacts above force threshold. |
-| | Flat orientation L2 | $r_{\text{flat\_orientation\_l2}}$ | 0.0 | L2 penalty on base tilt (disabled on flat). |
-| **Constraints** | Joint position limits | $r_{\text{dof\_pos\_limits}}$ | 0.0 | Soft joint-limit penalty (disabled on flat). |
-
-## Reward (G1 rough)
-
-Rough terrain adds height-scan observations, terrain curriculum, and extra terms. Config: `config/g1/rough_env_cfg.py`.
-
-| Category | Reward Function | Symbol | Weight | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| **Task** | Track linear velocity (XY) | $r_{\text{track\_lin\_vel\_xy\_exp}}$ | 1.0 | Yaw-frame exponential velocity tracking. |
-| | Track angular velocity (Z) | $r_{\text{track\_ang\_vel\_z\_exp}}$ | 2.0 | World-frame yaw-rate tracking. |
-| **Penalties** | Termination | $r_{\text{termination\_penalty}}$ | −200.0 | Penalty on episode termination (fall). |
-| | Feet air time (biped) | $r_{\text{feet\_air\_time}}$ | 0.25 | Single-stance air/contact time reward. |
-| | Feet slide | $r_{\text{feet\_slide}}$ | −0.1 | Penalty for foot sliding while in contact. |
-| | Flat orientation L2 | $r_{\text{flat\_orientation\_l2}}$ | −1.0 | L2 penalty on base tilt. |
-| | Joint position limits | $r_{\text{dof\_pos\_limits}}$ | −1.0 | Ankle joint soft-limit penalty. |
-| | Joint deviation (hip) | $r_{\text{joint\_deviation\_hip}}$ | −0.1 | L1 deviation from default hip pose. |
-| | Joint deviation (arms) | $r_{\text{joint\_deviation\_arms}}$ | −0.1 | L1 deviation from default arm pose. |
-| | Joint deviation (fingers) | $r_{\text{joint\_deviation\_fingers}}$ | −0.05 | L1 deviation from default finger pose. |
-| | Joint deviation (torso) | $r_{\text{joint\_deviation\_torso}}$ | −0.1 | L1 deviation from default torso pose. |
-| | Linear velocity (Z) L2 | $r_{\text{lin\_vel\_z\_l2}}$ | 0.0 | Disabled on rough G1. |
-| | Angular velocity (XY) L2 | $r_{\text{ang\_vel\_xy\_l2}}$ | −0.05 | L2 penalty on roll/pitch rates. |
-| | Joint torques L2 | $r_{\text{dof\_torques\_l2}}$ | $-1.5 \times 10^{-7}$ | L2 penalty on hip/knee/ankle torques. |
-| | Joint accelerations L2 | $r_{\text{dof\_acc\_l2}}$ | $-1.25 \times 10^{-7}$ | L2 penalty on hip/knee accelerations. |
-| | Action rate L2 | $r_{\text{action\_rate\_l2}}$ | −0.005 | L2 penalty on action smoothness. |
+Config: `modelCfg/wato_humanoid_v1.py`, tasks under `config/wato_humanoid_v1/`.

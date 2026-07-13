@@ -106,3 +106,6 @@ echo "SIMULATION_ISAAC_IMAGE=$SIMULATION_ISAAC_IMAGE" >> "$MODULES_DIR/.env"
 echo "ISAAC_SIM_CACHE_DIR=$ISAAC_SIM_CACHE_DIR" >> "$MODULES_DIR/.env"
 echo "HF_HOME=${HF_HOME:-$HOME/.cache/huggingface}" >> "$MODULES_DIR/.env"
 echo "XAUTHORITY=${XAUTHORITY:-$HOME/.Xauthority}" >> "$MODULES_DIR/.env"
+# Host user for Isaac bind-mount ownership fix (see docker/simulation/isaac_lab/entrypoint.sh)
+echo "HOST_UID=$(id -u)" >> "$MODULES_DIR/.env"
+echo "HOST_GID=$(id -g)" >> "$MODULES_DIR/.env"
