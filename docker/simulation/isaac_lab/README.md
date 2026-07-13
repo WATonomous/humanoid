@@ -78,6 +78,12 @@ export PYTHON=/workspace/isaaclab/_isaac_sim/python.sh
 
 Aliases: `il-train`, `il-record`, `il-eval`, `rl-train`, `rl-play`.
 
+Open the plain Isaac Sim GUI (no Python task). Container is root, so set:
+
+```bash
+OMNI_KIT_ALLOW_ROOT=1 $ISAACLAB/isaaclab.sh -s
+```
+
 Sanity:
 
 ```bash

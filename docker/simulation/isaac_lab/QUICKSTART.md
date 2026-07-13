@@ -63,6 +63,12 @@ Container env (from `.bashrc`): `$ISAACLAB`, `$TASK_ROOT` (SO101 IL), `$RL_ROOT`
 
 Aliases: `il-train`, `il-eval`, `il-record`, `rl-train`, `rl-play`.
 
+**Open Isaac Sim GUI** (no task script — plain simulator). Container runs as root, so allow that:
+
+```bash
+OMNI_KIT_ALLOW_ROOT=1 $ISAACLAB/isaaclab.sh -s
+```
+
 ---
 
 ## 4. Train ACT on public HF dataset (inside container)
@@ -197,6 +203,10 @@ rl-train --task=Isaac-Repose-Cube-WatoHand-v0 --headless
 
 # Play (GUI; omit --headless)
 rl-play --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1
+
+# Locomotion — Wato Humanoid V1 (flat)
+rl-train --task=Isaac-Locomotion-Flat-WatoHumanoid-v0 --headless
+rl-play --task=Isaac-Locomotion-Flat-WatoHumanoid-Play-v0 --num_envs=1
 ```
 
 Task docs: `autonomy/simulation/Humanoid_Wato/HumanoidRL/.../tasks/<task>/*.md`.

@@ -219,12 +219,12 @@ def main() -> None:
     print(f"joint_names: {joint_names}", flush=True)
 
     print("\n[left_right_pairs]")
-    _print_pair("hip_F", "F_L", "F_R", joint_names, action_abs, pos_range, joint_vel_abs)
-    _print_pair("hip_A", "A_L", "A_R", joint_names, action_abs, pos_range, joint_vel_abs)
-    _print_pair("hip_R", "R_L", "R_R", joint_names, action_abs, pos_range, joint_vel_abs)
+    _print_pair("hip_F", "Hip_F_L", "Hip_F_R", joint_names, action_abs, pos_range, joint_vel_abs)
+    _print_pair("hip_A", "Hip_A_L", "Hip_A_R", joint_names, action_abs, pos_range, joint_vel_abs)
+    _print_pair("hip_R", "Hip_R_L", "Hip_R_R", joint_names, action_abs, pos_range, joint_vel_abs)
     _print_pair("knee", "Knee_L", "Knee_R", joint_names, action_abs, pos_range, joint_vel_abs)
-    _print_pair("ankle_R", "U_R_L", "U_R_R", joint_names, action_abs, pos_range, joint_vel_abs)
-    _print_pair("ankle_P", "U_P_L", "U_P_R", joint_names, action_abs, pos_range, joint_vel_abs)
+    _print_pair("ankle_R", "Ankle_R_L", "Ankle_R_R", joint_names, action_abs, pos_range, joint_vel_abs)
+    _print_pair("ankle_P", "Ankle_P_L", "Ankle_P_R", joint_names, action_abs, pos_range, joint_vel_abs)
 
     print("\n[joint_table]")
     print("idx  joint       action_abs  action_std  pos_min  pos_max  pos_range  vel_abs")
