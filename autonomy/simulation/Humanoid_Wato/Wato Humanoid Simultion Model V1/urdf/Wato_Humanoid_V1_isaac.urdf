@@ -4,7 +4,15 @@
      For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
 <robot
   name="Wato_Humanoid_V1">
-  <!-- Isaac Lab: Z-up root. CAD base_link is Y-long; fixed joint stands the robot. -->
+  <!-- Isaac Lab: Z-up root. CAD base_link is Y-long; fixed joint stands the robot.
+       Extra -90 deg yaw on top of the up-axis fix: the X-only rotation above left
+       CAD's true forward (Z) mapped onto Isaac's Y axis, and CAD's lateral (X, the
+       Hip_F_L/Hip_F_R separation axis) mapped onto Isaac's X -- i.e. "forward" was on
+       Y and "sideways" was on X, opposite of Isaac Lab's local-+X-forward convention.
+       This produced a persistent crab-like gait: lin_vel_x commands were being
+       satisfied by strafing along the robot's true lateral axis. This yaw term
+       rotates the horizontal plane only (up/down mapping is unchanged) so CAD-forward
+       lands on +X and CAD-lateral lands on Y (left = +Y). -->
   <link name="base">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0" />
@@ -13,7 +21,7 @@
     </inertial>
   </link>
   <joint name="base_to_base_link" type="fixed">
-    <origin xyz="0 0 0" rpy="-1.5707963267948966 0 0" />
+    <origin xyz="0 0 0" rpy="-1.5707963267948966 0 -1.5707963267948966" />
     <parent link="base" />
     <child link="base_link" />
   </joint>

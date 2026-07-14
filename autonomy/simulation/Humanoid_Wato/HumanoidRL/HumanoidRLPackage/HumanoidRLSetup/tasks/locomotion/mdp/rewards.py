@@ -72,18 +72,6 @@ def feet_slide(env, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg = Scen
     return reward
 
 
-def double_support_penalty(
-    env: ManagerBasedRLEnv, command_name: str, sensor_cfg: SceneEntityCfg
-) -> torch.Tensor:
-    """Penalize both feet remaining planted while a forward command is active."""
-    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
-    in_contact = contact_sensor.data.current_contact_time[:, sensor_cfg.body_ids] > 0.0
-    both_feet_contact = torch.all(in_contact, dim=1)
-    penalty = both_feet_contact.float()
-    penalty *= torch.norm(env.command_manager.get_command(command_name)[:, :2], dim=1) > 0.03
-    return penalty
-
-
 def track_lin_vel_xy_yaw_frame_exp(
     env, std: float, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
 ) -> torch.Tensor:
@@ -95,6 +83,32 @@ def track_lin_vel_xy_yaw_frame_exp(
         torch.square(env.command_manager.get_command(command_name)[:, :2] - vel_yaw[:, :2]), dim=1
     )
     return torch.exp(-lin_vel_error / std**2)
+
+
+def feet_crossing_l2(env, asset_cfg: SceneEntityCfg, margin: float = 0.0) -> torch.Tensor:
+    """Penalize the left foot crossing to the right side of the right foot (or vice versa).
+
+    asset_cfg.body_ids must resolve to exactly two bodies, ordered [left_foot, right_foot].
+    Lateral (body-frame Y) separation is left_y - right_y; this should stay positive (left
+    is left of right). The penalty is the *squared* magnitude by which that separation drops
+    below `margin` -- squaring (rather than a linear clamp) gives a gentler gradient for small
+    violations and a much steeper one for large violations, so a foot swinging past the midline
+    into the other foot's side gets penalized even though self_collision is disabled and would
+    otherwise let them interpenetrate freely. A linear clamp here previously produced a visible
+    stutter: a hard, discontinuous gradient right at the margin boundary caused sharp corrective
+    "flinches" every time a foot approached it.
+    """
+    asset = env.scene[asset_cfg.name]
+    foot_pos_w = asset.data.body_pos_w[:, asset_cfg.body_ids, :]
+    root_pos_w = asset.data.root_pos_w.unsqueeze(1)
+    rel_pos_w = foot_pos_w - root_pos_w
+    num_bodies = rel_pos_w.shape[1]
+    yaw = yaw_quat(asset.data.root_quat_w).unsqueeze(1).expand(-1, num_bodies, -1).reshape(-1, 4)
+    rel_pos_yaw = quat_rotate_inverse(yaw, rel_pos_w.reshape(-1, 3)).reshape(rel_pos_w.shape)
+    left_y = rel_pos_yaw[:, 0, 1]
+    right_y = rel_pos_yaw[:, 1, 1]
+    separation = left_y - right_y
+    return torch.clamp(margin - separation, min=0.0).square()
 
 
 def track_ang_vel_z_world_exp(
