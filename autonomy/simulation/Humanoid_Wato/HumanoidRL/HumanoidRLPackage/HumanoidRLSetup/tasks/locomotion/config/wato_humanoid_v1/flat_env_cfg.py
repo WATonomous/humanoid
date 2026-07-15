@@ -1,4 +1,3 @@
-from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
@@ -16,45 +15,51 @@ class WatoHumanoidFlatRewards(WatoHumanoidRewards):
     shaping, no body-spacing constraints. Those custom terms let the policy satisfy reward
     with a stepping *pattern* that produced no net forward displacement (verified: episodes
     with strong phase_* rewards but forward_velocity stuck at exactly 0.0 for 400+ iterations).
-    G1's reward set relies on track_lin_vel_xy_exp as the dominant, ungated signal instead."""
+    G1's reward set relies on track_lin_vel_xy_exp as the dominant, ungated signal instead.
 
-    # G1's actual config uses only feet_air_time_positive_biped (confirmed by reading
-    # Isaac Lab's source directly) and apparently escapes double-support via exploration
-    # alone -- no equivalent term exists there. But ankle_60nm_extended (990/1000 episode
-    # length, healthy training) settled into a static double-support lunge stance with
-    # feet_air_time reward stuck at exactly 0 for the entire run: feet_air_time_positive_biped
-    # only pays out once single_stance is already true, so it can't provide any gradient
-    # toward the first exploratory foot-lift out of permanent double support. This is a
-    # small, targeted addition (not a return to the earlier gait-phase system) just to
-    # break that specific, repeatedly-observed local optimum.
+    A custom double_support_penalty term (curriculum-gated) was carried here for a while
+    to break a repeatedly-observed frozen double-support local optimum. Once domain
+    randomization was scaled down closer to G1's own (much gentler) reset distribution,
+    real stepping emerged naturally without it (reduced_randomization_fresh_002:
+    feet_air_time rose 0.0131 -> 0.1364 well before the penalty's curriculum was even
+    scheduled to activate) -- removed as unnecessary once that was confirmed live."""
+
+    # Added once urdf_forward_axis_fix_fresh_001 confirmed real stepping/walking: with
+    # self_collision disabled, nothing physically stops the legs from passing through
+    # each other, and observed live play showed a scissoring gait (legs crossing the
+    # midline each stride). G1 doesn't need an equivalent term for its own morphology,
+    # but Wato's does -- this penalizes the lateral separation between feet going
+    # negative (i.e. left foot ending up right of the right foot), not just closeness.
+    # preserve_order=True: feet_crossing_l2 assumes body_ids[0]=left foot, body_ids[1]=right
+    # foot to compute a signed (not just symmetric) lateral separation -- SceneEntityCfg
+    # defaults to asset body index order otherwise, which isn't guaranteed to match
+    # WATO_FOOT_BODIES = ["Foot_L", "Foot_R"].
+    # weight -2.0 -> -6.0, margin 0.0 -> 0.05: at -2.0/0.0 the metric oscillated in a
+    # -0.011 to -0.022 band across ~2000+ iterations of resumed training without
+    # trending toward zero -- too weak relative to the dominant tracking rewards
+    # (0.85+), and only penalizing after the feet had already crossed gave a weak
+    # gradient. The margin makes it start penalizing before the feet actually cross.
     #
-    # Starts at weight 0.0 -- double_support_fresh_001 (this penalty active from
-    # iteration 0, weight -0.3) plateaued hard at episode length ~48-51 for 500+
-    # iterations, well behind the no-penalty run's pace at the same point (60-75).
-    # Fighting "learn to balance at all" and "stop double-supporting" simultaneously
-    # from a random init was too much at once. A curriculum term (below) activates the
-    # penalty only once basic stability is established.
-    double_support_penalty = RewTerm(
-        func=mdp.double_support_penalty,
-        weight=0.0,
+    # -6.0/0.05 (linear) did reduce crossing further but live play showed feet still
+    # tending to drift close, plus a visible stutter -- a hard linear clamp has a
+    # discontinuous gradient right at the margin boundary, causing sharp corrective
+    # "flinches" every time a foot approached it. Switched feet_crossing_l2 itself to
+    # a squared penalty (gentler near the boundary, steeper for real violations) and
+    # widened the margin 0.05 -> 0.08 to push for more standing separation. Squaring
+    # shrinks typical small-violation magnitudes a lot, so weight raised to -40.0 to
+    # compensate -- a first guess, to be retuned against the next few checks.
+    feet_crossing_penalty = RewTerm(
+        func=mdp.feet_crossing_l2,
+        weight=-40.0,
         params={
-            "command_name": "base_velocity",
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=WATO_FOOT_BODIES),
+            "asset_cfg": SceneEntityCfg("robot", body_names=WATO_FOOT_BODIES, preserve_order=True),
+            "margin": 0.08,
         },
     )
-    # -0.3 (curriculum target below) was too weak: double_support_curriculum_001 finished
-    # at episode length 932.8, track_lin_vel_xy_exp 0.8865, but double_support_penalty
-    # only -0.2072 (~69% double-support time) and feet_air_time still ~0.0002. Once
-    # tracking reward approaches its ~0.9-1.0 ceiling, a max -0.3 penalty is negligible
-    # by comparison (weight=1.0 on tracking vs an effective ceiling of 0.3 on this) --
-    # raised substantially so it can actually compete.
 
 
 @configclass
 class WatoHumanoidFlatTerminations(TerminationsCfg):
-    # Reverted: LEGR-matched base_tilt/low_base thresholds caused a consistent
-    # collapse to ~17-18 step episodes across 3 different action-scale variants,
-    # ruling out action scale as the cause and implicating these thresholds instead.
     base_tilt = None
     low_base = DoneTerm(func=mdp.root_height_below_minimum, params={"minimum_height": 0.30})
 
@@ -74,13 +79,10 @@ class WatoHumanoidFlatEnvCfg(WatoHumanoidRoughEnvCfg):
         self.curriculum.terrain_levels = None
 
         self.actions.joint_pos.scale = {
-            # Reverted Hip_F 0.40 -> 0.25: raising it in isolation did not change the
-            # failure mode either (video confirmed still a rigid forward topple, legs
-            # locked together, no stepping) -- ruled out action scale as the bottleneck.
             "Hip_F_.*": 0.25,
             "Knee_.*": 0.30,
             "Hip_A_.*": 0.06,
-            "Hip_R_.*": 0.06,
+            "Hip_R_.*": 0.15,
             "Ankle_R_.*": 0.08,
             "Ankle_P_.*": 0.12,
         }
@@ -130,55 +132,35 @@ class WatoHumanoidFlatEnvCfg(WatoHumanoidRoughEnvCfg):
         # (prevents the divergence that corrupted that run) plus the higher
         # feet_air_time weight below -- not a tighter tracking tolerance.
 
-        # Reverted from LEGR-matched (0.12, 0.22) forced-forward range with
-        # rel_standing_envs=0.0: every rollout so far (3 different reward/action/reset
-        # configs, all visually confirmed) shows the robot toppling forward rigidly
-        # within ~0.8s regardless of tuning. A command range with no zero/standing
-        # option means every env's reward gradient always pushes for forward motion
-        # from step 0, before the policy has any chance to learn balance -- G1 never
-        # does this (rel_standing_envs=0.02, lin_vel_x includes 0.0). Testing whether
-        # letting some envs command "stand still" removes the incentive to lean
-        # forward before the policy can support it.
-        # Reverted lin_vel_x to (0.0, 0.22): narrowing it to (0.15, 0.28) was part of
-        # the same overcorrection as the tighter std -- combined with std=0.25/0.4 it
-        # produced a stalled gradient (episode length plateaued ~45-47, nowhere near
-        # the 990/1000 stability the original range actually reached). rel_standing_envs
-        # stays at 0.1 (up from 0.0) since that part was a legitimate fix on its own.
-        # widen_velocity_001 confirmed walking held up (even improved -- feet_air_time
-        # nearly doubled) after widening lin_vel_x to (0.0, 0.45). Now: (1) made
-        # symmetric so it also learns walking backward, not just forward, and (2)
-        # added lateral (lin_vel_y) and turning (ang_vel_z) for the first time --
-        # previously zeroed all session as a deliberate scope reduction while chasing
-        # basic forward stepping. Kept lateral/turning ranges modest since they're
-        # brand new to the policy; can widen further once confirmed stable.
-        # Jumped straight to G1's own flat-config scale (lin_vel_x (0.0,1.0), lin_vel_y
-        # (-0.5,0.5), ang_vel_z (-1.0,1.0)) rather than incrementally widening again --
-        # higher_velocity_001's live-observed checkpoint confirmed walking held up fine
-        # at the previous (-0.6,0.6)/(-0.25,0.25)/(-0.5,0.5) range, so no reason to be
-        # more conservative than the reference config at this point.
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.rel_standing_envs = 0.1
         self.commands.base_velocity.rel_heading_envs = 0.0
-        self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         self.commands.base_velocity.ranges.heading = None
-        self.events.reset_base.params["pose_range"] = {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (0.0, 0.0)}
+        # yaw matched to G1 (full random heading at reset, not locked to 0) -- found
+        # while diffing event randomization against G1's actual source; this had never
+        # been revisited from Wato's flat-specific override.
+        self.events.reset_base.params["pose_range"] = {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)}
 
-        # Activates double_support_penalty (weight 0.0 -> -2.0) once basic stability is
-        # established, instead of fighting balance-learning and anti-double-support
-        # pressure simultaneously from a random init. ankle_60nm_extended reached full
-        # 990/1000 episode-length stability around PPO iteration ~2500-3000; at
-        # num_steps_per_env=24, that's roughly 2500*24=60000 env steps. Picking 55000
-        # (~iteration 2290) to activate slightly before that point.
-        # -0.3 was tried first and was too weak (double_support_curriculum_001: finished
-        # at ~69% double-support time, feet_air_time still ~0.0002) -- once tracking
-        # reward nears its ~0.9-1.0 ceiling, a max -0.3 penalty is negligible by
-        # comparison. Raised to -2.0 so it can meaningfully compete.
-        self.curriculum.double_support_penalty_activate = CurrTerm(
-            func=mdp.modify_reward_weight,
-            params={"term_name": "double_support_penalty", "weight": -2.0, "num_steps": 55000},
-        )
+        # push_robot and add_base_mass are already disabled entirely in Wato's rough
+        # config (rough_env_cfg.py) -- already matches G1's approach there, nothing to
+        # change. G1 also locks reset_robot_joints/reset_base randomization down much
+        # further than the base defaults Wato has used all session (position_range
+        # (0.5,1.5), velocity ±0.5 in every axis) -- not going as far as G1's full zero
+        # (the zero-action test proved the robot can handle full randomization
+        # passively, so it's not strictly necessary to remove) -- just scaling down
+        # toward G1's gentler spirit, to see if it makes training converge more easily.
+        self.events.reset_base.params["velocity_range"] = {
+            "x": (-0.2, 0.2),
+            "y": (-0.2, 0.2),
+            "z": (-0.2, 0.2),
+            "roll": (-0.2, 0.2),
+            "pitch": (-0.2, 0.2),
+            "yaw": (-0.2, 0.2),
+        }
+        self.events.reset_robot_joints.params["position_range"] = (0.8, 1.2)
 
 
 @configclass
@@ -191,7 +173,7 @@ class WatoHumanoidFlatEnvCfg_PLAY(WatoHumanoidFlatEnvCfg):
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.rel_standing_envs = 0.0
         self.commands.base_velocity.rel_heading_envs = 0.0
-        self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         self.events.reset_base.params["pose_range"] = {"x": (0.0, 0.0), "y": (0.0, 0.0), "yaw": (0.0, 0.0)}
