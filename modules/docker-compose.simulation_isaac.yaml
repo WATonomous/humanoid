@@ -44,7 +44,6 @@ services:
         - "${SIMULATION_ISAAC_IMAGE:?}:main"
     image: "${SIMULATION_ISAAC_IMAGE:?}:${TAG}"
     privileged: true
-    ipc: host
     gpus: all
     environment: *simulation_isaac_env
     profiles: [deploy]
@@ -64,7 +63,6 @@ services:
     build: *simulation_isaac_build
     image: "${SIMULATION_ISAAC_IMAGE:?}:dev_${TAG}"
     privileged: true
-    ipc: host
     gpus: all
     environment: *simulation_isaac_env
     profiles: [develop]

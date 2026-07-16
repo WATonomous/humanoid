@@ -1,22 +1,44 @@
-"""Quest bimanual arm teleoperation — runs inside the simulation_isaac container.
+"""Quest bimanual arm teleoperation — runs inside the simulation_isaac
+container.
 
-Both arms are controlled via Quest hand tracking.  Hand pose data arrives via
-ROS 2 /quest_teleop topic published by quest_teleop_node (also in this container).
+Both arms are controlled via Quest hand tracking. Hand pose data arrives via
+ROS 2 /quest_teleop topic published by quest_teleop_node (also in this
+container). The left Quest wrist drives the left arm, the right Quest wrist
+drives the right arm. Pinching thumb + index closes the corresponding
+gripper.
 
-The left Quest wrist drives the left arm (joints joint1L–joint6l).
-The right Quest wrist drives the right arm (joints joint1–joint6).
-Pinching thumb + index closes the corresponding gripper.
+IK solver: isaaclab.controllers.DifferentialIKController (ik_method="dls",
+damped least squares), tracking each gripper's fingertip-tip-center frame —
+the same controller/target used by
+Task_space_controller/robot_arm_controllers/task_space_test.py, just fed
+from the Quest wrists instead of a draggable cube.
 
-IK solver: Pink IK (Pinocchio-based QP with multiple weighted tasks).
-  - Absolute pose targets tracked from Quest wrist home position.
-  - Better singularity handling than Differential IK via per-task LM damping.
-  - Uses WATO_BIMANUAL_IK_CONTROLLER_CFG from bimanual_pink_controller_cfg.py.
+Each arm is fingertip-tip referenced (LEFT_/RIGHT_FINGER_TIP_BODIES in
+bimanual_arm_cfg.py: midpoint of each gripper's two finger distal tips), not
+the raw wrist link — see compute_gripper_tip_pose_b / compute_tip_ik_jacobian
+there. RIGHT_FINGER_DISTAL_TIP_LOCAL was measured directly from the link7/
+link8 STL vertex data (mesh outward-X extreme, Y/Z bounding-box center) using
+the same method as the pre-existing LEFT_FINGER_DISTAL_TIP_LOCAL constants —
+link7/link8 are NOT a simple mirror of link7l/link8l (separate STL files,
+swapped X-extent — see bimanual_arm_cfg.py for the measurement).
+
+Orientation of each tip frame is defined as its own wrist link's orientation
+(see compute_gripper_tip_pose_w); only the tracked *position* is offset to
+each fingertip midpoint instead of the wrist origin.
+
+lambda_val=0.2 (both arms) was tuned live on the left arm: at the DLS
+default (0.01), a ~0.1m commanded tip displacement pushed the Jacobian
+condition number from ~60 to 4000+ and some axes moved AWAY from target
+instead of converging. 0.2 keeps the condition number bounded (~100) and
+converges to a stable ~0.05m residual instead. Not yet validated on the
+right arm specifically (mechanically mirrors the left, so 0.2 is a
+reasonable starting point) — retune per-arm live if needed.
 
 Coordinate mapping
 ------------------
-WebXR uses a Y-up frame (X-right, Y-up, -Z-forward).  The robot base is in
+WebXR uses a Y-up frame (X-right, Y-up, -Z-forward). The robot base is in
 a Z-up world frame and is rotated 180° about Z, so the mapping is applied in
-two stages (see _QUEST_TO_WORLD and _base_delta below).
+two stages (see _QUEST_TO_WORLD and the per-arm delta computation below).
 
 Usage
 -----
@@ -44,41 +66,28 @@ _SIM_DIR = _THIS_DIR.parent
 _KEYBOARD_TELEOP_DIR = _SIM_DIR / "Teleop" / "keyboard_based_teleoperation"
 sys.path.insert(0, str(_KEYBOARD_TELEOP_DIR))
 
-# Bimanual arm URDF + mesh paths for Pink IK's Pinocchio model
-_BIMANUAL_ROOT = _SIM_DIR / "Humanoid_Wato" / "wato_bimanual_arm"
-_URDF_PATH = str(_BIMANUAL_ROOT / "urdf" / "bimanual_arm.urdf")
-_MESH_DIR = str(_BIMANUAL_ROOT / "meshes")
-
 # ── CLI args ──────────────────────────────────────────────────────────────────
-parser = argparse.ArgumentParser(description="Quest bimanual arm teleop (ROS 2, Pink IK)")
-parser.add_argument("--gain", type=float, default=2.0,
+parser = argparse.ArgumentParser(description="Quest bimanual arm teleop (both arms: DLS fingertip IK)")
+parser.add_argument("--gain", type=float, default=1.0,
                     help="Motion gain: metres of EE motion per metre of real wrist motion")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
-
-# Pinocchio must be imported before AppLauncher starts Isaac Sim.
-# Isaac Sim loads its own libboost_python311.so; if that loads first, its Boost
-# type registry becomes authoritative and Pinocchio's C++ type registrations
-# (StdVec_StdString, etc.) become invisible, causing "No Python class registered"
-# errors. Importing here ensures cmeel's Boost wins the soname race.
-import pinocchio as _pin_preload  # noqa: F401
-del _pin_preload
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
 # ── post-launch imports (require Omniverse runtime) ───────────────────────────
-# rclpy must be imported after AppLauncher — Omniverse must initialise first.
-import numpy as np  # noqa: E402
-import pinocchio as pin  # noqa: E402
 import rclpy  # noqa: E402
 import torch  # noqa: E402
 from rclpy.node import Node  # noqa: E402
 from common_msgs.msg import QuestHandPose  # noqa: E402
 
+import carb  # noqa: E402
+import omni.appwindow  # noqa: E402
+
 import isaaclab.sim as sim_utils  # noqa: E402
 from isaaclab.assets import AssetBaseCfg  # noqa: E402
-from isaaclab.controllers.pink_ik import PinkIKController  # noqa: E402
+from isaaclab.controllers import DifferentialIKController, DifferentialIKControllerCfg  # noqa: E402
 from isaaclab.managers import SceneEntityCfg  # noqa: E402
 from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg  # noqa: E402
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg  # noqa: E402
@@ -89,7 +98,6 @@ from isaaclab.utils.math import (  # noqa: E402
     quat_from_matrix,
     quat_inv,
     quat_mul,
-    skew_symmetric_matrix,
     subtract_frame_transforms,
 )
 
@@ -99,52 +107,53 @@ from bimanual_arm_cfg import (  # noqa: E402
     GRIPPER_OPEN,
     LEFT_ARM_JOINTS,
     LEFT_EE_BODY,
+    LEFT_FINGER_TIP_BODIES,
+    LEFT_FINGER_DISTAL_TIP_LOCAL,
     LEFT_GRIPPER_JOINTS,
+    RIGHT_EE_BODY,
+    RIGHT_FINGER_TIP_BODIES,
+    RIGHT_FINGER_DISTAL_TIP_LOCAL,
     apply_joint_limits,
+    compute_gripper_tip_pose_b,
+    compute_tip_ik_jacobian,
+    resolve_body_ids,
     resolve_joint_name,
-)
-from quest_isaac_teleop.bimanual_pink_controller_cfg import (  # noqa: E402
-    ARM_JOINTS,
-    RIGHT_EE_LINK,
-    WATO_BIMANUAL_IK_CONTROLLER_CFG,
 )
 
 # ── constants ─────────────────────────────────────────────────────────────────
 
-_RIGHT_EE_BODY = RIGHT_EE_LINK          # "link6"
+_RIGHT_ARM_JOINTS = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]
 _RIGHT_GRIPPER_JOINTS = ["joint7", "joint8"]
 _RIGHT_GRIPPER_OPEN = {"joint7": -0.05, "joint8": 0.05}
 _RIGHT_GRIPPER_CLOSED = {"joint7": 0.0, "joint8": 0.0}
 
-# WebXR (Y-up: X-right, Y-up, -Z-forward) → simulation world frame (Z-up)
-# det = +1 (proper rotation) — required so quat_from_matrix gives correct orientation.
-# Depth: quest +Z (toward body) → world −X → base −X (arm retracts) ✓
-# Lateral: quest +X (right) → world −Y → base +Y ✓
-# Vertical: quest +Y (up) → world +Z ✓
+# WebXR (Y-up: X-right, Y-up, -Z-forward) -> simulation world frame (Z-up).
+# Identical mapping to run_quest_bimanual_teleop.py — see that file for the
+# derivation/rationale of each constant below.
 _QUEST_TO_WORLD = torch.tensor(
-    [[0.0, 0.0, -1.0],   # world +X = quest -Z
-     [-1.0, 0.0, 0.0],   # world +Y = quest -X
-     [0.0, 1.0, 0.0]],   # world +Z = quest +Y
+    [[0.0, 0.0, -1.0],
+     [-1.0, 0.0, 0.0],
+     [0.0, 1.0, 0.0]],
     dtype=torch.float32,
 )
-# Per-axis sign flip on the world-frame position delta, applied after _QUEST_TO_WORLD.
-# Currently a no-op ([1,1,1]) — the mapping above already matches physical motion 1:1.
-# If a specific axis still feels inverted after checking the mapping, flip its sign here.
-_DEPTH_SIGN = torch.tensor([1.0, 1.0, 1.0])
+_AXIS_SIGN_LEFT = torch.tensor([1.0, 1.0, 1.0])
+_AXIS_SIGN_RIGHT = torch.tensor([1.0, 1.0, 1.0])
 
-# Orientation-only correction applied after Quest→world frame remap, in world frame.
-# Independent per arm: the physical wrist-tracking axes WebXR reports are not
-# perfectly aligned with the link6 / link6l URDF frames, and the misalignment
-# differs between the two arms (see README "Tuning" — ~30° right, ~90° left).
-# Change these to rotate which physical wrist axis drives which EE rotation axis.
-# Common values: [1,0,0,0]=identity, [0,0,0,1]=180°Z, [0.707,0,0,0.707]=90°Z, etc. (w,x,y,z)
+_GAIN_FAR = 1.0
+_GAIN_RAMP_START_M = 0.15
+_GAIN_RAMP_END_M = 0.35
+
+_MAX_REACH_M = 0.28
+
 _WRIST_ORIENT_OFFSET_LEFT = torch.tensor([1.0, 0.0, 0.0, 0.0])
 _WRIST_ORIENT_OFFSET_RIGHT = torch.tensor([1.0, 0.0, 0.0, 0.0])
 
-_THUMB_TIP_IDX = 4   # thumb-tip in Quest hand joint array
-_INDEX_TIP_IDX = 9   # index-finger-tip
-_PINCH_CLOSE_M = 0.030   # metres — gripper closes when thumb-index < this
-_PINCH_OPEN_M = 0.050    # metres — gripper opens when > this (hysteresis)
+_THUMB_TIP_IDX = 4
+_INDEX_TIP_IDX = 9
+_PINCH_CLOSE_M = 0.030
+_PINCH_OPEN_M = 0.050
+
+_DLS_LAMBDA = 0.2
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -199,21 +208,19 @@ def _wrist_xyz(wrist) -> torch.Tensor:
 
 
 def _wrist_quat_wxyz(wrist) -> torch.Tensor:
-    """Return wrist orientation as (w, x, y, z) — Isaac Lab convention."""
     o = wrist.orientation
     return torch.tensor([o.w, o.x, o.y, o.z], dtype=torch.float32)
 
 
-def _is_tracked(pos: torch.Tensor, quat_wxyz: torch.Tensor, eps: float = 1e-6) -> bool:
-    """True unless this is the WebXR "untracked hand" sentinel.
+def _ramped_gain(disp_m: torch.Tensor, gain_near: float) -> torch.Tensor:
+    t = ((disp_m - _GAIN_RAMP_START_M) / (_GAIN_RAMP_END_M - _GAIN_RAMP_START_M)).clamp(0.0, 1.0)
+    t = t * t * (3.0 - 2.0 * t)
+    return gain_near + (_GAIN_FAR - gain_near) * t
 
-    The client (index.html emptyPose()) and quest_message_parser.cpp
-    (make_empty_message()) both encode an untracked wrist as position
-    (0, 0, 0) with identity orientation — there's no separate tracked/valid
-    flag in the QuestHandPose message. Detect that sentinel so we don't home
-    to it or snap an arm's target toward the origin when a hand drops out of
-    the headset's tracking view.
-    """
+
+def _is_tracked(pos: torch.Tensor, quat_wxyz: torch.Tensor, eps: float = 1e-6) -> bool:
+    """True unless this is the WebXR "untracked hand" sentinel (see
+    run_quest_bimanual_teleop.py for the full rationale)."""
     return not (
         torch.allclose(pos, torch.zeros_like(pos), atol=eps)
         and torch.allclose(quat_wxyz, torch.tensor([1.0, 0.0, 0.0, 0.0], device=quat_wxyz.device), atol=eps)
@@ -238,21 +245,64 @@ def _ee_pose_in_base(robot, body_id: int):
     )
 
 
-def _to_pin_se3(pos_b: torch.Tensor, quat_wxyz: torch.Tensor) -> pin.SE3:
-    """Convert Isaac Lab base-frame pose tensors to a Pinocchio SE3.
-
-    pos_b   : (1, 3) tensor — position in robot base frame
-    quat_wxyz: (1, 4) tensor — orientation (w, x, y, z) in robot base frame
-    Returns a pin.SE3 suitable for LocalFrameTask.set_target().
+class _ArmDlsController:
+    """Bundles a DifferentialIKController with the per-arm state needed to
+    drive it from Quest wrist data: entity/jacobian indices, fingertip
+    geometry, homing state, and the current target. One instance per arm —
+    kept separate (rather than sharing one controller with num_envs=2) so
+    neither arm's homing/recalibration state can leak into the other's.
     """
-    t = pos_b[0].cpu().numpy().astype(np.float64)
-    w, x, y, z = quat_wxyz[0].cpu().numpy().astype(np.float64)
-    R = np.array([
-        [1 - 2*(y*y + z*z),   2*(x*y - w*z),     2*(x*z + w*y)],
-        [2*(x*y + w*z),       1 - 2*(x*x + z*z), 2*(y*z - w*x)],
-        [2*(x*z - w*y),       2*(y*z + w*x),     1 - 2*(x*x + y*y)],
-    ])
-    return pin.SE3(R, t)
+
+    def __init__(self, scene, robot, device, arm_joint_names, ee_body, finger_tip_bodies, finger_distal_local):
+        self.finger_tip_bodies = finger_tip_bodies
+        self.finger_distal_local = finger_distal_local
+
+        entity_cfg = _make_entity_cfg(scene, arm_joint_names, ee_body)
+        self.body_id = entity_cfg.body_ids[0]
+        self.arm_ids = entity_cfg.joint_ids
+        self.ee_jacobi_idx = self.body_id - 1 if robot.is_fixed_base else self.body_id
+        self.finger_body_ids = resolve_body_ids(robot, finger_tip_bodies)
+
+        cfg = DifferentialIKControllerCfg(
+            command_type="pose", use_relative_mode=False, ik_method="dls",
+            ik_params={"lambda_val": _DLS_LAMBDA},
+        )
+        self.controller = DifferentialIKController(cfg, num_envs=scene.num_envs, device=device)
+        self.controller.reset(env_ids=torch.arange(scene.num_envs, device=device))
+
+        self.quest_home_xyz: torch.Tensor | None = None
+        self.quest_home_quat: torch.Tensor | None = None
+        self.home_tip_pos_b: torch.Tensor | None = None
+        self.home_tip_quat_b: torch.Tensor | None = None
+        self.wrist_orient_offset: torch.Tensor | None = None
+
+    def tip_pose_b(self, robot, root_pose_w):
+        return compute_gripper_tip_pose_b(
+            robot, root_pose_w, self.body_id, self.finger_body_ids,
+            self.finger_tip_bodies, self.finger_distal_local,
+        )
+
+    def solve_and_apply(self, robot, device, target_pos_b, target_quat_b):
+        root_pose_w = robot.data.root_state_w[:, 0:7]
+        wrist_pos_b, _ = _ee_pose_in_base(robot, self.body_id)
+        tip_pos_b, tip_quat_b = self.tip_pose_b(robot, root_pose_w)
+        jacobian_w = robot.root_physx_view.get_jacobians()[:, self.ee_jacobi_idx, :, self.arm_ids]
+        jacobian_b = compute_tip_ik_jacobian(robot, jacobian_w, wrist_pos_b, tip_pos_b)
+
+        self.controller.set_command(torch.cat([target_pos_b, target_quat_b], dim=1))
+        joint_pos = robot.data.joint_pos[:, self.arm_ids]
+        joint_pos_des = self.controller.compute(tip_pos_b, tip_quat_b, jacobian_b, joint_pos)
+
+        # Snap directly to the DLS solution instead of waiting on the PD
+        # actuator to catch up — see module docstring for why (live testing
+        # found ~0.1 rad of actuator lag on the shoulder joint alone).
+        robot.set_joint_position_target(joint_pos_des, joint_ids=self.arm_ids)
+        robot.write_joint_state_to_sim(
+            joint_pos_des,
+            torch.zeros((1, len(self.arm_ids)), device=device),
+            joint_ids=self.arm_ids,
+        )
+        return tip_pos_b
 
 
 # ── main simulation loop ──────────────────────────────────────────────────────
@@ -266,108 +316,56 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     scene.update(sim_dt)
     apply_joint_limits(robot)
 
-    # Resolve arm joint names (handle case variants like joint1L vs joint1l)
     left_arm_names = [resolve_joint_name(robot, n) for n in LEFT_ARM_JOINTS]
-    right_arm_names = [resolve_joint_name(robot, n) for n in ["joint1", "joint2", "joint3",
-                                                                "joint4", "joint5", "joint6"]]
+    right_arm_names = [resolve_joint_name(robot, n) for n in _RIGHT_ARM_JOINTS]
 
-    # Entity configs — only used to get EE body IDs for pose tracking
-    left_cfg = _make_entity_cfg(scene, left_arm_names, LEFT_EE_BODY)
-    right_cfg = _make_entity_cfg(scene, right_arm_names, _RIGHT_EE_BODY)
-    left_body_id = left_cfg.body_ids[0]
-    right_body_id = right_cfg.body_ids[0]
-
-    # ── Pink IK controller setup ───────────────────────────────────────────────
-    # ARM_JOINTS = right (joint1-6) + left (joint1L-joint6l), 12 joints total.
-    # We resolve each Pink config name to its Isaac Lab USD name, then get its
-    # index in robot.data.joint_names so PinkIKController can build the
-    # reordering maps between Isaac Lab and Pinocchio conventions.
-    all_joint_names = list(robot.data.joint_names)
-    controlled_joint_indices = []
-    arm_joints_il = []  # actual Isaac Lab names for the 12 arm joints
-    for jname in ARM_JOINTS:
-        if jname in all_joint_names:
-            controlled_joint_indices.append(all_joint_names.index(jname))
-            arm_joints_il.append(jname)
-        else:
-            # Try case variant (e.g. joint2L vs joint2l)
-            idx = next((i for i, n in enumerate(all_joint_names) if n.lower() == jname.lower()), None)
-            if idx is None:
-                raise ValueError(f"Pink IK arm joint '{jname}' not found in robot joints {all_joint_names}")
-            controlled_joint_indices.append(idx)
-            arm_joints_il.append(all_joint_names[idx])
-
-    pink_cfg = WATO_BIMANUAL_IK_CONTROLLER_CFG.copy()
-    pink_cfg.urdf_path = _URDF_PATH
-    pink_cfg.mesh_path = _MESH_DIR
-    pink_cfg.joint_names = arm_joints_il        # USD names of the 12 controlled arm joints
-    pink_cfg.all_joint_names = all_joint_names  # all USD joint names (16 total incl. grippers)
-
-    pink_controller = PinkIKController(
-        cfg=pink_cfg,
-        robot_cfg=BIMANUAL_ARM_CFG,
-        device=device,
-        controlled_joint_indices=controlled_joint_indices,
+    left_arm = _ArmDlsController(
+        scene, robot, device, left_arm_names, LEFT_EE_BODY,
+        LEFT_FINGER_TIP_BODIES, LEFT_FINGER_DISTAL_TIP_LOCAL,
+    )
+    right_arm = _ArmDlsController(
+        scene, robot, device, right_arm_names, RIGHT_EE_BODY,
+        RIGHT_FINGER_TIP_BODIES, RIGHT_FINGER_DISTAL_TIP_LOCAL,
     )
 
-    # Frame-remap quaternion: maps Quest orientation deltas into world frame
     quest_to_world = _QUEST_TO_WORLD.to(device)
-    quest_to_world_quat = quat_from_matrix(quest_to_world.unsqueeze(0))  # (1, 4) wxyz
-    depth_sign = _DEPTH_SIGN.to(device)
-    # Seed values only — each arm's offset is recomputed by auto-calibration
-    # the moment that wrist is first homed (below), which folds in these
-    # constants as a manual pre-correction on top of the calibrated value.
-    left_wrist_orient_offset = _WRIST_ORIENT_OFFSET_LEFT.to(device).unsqueeze(0)  # (1, 4) wxyz
-    right_wrist_orient_offset = _WRIST_ORIENT_OFFSET_RIGHT.to(device).unsqueeze(0)  # (1, 4) wxyz
+    quest_to_world_quat = quat_from_matrix(quest_to_world.unsqueeze(0))
+    axis_sign_left = _AXIS_SIGN_LEFT.to(device)
+    axis_sign_right = _AXIS_SIGN_RIGHT.to(device)
+    left_arm.wrist_orient_offset = _WRIST_ORIENT_OFFSET_LEFT.to(device).unsqueeze(0)
+    right_arm.wrist_orient_offset = _WRIST_ORIENT_OFFSET_RIGHT.to(device).unsqueeze(0)
 
-    # Gripper joint ids
     left_gripper_ids = _joint_ids(robot, LEFT_GRIPPER_JOINTS)
     right_gripper_ids = _joint_ids(robot, _RIGHT_GRIPPER_JOINTS)
 
-    # Gripper position tensors
-    left_g_open = torch.tensor(
-        [[GRIPPER_OPEN["joint7l"], GRIPPER_OPEN["joint8l"]]], device=device
-    )
-    left_g_closed = torch.tensor(
-        [[GRIPPER_CLOSED["joint7l"], GRIPPER_CLOSED["joint8l"]]], device=device
-    )
-    right_g_open = torch.tensor(
-        [[_RIGHT_GRIPPER_OPEN["joint7"], _RIGHT_GRIPPER_OPEN["joint8"]]], device=device
-    )
-    right_g_closed = torch.tensor(
-        [[_RIGHT_GRIPPER_CLOSED["joint7"], _RIGHT_GRIPPER_CLOSED["joint8"]]], device=device
-    )
+    left_g_open = torch.tensor([[GRIPPER_OPEN["joint7l"], GRIPPER_OPEN["joint8l"]]], device=device)
+    left_g_closed = torch.tensor([[GRIPPER_CLOSED["joint7l"], GRIPPER_CLOSED["joint8l"]]], device=device)
+    right_g_open = torch.tensor([[_RIGHT_GRIPPER_OPEN["joint7"], _RIGHT_GRIPPER_OPEN["joint8"]]], device=device)
+    right_g_closed = torch.tensor([[_RIGHT_GRIPPER_CLOSED["joint7"], _RIGHT_GRIPPER_CLOSED["joint8"]]], device=device)
 
-    # Start from default pose
-    robot.write_joint_state_to_sim(
-        robot.data.default_joint_pos.clone(),
-        robot.data.default_joint_vel.clone(),
-    )
+    robot.write_joint_state_to_sim(robot.data.default_joint_pos.clone(), robot.data.default_joint_vel.clone())
     scene.write_data_to_sim()
     sim.step()
     scene.update(sim_dt)
 
-    # ROS 2 hand pose receiver (spun in a daemon thread so Isaac Sim loop is unblocked)
+    root_pose_w0 = robot.data.root_state_w[:, 0:7]
+    init_tip_pos_b_l, init_tip_quat_b_l = left_arm.tip_pose_b(robot, root_pose_w0)
+    init_tip_pos_b_r, init_tip_quat_b_r = right_arm.tip_pose_b(robot, root_pose_w0)
+    print(f"[Quest][diag] rest EE pos (base frame) L(tip)={init_tip_pos_b_l[0].tolist()} "
+          f"R(tip)={init_tip_pos_b_r[0].tolist()}", flush=True)
+
     rclpy.init()
     receiver = QuestRosReceiver()
     threading.Thread(target=rclpy.spin, args=(receiver,), daemon=True).start()
 
-    # Home references for absolute-pose tracking (captured on first Quest message)
-    quest_home_left: torch.Tensor | None = None
-    quest_home_right: torch.Tensor | None = None
-    quest_home_left_quat: torch.Tensor | None = None
-    quest_home_right_quat: torch.Tensor | None = None
-    home_ee_pos_b_left: torch.Tensor | None = None
-    home_ee_quat_b_left: torch.Tensor | None = None
-    home_ee_pos_b_right: torch.Tensor | None = None
-    home_ee_quat_b_right: torch.Tensor | None = None
+    # Targets applied every frame (unconditionally), updated only while tracked.
+    target_pos_b_left = init_tip_pos_b_l.clone()
+    target_quat_b_left = init_tip_quat_b_l.clone()
+    target_pos_b_right = init_tip_pos_b_r.clone()
+    target_quat_b_right = init_tip_quat_b_r.clone()
 
-    # Gripper state (hysteresis)
     left_closed = False
     right_closed = False
-
-    # ── Viewport visualization markers ────────────────────────────────────────
-    _N_HAND = 25
 
     def _sphere_cfg(color, radius, opacity=1.0):
         return sim_utils.SphereCfg(
@@ -375,14 +373,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=color, opacity=opacity),
         )
 
-    left_joint_vis = VisualizationMarkers(VisualizationMarkersCfg(
-        prim_path="/Visuals/left_hand_joints",
-        markers={"sphere": _sphere_cfg((0.2, 0.5, 1.0), 0.012)},
-    ))
-    right_joint_vis = VisualizationMarkers(VisualizationMarkersCfg(
-        prim_path="/Visuals/right_hand_joints",
-        markers={"sphere": _sphere_cfg((1.0, 0.3, 0.1), 0.012)},
-    ))
     left_target_vis = VisualizationMarkers(VisualizationMarkersCfg(
         prim_path="/Visuals/left_ik_target",
         markers={"sphere": _sphere_cfg((0.2, 0.5, 1.0), 0.05, opacity=0.3)},
@@ -392,21 +382,25 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         markers={"sphere": _sphere_cfg((1.0, 0.3, 0.1), 0.05, opacity=0.3)},
     ))
 
-    def _joints_world(hand_joints_list, wrist_xyz, wrist_target_w):
-        """Map 75-float Quest joint array to (N_HAND, 3) world-frame positions.
+    def _recalibrate() -> None:
+        left_arm.quest_home_xyz = None
+        right_arm.quest_home_xyz = None
+        print("[Quest] Recalibrating — hold wrists in a comfortable pose.", flush=True)
 
-        Joint 0 (wrist) coincides with the IK target (wrist_target_w). All other
-        joints are at their real-world-scale offsets from the current wrist position,
-        rotated into the sim world frame via quest_to_world. No gain is applied to
-        inter-joint distances — the hand appears at its actual physical size.
-        """
-        xyz = torch.tensor(hand_joints_list, dtype=torch.float32, device=device).reshape(_N_HAND, 3)
-        offsets_w = (quest_to_world @ (xyz - wrist_xyz).T).T  # (N_HAND, 3), real-world scale
-        return wrist_target_w.expand(_N_HAND, -1) + offsets_w
+    def _on_keyboard_event(event, *args, **kwargs) -> None:
+        if event.type == carb.input.KeyboardEventType.KEY_PRESS and event.input.name == "R":
+            _recalibrate()
 
-    print("[Quest] Ready. Waiting for /quest_teleop messages.")
-    print("[Quest] Connect the Quest browser to start streaming hand data.")
+    _keyboard_iface = carb.input.acquire_input_interface()
+    _keyboard = omni.appwindow.get_default_app_window().get_keyboard()
+    _keyboard_sub = _keyboard_iface.subscribe_to_keyboard_events(_keyboard, _on_keyboard_event)
 
+    print("[Quest] Ready. Waiting for /quest_teleop messages.", flush=True)
+    print("[Quest] Both arms: Differential IK (DLS), fingertip-tip target.", flush=True)
+    print("[Quest] Connect the Quest browser to start streaming hand data.", flush=True)
+    print("[Quest] Press R (Isaac Sim window focused) to recalibrate to your current pose.", flush=True)
+
+    diag_frame = 0
     while simulation_app.is_running():
         msg = receiver.poll()
 
@@ -418,121 +412,99 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             left_joints = list(msg.left_hand_joints)
             right_joints = list(msg.right_hand_joints)
 
-            # WebXR sends the "untracked hand" sentinel (0,0,0 / identity) every
-            # frame a hand isn't visible to the headset, rather than omitting it.
-            # Gate homing and target updates on this so a momentarily-lost hand
-            # doesn't snap its arm toward the origin or get homed to a bogus pose.
             left_tracked = _is_tracked(left_xyz_q, left_quat)
             right_tracked = _is_tracked(right_xyz_q, right_quat)
 
-            root_quat_w = robot.data.root_state_w[:, 3:7]  # (1, 4)
-            ee_pos_b_l, ee_quat_b_l = _ee_pose_in_base(robot, left_body_id)
-            ee_pos_b_r, ee_quat_b_r = _ee_pose_in_base(robot, right_body_id)
+            root_quat_w = robot.data.root_state_w[:, 3:7]
+            root_pose_w = robot.data.root_state_w[:, 0:7]
+            tip_pos_b_l, _ = left_arm.tip_pose_b(robot, root_pose_w)
+            tip_pos_b_r, _ = right_arm.tip_pose_b(robot, root_pose_w)
 
-            right_task = pink_controller.cfg.variable_input_tasks[0]
-            left_task = pink_controller.cfg.variable_input_tasks[1]
+            # ── Homing (fingertip-tip anchored) ─────────────────────────────────
+            if left_arm.quest_home_xyz is None and left_tracked:
+                left_arm.quest_home_xyz = left_xyz_q.clone()
+                left_arm.quest_home_quat = left_quat.clone()
+                # Anchor to the fixed launch-time rest tip pose, not wherever
+                # the tip currently sits — see run_quest_bimanual_teleop.py's
+                # equivalent comment for why (avoids baking in IK lag / making
+                # recalibration a no-op).
+                left_arm.home_tip_pos_b = init_tip_pos_b_l.clone()
+                left_arm.home_tip_quat_b = init_tip_quat_b_l.clone()
+                target_pos_b_left = left_arm.home_tip_pos_b.clone()
+                target_quat_b_left = left_arm.home_tip_quat_b.clone()
 
-            # Home each arm independently, the first time *that* wrist is seen
-            # tracked — not both at once off whichever message happens to arrive
-            # first (which could home the other arm to the (0,0,0) sentinel).
-            if quest_home_left is None and left_tracked:
-                quest_home_left = left_xyz_q.clone()
-                quest_home_left_quat = left_quat.clone()
-                home_ee_pos_b_left = ee_pos_b_l.clone()
-                home_ee_quat_b_left = ee_quat_b_l.clone()
-                left_task.set_target(_to_pin_se3(home_ee_pos_b_left, home_ee_quat_b_left))
-                # Auto-calibrate the wrist→EE orientation offset from the poses
-                # at this exact instant: the rotation that reconciles "Quest
-                # wrist orientation, remapped into world frame" with "actual EE
-                # orientation, in world frame" at home. This absorbs the fixed
-                # Quest-wrist-vs-URDF-link axis-convention mismatch (~30°/90° —
-                # see README) automatically instead of requiring a hand-tuned
-                # magic quaternion, and self-corrects every session. It assumes
-                # the operator's wrist is in a comfortable/neutral pose at the
-                # moment of homing — if orientation still feels off, re-run
-                # homing (e.g. restart the script) with your wrist neutral.
-                ee_quat_w_l = quat_mul(root_quat_w, home_ee_quat_b_left)
-                q_home_w_l = quat_mul(quat_mul(quest_to_world_quat, quest_home_left_quat.unsqueeze(0)),
+                ee_quat_w_l = quat_mul(root_quat_w, left_arm.home_tip_quat_b)
+                q_home_w_l = quat_mul(quat_mul(quest_to_world_quat, left_arm.quest_home_quat.unsqueeze(0)),
                                       quat_inv(quest_to_world_quat))
-                left_wrist_orient_offset = quat_mul(
+                left_arm.wrist_orient_offset = quat_mul(
                     _WRIST_ORIENT_OFFSET_LEFT.to(device).unsqueeze(0),
                     quat_mul(ee_quat_w_l, quat_inv(q_home_w_l)),
                 )
                 print(f"[Quest] Left wrist tracked — homed at {left_xyz_q.tolist()}", flush=True)
 
-            if quest_home_right is None and right_tracked:
-                quest_home_right = right_xyz_q.clone()
-                quest_home_right_quat = right_quat.clone()
-                home_ee_pos_b_right = ee_pos_b_r.clone()
-                home_ee_quat_b_right = ee_quat_b_r.clone()
-                right_task.set_target(_to_pin_se3(home_ee_pos_b_right, home_ee_quat_b_right))
-                # Same auto-calibration as the left arm, above.
-                ee_quat_w_r = quat_mul(root_quat_w, home_ee_quat_b_right)
-                q_home_w_r = quat_mul(quat_mul(quest_to_world_quat, quest_home_right_quat.unsqueeze(0)),
+            if right_arm.quest_home_xyz is None and right_tracked:
+                right_arm.quest_home_xyz = right_xyz_q.clone()
+                right_arm.quest_home_quat = right_quat.clone()
+                right_arm.home_tip_pos_b = init_tip_pos_b_r.clone()
+                right_arm.home_tip_quat_b = init_tip_quat_b_r.clone()
+                target_pos_b_right = right_arm.home_tip_pos_b.clone()
+                target_quat_b_right = right_arm.home_tip_quat_b.clone()
+
+                ee_quat_w_r = quat_mul(root_quat_w, right_arm.home_tip_quat_b)
+                q_home_w_r = quat_mul(quat_mul(quest_to_world_quat, right_arm.quest_home_quat.unsqueeze(0)),
                                       quat_inv(quest_to_world_quat))
-                right_wrist_orient_offset = quat_mul(
+                right_arm.wrist_orient_offset = quat_mul(
                     _WRIST_ORIENT_OFFSET_RIGHT.to(device).unsqueeze(0),
                     quat_mul(ee_quat_w_r, quat_inv(q_home_w_r)),
                 )
                 print(f"[Quest] Right wrist tracked — homed at {right_xyz_q.tolist()}", flush=True)
 
-            # ── Absolute position + orientation target in robot base frame ─────
-            # Quest wrist delta → world frame (via frame-remap matrix) → base frame.
-            # Relative wrist rotation since home, remapped through the axis-remap
-            # quaternion (Quest→world) then into the robot base frame, applied to
-            # the home palm orientation.  Matches the approach in quest_Isaac.py.
-            # Only recomputed while the wrist is actively tracked; if tracking
-            # drops mid-session the arm holds its last commanded target (Pink
-            # tasks keep their target until set_target() is called again) instead
-            # of snapping toward the sentinel.
-            if quest_home_left is not None and left_tracked:
-                left_delta_w = (quest_to_world @ (left_xyz_q - quest_home_left)) * gain * depth_sign
+            # ── Target (fingertip-tip, base frame) ──────────────────────────────
+            if left_arm.quest_home_xyz is not None and left_tracked:
+                left_disp_raw = left_xyz_q - left_arm.quest_home_xyz
+                left_gain = _ramped_gain(left_disp_raw.norm(), gain)
+                left_delta_w = (quest_to_world @ left_disp_raw) * left_gain * axis_sign_left
+                left_delta_w = left_delta_w * min(1.0, _MAX_REACH_M / max(left_delta_w.norm().item(), 1e-6))
                 target_pos_b_left = (
-                    home_ee_pos_b_left + quat_apply_inverse(root_quat_w, left_delta_w.unsqueeze(0))
+                    left_arm.home_tip_pos_b + quat_apply_inverse(root_quat_w, left_delta_w.unsqueeze(0))
                 )
-                dq_left = quat_mul(left_quat.unsqueeze(0), quat_inv(quest_home_left_quat.unsqueeze(0)))
-                dq_left_world = quat_mul(quat_mul(quest_to_world_quat, dq_left),
-                                         quat_inv(quest_to_world_quat))
-                dq_left_world = quat_mul(quat_mul(left_wrist_orient_offset, dq_left_world),
-                                         quat_inv(left_wrist_orient_offset))
+                dq_left = quat_mul(left_quat.unsqueeze(0), quat_inv(left_arm.quest_home_quat.unsqueeze(0)))
+                dq_left_world = quat_mul(quat_mul(quest_to_world_quat, dq_left), quat_inv(quest_to_world_quat))
+                dq_left_world = quat_mul(quat_mul(left_arm.wrist_orient_offset, dq_left_world),
+                                         quat_inv(left_arm.wrist_orient_offset))
                 dq_left_base = quat_mul(quat_mul(quat_inv(root_quat_w), dq_left_world), root_quat_w)
-                target_quat_b_left = quat_mul(dq_left_base, home_ee_quat_b_left)
-                left_task.set_target(_to_pin_se3(target_pos_b_left, target_quat_b_left))
+                target_quat_b_left = quat_mul(dq_left_base, left_arm.home_tip_quat_b)
 
-            if quest_home_right is not None and right_tracked:
-                right_delta_w = (quest_to_world @ (right_xyz_q - quest_home_right)) * gain * depth_sign
+            if right_arm.quest_home_xyz is not None and right_tracked:
+                right_disp_raw = right_xyz_q - right_arm.quest_home_xyz
+                right_gain = _ramped_gain(right_disp_raw.norm(), gain)
+                right_delta_w = (quest_to_world @ right_disp_raw) * right_gain * axis_sign_right
+                right_delta_w = right_delta_w * min(1.0, _MAX_REACH_M / max(right_delta_w.norm().item(), 1e-6))
                 target_pos_b_right = (
-                    home_ee_pos_b_right + quat_apply_inverse(root_quat_w, right_delta_w.unsqueeze(0))
+                    right_arm.home_tip_pos_b + quat_apply_inverse(root_quat_w, right_delta_w.unsqueeze(0))
                 )
-                dq_right = quat_mul(right_quat.unsqueeze(0), quat_inv(quest_home_right_quat.unsqueeze(0)))
-                dq_right_world = quat_mul(quat_mul(quest_to_world_quat, dq_right),
-                                          quat_inv(quest_to_world_quat))
-                dq_right_world = quat_mul(quat_mul(right_wrist_orient_offset, dq_right_world),
-                                          quat_inv(right_wrist_orient_offset))
+                dq_right = quat_mul(right_quat.unsqueeze(0), quat_inv(right_arm.quest_home_quat.unsqueeze(0)))
+                dq_right_world = quat_mul(quat_mul(quest_to_world_quat, dq_right), quat_inv(quest_to_world_quat))
+                dq_right_world = quat_mul(quat_mul(right_arm.wrist_orient_offset, dq_right_world),
+                                          quat_inv(right_arm.wrist_orient_offset))
                 dq_right_base = quat_mul(quat_mul(quat_inv(root_quat_w), dq_right_world), root_quat_w)
-                target_quat_b_right = quat_mul(dq_right_base, home_ee_quat_b_right)
-                right_task.set_target(_to_pin_se3(target_pos_b_right, target_quat_b_right))
+                target_quat_b_right = quat_mul(dq_right_base, right_arm.home_tip_quat_b)
 
-            # ── Viewport marker updates ────────────────────────────────────────
-            # Target spheres: home EE world pos + the same world-frame delta the IK uses
-            # (includes gain). This is mathematically identical to
-            # root_pos_w + quat_apply(root_quat_w, target_pos_b) but avoids a
-            # potential quat_apply sign issue on X by adding delta_w directly.
+            diag_frame += 1
+            if diag_frame % 100 == 0:
+                if left_arm.quest_home_xyz is not None and left_tracked:
+                    err_l = (target_pos_b_left - tip_pos_b_l).norm().item()
+                    print(f"[Quest][diag] L(tip) gain={left_gain.item():.2f} target_err={err_l:.3f}m", flush=True)
+                if right_arm.quest_home_xyz is not None and right_tracked:
+                    err_r = (target_pos_b_right - tip_pos_b_r).norm().item()
+                    print(f"[Quest][diag] R(tip) gain={right_gain.item():.2f} target_err={err_r:.3f}m", flush=True)
+
             _rp = robot.data.root_state_w[:, :3]
-            if quest_home_left is not None:
-                home_w_l = _rp + quat_apply(root_quat_w, home_ee_pos_b_left)
-                tgt_l_w = home_w_l + left_delta_w.unsqueeze(0)
-                left_target_vis.visualize(translations=tgt_l_w)
-                # Joint spheres: wrist (joint 0) anchored to IK target; other joints at
-                # real-world-scale offset from the current wrist, same axis mapping.
-                left_joint_vis.visualize(translations=_joints_world(left_joints, left_xyz_q, tgt_l_w))
-            if quest_home_right is not None:
-                home_w_r = _rp + quat_apply(root_quat_w, home_ee_pos_b_right)
-                tgt_r_w = home_w_r + right_delta_w.unsqueeze(0)
-                right_target_vis.visualize(translations=tgt_r_w)
-                right_joint_vis.visualize(translations=_joints_world(right_joints, right_xyz_q, tgt_r_w))
+            if left_arm.quest_home_xyz is not None:
+                left_target_vis.visualize(translations=_rp + quat_apply(root_quat_w, target_pos_b_left))
+            if right_arm.quest_home_xyz is not None:
+                right_target_vis.visualize(translations=_rp + quat_apply(root_quat_w, target_pos_b_right))
 
-            # ── Gripper hysteresis — pinch = close, release = open ─────────────
             if left_tracked:
                 ld = _pinch_dist(left_joints)
                 if ld < _PINCH_CLOSE_M:
@@ -547,29 +519,15 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 elif rd > _PINCH_OPEN_M:
                     right_closed = True
 
-        # ── Pink IK solve ──────────────────────────────────────────────────────
-        # compute() takes ALL joint positions (numpy, Isaac Lab ordering) and
-        # returns target positions for the 12 CONTROLLED arm joints only.
-        curr_joint_pos_np = robot.data.joint_pos[0].cpu().numpy()
-        target_arm_pos = pink_controller.compute(curr_joint_pos_np, sim_dt)  # (12,) tensor
-
-        robot.set_joint_position_target(
-            target_arm_pos.unsqueeze(0), joint_ids=controlled_joint_indices
-        )
+        # ── Differential IK (DLS) solve, both arms, every frame ─────────────────
+        left_arm.solve_and_apply(robot, device, target_pos_b_left, target_quat_b_left)
+        right_arm.solve_and_apply(robot, device, target_pos_b_right, target_quat_b_right)
 
         # ── Gripper targets ────────────────────────────────────────────────────
-        robot.set_joint_position_target(
-            left_g_closed if left_closed else left_g_open, joint_ids=left_gripper_ids
-        )
-        robot.set_joint_position_target(
-            right_g_closed if right_closed else right_g_open, joint_ids=right_gripper_ids
-        )
-        robot.set_joint_velocity_target(
-            torch.zeros(1, len(left_gripper_ids), device=device), joint_ids=left_gripper_ids
-        )
-        robot.set_joint_velocity_target(
-            torch.zeros(1, len(right_gripper_ids), device=device), joint_ids=right_gripper_ids
-        )
+        robot.set_joint_position_target(left_g_closed if left_closed else left_g_open, joint_ids=left_gripper_ids)
+        robot.set_joint_position_target(right_g_closed if right_closed else right_g_open, joint_ids=right_gripper_ids)
+        robot.set_joint_velocity_target(torch.zeros(1, len(left_gripper_ids), device=device), joint_ids=left_gripper_ids)
+        robot.set_joint_velocity_target(torch.zeros(1, len(right_gripper_ids), device=device), joint_ids=right_gripper_ids)
 
         scene.write_data_to_sim()
         sim.step()

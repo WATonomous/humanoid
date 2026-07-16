@@ -16,7 +16,8 @@ quest_teleop_node  (ROS 2 WebSocket bridge)    │
     │  /quest_teleop  (ROS 2 topic)            │
     ▼                                          │
 run_quest_bimanual_teleop.py                   │
-    │  PinkIKController → joint cmds           │
+    │  DifferentialIKController (DLS) → joint  │
+    │  cmds, per arm, fingertip-tip tracked     │
     ▼                                          │
 Isaac Sim 5.1  (rendered on host monitor) ◄────┘
 ```
@@ -117,7 +118,35 @@ required for teleop to work, but useful so the Quest can load pages.
 
 ## Running the pipeline
 
-Start the container first, then open 5 terminals:
+### Check what's already running first
+
+`quest_teleop_node`, `webxr_server.py`, and the Isaac Sim IK script can all
+be left running across sessions — don't assume you're starting from a clean
+slate. Blindly re-launching a process that's already up fails with
+`Address already in use` (for the ROS node / WebXR server) or just wastes
+Isaac Sim's ~1-3 minute boot time (for the sim script).
+
+```bash
+# From the host — is the container already up?
+docker ps --filter "name=simulation_isaac_dev"
+
+# Inside that container — are the ROS node / WebXR server / Isaac Sim
+# script already running?
+docker exec <container_name> bash -c "ps aux | grep -E 'quest_teleop_node|webxr_server|run_quest_bimanual_teleop' | grep -v grep"
+
+# On the host — are the adb tunnels already set up?
+adb devices
+adb reverse --list
+```
+
+If `quest_teleop_node` / `webxr_server.py` are already running, skip
+Terminals 3 and 4 below and go straight to Terminal 2 (adb) and Terminal 5
+(Isaac Sim). If Isaac Sim is already running too, you likely don't need to
+launch anything at all — just check `adb reverse --list` shows both ports
+and put the headset on.
+
+Start the container first, then open the terminals below for whatever
+isn't already running:
 
 ```bash
 ACTIVE_MODULES="simulation_isaac" ./watod up -d
@@ -230,9 +259,19 @@ print `[Quest] First wrist data` when the first message arrives.
 | Move left wrist | Left arm follows |
 | Pinch right thumb + index | Right gripper closes/opens |
 | Pinch left thumb + index | Left gripper closes/opens |
+| `R` (Isaac Sim window focused) | Recalibrate — re-homes both arms to your current wrist pose |
 
-Pass `--gain VALUE` (default `2.0`) to `run_quest_bimanual_teleop.sh` to scale
+Pass `--gain VALUE` (default `1.0`) to `run_quest_bimanual_teleop.sh` to scale
 how far the arm moves per metre of real wrist motion.
+
+### Recalibrating mid-session
+
+Homing happens automatically the instant each wrist is first tracked, which
+can catch your hand mid-raise before it settles into a comfortable pose —
+producing a persistent offset between where your hand feels like it is and
+where the arm starts tracking from. Hold your wrists in a comfortable
+neutral pose and press **R** (with the Isaac Sim window focused) to re-home
+both arms to that pose at any time, including immediately after Start.
 
 ---
 
@@ -276,31 +315,30 @@ You should see `QuestHandPose` messages at ~30 Hz when the Quest is active.
 
 ### Translation scale
 
-`--gain` (default `2.0`) scales how far the IK target moves per metre of real
+`--gain` (default `1.0`) scales how far the IK target moves per metre of real
 wrist motion. Increase if the arms feel sluggish to reach positions; decrease
 if they overshoot.
 
 ### IK tracking speed
 
-Tracking aggressiveness is controlled by two parameters per end-effector task
-in `quest_isaac_teleop/bimanual_pink_controller_cfg.py`:
+Tracking aggressiveness is controlled by `_DLS_LAMBDA` (damping) in
+`run_quest_bimanual_teleop.py`, passed as `lambda_val` to each arm's
+`DifferentialIKControllerCfg(ik_method="dls", ...)`. Lower damping converges
+faster but is less stable near singular configurations; higher damping is
+more stable but converges more slowly.
 
-| Parameter | Effect | Current value |
-|-----------|--------|---------------|
-| `gain` | How much of the pose error the solver corrects per time-step. Higher = faster convergence, but may overshoot. | `3.0` |
-| `lm_damping` | Levenberg–Marquardt regularisation. Higher = smoother but slower, especially near the target. | `2.0` |
+Current value (`0.2`) was tuned live on the left arm: at the DLS default
+(`0.01`), a ~0.1m commanded tip displacement pushed the Jacobian condition
+number from ~60 (rest) to 4000+, and the solver's per-frame correction
+actually moved some axes AWAY from the target instead of converging. `0.2`
+keeps the condition number bounded (~100) and converges to a stable ~0.05m
+residual instead. The right arm inherits the same value (mechanically
+mirrors the left) — retune per-arm live if one side feels sluggish or
+unstable relative to the other.
 
-Pink IK uses a proportional controller: joint velocity ∝ `gain × error`. This
-means the arm naturally slows down as it approaches the target. If it feels
-too sluggish in the end-range, raise `gain` further or lower `lm_damping`.
-If it becomes unstable (oscillating), lower `gain` or raise `lm_damping`.
-
-`gain=3.0`/`lm_damping=2.0` is a conservative starting point — a previous
-tune (`gain=8.0`, `lm_damping=0.5`) pushed both far in the aggressive
-direction at once and was flagged as needing "further tuning." Since the
-Quest wrist stream only updates at ~30 Hz against a 100 Hz solve loop, low
-damping directly translates hand-tracking noise into visible jitter — retune
-live in sim rather than assuming these numbers are final.
+Since the Quest wrist stream only updates at ~30 Hz against a 100 Hz solve
+loop, low damping directly translates hand-tracking noise into visible
+jitter — retune live in sim rather than assuming this number is final.
 
 **If the arm undershoots specifically on upward reach** (tracks fine
 horizontally but doesn't lift as far as the real wrist moves), check
@@ -365,23 +403,23 @@ correction. Common trial values (tune each arm independently):
 **Automatic calibration (implemented):** each arm now computes its own
 correction automatically the moment that wrist is first homed, instead of
 relying on a hand-tuned magic quaternion. In the per-arm homing block in
-`run_quest_bimanual_teleop.py`, right after `home_ee_quat_b_*` is captured:
+`run_quest_bimanual_teleop.py`, right after `<arm>.home_tip_quat_b` is captured:
 
 ```python
-ee_quat_w_l = quat_mul(root_quat_w, home_ee_quat_b_left)
-q_home_w_l = quat_mul(quat_mul(quest_to_world_quat, quest_home_left_quat.unsqueeze(0)),
+ee_quat_w_l = quat_mul(root_quat_w, left_arm.home_tip_quat_b)
+q_home_w_l = quat_mul(quat_mul(quest_to_world_quat, left_arm.quest_home_quat.unsqueeze(0)),
                       quat_inv(quest_to_world_quat))
-left_wrist_orient_offset = quat_mul(
+left_arm.wrist_orient_offset = quat_mul(
     _WRIST_ORIENT_OFFSET_LEFT.to(device).unsqueeze(0),
     quat_mul(ee_quat_w_l, quat_inv(q_home_w_l)),
 )
 ```
 
-(mirrored for the right arm using `_WRIST_ORIENT_OFFSET_RIGHT` /
-`home_ee_quat_b_right` / `quest_home_right_quat`.) This reconciles "Quest
-wrist orientation, remapped into world frame" with "actual EE orientation, in
-world frame," both measured at the instant of homing, and folds the result
-into the same conjugation the orientation-delta loop already applies — so
+(mirrored for the right arm via the `right_arm` `_ArmDlsController` instance
+and `_WRIST_ORIENT_OFFSET_RIGHT`.) This reconciles "Quest wrist orientation,
+remapped into world frame" with "actual EE orientation, in world frame,"
+both measured at the instant of homing, and folds the result into the same
+conjugation the orientation-delta loop already applies — so
 `_WRIST_ORIENT_OFFSET_LEFT`/`_RIGHT` above are now just an optional manual
 *pre*-correction on top of the auto-calibrated value, not the sole knob.
 
