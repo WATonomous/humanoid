@@ -32,6 +32,7 @@ Most modules expose `<name>_dev` under `MODE_OF_OPERATION=develop`. **`interfaci
 | `behaviour` | `joint_command`, `voxel_grid` |
 | `simulation_isaac` | **Isaac Lab 2.3.2** — SO101 IL, HumanoidRL, Quest teleop |
 | `simulation_mj` | MuJoCo / mjlab RL (`mjlabs` service) |
+| `simulation_mj.cpu` | MuJoCo / mjlab RL CPU-only (`mjlabs` service) |
 
 **Isaac Lab sim (recommended):** see [docker/simulation/isaac_lab/QUICKSTART.md](docker/simulation/isaac_lab/QUICKSTART.md).
 

@@ -16,6 +16,7 @@
 ##   - samples              :   sample ROS 2 pub/sub nodes
 ##   - simulation_isaac     :   Isaac Lab (SO101 IL, HumanoidRL, Quest teleop)
 ##   - simulation_mj        :   MuJoCo / mjlab (mjlabs service)
+##   - simulation_mj.cpu    :   MuJoCo / mjlab CPU-only (mjlabs service)
 
 ACTIVE_MODULES="samples"
 

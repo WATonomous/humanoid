@@ -134,5 +134,5 @@ fi
 
 if [ ! -z "$START_TERMINAL" ]; then
     echo "Starting bash shell in service $SERVICE_NAME":
-    run_compose exec $SERVICE_NAME /bin/bash
+    run_compose exec $SERVICE_NAME bash
 fi
