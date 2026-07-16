@@ -144,6 +144,11 @@ class PickPlaceSceneCfg(InteractiveSceneCfg):
     tray: RigidObjectCfg = None
     camera_external: TiledCameraCfg = None
     camera_wrist: TiledCameraCfg = None
+    # Mimic-only (pick_place_bimanual_mimic_env.py): a tiny non-colliding
+    # marker giving "table" placement mode a live scene reference for the
+    # place target, since it's otherwise just a random point sampled by
+    # generate_demos.py's Python driver. None/unused by the base task.
+    place_target: RigidObjectCfg = None
 
 
 @configclass
