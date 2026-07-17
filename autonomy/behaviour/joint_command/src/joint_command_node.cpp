@@ -59,6 +59,7 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
 }
 
 void JointCommandNode::armPoseCallback(const common_msgs::msg::ArmPose::SharedPtr msg) {
+<<<<<<< HEAD
   // Refuse to act until the rate-limiter has been seeded from the arm's real pose. We seed
   // lazily on the first ArmPose (feedback has been streaming by the time an operator starts
   // commanding), using the freshest feedback right before motion begins.
@@ -83,6 +84,8 @@ void JointCommandNode::armPoseCallback(const common_msgs::msg::ArmPose::SharedPt
                 matched, core_.jointCount(), s.c_str());
   }
 
+=======
+>>>>>>> b2e2fbfa (fix)
   // Only recompute and cache the rate-limited targets here. Actual publishing happens
   // exclusively on control_timer_'s own steady 50Hz clock (below) -- previously this also
   // called publishMotorCommands() directly, so with ArmPose already arriving at ~50Hz from
