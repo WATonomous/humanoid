@@ -7,6 +7,7 @@ import math
 import numpy as np
 
 import isaaclab.sim as sim_utils
+from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import SceneEntityCfg
@@ -15,9 +16,19 @@ from isaaclab.utils import configclass
 
 from . import mdp
 from .joint_pos_env_cfg import SoArm101PushBlockEnvCfg, SoArm101PushBlockEnvCfg_PLAY
-from .push_env_cfg import FLOOR_TARGET, FLOOR_Z, RAMP_BASE_X, RAMP_TOP_X
+from .mdp.vision_dr import list_push_textures
+from .push_env_cfg import (
+    BOX_EXCLUSION,
+    EventCfg,
+    FLOOR_TARGET,
+    FLOOR_Z,
+    RAMP_BASE_X,
+    RAMP_TOP_X,
+    SPAWN_STAGES,
+)
 
 # External table-side camera (env frame). Looks at the ramp mouth / block workspace.
+# Keep in sync with mdp/vision_dr.py nominal eye/target.
 _CAM_EYE = (0.55, -0.50, 0.42)
 _CAM_TARGET = (0.30, 0.0, 0.05)
 _CAM_WIDTH = 64
@@ -40,6 +51,26 @@ def _look_at_quat_ros(eye, target, up=(0.0, 0.0, 1.0)) -> tuple[float, float, fl
         float((m[2, 1] - m[1, 2]) / (4 * w)),
         float((m[0, 2] - m[2, 0]) / (4 * w)),
         float((m[1, 0] - m[0, 1]) / (4 * w)),
+    )
+
+
+def _make_tiled_camera() -> TiledCameraCfg:
+    return TiledCameraCfg(
+        prim_path="{ENV_REGEX_NS}/tiled_camera",
+        offset=TiledCameraCfg.OffsetCfg(
+            pos=_CAM_EYE,
+            rot=_look_at_quat_ros(_CAM_EYE, _CAM_TARGET),
+            convention="ros",
+        ),
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=18.0,
+            horizontal_aperture=20.955,
+            clipping_range=(0.05, 3.0),
+        ),
+        width=_CAM_WIDTH,
+        height=_CAM_HEIGHT,
+        data_types=["rgb"],
+        update_period=0.0,
     )
 
 
@@ -120,10 +151,45 @@ class DistillObservationsCfg:
 
 
 @configclass
+class DistillEventCfg(EventCfg):
+    """Push reset events + vision DR (camera / light / materials+textures)."""
+
+    # Mild camera jitter (±3 cm, ±3 deg) — scale up for harder sim2real later.
+    vision_camera = EventTerm(
+        func=mdp.randomize_tiled_camera_pose,
+        mode="reset",
+        params={
+            "camera_cfg": SceneEntityCfg("tiled_camera"),
+            "pos_range": (-0.03, 0.03),
+            "rot_deg_range": (-3.0, 3.0),
+        },
+    )
+
+    vision_light = EventTerm(
+        func=mdp.randomize_dome_light,
+        mode="reset",
+        params={
+            "intensity_range": (1500.0, 4500.0),
+            "color_scale_range": (0.85, 1.15),
+        },
+    )
+
+    vision_materials = EventTerm(
+        func=mdp.randomize_visual_materials,
+        mode="reset",
+        params={
+            "texture_paths": list_push_textures(),
+            "apply_textures": True,
+        },
+    )
+
+
+@configclass
 class SoArm101PushBlockDistillEnvCfg(SoArm101PushBlockEnvCfg):
     """Push-block env with an external camera for vision distillation."""
 
     observations: DistillObservationsCfg = DistillObservationsCfg()
+    events: DistillEventCfg = DistillEventCfg()
 
     def __post_init__(self):
         super().__post_init__()
@@ -131,50 +197,22 @@ class SoArm101PushBlockDistillEnvCfg(SoArm101PushBlockEnvCfg):
         self.scene.num_envs = 64
         self.scene.env_spacing = 2.5
         self.sim.render_interval = self.decimation
-
-        self.scene.tiled_camera = TiledCameraCfg(
-            prim_path="{ENV_REGEX_NS}/tiled_camera",
-            offset=TiledCameraCfg.OffsetCfg(
-                pos=_CAM_EYE,
-                rot=_look_at_quat_ros(_CAM_EYE, _CAM_TARGET),
-                convention="ros",
-            ),
-            spawn=sim_utils.PinholeCameraCfg(
-                focal_length=18.0,
-                horizontal_aperture=20.955,
-                clipping_range=(0.05, 3.0),
-            ),
-            width=_CAM_WIDTH,
-            height=_CAM_HEIGHT,
-            data_types=["rgb"],
-            update_period=0.0,
-        )
+        self.scene.tiled_camera = _make_tiled_camera()
+        # Ensure spawn event still uses stage-0 defaults (parent EventCfg fields).
+        self.events.reset_object_position.params["pose_range"] = dict(SPAWN_STAGES[0])
+        self.events.reset_object_position.params["box_exclusion"] = BOX_EXCLUSION
 
 
 @configclass
 class SoArm101PushBlockDistillEnvCfg_PLAY(SoArm101PushBlockEnvCfg_PLAY):
-    """Play/eval variant of the distillation env."""
+    """Play/eval variant of the distillation env (vision DR off for clean eval)."""
 
     observations: DistillObservationsCfg = DistillObservationsCfg()
+    # Keep base EventCfg (no vision DR) for deterministic play.
+    events: EventCfg = EventCfg()
 
     def __post_init__(self):
         super().__post_init__()
         self.scene.num_envs = 16
         self.sim.render_interval = self.decimation
-        self.scene.tiled_camera = TiledCameraCfg(
-            prim_path="{ENV_REGEX_NS}/tiled_camera",
-            offset=TiledCameraCfg.OffsetCfg(
-                pos=_CAM_EYE,
-                rot=_look_at_quat_ros(_CAM_EYE, _CAM_TARGET),
-                convention="ros",
-            ),
-            spawn=sim_utils.PinholeCameraCfg(
-                focal_length=18.0,
-                horizontal_aperture=20.955,
-                clipping_range=(0.05, 3.0),
-            ),
-            width=_CAM_WIDTH,
-            height=_CAM_HEIGHT,
-            data_types=["rgb"],
-            update_period=0.0,
-        )
+        self.scene.tiled_camera = _make_tiled_camera()
