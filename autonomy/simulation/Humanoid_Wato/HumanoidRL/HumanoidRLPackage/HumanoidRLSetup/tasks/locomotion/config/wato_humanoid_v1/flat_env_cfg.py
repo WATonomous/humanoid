@@ -1,4 +1,3 @@
-from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils import configclass
@@ -6,7 +5,7 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 from ... import mdp
 from ...locomotion_env_cfg import TerminationsCfg
-from .rough_env_cfg import WATO_FOOT_BODIES, WATO_LEG_JOINTS, WatoHumanoidRewards, WatoHumanoidRoughEnvCfg
+from .rough_env_cfg import WATO_LEG_JOINTS, WatoHumanoidRewards, WatoHumanoidRoughEnvCfg
 
 
 @configclass
@@ -22,40 +21,11 @@ class WatoHumanoidFlatRewards(WatoHumanoidRewards):
     randomization was scaled down closer to G1's own (much gentler) reset distribution,
     real stepping emerged naturally without it (reduced_randomization_fresh_002:
     feet_air_time rose 0.0131 -> 0.1364 well before the penalty's curriculum was even
-    scheduled to activate) -- removed as unnecessary once that was confirmed live."""
+    scheduled to activate) -- removed as unnecessary once that was confirmed live.
 
-    # Added once urdf_forward_axis_fix_fresh_001 confirmed real stepping/walking: with
-    # self_collision disabled, nothing physically stops the legs from passing through
-    # each other, and observed live play showed a scissoring gait (legs crossing the
-    # midline each stride). G1 doesn't need an equivalent term for its own morphology,
-    # but Wato's does -- this penalizes the lateral separation between feet going
-    # negative (i.e. left foot ending up right of the right foot), not just closeness.
-    # preserve_order=True: feet_crossing_l2 assumes body_ids[0]=left foot, body_ids[1]=right
-    # foot to compute a signed (not just symmetric) lateral separation -- SceneEntityCfg
-    # defaults to asset body index order otherwise, which isn't guaranteed to match
-    # WATO_FOOT_BODIES = ["Foot_L", "Foot_R"].
-    # weight -2.0 -> -6.0, margin 0.0 -> 0.05: at -2.0/0.0 the metric oscillated in a
-    # -0.011 to -0.022 band across ~2000+ iterations of resumed training without
-    # trending toward zero -- too weak relative to the dominant tracking rewards
-    # (0.85+), and only penalizing after the feet had already crossed gave a weak
-    # gradient. The margin makes it start penalizing before the feet actually cross.
-    #
-    # -6.0/0.05 (linear) did reduce crossing further but live play showed feet still
-    # tending to drift close, plus a visible stutter -- a hard linear clamp has a
-    # discontinuous gradient right at the margin boundary, causing sharp corrective
-    # "flinches" every time a foot approached it. Switched feet_crossing_l2 itself to
-    # a squared penalty (gentler near the boundary, steeper for real violations) and
-    # widened the margin 0.05 -> 0.08 to push for more standing separation. Squaring
-    # shrinks typical small-violation magnitudes a lot, so weight raised to -40.0 to
-    # compensate -- a first guess, to be retuned against the next few checks.
-    feet_crossing_penalty = RewTerm(
-        func=mdp.feet_crossing_l2,
-        weight=-40.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=WATO_FOOT_BODIES, preserve_order=True),
-            "margin": 0.08,
-        },
-    )
+    feet_crossing_penalty (anti leg-crossing) now lives in the shared
+    WatoHumanoidRewards base class in rough_env_cfg.py, inherited here -- it applies
+    to both terrains equally, not just flat."""
 
 
 @configclass
@@ -77,6 +47,10 @@ class WatoHumanoidFlatEnvCfg(WatoHumanoidRoughEnvCfg):
         self.scene.height_scanner = None
         self.observations.policy.height_scan = None
         self.curriculum.terrain_levels = None
+        # base_height_l2 (rough-only) depends on the height_scanner sensor removed
+        # above -- flat solves the same sitting/frozen-stance risk via the low_base
+        # termination in WatoHumanoidFlatTerminations instead.
+        self.rewards.base_height_l2 = None
 
         self.actions.joint_pos.scale = {
             "Hip_F_.*": 0.25,
