@@ -1,0 +1,75 @@
+#usda 1.0
+(
+    defaultPrim = "ov3660_camera"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "ov3660_camera" ()
+{
+    # Placeholder for the "OV3660 Chip USB Camera Module, 110 deg wide angle,
+    # 2048x1536 @15fps, USB2.0/OTG" board camera used as the bimanual arm's
+    # wrist camera. No official CAD/USD model is published for this generic
+    # module (a GrabCAD listing exists but requires an account to download the
+    # STEP file, and there's no free/lightweight conversion path in this repo),
+    # so this is a dimensionally-accurate box+cylinder stand-in sized from the
+    # manufacturer datasheet: 30mm(L) x 25mm(W) x 14.8mm(H) body, 1.85mm focal
+    # length, 2.4 F-number, 110 deg FOV, 2048x1536 (4:3) sensor.
+    #
+    # Convention matches the RealSense mounts elsewhere in this file: local +X
+    # is the lens boresight (forward), +Z is up, and the PCB sits behind the
+    # origin along -X with the lens barrel protruding toward +X.
+
+    def Material "BoardMaterial"
+    {
+        token outputs:surface.connect = </ov3660_camera/BoardMaterial/Shader.outputs:surface>
+
+        def Shader "Shader"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (0.04, 0.04, 0.04)
+            float inputs:roughness = 0.6
+            float inputs:metallic = 0.1
+            token outputs:surface
+        }
+    }
+
+    def Cube "PCB" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
+    {
+        rel material:binding = </ov3660_camera/BoardMaterial>
+        double size = 2
+        float3 xformOp:translate = (-0.0015, 0, 0)
+        float3 xformOp:scale = (0.0015, 0.015, 0.0125)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+    }
+
+    def Cylinder "LensBarrel" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
+    {
+        rel material:binding = </ov3660_camera/BoardMaterial>
+        uniform token axis = "X"
+        double radius = 0.004
+        double height = 0.0118
+        float3 xformOp:translate = (0.0059, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Camera "Camera"
+    {
+        # 110 deg (assumed horizontal) FOV at 1.85mm focal length -> horizontalAperture
+        # = 2 * 1.85 * tan(55 deg) = 5.284mm; verticalAperture scaled to the 2048x1536
+        # (4:3) sensor. Near clip kept tight since this rides right at the gripper.
+        float2 clippingRange = (0.02, 4)
+        float focalLength = 1.85
+        float horizontalAperture = 5.284
+        float verticalAperture = 3.963
+        # Re-expresses the camera's default local -Z-forward/+Y-up convention as
+        # +X-forward/+Z-up so this asset drops into the same camera_mount pattern
+        # as the RealSense mounts without extra correction rotations at the call site.
+        quatd xformOp:orient = (0.5, -0.5, 0.5, 0.5)
+        uniform token[] xformOpOrder = ["xformOp:orient"]
+    }
+}
