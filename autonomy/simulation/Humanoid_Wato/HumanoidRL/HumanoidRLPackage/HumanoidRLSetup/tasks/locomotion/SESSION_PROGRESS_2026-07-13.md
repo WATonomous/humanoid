@@ -276,49 +276,215 @@ methodology, cross-checking reward metrics against actual visual/live observatio
 so it's directly reusable for future RL/policy training work on this or other
 projects, not just this specific robot.
 
+## 12. G1 diff completion, reduced randomization, and double-support-penalty removal
+
+Finished a full systematic diff against G1's actual official source (not memory):
+matched `lin_vel_x` to forward-only `(0.0, 1.0)` (reverted from symmetric — G1 doesn't
+walk backward either, since turning already covers repositioning), matched
+`reset_base.pose_range.yaw` to full random heading `(-3.14, 3.14)`, confirmed
+`self_collision=False` is not a G1 divergence (`G1_MINIMAL_CFG` also uses
+`enabled_self_collisions=False`).
+
+Scaled domain randomization down toward G1's own gentler reset distribution
+(`reset_base.velocity_range` all axes ±0.5 → ±0.2, `reset_robot_joints.position_range`
+(0.5,1.5) → (0.8,1.2)) — real stepping emerged naturally without the curriculum-gated
+`double_support_penalty` (`feet_air_time` rose 0.0131 → 0.1364 well before the
+penalty's curriculum was even scheduled to activate). **Removed
+`double_support_penalty` entirely** (reward term, curriculum activation block, and the
+now-dead function in `mdp/rewards.py`) once this was confirmed live — no longer
+needed once the reset distribution was gentler.
+
+Also tested raising `feet_air_time.threshold` 0.2 → 0.4: the resulting checkpoint hit
+a session-high `feet_air_time` reward (0.32) but looked *weaker* live (episode length
+~630 and `low_base` ~44%, vs 900+/~20% on earlier checkpoints). **Reverted to 0.2** —
+the higher threshold traded stability for fuller swings and wasn't a net win.
+
+## 13. Self-collision test (failed) and a "crab-like" gait diagnosis
+
+Tested enabling real self-collision (`self_collision=True`,
+`enabled_self_collisions=True`) to see if it would change gait/turning behavior:
+**failed catastrophically** — every episode terminated after exactly 1 step via
+`base_contact`, 100% of episodes. Root cause: the default crouch-pose geometry has the
+base overlapping/very close to an adjacent link, previously masked entirely by
+self-collision being off. Reverted both flags back to `False`; enabling this properly
+would need actual pose/geometry fixes, not just a config flag — not attempted.
+
+Separately, `error_vel_yaw` plateaued around 0.30-0.36 for 800+ iterations while
+`error_vel_xy` kept improving, and checkpoints visibly showed a "crab-like" gait (body
+not facing its direction of travel). Tried raising `Hip_R` (hip yaw) action scale
+0.06 → 0.15, since 0.06 was set back when `ang_vel_z` was zeroed out entirely (no
+turning at all) and never revisited once turning commands were added. Result was
+inconclusive via resume (fighting the network's already-learned "small correction"
+prior, same failure pattern seen earlier with `double_support_penalty`); a fresh
+no-resume test at the new scale settled at a similar plateau. **Kept `Hip_R=0.15`**
+(more actuator authority is directionally correct even if not yet proven to fix yaw
+tracking on its own) but the crab-like symptom itself turned out to have a different,
+much larger root cause — see section 14.
+
+## 14. Root cause found: URDF forward-axis bug
+
+The user noticed live in the GUI that commanding what should be "forward" actually
+produced sideways/crab motion, and that a *different* command axis produced clean
+forward walking. Investigated the URDF directly rather than assuming:
+
+- `base_to_base_link` (the root fixup joint) applies a **-90° rotation about X only**
+  (`rpy="-1.5708 0 0"`), with a comment: *"Isaac Lab: Z-up root. CAD base_link is
+  Y-long; fixed joint stands the robot."* This was written purely to convert the
+  CAD's Y-up convention into Isaac Sim's Z-up convention.
+- Comparing `Hip_F_L` (origin x=-0.101) and `Hip_F_R` (origin x=+0.066) — they differ
+  almost entirely in **X**, with Y and Z nearly identical between the two hips. **X is
+  the left/right leg-separation axis**, not forward.
+- A pure X-axis rotation leaves the X-component of every vector unchanged, so after
+  the existing fixup joint, **X is still lateral** in Isaac Lab's root frame too — and
+  the CAD's true forward axis (Z) landed on **Y** instead.
+- Isaac Lab's velocity command/reward convention (and G1's own URDF) assumes local
+  **+X = forward**. Wato's root frame had forward on **+Y**. Every `lin_vel_x`
+  "forward" command all session had actually been asking the robot to move along its
+  own *lateral* axis — this is the actual explanation for the crab-like gait, not
+  (primarily) insufficient `Hip_R` authority.
+
+**Fix**: added an extra -90° rotation about Z on top of the existing X-axis fix, on
+the same `base_to_base_link` joint (`rpy`: `-1.5708 0 0` → `-1.5708 0 -1.5708`). This
+rotates only the horizontal plane — the already-correct up/down mapping is untouched
+— remapping CAD-forward onto +X and CAD-lateral onto Y (left = +Y). Verified by
+computing the resulting rotation matrices by hand before editing (not just guessing a
+sign).
+
+This invalidates every prior checkpoint (the whole notion of "forward" changed at the
+root frame), so a **fresh** run was required: `urdf_forward_axis_fix_fresh_001`.
+Converged cleanly — episode length climbed 35 → 981 and tracking rewards
+`track_lin_vel_xy_exp`/`track_ang_vel_z_exp` reached ~0.85/0.87 by iteration ~5300,
+genuine stepping confirmed (`feet_air_time` 0.0 → 0.25+), no `base_contact` issues.
+Live play confirmed the gait no longer crabs.
+
+## 15. Leg-crossing (scissoring) gait and the `feet_crossing_penalty` term
+
+With `self_collision=False`, nothing physically stops the legs from passing through
+each other — live play on the axis-fixed checkpoint showed a scissoring gait (legs
+crossing the midline each stride). G1 apparently doesn't need an equivalent term for
+its own morphology, but Wato's does. Added `feet_crossing_l2` to `mdp/rewards.py`:
+computes lateral (body-yaw-frame Y) separation between the two feet
+(`left_y - right_y`) and penalizes it going below a margin (i.e. the left foot ending
+up right of the right foot, or getting too close).
+
+Important implementation detail: `SceneEntityCfg` defaults to the asset's own internal
+body index order for `body_names`, **not** the order written in the list — a
+signed/asymmetric term like this needs `preserve_order=True` explicitly, or left/right
+could be silently swapped.
+
+Iterated the weight/shape twice based on live metrics + visual checks:
+- **v1: linear clamp, weight -2.0, margin 0.0.** Metric oscillated in a
+  -0.011 to -0.022 band across ~2000+ iterations without trending toward zero — too
+  weak relative to the dominant tracking rewards (0.85+).
+- **v2: linear clamp, weight -6.0, margin 0.05.** Genuine improvement (metric dropped
+  to ~-0.009 to -0.011), but live play still showed feet drifting close, plus a new
+  **visible stutter** — a hard linear clamp has a discontinuous gradient right at the
+  margin boundary, causing sharp corrective "flinches" every time a foot approached
+  it.
+- **v3 (current): squared penalty, weight -40.0, margin 0.08.** Squaring the clamped
+  term gives a gentler gradient for small violations and a much steeper one for large
+  ones, removing the flinch; margin widened for more standing separation; weight
+  raised to compensate for squaring shrinking typical small-violation magnitudes.
+  Confirmed live: crossing/stutter visibly improved, tracking metrics unaffected
+  (still 0.85+/0.87+).
+
+## 16. From-scratch validation of the full final recipe
+
+By this point the axis-fix lineage was several resumes deep (crossing penalty added
+mid-training, then re-tuned twice more, each via resume on proven behavior). Per the
+same resume-vs-fresh discipline as section 9: ran `full_recipe_validation_fresh_001`
+— fresh start, no resume, full current recipe (URDF fix + squared crossing penalty at
+final weight/margin) active from iteration 0.
+
+Converged cleanly and comparably fast to the original axis-fix run: episode length
+36 → 991 and `track_lin_vel_xy_exp`/`track_ang_vel_z_exp` → 0.87/0.90 within about 50
+minutes of wall-clock training, `feet_crossing_penalty` small and stable throughout,
+no `base_contact` failures. **This validates the full recipe converges on its own**,
+not just riding the prior run's momentum through several staged reward additions —
+important for reproducibility if this config is handed to teammates.
+
+## 17. Operational notes learned this session (see also the shared skill)
+
+- **GPU can't run train + play simultaneously** on this single-GPU dev box, even with
+  VRAM headroom — symptom is `Exception: Failed to get DOF velocities from backend`
+  during environment init, not a memory error. Workflow: pause training (kill the
+  process; the last `save_interval`-based checkpoint is safe), view/play, then resume.
+- **Resuming creates a brand-new timestamped run directory** each time, even with the
+  same `--run_name` repeated — always find the latest checkpoint by directory mtime,
+  not by assuming it continues in the same folder.
+- **Launch invocation**: must use `isaaclab.sh -p script.py` (bare `python`/`python3`
+  are missing the framework's dependencies), run from the directory `logs/rsl_rl/...`
+  resolves relative to (not the script's own location), and set `PYTHONPATH`
+  explicitly for the project's own package.
+- These lessons (plus the URDF-forward-axis-convention check, the squared-penalty
+  stutter fix, and the `preserve_order=True` gotcha) are now written into
+  `.claude/skills/rl-training-iteration/SKILL.md` for reuse beyond this project.
+
 ## Where it stands now
 
-Walking confirmed at increasingly wide command ranges, now matching G1's own scale
-(`lin_vel_x` ±1.0 m/s, `lin_vel_y` ±0.5 m/s, `ang_vel_z` ±1.0 rad/s), via both a
-resumed chain and (in progress) a from-scratch validation run proving the whole
-recipe converges independently of any specific training trajectory.
+Walking confirmed clean (no crab gait, crossing/stutter substantially improved) at
+G1-matching command ranges, validated via **two independent training lineages**: the
+resumed axis-fix chain, and a from-scratch run proving the full final recipe
+converges on its own. Root causes for the two biggest remaining symptoms from the
+prior session state (crab-like gait, leg-crossing) were both found and fixed at the
+source (URDF frame convention; a new anti-crossing reward term), not papered over
+with more hyperparameter search.
 
 ### Next steps
 
-- Finish watching `scratch_validation_001` through the double-support curriculum
-  activation (~iteration 2290) and confirm it holds at the full G1-scale command
-  range without a resumed head start.
-- `feet_air_time` weight/threshold (currently 2.0/0.2, vs G1's 0.75/0.4) hasn't been
-  revisited since the double-support-penalty fix took over as the dominant
-  anti-freezing force — worth checking whether it's still needed at its current
-  strength or could be relaxed back toward G1's values now that stepping is
-  established.
-- Continue to prefer live GUI viewing over sparse-frame video analysis when checking
-  behavior at low/subtle speeds (see section 7).
+- Continue watching the from-scratch validation run (`full_recipe_validation_fresh_001`)
+  for longer-horizon stability now that it's matched the resumed lineage's quality.
+- The Knee joint's URDF limit (-60°/5°) is off by 5° from the provided hardware spec
+  (-65°/0°) — flagged, not yet fixed.
+- Self-collision remains disabled; enabling it properly would need an actual
+  pose/geometry fix for the crouch stance overlap found in section 13, not attempted.
+- Housekeeping: prune superseded checkpoint directories from the axis-fix resume
+  chain and the crossing-penalty iteration once findings above are confirmed stable,
+  keeping only the runs cited as evidence plus the current best.
 
 ## Current config summary (updated)
 
+**`Wato_Humanoid_V1_isaac.urdf`**
+- `base_to_base_link` fixed joint `rpy`: `-1.5708 0 0` → `-1.5708 0 -1.5708` (adds the
+  forward-axis correction on top of the pre-existing up-axis fix — see section 14)
+
 **`modelCfg/wato_humanoid_v1.py`**
 - `max_depenetration_velocity = 2.5`
+- `self_collision = False`, `enabled_self_collisions = False` (tested `True`, failed
+  catastrophically — see section 13)
 - Ankle actuator: `stiffness=80.0, damping=6.0, effort_limit_sim=60.0, velocity_limit_sim=20.42`
   (others unchanged: Hip_F/Knee 222Nm/3.6652rad/s, Hip_A 120Nm/20.944rad/s, Hip_R 60Nm/20.42rad/s)
 
 **`config/wato_humanoid_v1/agents/rsl_rl_ppo_cfg.py`**
 - `empirical_normalization = True`
 - `entropy_coef = 0.008`
-- `init_noise_std = 1.0` (raised from 0.5 to match G1's inherited value — previously unexamined)
+- `init_noise_std = 1.0` (raised from 0.5 to match G1's inherited value)
 
 **`config/wato_humanoid_v1/flat_env_cfg.py`**
 - `track_lin_vel_xy_exp.std = 0.5` (unchanged from original G1-aligned value)
-- `feet_air_time.weight = 2.0`, `threshold = 0.2` (vs G1's 0.75/0.4 — not yet revisited)
-- `double_support_penalty`: weight 0.0 → -2.0 via curriculum at 55000 env steps
-- `commands.base_velocity`: `rel_standing_envs=0.1`, `lin_vel_x=(-1.0, 1.0)`,
-  `lin_vel_y=(-0.5, 0.5)`, `ang_vel_z=(-1.0, 1.0)` (matches G1's flat-config scale,
-  except `lin_vel_x` also includes backward since Wato's was made symmetric)
+- `feet_air_time.weight = 2.0`, `threshold = 0.2` (raising threshold to 0.4 tested and
+  reverted — see section 12)
+- `double_support_penalty`: **removed entirely** (no longer needed — see section 12)
+- `feet_crossing_penalty` (new — see section 15): `mdp.feet_crossing_l2`, squared
+  penalty, `weight=-40.0`, `margin=0.08`, `preserve_order=True` on the foot
+  `SceneEntityCfg`
+- `commands.base_velocity`: `rel_standing_envs=0.1`, `lin_vel_x=(0.0, 1.0)` (forward
+  only, reverted from symmetric), `lin_vel_y=(-0.5, 0.5)`, `ang_vel_z=(-1.0, 1.0)`
+  (matches G1's flat-config scale)
+- `reset_base.pose_range.yaw=(-3.14, 3.14)` (matches G1, full random heading)
+- `reset_base.velocity_range` all axes ±0.2 (down from ±0.5), `reset_robot_joints.
+  position_range=(0.8, 1.2)` (down from (0.5,1.5)) — reduced toward G1's gentler
+  distribution
 - `observations.policy.joint_vel.noise = Unoise(-0.3, 0.3)` (down from ±1.5)
-- Action scales: `Hip_F=0.25, Knee=0.30, Hip_A=0.06, Hip_R=0.06, Ankle_R=0.08, Ankle_P=0.12`
-- `WatoHumanoidFlatEnvCfg_PLAY` command ranges now mirror the main training ranges
-  (previously hardcoded/stale — see section 8)
+- Action scales: `Hip_F=0.25, Knee=0.30, Hip_A=0.06, Hip_R=0.15` (raised from 0.06 —
+  see section 13), `Ankle_R=0.08, Ankle_P=0.12`
+- `WatoHumanoidFlatEnvCfg_PLAY` command ranges mirror the main training ranges
 
-**Latest checkpoint (active, from-scratch validation)**:
-`logs/rsl_rl/wato_humanoid_flat/2026-07-13_21-59-44/model_2400.pt`
+**`mdp/rewards.py`**
+- `double_support_penalty` function removed (dead code once the reward term using it
+  was deleted)
+- `feet_crossing_l2` added (see section 15)
+
+**Latest checkpoints (two active validation lineages)**:
+- Resumed axis-fix chain: `logs/rsl_rl/wato_humanoid_flat/2026-07-14_17-46-44_urdf_forward_axis_fix_fresh_001/model_9900.pt`
+- From-scratch full-recipe validation: `logs/rsl_rl/wato_humanoid_flat/2026-07-14_18-01-12_full_recipe_validation_fresh_001/model_3900.pt` (still training, paused for viewing)
