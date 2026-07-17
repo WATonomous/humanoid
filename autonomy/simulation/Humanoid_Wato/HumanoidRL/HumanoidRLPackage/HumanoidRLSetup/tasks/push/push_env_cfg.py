@@ -8,8 +8,11 @@ floor over a ~29 mm run). The box is spawned with yaw -90 deg so its
 up-the-ramp direction (box-local +y) is the env-frame ``+x`` axis.
 """
 
+from __future__ import annotations
+
 from dataclasses import MISSING
 from pathlib import Path
+from typing import Optional
 
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg
@@ -22,6 +25,7 @@ from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.scene import InteractiveSceneCfg
+from isaaclab.sensors import TiledCameraCfg
 from isaaclab.sensors.frame_transformer.frame_transformer_cfg import FrameTransformerCfg
 from isaaclab.sim.spawners.from_files.from_files_cfg import GroundPlaneCfg, UsdFileCfg
 from isaaclab.utils import configclass
@@ -33,7 +37,7 @@ from . import mdp
 # Task geometry (env frame; robot base at the origin)
 ##
 
-ASSETS_DIR = Path(__file__).resolve().parents[2] / "assets"
+ASSETS_DIR = Path(__file__).resolve().parents[5] / "UsdModelAssets"
 
 # box placed corner at (0.27, 0.127), yaw -90 deg: box-local +y (up the ramp) -> env +x
 BOX_POS = (0.27, 0.127, 0.0)
@@ -100,13 +104,15 @@ class PushBlockSceneCfg(InteractiveSceneCfg):
     # robot and end-effector frame: populated by the agent env cfg
     robot: ArticulationCfg = MISSING
     ee_frame: FrameTransformerCfg = MISSING
+    # optional external camera (set by distillation env cfg)
+    tiled_camera: Optional[TiledCameraCfg] = None
 
     # dynamic block to push (corner-origin USD)
     object = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Object",
         init_state=RigidObjectCfg.InitialStateCfg(pos=BLOCK_INIT_POS, rot=[1, 0, 0, 0]),
         spawn=UsdFileCfg(
-            usd_path=str(ASSETS_DIR / "block" / "block.usd"),
+            usd_path=str(ASSETS_DIR / "block.usd"),
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 solver_position_iteration_count=16,
                 solver_velocity_iteration_count=1,
@@ -122,7 +128,7 @@ class PushBlockSceneCfg(InteractiveSceneCfg):
     box = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/Box",
         init_state=AssetBaseCfg.InitialStateCfg(pos=BOX_POS, rot=BOX_QUAT),
-        spawn=UsdFileCfg(usd_path=str(ASSETS_DIR / "box" / "box.usd")),
+        spawn=UsdFileCfg(usd_path=str(ASSETS_DIR / "box.usd")),
     )
 
     # Table
@@ -225,11 +231,21 @@ class EventCfg:
 class RewardsCfg:
     """Reward terms for the MDP."""
 
-    # reach + stay behind the block relative to the push direction
+    # reach + stay behind the block relative to the push direction.
+    # Coarse + fine pair (mirrors block_to_target below): the SO101 default
+    # pose sits ~0.4-0.5 m from the push point, and a std=0.06-only kernel
+    # underflows to exact 0.0 reward (float32) at that range, giving zero
+    # gradient to ever learn reaching in the first place.
     ee_behind_block = RewTerm(
         func=mdp.ee_behind_block,
+        params={"std": 0.25, "push_offset": 0.05},
+        weight=1.5,
+    )
+
+    ee_behind_block_fine = RewTerm(
+        func=mdp.ee_behind_block,
         params={"std": 0.06, "push_offset": 0.05},
-        weight=2.0,
+        weight=1.5,
     )
 
     # dense progress along the up-the-ramp axis (signed velocity)
