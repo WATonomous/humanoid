@@ -11,8 +11,13 @@ Motor specs: https://watonomous.github.io/humanoid-docs/mechanical/index.html
   Gripper              GL40 KV70     0.25 Nm rated / 0.73 Nm peak
                        (rotary motor + linkage → prismatic finger travel in URDF)
 
-Only the left arm is actuated for teleop. The right arm is held at the
-Physics Inspector default pose below.
+In this module's own keyboard-teleop script, only the left arm is actuated;
+the right arm is held at the Physics Inspector default pose below. Note that
+run_quest_bimanual_teleop.py also imports BIMANUAL_ARM_CFG from here and
+drives BOTH arms via Quest hand tracking — the "right_arm" ImplicitActuatorCfg
+gains below were tuned for a held-still pose, not for continuous IK tracking,
+so re-check them if the right arm feels sluggish or unresponsive under Quest
+teleop.
 
 Gripper actuation note
 ----------------------
@@ -68,13 +73,12 @@ JOINT_POS_LIMITS = {
 
 # --- Default poses from Physics Inspector (revolute: deg -> rad) ------------
 _DEFAULT_JOINT_POS = {
-    # Right arm — held fixed during teleop
-    "joint1": _deg(-140.8),
-    "joint2": _deg(55.7),
-    "joint3": _deg(-66.0),
-    "joint4": _deg(111.4),
-    "joint5": _deg(34.8),
-    "joint6": _deg(3.5),
+    "joint1": _deg(-145.5428),
+    "joint2": _deg(71.3963),
+    "joint3": _deg(-123.5658),
+    "joint4": _deg(79.2699),
+    "joint5": _deg(55.6010),
+    "joint6": _deg(46.0084),
     "joint7": -0.05,
     "joint8": 0.05,
     # Left arm — teleoperated
@@ -93,11 +97,23 @@ LEFT_ARM_JOINTS = ["joint1L", "joint2l", "joint3l", "joint4l", "joint5l", "joint
 LEFT_GRIPPER_JOINTS = ["joint7l", "joint8l"]
 # Jacobian anchor is the wrist link; IK pose target is the fingertip center (see below).
 LEFT_EE_BODY = "link6l"
+RIGHT_EE_BODY = "link6"
 LEFT_FINGER_TIP_BODIES = ("link7l", "link8l")
+RIGHT_FINGER_TIP_BODIES = ("link7", "link8")
 # Distal mesh points in each finger link frame (link7l.STL +X, link8l.STL -X).
 LEFT_FINGER_DISTAL_TIP_LOCAL = {
     "link7l": (0.13211595, -0.04057075, -0.00434997),
     "link8l": (-0.13211595, -0.04057075, -0.00435003),
+}
+# Right side is NOT a mirror-image copy of the left constants above — link7/8
+# use separate STL files from link7l/8l with a swapped X-extent (see the
+# URDF joint origins: joint7's X matches joint8l's, not joint7l's). Measured
+# directly from the STL vertex data the same way the left values above were
+# derived (mesh's outward-X extreme, Y/Z bounding-box center) rather than
+# guessed from the left numbers.
+RIGHT_FINGER_DISTAL_TIP_LOCAL = {
+    "link7": (-0.03000000, -0.04057072, -0.00434997),
+    "link8": (0.03000000, -0.04057072, -0.00435003),
 }
 
 # Gripper finger targets (joint7: [-0.05, 0], joint8: [0, 0.05])
@@ -153,34 +169,48 @@ def resolve_body_ids(robot, names: tuple[str, ...] | list[str]) -> list[int]:
     return [name_to_id[name] for name in names]
 
 
-def compute_gripper_tip_pos_w(robot, finger_body_ids: list[int]):
-    """World-frame midpoint between the distal tips of link7l and link8l."""
+def compute_gripper_tip_pos_w(
+    robot, finger_body_ids: list[int],
+    tip_bodies: tuple[str, ...] = LEFT_FINGER_TIP_BODIES,
+    tip_local: dict = LEFT_FINGER_DISTAL_TIP_LOCAL,
+):
+    """World-frame midpoint between the distal tips of the two gripper fingers."""
     import torch
     from isaaclab.utils.math import quat_apply
 
     dtype = robot.data.body_pos_w.dtype
     device = robot.data.body_pos_w.device
     tips = []
-    for body_name, body_id in zip(LEFT_FINGER_TIP_BODIES, finger_body_ids):
-        local = torch.tensor([LEFT_FINGER_DISTAL_TIP_LOCAL[body_name]], device=device, dtype=dtype)
+    for body_name, body_id in zip(tip_bodies, finger_body_ids):
+        local = torch.tensor([tip_local[body_name]], device=device, dtype=dtype)
         body_pos = robot.data.body_pos_w[:, body_id]
         body_quat = robot.data.body_quat_w[:, body_id]
         tips.append(body_pos + quat_apply(body_quat, local))
     return (tips[0] + tips[1]) * 0.5
 
 
-def compute_gripper_tip_pose_w(robot, wrist_body_id: int, finger_body_ids: list[int]):
+def compute_gripper_tip_pose_w(
+    robot, wrist_body_id: int, finger_body_ids: list[int],
+    tip_bodies: tuple[str, ...] = LEFT_FINGER_TIP_BODIES,
+    tip_local: dict = LEFT_FINGER_DISTAL_TIP_LOCAL,
+):
     """Gripper-tip center pose in world frame (position from fingers, orientation from wrist)."""
-    tip_pos_w = compute_gripper_tip_pos_w(robot, finger_body_ids)
+    tip_pos_w = compute_gripper_tip_pos_w(robot, finger_body_ids, tip_bodies, tip_local)
     tip_quat_w = robot.data.body_quat_w[:, wrist_body_id]
     return tip_pos_w, tip_quat_w
 
 
-def compute_gripper_tip_pose_b(robot, root_pose_w, wrist_body_id: int, finger_body_ids: list[int]):
+def compute_gripper_tip_pose_b(
+    robot, root_pose_w, wrist_body_id: int, finger_body_ids: list[int],
+    tip_bodies: tuple[str, ...] = LEFT_FINGER_TIP_BODIES,
+    tip_local: dict = LEFT_FINGER_DISTAL_TIP_LOCAL,
+):
     """Gripper-tip center pose in the robot root frame."""
     from isaaclab.utils.math import subtract_frame_transforms
 
-    tip_pos_w, tip_quat_w = compute_gripper_tip_pose_w(robot, wrist_body_id, finger_body_ids)
+    tip_pos_w, tip_quat_w = compute_gripper_tip_pose_w(
+        robot, wrist_body_id, finger_body_ids, tip_bodies, tip_local
+    )
     return subtract_frame_transforms(
         root_pose_w[:, 0:3], root_pose_w[:, 3:7], tip_pos_w, tip_quat_w
     )
@@ -289,20 +319,41 @@ BIMANUAL_ARM_CFG = ArticulationCfg(
     ),
     init_state=ArticulationCfg.InitialStateCfg(joint_pos=_DEFAULT_JOINT_POS),
     actuators={
-        # AK10-9 V3.0 — shoulder joints 1-2
+        # AK10-9 V3.0 — shoulder joints 1-2. effort_limit_sim uses the motor's
+        # peak rating (53 Nm), not rated (18 Nm): at rated torque the shoulder
+        # actuator saturates against gravity load when the arm is extended
+        # (largest moment arm), causing the commanded IK target to visibly
+        # undershoot on upward reach specifically — this is a simulation-only
+        # cap (not applied to real hardware limits), so raising it is safe here.
+        # NOTE: do NOT raise effort_limit_sim past the real peak rating (53 Nm)
+        # to fix responsiveness — that would let the arm move in ways the real
+        # motor can't, which matters for dataset collection (sim-to-real
+        # mismatch). Stiffness/damping (below) is the safe knob instead: it
+        # only changes how aggressively the PD controller commands torque
+        # *within* that same real torque budget. Live testing showed the
+        # shoulder visibly lagging the faster-responding elbow/wrist during
+        # large reaches (diagnostic target_err in run_quest_bimanual_teleop.py
+        # stayed elevated during active movement) — raised ~50% from the
+        # original (which was tuned for holding a static pose, not tracking a
+        # continuously moving IK target) to close that gap. Watch for shoulder
+        # oscillation/overshoot if pushed further.
         "left_shoulder": ImplicitActuatorCfg(
             joint_names_expr=["joint1L", "joint2l"],
-            stiffness=1515.2,
-            damping=120.6,
-            effort_limit_sim=18.0,
+            stiffness=2270.0,
+            damping=180.0,
+            effort_limit_sim=53.0,
             velocity_limit_sim=6.0,
         ),
-        # AK80-9 V3.0 — elbow joints 3-5
+        # AK80-9 V3.0 — elbow joints 3-5. Same rated (9 Nm) vs peak (22 Nm)
+        # saturation concern as the shoulder, above. Raised alongside the
+        # shoulder bump (same ~25% factor) — "forearm moves slower than it
+        # should" reports track these joints directly, and this is the same
+        # safe stiffness/damping knob (torque budget cap unchanged at 22 Nm).
         "left_elbow": ImplicitActuatorCfg(
             joint_names_expr=["joint3l", "joint4l", "joint5l"],
-            stiffness=1231.0,
-            damping=87.0,
-            effort_limit_sim=9.0,
+            stiffness=1550.0,
+            damping=110.0,
+            effort_limit_sim=22.0,
             velocity_limit_sim=6.0,
         ),
         # GL40 KV70 — wrist joint 6
@@ -321,12 +372,33 @@ BIMANUAL_ARM_CFG = ArticulationCfg(
             effort_limit_sim=_GRIPPER_EFFORT_LIMIT,
             velocity_limit_sim=_GRIPPER_VELOCITY_LIMIT,
         ),
-        # Right arm revolute joints — hold Physics Inspector default pose
-        "right_arm": ImplicitActuatorCfg(
-            joint_names_expr=["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"],
-            stiffness=1000.0,
-            damping=100.0,
-            effort_limit_sim=18.0,
+        # Right arm — mirrors left_shoulder/left_elbow/left_wrist above.
+        # Previously one coarse "right_arm" group at uniform stiffness=1000/
+        # damping=100/effort=18 for all 6 joints, tuned for holding a static
+        # pose (this file's own keyboard-teleop script never actuates the
+        # right arm). run_quest_bimanual_teleop.py drives both arms via Quest
+        # hand tracking, so the right arm needs the same per-joint-type torque
+        # headroom as the left, especially the shoulder on upward reach (see
+        # note above).
+        "right_shoulder": ImplicitActuatorCfg(
+            joint_names_expr=["joint1", "joint2"],
+            stiffness=2270.0,
+            damping=180.0,
+            effort_limit_sim=53.0,
+            velocity_limit_sim=6.0,
+        ),
+        "right_elbow": ImplicitActuatorCfg(
+            joint_names_expr=["joint3", "joint4", "joint5"],
+            stiffness=1550.0,
+            damping=110.0,
+            effort_limit_sim=22.0,
+            velocity_limit_sim=6.0,
+        ),
+        "right_wrist": ImplicitActuatorCfg(
+            joint_names_expr=["joint6"],
+            stiffness=341.0,
+            damping=18.0,
+            effort_limit_sim=0.25,
             velocity_limit_sim=6.0,
         ),
         # Right gripper — same coupled-prismatic hold as left
