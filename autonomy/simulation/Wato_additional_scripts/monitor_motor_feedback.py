@@ -1,87 +1,82 @@
 #!/usr/bin/env python3
 """Continuously print real motor feedback (position/angle) to the console.
 
-can_node already parses incoming CAN frames and publishes a MotorFeedback message on
-/interfacing/motorFeedback every time a motor sends its ServoStatusFeedback frame. This
-script does NOT talk to CAN directly -- it just subscribes to what can_node publishes
-and prints it, so can_node must already be running and connected to the real bus
-(ros2 launch can can.launch.py).
+Confirmed against real bus traffic (candump can0): feedback arrives unprompted on
+extended IDs of the form 0x2900 | motor_id, matching this repo's DBC ServoStatusFeedback
+message (autonomy/interfacing/dbc/humanoid.dbc, declared 0x80002900 -- the 0x80000000
+bit is only the extended-frame marker, real ID is 0x2900 | motor_id):
+
+    BO_ 2147494144 ServoStatusFeedback: 8 Motor
+       SG_ FbkPosition    : 7|16@0-  (0.1,0)  [-3200|3200]   "deg"
+       SG_ FbkSpeed       : 23|16@0- (10,0)   [-320000|320000] "ERPM"
+       SG_ FbkCurrent     : 39|16@0- (0.01,0) [-60|60]       "A"
+       SG_ FbkTemperature : 55|8@0-  (1,0)    [-20|127]      "degC"
+       SG_ FbkErrorCode   : 63|8@0+  (1,0)    [0|7]          ""
+
+All multi-byte fields are big-endian (Motorola byte order per the DBC's "@0"), so each
+is just a plain big-endian signed 16-bit int at its byte offset, scaled.
+
+This bypasses ROS/can_node.cpp entirely and reads the real CAN bus directly with
+python-can, since can_node.cpp's DBC-id lookup subtracts the extended-frame marker bit
+before matching (see can_node.cpp's `can_id_map` construction), which is a different
+code path than this script needs -- reading here is simpler and directly verifiable
+against candump.
 
 Usage:
   /usr/bin/python3 monitor_motor_feedback.py
 """
 
-from pathlib import Path
+import struct
 
-import rclpy
-from rclpy.node import Node
-from common_msgs.msg import MotorFeedback
+import can
 
+# can_id -> joint label, from hardware_mapping.yaml's 5 AK-series arm joints.
+CAN_ID_LABELS = {
+    0x0E: "shoulder_pitch",
+    0x0C: "shoulder_roll",
+    0x0D: "shoulder_yaw",
+    0x0A: "elbow_pitch",
+    0x0B: "elbow_roll",
+}
 
-def find_hardware_mapping():
-    local = Path(__file__).resolve().parent.parent / "config" / "hardware_mapping.yaml"
-    if local.exists():
-        return local
-    try:
-        from ament_index_python.packages import get_package_share_directory
-        installed = Path(get_package_share_directory("joint_command")) / "config" / "hardware_mapping.yaml"
-        if installed.exists():
-            return installed
-    except Exception:
-        pass
-    return None
+FEEDBACK_BASE_ID = 0x2900  # DBC ServoStatusFeedback, marker bit masked off
 
 
-def build_can_id_to_label():
-    """Best-effort reverse lookup can_id -> joint label (e.g. 'shoulder_roll'), read
-    fresh from hardware_mapping.yaml so it stays in sync with any edits. Falls back to
-    showing just the raw CAN ID for anything not found (e.g. hand placeholders)."""
-    path = find_hardware_mapping()
-    if path is None:
-        return {}
-    import yaml
-    with open(path) as f:
-        config = yaml.safe_load(f)
-
-    labels = {}
-
-    def walk(node, path_parts):
-        if isinstance(node, dict):
-            if "can_id" in node:
-                labels[node["can_id"]] = "_".join(path_parts)
-            else:
-                for k, v in node.items():
-                    walk(v, path_parts + [k])
-
-    walk(config.get("left", {}), [])
-    return labels
-
-
-class MotorFeedbackMonitor(Node):
-    def __init__(self, can_id_to_label):
-        super().__init__("motor_feedback_monitor")
-        self.can_id_to_label = can_id_to_label
-        self.create_subscription(MotorFeedback, "/interfacing/motorFeedback", self.on_feedback, 10)
-        self.get_logger().info("Listening on /interfacing/motorFeedback ...")
-
-    def on_feedback(self, msg: MotorFeedback):
-        label = self.can_id_to_label.get(msg.motor_id, f"0x{msg.motor_id:02X}")
-        print(f"[{label:16s}] can_id=0x{msg.motor_id:02X}  position={msg.position:+8.3f}  "
-              f"velocity={msg.velocity:+8.3f}  current={msg.current:+7.3f}  "
-              f"temp={msg.temperature:3d}  err={msg.error_code}")
+def decode_feedback(data):
+    position_deg = struct.unpack(">h", data[0:2])[0] * 0.1
+    speed_erpm = struct.unpack(">h", data[2:4])[0] * 10
+    current_a = struct.unpack(">h", data[4:6])[0] * 0.01
+    temp_c = struct.unpack(">b", data[6:7])[0]
+    error_code = data[7]
+    return position_deg, speed_erpm, current_a, temp_c, error_code
 
 
 def main():
-    rclpy.init()
-    can_id_to_label = build_can_id_to_label()
-    node = MotorFeedbackMonitor(can_id_to_label)
+    bus = can.Bus(interface="socketcan", channel="can0", bitrate=1000000)
+    print("Listening for ServoStatusFeedback frames on can0 ...")
+
     try:
-        rclpy.spin(node)
+        while True:
+            msg = bus.recv(timeout=1.0)
+            if msg is None:
+                continue
+            if not msg.is_extended_id or len(msg.data) != 8:
+                continue
+
+            motor_id = msg.arbitration_id & 0xFF
+            base = msg.arbitration_id & ~0xFF
+            if base != FEEDBACK_BASE_ID:
+                continue  # not a ServoStatusFeedback frame
+
+            label = CAN_ID_LABELS.get(motor_id, f"0x{motor_id:02X}")
+            position, speed, current, temp, err = decode_feedback(msg.data)
+            print(f"[{label:16s}] can_id=0x{motor_id:02X}  position={position:+7.2f} deg  "
+                  f"speed={speed:+8.0f} ERPM  current={current:+6.2f} A  "
+                  f"temp={temp:4d}C  err={err}")
     except KeyboardInterrupt:
         pass
     finally:
-        node.destroy_node()
-        rclpy.shutdown()
+        bus.shutdown()
 
 
 if __name__ == "__main__":
