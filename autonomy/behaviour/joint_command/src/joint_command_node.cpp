@@ -53,14 +53,10 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
 }
 
 void JointCommandNode::armPoseCallback(const common_msgs::msg::ArmPose::SharedPtr msg) {
-  // Only recompute and cache the rate-limited targets here. Actual publishing happens
-  // exclusively on control_timer_'s own steady 50Hz clock (below) -- previously this also
-  // called publishMotorCommands() directly, so with ArmPose already arriving at ~50Hz from
-  // task_space_real.py, motor commands were sent from two independent, phase-unrelated 50Hz
-  // sources at once (up to ~100Hz combined, jittery), not the intended steady 50Hz.
   try {
     latest_cmds_ = core_.armPoseToMotorCmds(*msg, control_type_);
     have_latest_cmds_ = true;
+    publishMotorCommands(latest_cmds_);
   } catch (const std::exception& e) {
     RCLCPP_ERROR(this->get_logger(), "Failed to process ArmPose: %s", e.what());
   }
