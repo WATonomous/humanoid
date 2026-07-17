@@ -42,8 +42,13 @@ bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string&
   }
 
   safety_.assign(joints_.size(), JointSafetyConfig{});
+  // Seed at 0 (the assumed safe starting pose an operator positions the arm at before
+  // startup) and mark ready immediately, so the very first ArmPose message received is
+  // ALSO velocity/delta rate-limited relative to that pose, not just position-clamped.
+  // Previously this started false, letting the first command bypass all rate limiting
+  // and jump straight to its target -- visible as a sudden snap before smooth tracking.
   prev_targets_.assign(joints_.size(), 0.0);
-  have_prev_targets_ = false;
+  have_prev_targets_ = true;
   return true;
 }
 
@@ -148,7 +153,7 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose, int8
   }
   if (prev_targets_.size() != joints_.size()) {
     prev_targets_.assign(joints_.size(), 0.0);
-    have_prev_targets_ = false;
+    have_prev_targets_ = true;
   }
 
   for (size_t i = 0; i < joints_.size(); ++i) {
