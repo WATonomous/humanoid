@@ -9,7 +9,9 @@ grasp.
 - **Gym IDs:**
   - `Isaac-SO-ARM101-Push-Block-v0` — training (512 envs by default)
   - `Isaac-SO-ARM101-Push-Block-Play-v0` — evaluation (16 envs, no obs corruption)
-- **RL agent:** RSL-RL PPO (`agents/rsl_rl_ppo_cfg.py`), experiment name `push_block`
+  - `Isaac-SO-ARM101-Push-Block-Distill-v0` — vision distillation (camera + teacher/student obs)
+  - `Isaac-SO-ARM101-Push-Block-Distill-Play-v0` — play distilled student
+- **RL agent:** RSL-RL PPO (`agents/rsl_rl_ppo_cfg.py`), experiment name `push_so101`
 
 ---
 
@@ -176,6 +178,33 @@ cascading through all stages within one PPO iteration. Box-footprint spawns are
 rejected and re-sampled so a widened range never drops the block inside the walls.
 
 Logged under `Curriculum/spawn/{stage, success_rate, x_off_hi, reposition_active}`.
+
+---
+
+## Minimal vision distillation
+
+Distills a privileged PPO teacher into a camera student (RGB 64×64 + proprio, no
+block state). Uses a small custom DAgger-style loop (`rsl_rl_scripts/distill_push.py`),
+not RSL-RL's MLP-only DistillationRunner.
+
+**Train** (from `HumanoidRL/` with Isaac Lab env):
+
+```bash
+PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/distill_push.py \
+  --task Isaac-SO-ARM101-Push-Block-Distill-v0 --headless --enable_cameras \
+  --teacher logs/rsl_rl/push_so101/<run>/model_XXXX.pt \
+  --num_envs 64 --max_iterations 2000
+```
+
+**Play:**
+
+```bash
+PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play_distill_push.py \
+  --task Isaac-SO-ARM101-Push-Block-Distill-Play-v0 --enable_cameras \
+  --checkpoint logs/rsl_rl/push_distill/<run>/nn/student_XXXX.pt --num_envs 16
+```
+
+Checkpoints land in `logs/rsl_rl/push_distill/<timestamp>/nn/`.
 
 ---
 
