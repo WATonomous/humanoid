@@ -136,8 +136,20 @@ _QUEST_TO_WORLD = torch.tensor(
      [0.0, 1.0, 0.0]],
     dtype=torch.float32,
 )
-_AXIS_SIGN_LEFT = torch.tensor([1.0, 1.0, 1.0])
-_AXIS_SIGN_RIGHT = torch.tensor([1.0, 1.0, 1.0])
+_AXIS_SIGN_LEFT = torch.tensor([1.0, -1.0, 1.0])
+_AXIS_SIGN_RIGHT = torch.tensor([1.0, -1.0, 1.0])
+# Y flipped (2026-07-18) -- user clarified the earlier "backwards" report was
+# about LATERAL motion (swiping arms out to the side), not forward/back --
+# forward/back was already fine, so the X flip tried earlier was the wrong
+# axis and was reverted. Derivation: quest_to_world maps quest-frame lateral
+# displacement (X) to world -Y (row1 = [-1,0,0]). Right arm's home is at
+# world Y=+0.17 (outward = more +Y); left arm's home is at world Y=-0.14
+# (outward = more -Y) -- i.e. "outward" is +Y for one arm and -Y for the
+# other, and the un-flipped mapping produced world -Y for an outward swipe
+# on the right arm specifically, driving it inward instead. Flipping Y here
+# (not touching _QUEST_TO_WORLD's rows, which would corrupt orientation)
+# fixes the direction for both arms since they only differ by which side of
+# center they sit on, not by the sign of this mapping.
 
 _GAIN_FAR = 1.0
 _GAIN_RAMP_START_M = 0.15
@@ -146,7 +158,20 @@ _GAIN_RAMP_END_M = 0.35
 _MAX_REACH_M = 0.28
 
 _WRIST_ORIENT_OFFSET_LEFT = torch.tensor([1.0, 0.0, 0.0, 0.0])
-_WRIST_ORIENT_OFFSET_RIGHT = torch.tensor([1.0, 0.0, 0.0, 0.0])
+_WRIST_ORIENT_OFFSET_RIGHT = torch.tensor([0.0, 0.0, 0.0, 1.0])
+# Trying 180deg about world Z first (2026-07-18) -- user reported the right
+# arm's orientation feels "backwards" during live tracking. Auto-cal removal
+# reverted wrist_orient_offset to identity (no correction) for both arms, and
+# the README already documents the raw uncorrected per-arm axis-convention
+# mismatch as asymmetric (previously ~30 right / ~90 left) -- but if a 180deg
+# offset doesn't fix a genuine "rotate one way, EE goes the opposite way"
+# feel, this isn't a fixed-angle misalignment at all, it's a chirality/mirror
+# issue (WebXR often reports left/right hand joint orientations in mirrored
+# local conventions, since a hand skeleton itself is chiral) -- that can't be
+# fixed with any rotation-offset quaternion here, it needs a sign flip on the
+# raw quest wrist quaternion components instead. Retune/replace per the
+# README's "Wrist orientation alignment" table based on what the live test
+# shows.
 
 _THUMB_TIP_IDX = 4
 _INDEX_TIP_IDX = 9
@@ -154,6 +179,22 @@ _PINCH_CLOSE_M = 0.030
 _PINCH_OPEN_M = 0.050
 
 _DLS_LAMBDA = 0.2
+# Right arm gets extra damping (not a smaller _MAX_REACH_M) to deal with the
+# instability observed near full extension: live-session diagnostics
+# (2026-07-18) showed it freezing mid-reach for ~55s with target_err stuck
+# above even the 0.28m reach clamp -- a real DLS solve normally converges on
+# a static target within ~1s, so that plateau meant it hit an unstable/
+# singular patch of its workspace it couldn't recover from without hitting R
+# to recalibrate. The two arms' default joint poses were measured
+# independently (not mirrored), so the right arm's rest pose isn't
+# necessarily as well-conditioned for full-extension reaches as the left's.
+# Shrinking _MAX_REACH_M would have sidestepped that region entirely but
+# also given up real workspace; heavier damping keeps the full 0.28m reach
+# and instead makes the solver more conservative (bounded correction per
+# step) exactly where the Jacobian conditioning gets bad, at the cost of
+# slower convergence there. Retune live if it now feels sluggish well before
+# full extension, or still locks up at the extreme.
+_DLS_LAMBDA_RIGHT = 0.35
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -253,7 +294,8 @@ class _ArmDlsController:
     neither arm's homing/recalibration state can leak into the other's.
     """
 
-    def __init__(self, scene, robot, device, arm_joint_names, ee_body, finger_tip_bodies, finger_distal_local):
+    def __init__(self, scene, robot, device, arm_joint_names, ee_body, finger_tip_bodies, finger_distal_local,
+                 lambda_val=_DLS_LAMBDA):
         self.finger_tip_bodies = finger_tip_bodies
         self.finger_distal_local = finger_distal_local
 
@@ -265,7 +307,7 @@ class _ArmDlsController:
 
         cfg = DifferentialIKControllerCfg(
             command_type="pose", use_relative_mode=False, ik_method="dls",
-            ik_params={"lambda_val": _DLS_LAMBDA},
+            ik_params={"lambda_val": lambda_val},
         )
         self.controller = DifferentialIKController(cfg, num_envs=scene.num_envs, device=device)
         self.controller.reset(env_ids=torch.arange(scene.num_envs, device=device))
@@ -326,6 +368,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     right_arm = _ArmDlsController(
         scene, robot, device, right_arm_names, RIGHT_EE_BODY,
         RIGHT_FINGER_TIP_BODIES, RIGHT_FINGER_DISTAL_TIP_LOCAL,
+        lambda_val=_DLS_LAMBDA_RIGHT,
     )
 
     quest_to_world = _QUEST_TO_WORLD.to(device)
@@ -433,13 +476,24 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 target_pos_b_left = left_arm.home_tip_pos_b.clone()
                 target_quat_b_left = left_arm.home_tip_quat_b.clone()
 
-                ee_quat_w_l = quat_mul(root_quat_w, left_arm.home_tip_quat_b)
-                q_home_w_l = quat_mul(quat_mul(quest_to_world_quat, left_arm.quest_home_quat.unsqueeze(0)),
-                                      quat_inv(quest_to_world_quat))
-                left_arm.wrist_orient_offset = quat_mul(
-                    _WRIST_ORIENT_OFFSET_LEFT.to(device).unsqueeze(0),
-                    quat_mul(ee_quat_w_l, quat_inv(q_home_w_l)),
-                )
+                # NOTE: previously recomputed wrist_orient_offset here from
+                # ee_quat_w_l / q_home_w_l ("auto-calibration"). Removed —
+                # that formula (offset = ee_home * quest_home^-1, applied as
+                # a conjugation on every subsequent delta) is mathematically
+                # invalid: it relates two orientations with no physical
+                # relationship (arbitrary robot rest pose vs. whatever way
+                # the user's wrist happened to be pointing at homing) and a
+                # single home sample can't determine the actual sensor/body
+                # axis-convention correction (that needs multiple independent
+                # rotation samples). Verified in sim: it converges to a
+                # stable but ~50-60deg WRONG orientation (not a convergence
+                # speed issue), and destabilizes tip position while doing so
+                # — worse on the right arm (~0.11m residual vs ~0.06m left
+                # for the same commanded rotation). wrist_orient_offset now
+                # stays at the static _WRIST_ORIENT_OFFSET_LEFT/RIGHT
+                # constant set below main(); re-tune those manually per the
+                # README's "Wrist orientation alignment" table if rotation
+                # axes still feel misaligned.
                 print(f"[Quest] Left wrist tracked — homed at {left_xyz_q.tolist()}", flush=True)
 
             if right_arm.quest_home_xyz is None and right_tracked:
@@ -450,13 +504,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 target_pos_b_right = right_arm.home_tip_pos_b.clone()
                 target_quat_b_right = right_arm.home_tip_quat_b.clone()
 
-                ee_quat_w_r = quat_mul(root_quat_w, right_arm.home_tip_quat_b)
-                q_home_w_r = quat_mul(quat_mul(quest_to_world_quat, right_arm.quest_home_quat.unsqueeze(0)),
-                                      quat_inv(quest_to_world_quat))
-                right_arm.wrist_orient_offset = quat_mul(
-                    _WRIST_ORIENT_OFFSET_RIGHT.to(device).unsqueeze(0),
-                    quat_mul(ee_quat_w_r, quat_inv(q_home_w_r)),
-                )
+                # See matching note in the left-wrist homing block above —
+                # auto-calibration removed, wrist_orient_offset stays static.
                 print(f"[Quest] Right wrist tracked — homed at {right_xyz_q.tolist()}", flush=True)
 
             # ── Target (fingertip-tip, base frame) ──────────────────────────────
@@ -465,9 +514,15 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 left_gain = _ramped_gain(left_disp_raw.norm(), gain)
                 left_delta_w = (quest_to_world @ left_disp_raw) * left_gain * axis_sign_left
                 left_delta_w = left_delta_w * min(1.0, _MAX_REACH_M / max(left_delta_w.norm().item(), 1e-6))
-                target_pos_b_left = (
+                target_pos_b_left_dbg = (
                     left_arm.home_tip_pos_b + quat_apply_inverse(root_quat_w, left_delta_w.unsqueeze(0))
                 )
+                if left_disp_raw.norm().item() > 0.05:
+                    print(f"[Quest][axisdbg] L quest_disp(x,y,z)={left_disp_raw.tolist()}  "
+                          f"world_delta={left_delta_w.tolist()}  "
+                          f"base_delta_from_home={(target_pos_b_left_dbg - left_arm.home_tip_pos_b)[0].tolist()}",
+                          flush=True)
+                target_pos_b_left = target_pos_b_left_dbg
                 dq_left = quat_mul(left_quat.unsqueeze(0), quat_inv(left_arm.quest_home_quat.unsqueeze(0)))
                 dq_left_world = quat_mul(quat_mul(quest_to_world_quat, dq_left), quat_inv(quest_to_world_quat))
                 dq_left_world = quat_mul(quat_mul(left_arm.wrist_orient_offset, dq_left_world),
@@ -480,9 +535,15 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 right_gain = _ramped_gain(right_disp_raw.norm(), gain)
                 right_delta_w = (quest_to_world @ right_disp_raw) * right_gain * axis_sign_right
                 right_delta_w = right_delta_w * min(1.0, _MAX_REACH_M / max(right_delta_w.norm().item(), 1e-6))
-                target_pos_b_right = (
+                target_pos_b_right_dbg = (
                     right_arm.home_tip_pos_b + quat_apply_inverse(root_quat_w, right_delta_w.unsqueeze(0))
                 )
+                if right_disp_raw.norm().item() > 0.05:
+                    print(f"[Quest][axisdbg] R quest_disp(x,y,z)={right_disp_raw.tolist()}  "
+                          f"world_delta={right_delta_w.tolist()}  "
+                          f"base_delta_from_home={(target_pos_b_right_dbg - right_arm.home_tip_pos_b)[0].tolist()}",
+                          flush=True)
+                target_pos_b_right = target_pos_b_right_dbg
                 dq_right = quat_mul(right_quat.unsqueeze(0), quat_inv(right_arm.quest_home_quat.unsqueeze(0)))
                 dq_right_world = quat_mul(quat_mul(quest_to_world_quat, dq_right), quat_inv(quest_to_world_quat))
                 dq_right_world = quat_mul(quat_mul(right_arm.wrist_orient_offset, dq_right_world),
