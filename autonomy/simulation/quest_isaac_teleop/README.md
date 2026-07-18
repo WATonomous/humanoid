@@ -375,9 +375,7 @@ changes the determinant sign and breaks orientation.
 
 **Observed issue:** rotating the wrist in one physical axis drove the EE in a
 different axis in sim (~30° misalignment on the right arm, ~90° on the left
-arm in testing). Should now be corrected automatically by the calibration
-below — if you still see a fixed-angle offset after that change, something
-about the calibration's neutral-pose assumption isn't holding (see caveat).
+arm in testing).
 
 **Root cause:** the Quest wrist tracking frame and the robot's link6/link6l
 URDF frame have different axis conventions. After the Quest→World→Base frame
@@ -400,35 +398,27 @@ correction. Common trial values (tune each arm independently):
 | `[0.707, 0, 0.707, 0]` | 90° about world Y |
 | `[0.707, 0.707, 0, 0]` | 90° about world X |
 
-**Automatic calibration (implemented):** each arm now computes its own
-correction automatically the moment that wrist is first homed, instead of
-relying on a hand-tuned magic quaternion. In the per-arm homing block in
-`run_quest_bimanual_teleop.py`, right after `<arm>.home_tip_quat_b` is captured:
-
-```python
-ee_quat_w_l = quat_mul(root_quat_w, left_arm.home_tip_quat_b)
-q_home_w_l = quat_mul(quat_mul(quest_to_world_quat, left_arm.quest_home_quat.unsqueeze(0)),
-                      quat_inv(quest_to_world_quat))
-left_arm.wrist_orient_offset = quat_mul(
-    _WRIST_ORIENT_OFFSET_LEFT.to(device).unsqueeze(0),
-    quat_mul(ee_quat_w_l, quat_inv(q_home_w_l)),
-)
-```
-
-(mirrored for the right arm via the `right_arm` `_ArmDlsController` instance
-and `_WRIST_ORIENT_OFFSET_RIGHT`.) This reconciles "Quest wrist orientation,
-remapped into world frame" with "actual EE orientation, in world frame,"
-both measured at the instant of homing, and folds the result into the same
-conjugation the orientation-delta loop already applies — so
-`_WRIST_ORIENT_OFFSET_LEFT`/`_RIGHT` above are now just an optional manual
-*pre*-correction on top of the auto-calibrated value, not the sole knob.
-
-**Caveat:** this assumes the operator's wrist is in a comfortable/neutral
-pose at the exact moment that arm is homed (first tracked frame after the
-script starts or after that hand re-enters tracking). If orientation still
-feels off, re-home with your wrist relaxed rather than fighting it with the
-manual offset constants. This has not been validated in sim/hardware — watch
-for it converging to a *consistent* fixed axis error across restarts (which
-would suggest the assumption doesn't hold, e.g. the "neutral" home pose isn't
-actually neutral) versus disappearing (which confirms the calibration
-worked).
+**Automatic calibration (removed 2026-07-18):** a per-arm auto-calibration
+was added that recomputed `wrist_orient_offset` at homing time from
+`ee_quat_w * q_home_w^-1` (EE's world orientation at rest vs. the Quest
+wrist's world orientation at the homing instant), applied as a conjugation
+on every subsequent orientation delta. Verified in sim (headless DLS
+convergence test, both arms, synthetic wrist rotations) that this formula is
+invalid: `ee_quat_w` and `q_home_w` are two orientations with no physical
+relationship (an arbitrary fixed robot rest pose vs. whatever way the
+operator's wrist happened to be pointing at homing), so the "offset" it
+computes is a large, essentially arbitrary rotation. Conjugating a delta by
+it preserves the delta's rotation *angle* but not its *axis* — so it
+converged to a stable but ~50-60° **wrong** orientation (confirmed via a
+400-step/4s trend, not a convergence-speed issue), and destabilized tip
+position noticeably worse on the right arm (~0.11m residual vs. ~0.06m left,
+for an identical commanded rotation) while doing so. That right/left skew is
+what read as "the right arm doesn't track as well" — it wasn't an actuator
+or Jacobian bug (those tested symmetric/fine), it was this calibration
+feeding both arms a bad target and the right arm being less stable against
+it. Removed; `wrist_orient_offset` is now just the static
+`_WRIST_ORIENT_OFFSET_LEFT`/`_RIGHT` constant from the table above (identity
+by default — re-tune those manually if rotation axes still feel misaligned,
+same as before this feature existed). A mathematically sound auto-cal would
+need multiple independent rotation samples to solve for the actual
+sensor/body axis-convention correction, not a single home-pose snapshot.
