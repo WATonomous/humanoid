@@ -9,8 +9,8 @@ teacher actions while the student rolls out in the env (DAgger-style).
 
 Example:
   PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/distill_push.py \\
-    --task Isaac-SO-ARM101-Push-Block-Distill-v0 --headless --enable_cameras \\
-    --teacher logs/rsl_rl/push_so101/2026-07-07_19-59-51/model_4997.pt \\
+    --task Isaac-Bimanual-Push-Block-Distill-v0 --headless --enable_cameras \\
+    --teacher logs/rsl_rl/push_bimanual/<run>/model_1499.pt \\
     --num_envs 64 --max_iterations 2000
 """
 
@@ -23,7 +23,7 @@ from datetime import datetime
 from isaaclab.app import AppLauncher
 
 parser = argparse.ArgumentParser(description="Minimal vision distillation for push-block.")
-parser.add_argument("--task", type=str, default="Isaac-SO-ARM101-Push-Block-Distill-v0")
+parser.add_argument("--task", type=str, default="Isaac-Bimanual-Push-Block-Distill-v0")
 parser.add_argument("--num_envs", type=int, default=None)
 parser.add_argument("--seed", type=int, default=42)
 parser.add_argument("--teacher", type=str, required=True, help="Path to RSL-RL PPO .pt checkpoint.")
@@ -56,7 +56,7 @@ from isaaclab_tasks.utils import parse_env_cfg
 
 
 def _load_teacher_actor(checkpoint: str, obs_dim: int, act_dim: int, device: str) -> nn.Module:
-    """Build an ActorCritic matching PushBlockPPORunnerCfg and load actor weights.
+    """Build an ActorCritic matching BimanualPushBlockPPORunnerCfg and load actor weights.
 
     rsl_rl >=4.0 replaced the (num_actor_obs, num_critic_obs) constructor with
     (obs: TensorDict, obs_groups: dict[str, list[str]]); it only uses these to
