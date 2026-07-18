@@ -168,6 +168,101 @@
         };
       }
 
+      // ── POV quad (both-arms overview camera feed) ────────────────────────
+      // Drawn HUD-locked (eye-space only, no view matrix) so it's always
+      // visible regardless of head orientation -- a floating picture-in-
+      // picture panel, not a world-anchored object. Texture is refreshed
+      // periodically from /pov.png, a plain static file that
+      // run_quest_bimanual_teleop.py overwrites ~10x/sec by capturing its
+      // "Both-Arms POV" Kit viewport (see _POV_FRAME_PATH in that script) --
+      // webxr_server.py serves it with zero server-side changes since it's
+      // just another file in the static dir.
+      function createQuadRenderer(gl) {
+        const program = createProgram(
+          gl,
+          `
+            attribute vec2 aPosition;
+            attribute vec2 aTexCoord;
+            uniform mat4 uProjection;
+            uniform float uQuadZ;
+            varying vec2 vTexCoord;
+
+            void main() {
+              gl_Position = uProjection * vec4(aPosition, uQuadZ, 1.0);
+              vTexCoord = aTexCoord;
+            }
+          `,
+          `
+            precision mediump float;
+            varying vec2 vTexCoord;
+            uniform sampler2D uTexture;
+
+            void main() {
+              gl_FragColor = texture2D(uTexture, vTexCoord);
+            }
+          `
+        );
+
+        const posBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+        gl.bufferData(
+          gl.ARRAY_BUFFER,
+          new Float32Array([-0.3, -0.225, 0.3, -0.225, -0.3, 0.225, 0.3, 0.225]),
+          gl.STATIC_DRAW
+        );
+
+        const texBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, texBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]), gl.STATIC_DRAW);
+
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        // Placeholder 1x1 opaque-black pixel until the first frame loads, so
+        // the quad doesn't sample from an uninitialized texture (undefined
+        // behaviour / driver-dependent garbage on some WebGL implementations).
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+
+        return {
+          program,
+          texture,
+          aPosition: gl.getAttribLocation(program, "aPosition"),
+          aTexCoord: gl.getAttribLocation(program, "aTexCoord"),
+          posBuffer,
+          texCoordBuffer: texBuffer,
+          uProjection: gl.getUniformLocation(program, "uProjection"),
+          uQuadZ: gl.getUniformLocation(program, "uQuadZ"),
+          uTexture: gl.getUniformLocation(program, "uTexture")
+        };
+      }
+
+      function drawPovQuad(gl, renderer, projectionMatrix) {
+        gl.useProgram(renderer.program);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, renderer.posBuffer);
+        gl.enableVertexAttribArray(renderer.aPosition);
+        gl.vertexAttribPointer(renderer.aPosition, 2, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, renderer.texCoordBuffer);
+        gl.enableVertexAttribArray(renderer.aTexCoord);
+        gl.vertexAttribPointer(renderer.aTexCoord, 2, gl.FLOAT, false, 0, 0);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, renderer.texture);
+        gl.uniform1i(renderer.uTexture, 0);
+
+        gl.uniformMatrix4fv(renderer.uProjection, false, projectionMatrix);
+        gl.uniform1f(renderer.uQuadZ, -1.5);
+
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.disable(gl.BLEND);
+      }
+
       function drawHandPoints(gl, renderer, values, projectionMatrix, viewMatrix, color) {
         if (!values || values.length !== 75) return;
 
@@ -208,6 +303,26 @@
             alpha: true
           });
           const pointRenderer = createPointRenderer(gl);
+          const quadRenderer = createQuadRenderer(gl);
+
+          // Periodically fetch the latest POV frame and stash it; the actual
+          // gl.texImage2D upload happens once in onFrame (not here) since
+          // WebGL calls must happen on the frame that has the XR context
+          // bound -- this loop just keeps a decoded ImageBitmap ready.
+          let pendingPovBitmap = null;
+          async function refreshPovTexture() {
+            try {
+              const res = await fetch(`/pov.png?t=${Date.now()}`, { cache: "no-store" });
+              if (!res.ok) return;
+              const blob = await res.blob();
+              pendingPovBitmap = await createImageBitmap(blob);
+            } catch (e) {
+              // Transient fetch/decode failure (frame not written yet, network
+              // hiccup) -- next interval tick retries, nothing to do here.
+            }
+          }
+          const povFetchInterval = setInterval(refreshPovTexture, 200);
+          session.addEventListener("end", () => clearInterval(povFetchInterval));
 
           session.updateRenderState({
             baseLayer: new XRWebGLLayer(session, gl, {
@@ -244,6 +359,12 @@
               }
             }
 
+            if (pendingPovBitmap) {
+              gl.bindTexture(gl.TEXTURE_2D, quadRenderer.texture);
+              gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pendingPovBitmap);
+              pendingPovBitmap = null;
+            }
+
             const pose = frame.getViewerPose(refSpace);
             if (pose) {
               gl.bindFramebuffer(gl.FRAMEBUFFER, session.renderState.baseLayer.framebuffer);
@@ -254,6 +375,8 @@
               for (const view of pose.views) {
                 const viewport = session.renderState.baseLayer.getViewport(view);
                 gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
+
+                drawPovQuad(gl, quadRenderer, view.projectionMatrix);
 
                 drawHandPoints(
                   gl,

@@ -84,6 +84,8 @@ from common_msgs.msg import QuestHandPose  # noqa: E402
 
 import carb  # noqa: E402
 import omni.appwindow  # noqa: E402
+import omni.usd  # noqa: E402
+from pxr import Gf, UsdGeom  # noqa: E402
 
 import isaaclab.sim as sim_utils  # noqa: E402
 from isaaclab.assets import AssetBaseCfg  # noqa: E402
@@ -130,32 +132,38 @@ _RIGHT_GRIPPER_CLOSED = {"joint7": 0.0, "joint8": 0.0}
 # WebXR (Y-up: X-right, Y-up, -Z-forward) -> simulation world frame (Z-up).
 # Identical mapping to run_quest_bimanual_teleop.py — see that file for the
 # derivation/rationale of each constant below.
+# X/Z swapped (2026-07-18) -- live testing showed physical forward/back hand
+# motion driving world Y (lateral) and physical left/right hand motion
+# driving world X (forward-reach), for BOTH arms -- i.e. this headset/
+# webxr_server's local reference space has quest X and Z swapped relative to
+# the assumed X-right/-Z-forward convention (its local-floor "forward" axis
+# was anchored 90 deg off from the physical direction the operator treats as
+# forward, not a per-arm issue). Fix: route qx into the forward-reach row and
+# qz into the lateral row (previously the reverse), keeping the same
+# coefficient signs each row had before so the already-tuned axis_sign_left/
+# right lateral-direction flip (see below) still lands on the correct
+# (now qz-sourced) row unchanged. Still a proper rotation (det +1, verified) --
+# do not further negate a row, that corrupts orientation via quat_from_matrix.
 _QUEST_TO_WORLD = torch.tensor(
-    [[0.0, 0.0, -1.0],
-     [-1.0, 0.0, 0.0],
+    [[-1.0, 0.0, 0.0],
+     [0.0, 0.0, 1.0],
      [0.0, 1.0, 0.0]],
     dtype=torch.float32,
 )
 _AXIS_SIGN_LEFT = torch.tensor([1.0, -1.0, 1.0])
 _AXIS_SIGN_RIGHT = torch.tensor([1.0, -1.0, 1.0])
-# Y flipped (2026-07-18) -- user clarified the earlier "backwards" report was
-# about LATERAL motion (swiping arms out to the side), not forward/back --
-# forward/back was already fine, so the X flip tried earlier was the wrong
-# axis and was reverted. Derivation: quest_to_world maps quest-frame lateral
-# displacement (X) to world -Y (row1 = [-1,0,0]). Right arm's home is at
-# world Y=+0.17 (outward = more +Y); left arm's home is at world Y=-0.14
-# (outward = more -Y) -- i.e. "outward" is +Y for one arm and -Y for the
-# other, and the un-flipped mapping produced world -Y for an outward swipe
-# on the right arm specifically, driving it inward instead. Flipping Y here
-# (not touching _QUEST_TO_WORLD's rows, which would corrupt orientation)
-# fixes the direction for both arms since they only differ by which side of
-# center they sit on, not by the sign of this mapping.
 
 _GAIN_FAR = 1.0
 _GAIN_RAMP_START_M = 0.15
 _GAIN_RAMP_END_M = 0.35
 
 _MAX_REACH_M = 0.28
+
+# Base-yaw trial (2026-07-18) tried and REJECTED -- user confirmed it swung
+# the gripper to the wrong side of the mount/stand bar. Reverting to the
+# shared _DEFAULT_JOINT_POS (bimanual_arm_cfg.py) unmodified; the fix instead
+# moves the lightbox enclosure back to give the arm's original rest pose room
+# (see _ENCLOSURE_X_SHIFT below), not the arm's joints.
 
 _WRIST_ORIENT_OFFSET_LEFT = torch.tensor([1.0, 0.0, 0.0, 0.0])
 _WRIST_ORIENT_OFFSET_RIGHT = torch.tensor([0.0, 0.0, 0.0, 1.0])
@@ -196,11 +204,106 @@ _DLS_LAMBDA = 0.2
 # full extension, or still locks up at the extreme.
 _DLS_LAMBDA_RIGHT = 0.35
 
+_ENCLOSURE_MATERIAL = sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0), emissive_color=(1.0, 1.0, 1.0))
+# Shifted back 0.2m (2026-07-18) -- after the base-yaw joint trial (moving the
+# arm instead) was rejected as the wrong direction, the fix is to move the box
+# instead of the arm: same depth (X_SPAN unchanged), whole box translated
+# toward -X to clear the mount/stand structural bar the back wall was
+# crowding. Trial magnitude -- check live whether 0.2m is enough clearance or
+# needs more.
+_ENCLOSURE_X_SHIFT = -0.2
+_ENCLOSURE_BACK_X = -0.25 + _ENCLOSURE_X_SHIFT
+_ENCLOSURE_Y_MIN = -0.9
+_ENCLOSURE_Y_MAX = 1.0
+_ENCLOSURE_TOP_Z = 0.9
+_ENCLOSURE_FRONT_X = 0.323 + _ENCLOSURE_X_SHIFT  # open front (arm reach direction), shifted with the rest of the box
+_ENCLOSURE_Y_CTR = (_ENCLOSURE_Y_MIN + _ENCLOSURE_Y_MAX) / 2
+_ENCLOSURE_Y_SPAN = _ENCLOSURE_Y_MAX - _ENCLOSURE_Y_MIN
+_ENCLOSURE_X_SPAN = _ENCLOSURE_FRONT_X - _ENCLOSURE_BACK_X
+_ENCLOSURE_X_CTR = (_ENCLOSURE_BACK_X + _ENCLOSURE_FRONT_X) / 2
+
+
+_TABLE_X_MIN, _TABLE_X_MAX = _ENCLOSURE_BACK_X, 0.6
+_TABLE_Y_MIN, _TABLE_Y_MAX = _ENCLOSURE_Y_MIN, _ENCLOSURE_Y_MAX
+_TABLE_THICKNESS = 0.05
+
+# External RealSense D455, mounted on top of the base_link brace (the shared
+# mount structure between the two arms) so a single feed shows BOTH grippers
+# at once -- an operator overview camera, same idea as Ramy's PerceptionCamera
+# in the old bimanual_arm_lightbox.usd (a plain Camera, not an rsd455 asset)
+# and the SO101 vial task's camera_external_D455 (an rsd455 mounted on the
+# lightbox, not the arm itself). Mounted as a child of base_link (not the env
+# root) so it's expressed in the robot's own base frame -- rest tip base-frame
+# X is ~0.42-0.43 (both grippers reach in +X, see the "[Quest][diag] rest EE
+# pos" log line), so identity orientation (rsd455's local +X = lens boresight)
+# already faces the grippers without a yaw flip. Height/offset above the brace
+# is an untested first guess -- tune live.
+_RSD455_USD_URL = (
+    "https://omniverse-content-production.s3-us-west-2.amazonaws.com/"
+    "Assets/Isaac/5.1/Isaac/Sensors/Intel/RealSense/rsd455.usd"
+)
+_EXTERNAL_CAMERA_MOUNT = (
+    (0.0, 0.0, 0.75),                              # translate xyz, relative to base_link
+    (0.9238795325112867, 0.0, 0.3826834323650898, 0.0),  # orient wxyz -- 45deg downward pitch about Y (was identity/level)
+)
+# Sub-path to the actual renderable Camera prim inside the rsd455 payload --
+# same as the SO101 vial task's camera_external_D455 (task_env_cfg.py).
+_RSD455_CAMERA_SUBPATH = "rsd455/RSD455/Camera_OmniVision_OV9782_Right"
+
+
+def _attach_rsd455_camera(parent_prim_path: str, translate: tuple, orient_wxyz: tuple) -> str:
+    """Attach an rsd455 payload as a `camera_mount` child Xform of any prim
+    (a robot link for a wrist camera, or the env root for a fixed external
+    one). Returns the camera_mount prim path."""
+    stage = omni.usd.get_context().get_stage()
+    mount_path = f"{parent_prim_path}/camera_mount"
+    mount_xform = UsdGeom.Xform.Define(stage, mount_path)
+    xformable = UsdGeom.Xformable(mount_xform)
+    xformable.ClearXformOpOrder()
+    xformable.AddTranslateOp(precision=UsdGeom.XformOp.PrecisionDouble).Set(Gf.Vec3d(*translate))
+    w, x, y, z = orient_wxyz
+    xformable.AddOrientOp(precision=UsdGeom.XformOp.PrecisionDouble).Set(Gf.Quatd(w, Gf.Vec3d(x, y, z)))
+
+    rsd_prim = stage.DefinePrim(f"{mount_path}/rsd455")
+    rsd_prim.GetPayloads().AddPayload(_RSD455_USD_URL)
+    return mount_path
+
+
+def _open_pov_viewport(camera_prim_path: str, window_name: str):
+    """Best-effort: open a Kit viewport window locked to a camera prim, for a
+    live wrist-POV feed on the host monitor. Returns the viewport_api (so the
+    caller can periodically capture frames from it -- see
+    _POV_FRAME_PATH/capture_viewport_to_file in run_simulator) or None if the
+    viewport extension isn't available in this Kit experience -- this is a
+    convenience feature, not required for teleop to function."""
+    try:
+        from omni.kit.viewport.utility import create_viewport_window
+
+        viewport_window = create_viewport_window(window_name, width=640, height=480)
+        viewport_window.viewport_api.camera_path = camera_prim_path
+        return viewport_window.viewport_api
+    except Exception as exc:  # noqa: BLE001 -- best-effort convenience feature
+        print(f"[Quest] Could not open POV viewport '{window_name}': {exc}", flush=True)
+        return None
+
+
+# Frame the POV viewport gets captured to, for the Quest browser to fetch.
+# Lives in the WebXR static dir (autonomy/teleop/quest_teleop/static/) so
+# webxr_server.py's existing SimpleHTTPRequestHandler serves it as a plain
+# static file -- no server code changes needed. Captured every
+# _POV_CAPTURE_EVERY_N_STEPS sim steps (100Hz sim loop / 10 = ~10Hz feed).
+_POV_FRAME_PATH = _SIM_DIR.parent / "teleop" / "quest_teleop" / "static" / "pov.png"
+_POV_CAPTURE_EVERY_N_STEPS = 10
+
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 @configclass
 class BimanualSceneCfg(InteractiveSceneCfg):
+    """Bare arm stand + the white lightbox enclosure walls/table (visual only, no collision on the
+    walls) -- same geometry as BimanualPushBlockSceneCfg in
+    HumanoidRLSetup/tasks/push/bimanual_env_cfg.py. Always on (no CLI flag)."""
+
     ground = AssetBaseCfg(
         prim_path="/World/defaultGroundPlane",
         spawn=sim_utils.GroundPlaneCfg(),
@@ -211,6 +314,38 @@ class BimanualSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75)),
     )
     robot = BIMANUAL_ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+    enclosure_back: AssetBaseCfg = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/EnclosureBack",
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(_ENCLOSURE_BACK_X, _ENCLOSURE_Y_CTR, _ENCLOSURE_TOP_Z / 2)),
+        spawn=sim_utils.CuboidCfg(size=(0.003, _ENCLOSURE_Y_SPAN, _ENCLOSURE_TOP_Z), visual_material=_ENCLOSURE_MATERIAL),
+    )
+    enclosure_left: AssetBaseCfg = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/EnclosureLeft",
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(_ENCLOSURE_X_CTR, _ENCLOSURE_Y_MIN, _ENCLOSURE_TOP_Z / 2)),
+        spawn=sim_utils.CuboidCfg(size=(_ENCLOSURE_X_SPAN, 0.003, _ENCLOSURE_TOP_Z), visual_material=_ENCLOSURE_MATERIAL),
+    )
+    enclosure_right: AssetBaseCfg = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/EnclosureRight",
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(_ENCLOSURE_X_CTR, _ENCLOSURE_Y_MAX, _ENCLOSURE_TOP_Z / 2)),
+        spawn=sim_utils.CuboidCfg(size=(_ENCLOSURE_X_SPAN, 0.003, _ENCLOSURE_TOP_Z), visual_material=_ENCLOSURE_MATERIAL),
+    )
+    enclosure_top: AssetBaseCfg = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/EnclosureTop",
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(_ENCLOSURE_X_CTR, _ENCLOSURE_Y_CTR, _ENCLOSURE_TOP_Z)),
+        spawn=sim_utils.CuboidCfg(size=(_ENCLOSURE_X_SPAN, _ENCLOSURE_Y_SPAN, 0.003), visual_material=_ENCLOSURE_MATERIAL),
+    )
+    table: AssetBaseCfg = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/Table",
+        init_state=AssetBaseCfg.InitialStateCfg(
+            pos=((_TABLE_X_MIN + _TABLE_X_MAX) / 2, (_TABLE_Y_MIN + _TABLE_Y_MAX) / 2, -_TABLE_THICKNESS / 2)
+        ),
+        spawn=sim_utils.CuboidCfg(
+            size=(_TABLE_X_MAX - _TABLE_X_MIN, _TABLE_Y_MAX - _TABLE_Y_MIN, _TABLE_THICKNESS),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.35, 0.3, 0.25)),
+        ),
+    )
 
 
 class QuestRosReceiver(Node):
@@ -358,6 +493,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     scene.update(sim_dt)
     apply_joint_limits(robot)
 
+    _base_link_prim_path = "/World/envs/env_0/Robot/base_link"  # num_envs is always 1 in this script
+    _base_link_prim = omni.usd.get_context().get_stage().GetPrimAtPath(_base_link_prim_path)
+    print(f"[Quest] base_link prim valid={_base_link_prim.IsValid()} "
+          f"authored={_base_link_prim.HasAuthoredReferences() or _base_link_prim.GetTypeName() != ''} "
+          f"body_names={list(robot.data.body_names)}", flush=True)
+    external_cam_mount = _attach_rsd455_camera(_base_link_prim_path, *_EXTERNAL_CAMERA_MOUNT)
+    print(f"[Quest] External RealSense D455 (both-arms overview, on base_link brace) attached: {external_cam_mount}", flush=True)
+    pov_viewport_api = _open_pov_viewport(f"{external_cam_mount}/{_RSD455_CAMERA_SUBPATH}", "Both-Arms POV")
+    if pov_viewport_api is not None:
+        _POV_FRAME_PATH.parent.mkdir(parents=True, exist_ok=True)
+        print(f"[Quest] POV feed will be captured to {_POV_FRAME_PATH} "
+              f"(served by webxr_server.py's static handler at /pov.png)", flush=True)
+
     left_arm_names = [resolve_joint_name(robot, n) for n in LEFT_ARM_JOINTS]
     right_arm_names = [resolve_joint_name(robot, n) for n in _RIGHT_ARM_JOINTS]
 
@@ -444,6 +592,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     print("[Quest] Press R (Isaac Sim window focused) to recalibrate to your current pose.", flush=True)
 
     diag_frame = 0
+    pov_capture_frame = 0
     while simulation_app.is_running():
         msg = receiver.poll()
 
@@ -594,6 +743,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         sim.step()
         scene.update(sim_dt)
 
+        pov_capture_frame += 1
+        if pov_viewport_api is not None and pov_capture_frame % _POV_CAPTURE_EVERY_N_STEPS == 0:
+            from omni.kit.viewport.utility import capture_viewport_to_file
+
+            capture_viewport_to_file(pov_viewport_api, str(_POV_FRAME_PATH))
+
 
 def main() -> None:
     sim_cfg = sim_utils.SimulationCfg(dt=0.01, device=args_cli.device)
@@ -602,7 +757,7 @@ def main() -> None:
 
     scene = InteractiveScene(BimanualSceneCfg(num_envs=1, env_spacing=2.0))
     sim.reset()
-    print("[Quest] Simulation ready.")
+    print("[Quest] Simulation ready (lightbox enclosure walls added).")
     run_simulator(sim, scene)
     rclpy.shutdown()
 

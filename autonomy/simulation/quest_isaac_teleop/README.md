@@ -247,7 +247,8 @@ and `/quest_teleop` will receive no data.
 5. Press **Start**
 
 Both arms should begin following your wrists. The Isaac Sim terminal will
-print `[Quest] First wrist data` when the first message arrives.
+print `[Quest] Left wrist tracked — homed at ...` / `[Quest] Right wrist
+tracked — homed at ...` as each wrist is first tracked.
 
 ---
 
@@ -263,6 +264,16 @@ print `[Quest] First wrist data` when the first message arrives.
 
 Pass `--gain VALUE` (default `1.0`) to `run_quest_bimanual_teleop.sh` to scale
 how far the arm moves per metre of real wrist motion.
+
+The scene always includes a white lightbox enclosure + table around the arm
+stand — same geometry as `BimanualPushBlockSceneCfg` in
+`HumanoidRLSetup/tasks/push/bimanual_env_cfg.py` (plain emissive-white
+`CuboidCfg` walls, lit by the scene's existing dome light; no RectLight, no
+external USD/asset dependency; no CLI flag needed). This replaced the older
+`bimanual_arm_lightbox.usd` stage (Ramy's, removed in
+"RL-push-task-switch-to-bimanual-arm") which baked in a RectLight rig,
+PerceptionCamera, and wrist-mounted RealSense D455s — none of that is
+reproduced here, just the studio-wall + table backdrop.
 
 ### Recalibrating mid-session
 
@@ -302,7 +313,7 @@ You should see `QuestHandPose` messages at ~30 Hz when the Quest is active.
 | Quest browser shows `localhost terminated connection` | SSL issue or server not running | Confirm Terminal 4 is running; check cert files exist at `autonomy/teleop/quest_teleop/certs/` |
 | Quest browser shows security warning | Self-signed cert | Expected — click Advanced → Proceed |
 | `/quest_teleop` topic empty after pressing Start | WSS cert not trusted for port 9090 | In Quest browser, navigate to `https://localhost:9090` and accept the warning, then return to port 8443 and press Start again |
-| Arms don't move after pressing Start | No hand data reaching IK script | Check Terminal 5 prints `[Quest] First wrist data`; check Terminal 3 is running and topic is publishing |
+| Arms don't move after pressing Start | No hand data reaching IK script | Check Terminal 5 prints `[Quest] Left/Right wrist tracked — homed at ...`; check Terminal 3 is running and topic is publishing |
 | Isaac Sim numpy broken after container restart | Container was manually patched (not image-built) | Run `./watod build` to make fixes permanent; restart container |
 | `ModuleNotFoundError: No module named 'em'` during colcon | `empy` installed into wrong Python (Isaac Sim's, not deadsnakes) | Rebuild image — Dockerfile now uses `/usr/bin/python3.11` explicitly |
 | `packaging` version conflict warnings | `catkin_pkg` was pip-installed into Isaac Sim's Python | Fixed in current Dockerfile — rebuild image |
@@ -363,13 +374,15 @@ that maps Quest standing-space axes to simulation world-frame axes. It must
 have determinant +1 (proper rotation) — a det = −1 matrix silently corrupts
 orientation tracking via `quat_from_matrix`.
 
-`_DEPTH_SIGN` is a per-axis sign vector `[sx, sy, sz]` applied to the
-world-frame position delta after the matrix remap. Use it to flip individual
-axes without touching the orientation-critical matrix.
+`_AXIS_SIGN_LEFT` / `_AXIS_SIGN_RIGHT` are per-arm, per-axis sign vectors
+`[sx, sy, sz]` applied to the world-frame position delta after the matrix
+remap. Use them to flip individual axes per arm without touching the
+orientation-critical matrix.
 
-If an axis feels backwards, flip the corresponding element of `_DEPTH_SIGN`
-(currently `[1, 1, 1]`). Do **not** negate a row of `_QUEST_TO_WORLD` — that
-changes the determinant sign and breaks orientation.
+If an axis feels backwards, flip the corresponding element of
+`_AXIS_SIGN_LEFT`/`_AXIS_SIGN_RIGHT` (currently `[1, -1, 1]` for both). Do
+**not** negate a row of `_QUEST_TO_WORLD` — that changes the determinant sign
+and breaks orientation.
 
 ### Wrist orientation alignment
 
