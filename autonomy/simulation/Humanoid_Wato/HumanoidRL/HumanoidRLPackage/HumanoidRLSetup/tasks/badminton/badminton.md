@@ -130,5 +130,5 @@ No success/failure termination on hit or miss.
 
 - Shuttlecock rigid body + trajectory-derived commands
 - Perception / estimated intercept in obs (drop privileged pose)
-- Contact-force reward (see `tasks/force/`)
+- Contact-force reward
 - Replace racket proxy body names in `mdp/rewards.py`

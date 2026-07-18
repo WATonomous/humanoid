@@ -161,7 +161,11 @@ def block_scoop_penalty(
     # local support-surface height: 0 before the ramp, linear up the ramp, floor after
     frac = ((x - ramp_base_x) / (ramp_top_x - ramp_base_x)).clamp(0.0, 1.0)
     surface_h = frac * floor_z
-    excess = (z - BLOCK_HALF_SIZE - surface_h - height_tol).clamp(min=0.0)
+    # upper-clamped: an unbounded excess lets a single physics contact glitch
+    # (e.g. a block launched by a bad contact resolution) produce a reward
+    # outlier large enough to blow up the value function target (observed:
+    # value_function loss 5 -> 3.7e5 -> 9.5e15 -> inf within 4 iterations).
+    excess = (z - BLOCK_HALF_SIZE - surface_h - height_tol).clamp(min=0.0, max=0.2)
     # xy distance outside the ramp+box footprint rectangle (0 inside)
     dx = (ramp_base_x - 0.02 - x).clamp(min=0.0) + (x - box_x_max).clamp(min=0.0)
     dy = (y.abs() - box_y_half).clamp(min=0.0)

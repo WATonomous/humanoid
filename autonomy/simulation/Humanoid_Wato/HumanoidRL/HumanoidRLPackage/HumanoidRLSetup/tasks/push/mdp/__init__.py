@@ -12,3 +12,4 @@ from .observations import *  # noqa: F401, F403
 from .rewards import *  # noqa: F401, F403
 from .terminations import *  # noqa: F401, F403
 from .utils import BLOCK_HALF_SIZE, block_center_w  # noqa: F401
+from .vision_dr import *  # noqa: F401, F403

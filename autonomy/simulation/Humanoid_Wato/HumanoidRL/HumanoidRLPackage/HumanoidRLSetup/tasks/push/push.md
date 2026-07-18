@@ -9,7 +9,9 @@ grasp.
 - **Gym IDs:**
   - `Isaac-SO-ARM101-Push-Block-v0` — training (512 envs by default)
   - `Isaac-SO-ARM101-Push-Block-Play-v0` — evaluation (16 envs, no obs corruption)
-- **RL agent:** RSL-RL PPO (`agents/rsl_rl_ppo_cfg.py`), experiment name `push_block`
+  - `Isaac-SO-ARM101-Push-Block-Distill-v0` — vision distillation (camera + teacher/student obs)
+  - `Isaac-SO-ARM101-Push-Block-Distill-Play-v0` — play distilled student
+- **RL agent:** RSL-RL PPO (`agents/rsl_rl_ppo_cfg.py`), experiment name `push_so101`
 
 ---
 
@@ -176,6 +178,64 @@ cascading through all stages within one PPO iteration. Box-footprint spawns are
 rejected and re-sampled so a widened range never drops the block inside the walls.
 
 Logged under `Curriculum/spawn/{stage, success_rate, x_off_hi, reposition_active}`.
+
+---
+
+## Minimal vision distillation
+
+Distills a privileged PPO teacher into a camera student (RGB 64×64 + proprio, no
+block state). Uses a small custom DAgger-style loop (`rsl_rl_scripts/distill_push.py`),
+not RSL-RL's MLP-only DistillationRunner.
+
+**Train** (from `HumanoidRL/` with Isaac Lab env):
+
+```bash
+PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/distill_push.py \
+  --task Isaac-SO-ARM101-Push-Block-Distill-v0 --headless --enable_cameras \
+  --teacher logs/rsl_rl/push_so101/<run>/model_XXXX.pt \
+  --num_envs 64 --max_iterations 2000
+```
+
+**Play:**
+
+```bash
+PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play_distill_push.py \
+  --task Isaac-SO-ARM101-Push-Block-Distill-Play-v0 --enable_cameras \
+  --checkpoint logs/rsl_rl/push_distill/<run>/nn/student_XXXX.pt --num_envs 16
+```
+
+Checkpoints land in `logs/rsl_rl/push_distill/<timestamp>/nn/`.
+
+### Vision domain randomization (sim2real template)
+
+Train distill env (`*-Distill-v0`) runs reset-time vision DR via `mdp/vision_dr.py`:
+
+| Term | What |
+|------|------|
+| Camera | ±3 cm position, ±3° look-at jitter on the external tiled cam |
+| Light | Dome intensity 1500–4500, mild RGB tint |
+| Materials | Diffuse tint / roughness / metallic on table, block, box |
+| Textures | Random pick from `tasks/push/assets/textures/` (3 small PNGs) |
+
+Play distill (`*-Distill-Play-v0`) keeps vision DR **off** for clean eval. To scale
+sim2real later: widen the ranges in `DistillEventCfg` and/or drop more PNGs into
+`assets/textures/` (no Git LFS required for a small pack).
+
+### Scope record (what we have vs a fuller stack)
+
+This distill path is intentionally a **mono-RGB + light sim2real template**:
+
+| Area | This push distill setup | Fuller stacks (e.g. DextrAH-style) |
+|------|-------------------------|-------------------------------------|
+| Sensors | Single external RGB (64×64) | Mono and/or stereo RGB, optional depth |
+| Vision DR | Camera jitter, dome tint/intensity, material tint/roughness, small texture pack | Large texture/HDRI packs, arm appearance DR, richer lighting |
+| Image augs | None (env appearance only) | Post-render RGB/depth augs (color jitter, blur, background paste, depth noise) |
+| Physics DR | Task spawn curriculum + existing push MDP | Full ADR (friction, mass, joint gains, obs noise, etc.), often maxed during distill |
+| Student train loop | Custom DAgger/BC over RSL-RL teacher | Custom distill loop (often rl-games), aux heads, multi-GPU |
+
+**Main differences:** we stay on pure RGB with a lighter DR template; fuller systems add depth/stereo, heavier appearance DR, post-render augs, and stronger physics ADR. Same idea (privileged teacher → vision student); they scale sensors and randomization further.
+
+**Next levers if real transfer is weak:** more textures, verify/rematch camera to the real mount, widen DR ranges, then optionally depth/stereo or image augs.
 
 ---
 

@@ -44,12 +44,6 @@ runs:
       with:
         files: autonomy/behaviour/**
     
-    - name: Get changed files inside autonomy/samples folder
-      id: changed-files-samples
-      uses: tj-actions/changed-files@v42
-      with:
-        files: autonomy/samples/**
-    
     - name: Get changed files inside autonomy/simulation folder
       id: changed-files-simulation
       uses: tj-actions/changed-files@v42
@@ -71,7 +65,6 @@ runs:
         INTERFACING_CHANGED: ${{ steps.changed-files-interfacing.outputs.any_changed }}
         PERCEPTION_CHANGED: ${{ steps.changed-files-perception.outputs.any_changed }}
         BEHAVIOUR_CHANGED: ${{ steps.changed-files-behaviour.outputs.any_changed }}
-        SAMPLES_CHANGED: ${{ steps.changed-files-samples.outputs.any_changed }}
         SIMULATION_CHANGED: ${{ steps.changed-files-simulation.outputs.any_changed }}
         EMBEDDED_CHANGED: ${{ steps.changed-files-embedded.outputs.any_changed }}
 

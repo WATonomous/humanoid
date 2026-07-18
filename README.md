@@ -26,7 +26,6 @@ Most modules expose `<name>_dev` under `MODE_OF_OPERATION=develop`. **`interfaci
 
 | `ACTIVE_MODULES` | What it runs |
 |------------------|--------------|
-| `samples` | Reference ROS 2 pub/sub pipeline |
 | `interfacing` | CAN / hardware interfacing |
 | `perception` | Perception (cameras, GPU) |
 | `behaviour` | `joint_command`, `voxel_grid` |
@@ -45,7 +44,6 @@ humanoid
 ├── modules/                  # docker-compose.<module>.yaml
 ├── docker/                   # Dockerfiles per stack
 │   ├── base/
-│   ├── samples/
 │   ├── interfacing/
 │   ├── perception/
 │   ├── behaviour/
@@ -53,9 +51,8 @@ humanoid
 │       ├── isaac_lab/        # Isaac Lab + LeRobot (primary sim)
 │       └── mjlabs/           # MuJoCo / mjlab
 ├── autonomy/
-│   ├── samples/              # ROS 2 coding patterns
-│   ├── wato_msgs/            # Shared messages
-│   ├── interfacing/          # CAN, DBC, aggregator
+│   ├── wato_msgs/            # Shared messages (common_msgs)
+│   ├── interfacing/          # CAN, DBC
 │   ├── perception/
 │   ├── behaviour/            # joint_command, voxel_grid
 │   ├── simulation/           # Isaac tasks, teleop, HumanoidRL
@@ -84,7 +81,6 @@ Isaac Lab needs Linux, NVIDIA GPU, Docker GPU passthrough, and X11 (`xhost +loca
 
 | Area | Start here |
 |------|------------|
-| ROS node patterns | [autonomy/samples/README.md](autonomy/samples/README.md) |
 | Imitation learning | [autonomy/il/README.md](autonomy/il/README.md) · Isaac [QUICKSTART](docker/simulation/isaac_lab/QUICKSTART.md) |
 | CAN / hardware | [autonomy/interfacing/can/README.md](autonomy/interfacing/can/README.md) |
 | Messages | [autonomy/wato_msgs/common_msgs/README.md](autonomy/wato_msgs/common_msgs/README.md) |

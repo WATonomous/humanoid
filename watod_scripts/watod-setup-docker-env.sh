@@ -33,7 +33,6 @@ TAG=${TAG/\//-}
 ##   - interfacing          :   CAN / hardware interfacing
 ##   - perception           :   perception nodes
 ##   - behaviour            :   joint_command, voxel_grid
-##   - samples              :   sample ROS 2 pub/sub nodes
 ##   - simulation_isaac     :   Isaac Lab (SO101 IL, HumanoidRL, Quest teleop)
 ##   - simulation_mj        :   MuJoCo / mjlab (mjlabs service)
 ACTIVE_MODULES=${ACTIVE_MODULES:-""}
@@ -46,11 +45,6 @@ REPOSITORY=$(echo "$REGISTRY_URL" | sed 's|^.*/\(.*\)$|\1|')
 
 ## --------------------------- Images -------------------------------
 # NOTE: ALL IMAGE NAMES MUCH BE IN THE FORMAT OF <COMPOSE_FILE>_<SERVICE>
-
-# ROS2 C++ Samples
-SAMPLES_AGGREGATOR_IMAGE=${SAMPLES_AGGREGATOR_IMAGE:-"$REGISTRY_URL/samples/samples_aggregator"}
-SAMPLES_PRODUCER_IMAGE=${SAMPLES_PRODUCER_IMAGE:-"$REGISTRY_URL/samples/samples_producer"}
-SAMPLES_TRANSFORMER_IMAGE=${SAMPLES_TRANSFORMER_IMAGE:-"$REGISTRY_URL/samples/samples_transformer"}
 
 # Images
 BEHAVIOUR_VOXEL_IMAGE=${BEHAVIOUR_VOXEL_IMAGE:-"$REGISTRY_URL/behaviour/voxel_grid"}
@@ -93,11 +87,6 @@ echo "TAG=$TAG" >> "$MODULES_DIR/.env"
 
 # Ports
 echo "BASE_PORT=$BASE_PORT" >> "$MODULES_DIR/.env"
-
-# ROS2 Samples
-echo "SAMPLES_AGGREGATOR_IMAGE=$SAMPLES_AGGREGATOR_IMAGE" >> "$MODULES_DIR/.env"
-echo "SAMPLES_PRODUCER_IMAGE=$SAMPLES_PRODUCER_IMAGE" >> "$MODULES_DIR/.env"
-echo "SAMPLES_TRANSFORMER_IMAGE=$SAMPLES_TRANSFORMER_IMAGE" >> "$MODULES_DIR/.env"
 
 # Images
 echo "INTERFACING_IMAGE=$INTERFACING_IMAGE" >> "$MODULES_DIR/.env"

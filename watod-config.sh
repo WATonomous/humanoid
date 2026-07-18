@@ -13,11 +13,10 @@
 ##   - interfacing          :   CAN / hardware interfacing
 ##   - perception           :   perception nodes
 ##   - behaviour            :   joint_command, voxel_grid
-##   - samples              :   sample ROS 2 pub/sub nodes
 ##   - simulation_isaac     :   Isaac Lab (SO101 IL, HumanoidRL, Quest teleop)
 ##   - simulation_mj        :   MuJoCo / mjlab (mjlabs service)
 
-ACTIVE_MODULES="samples"
+ACTIVE_MODULES="interfacing"
 
 ################################# MODE OF OPERATION #################################
 ## Possible modes of operation when running watod.

@@ -3,21 +3,13 @@ Documentation should be used as a blueprint for development, then filled in when
 
 The documentation of this repository follows a package level scheme. As shown below:
 ```
-samples
-├── README.md ──────────────> overview(component)
-├── cpp
-│   ├── producer
-│   │   ├── README.md ──────> most importantly(package)
-│   │   ├── CMakeLists.txt
-│   │   ├── config
-│   │   ├── include
-│   │   ├── launch
-│   │   ├── package.xml
-│   │   ├── src
-│   │   └── test
-├── python
-├── sample_msgs
-└── samples_diagram.svg
+common_msgs/
+├── README.md ──────────────> overview (package)
+├── CMakeLists.txt
+├── package.xml
+└── msg/
+    ├── ArmPose.msg
+    └── ...
 ```
 
 ### Component Level 
@@ -35,4 +27,4 @@ The system architecture can be viewed in this [document](Architecture_Map.pdf), 
 
 ### Infrastructure Documentation
 1. [Project Infrastructure Development Docs](https://github.com/WATonomous/wato_monorepo/tree/main/docs/dev/)
-2. [ROS Structure Docs](src/samples/README.md)
+2. [Messages](../autonomy/wato_msgs/common_msgs/README.md)

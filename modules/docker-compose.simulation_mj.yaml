@@ -26,3 +26,4 @@ services:
       - ${MONO_DIR}/autonomy/simulation:/root/ament_ws/src/simulation
       - ${MONO_DIR}/autonomy/teleop:/root/ament_ws/src/teleop
       - ${MONO_DIR}/autonomy/wato_msgs/common_msgs:/root/ament_ws/src/common_msgs
+      - ${MONO_DIR}/autonomy/behaviour:/root/ament_ws/src/behaviour
