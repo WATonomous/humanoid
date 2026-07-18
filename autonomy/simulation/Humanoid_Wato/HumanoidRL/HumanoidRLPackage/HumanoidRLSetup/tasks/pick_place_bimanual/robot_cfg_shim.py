@@ -29,6 +29,7 @@ from bimanual_arm_cfg import (  # noqa: E402,F401
     LEFT_GRIPPER_JOINTS,
     compute_gripper_tip_pose_b,
     compute_gripper_tip_pose_w,
+    compute_tip_ik_jacobian,
     resolve_body_ids,
 )
 import wato_constants  # noqa: E402,F401
