@@ -302,6 +302,18 @@ def _spawn_bimanual_arm_from_usd(prim_path, cfg, translation=None, orientation=N
 from isaaclab.sim.utils import clone  # noqa: E402
 
 spawn_bimanual_arm_from_usd = clone(_spawn_bimanual_arm_from_usd)
+# clone() uses functools.wraps, which copies the INNER function's __name__
+# ("_spawn_bimanual_arm_from_usd") onto this wrapped object. IsaacLab's config
+# (de)serialization (callable_to_string / string_to_callable, used by the Hydra
+# path in rsl_rl train.py) round-trips a callable as "module:__name__" — so the
+# wrapper would serialize as ".._spawn_bimanual_arm_from_usd" and resolve BACK to
+# the UNWRAPPED inner function, dropping the {ENV_REGEX_NS} path resolution the
+# clone wrapper provides and crashing scene creation ("Path must be an absolute
+# path: <>"). Restore the naming invariant the standard @clone decorator keeps
+# (module-level name == __name__) so the round-trip resolves to THIS wrapper.
+# Metadata-only: direct callers (teleop / pick_place / IL) are unaffected.
+spawn_bimanual_arm_from_usd.__name__ = "spawn_bimanual_arm_from_usd"
+spawn_bimanual_arm_from_usd.__qualname__ = "spawn_bimanual_arm_from_usd"
 
 
 BIMANUAL_ARM_CFG = ArticulationCfg(

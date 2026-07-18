@@ -5,7 +5,7 @@
 
 Example:
   PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play_distill_push.py \\
-    --task Isaac-SO-ARM101-Push-Block-Distill-Play-v0 --enable_cameras \\
+    --task Isaac-Bimanual-Push-Block-Distill-Play-v0 --enable_cameras \\
     --checkpoint logs/rsl_rl/push_distill/<run>/nn/student_1000.pt --num_envs 16
 """
 
@@ -16,7 +16,7 @@ import argparse
 from isaaclab.app import AppLauncher
 
 parser = argparse.ArgumentParser(description="Play distilled push-block student.")
-parser.add_argument("--task", type=str, default="Isaac-SO-ARM101-Push-Block-Distill-Play-v0")
+parser.add_argument("--task", type=str, default="Isaac-Bimanual-Push-Block-Distill-Play-v0")
 parser.add_argument("--num_envs", type=int, default=16)
 parser.add_argument("--checkpoint", type=str, required=True, help="Student .pt from distill_push.py")
 parser.add_argument("--num_steps", type=int, default=1000)

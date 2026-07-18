@@ -15,7 +15,7 @@ from isaaclab.sensors import TiledCameraCfg
 from isaaclab.utils import configclass
 
 from . import mdp
-from .joint_pos_env_cfg import SoArm101PushBlockEnvCfg, SoArm101PushBlockEnvCfg_PLAY
+from .bimanual_env_cfg import BimanualPushBlockEnvCfg, BimanualPushBlockEnvCfg_PLAY
 from .mdp.vision_dr import list_push_textures
 from .push_env_cfg import (
     BOX_EXCLUSION,
@@ -185,8 +185,8 @@ class DistillEventCfg(EventCfg):
 
 
 @configclass
-class SoArm101PushBlockDistillEnvCfg(SoArm101PushBlockEnvCfg):
-    """Push-block env with an external camera for vision distillation."""
+class BimanualPushBlockDistillEnvCfg(BimanualPushBlockEnvCfg):
+    """Push-block env with an external camera for vision distillation (bimanual arm)."""
 
     observations: DistillObservationsCfg = DistillObservationsCfg()
     events: DistillEventCfg = DistillEventCfg()
@@ -204,7 +204,7 @@ class SoArm101PushBlockDistillEnvCfg(SoArm101PushBlockEnvCfg):
 
 
 @configclass
-class SoArm101PushBlockDistillEnvCfg_PLAY(SoArm101PushBlockEnvCfg_PLAY):
+class BimanualPushBlockDistillEnvCfg_PLAY(BimanualPushBlockEnvCfg_PLAY):
     """Play/eval variant of the distillation env (vision DR off for clean eval)."""
 
     observations: DistillObservationsCfg = DistillObservationsCfg()
