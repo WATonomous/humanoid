@@ -23,12 +23,6 @@ if [ "$BEHAVIOUR_CHANGED" == 'true' ]; then
     MODIFIED_MODULES+="behaviour "
 fi
 
-# Samples
-if [ "$SAMPLES_CHANGED" == 'true' ]; then
-    echo "Detected samples changes"
-    MODIFIED_MODULES+="samples "
-fi
-
 # Simulation (Isaac skipped in CI; mjlab compose is simulation_mj)
 if [ "$SIMULATION_CHANGED" == 'true' ]; then
     echo "Detected simulation changes"
