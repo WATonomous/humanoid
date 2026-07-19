@@ -1,10 +1,12 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <vector>
 
 #include "common_msgs/msg/arm_pose.hpp"
 #include "common_msgs/msg/motor_cmd.hpp"
+#include "common_msgs/msg/motor_feedback.hpp"
 #include "joint_command_core.hpp"
 #include "rclcpp/rclcpp.hpp"
 
@@ -14,11 +16,13 @@ public:
 
 private:
   void armPoseCallback(const common_msgs::msg::ArmPose::SharedPtr msg);
+  void motorFeedbackCallback(const common_msgs::msg::MotorFeedback::SharedPtr msg);
   void controlTimerCallback();
   void publishMotorCommands(const std::vector<common_msgs::msg::MotorCmd>& cmds);
 
   JointCommandCore core_;
   rclcpp::Subscription<common_msgs::msg::ArmPose>::SharedPtr arm_pose_sub_;
+  rclcpp::Subscription<common_msgs::msg::MotorFeedback>::SharedPtr feedback_sub_;
   rclcpp::Publisher<common_msgs::msg::MotorCmd>::SharedPtr motor_cmd_pub_;
   rclcpp::TimerBase::SharedPtr control_timer_;
 
@@ -26,4 +30,11 @@ private:
   double control_rate_hz_{50.0};
   std::vector<common_msgs::msg::MotorCmd> latest_cmds_;
   bool have_latest_cmds_{false};
+
+  // Until every joint's real position has been seen and used to seed the rate-limiter,
+  // ArmPose messages are ignored -- otherwise the limiter would ramp from an assumed 0
+  // and command a large first step (slam) on any arm not physically at 0.
+  std::map<int, double> latest_feedback_;
+  bool seeded_from_feedback_{false};
+  bool logged_publish_count_{false};
 };

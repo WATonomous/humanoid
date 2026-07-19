@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <stdexcept>
 
 JointConfig JointCommandCore::loadJointConfig(const YAML::Node& joint_node) {
@@ -50,6 +51,26 @@ bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string&
   prev_targets_.assign(joints_.size(), 0.0);
   have_prev_targets_ = true;
   return true;
+}
+
+size_t JointCommandCore::seedPrevTargetsFromFeedback(const std::map<int, double>& motor_positions) {
+  std::vector<double> seeded(joints_.size(), 0.0);
+  size_t matched = 0;
+  for (size_t i = 0; i < joints_.size(); ++i) {
+    const auto it = motor_positions.find(static_cast<int>(joints_[i].motor_id));
+    if (it == motor_positions.end()) {
+      continue;  // motor not reporting (e.g. unwired wrist) -> leave at 0
+    }
+    // Inverse of applyCalibration (motor = direction * (cmd - zero_offset)):
+    //   cmd = zero_offset + motor / direction
+    const double dir =
+        (joints_[i].direction == 0) ? 1.0 : static_cast<double>(joints_[i].direction);
+    seeded[i] = joints_[i].zero_offset + it->second / dir;
+    ++matched;
+  }
+  prev_targets_ = std::move(seeded);
+  have_prev_targets_ = true;
+  return matched;
 }
 
 double JointCommandCore::clampAngle(double angle, const JointConfig& joint) {

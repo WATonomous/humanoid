@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -34,6 +35,19 @@ public:
 
   std::vector<common_msgs::msg::MotorCmd> armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
                                                              int8_t control_type);
+
+  // Seed the rate-limiter's "previous target" from measured motor angles so the first
+  // streamed ArmPose is velocity/delta-limited relative to the arm's ACTUAL pose, not an
+  // assumed 0. Without this, an arm not physically at 0 gets a large first command (the
+  // limiter ramps from 0), i.e. a slam. motor_positions: motor_id -> measured angle (deg).
+  // Joints whose motor is ABSENT from the map (e.g. an unwired wrist) are seeded to 0 --
+  // safe, because there is no physical motor there to slam. Returns the number of joints
+  // seeded from real feedback (the rest defaulted to 0).
+  size_t seedPrevTargetsFromFeedback(const std::map<int, double>& motor_positions);
+
+  const std::vector<double>& prevTargets() const {
+    return prev_targets_;
+  }
 
   size_t jointCount() const {
     return joints_.size();
