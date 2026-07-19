@@ -50,8 +50,8 @@ _DEFAULT_MAPPING = (
 
 # hardware_mapping.yaml label -> bimanual_arm_curobo.urdf joint name, per side.
 # Both chains are a serial shoulder(x3)-elbow(x2)-wrist(x1)-gripper(x2) stack in the
-# same joint order as hardware_mapping.yaml / ros_bridge.py's JOINT_INDEX, matching
-# how left_arm_assembly.urdf's descriptively-named joints line up 1:1 in that script.
+# same joint order as hardware_mapping.yaml, matching how left_arm_assembly.urdf's
+# descriptively-named joints line up 1:1.
 #
 # The "L"-suffixed chain (joint1L, joint2l, ...) IS the robot's left arm: confirmed by
 # ../../Teleop/keyboard_based_teleoperation/bimanual_arm_cfg.py's LEFT_ARM_JOINTS list

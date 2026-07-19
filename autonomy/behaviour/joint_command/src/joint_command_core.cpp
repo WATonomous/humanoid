@@ -59,7 +59,7 @@ size_t JointCommandCore::seedPrevTargetsFromFeedback(const std::map<int, double>
   for (size_t i = 0; i < joints_.size(); ++i) {
     const auto it = motor_positions.find(static_cast<int>(joints_[i].motor_id));
     if (it == motor_positions.end()) {
-      continue;  // motor not reporting (e.g. unwired wrist) -> leave at 0
+      continue; // motor not reporting (e.g. unwired wrist) -> leave at 0
     }
     // Inverse of applyCalibration (motor = direction * (cmd - zero_offset)):
     //   cmd = zero_offset + motor / direction
