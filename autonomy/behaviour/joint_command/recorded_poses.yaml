@@ -1,0 +1,22 @@
+# Recorded arm poses (left arm), captured by hand-positioning the disabled arm and reading
+# /interfacing/motorFeedback. Values are per-motor angles in the motors' zeroed frame
+# (= command frame, since calibration is currently identity: zero_offset 0, direction 1).
+#
+# ArmPose slot order: shoulder.position=[pitch(0x0E/14), roll(0x0C/12), yaw(0x0D/13)],
+#                     elbow.position=[pitch(0x0A/10), roll(0x0B/11)], wrist.position=[pitch(0x16/22)].
+# Wrist (22) is unwired -> 0.
+#
+# Replay a pose with the joint_command safety layer (see MOVE_ARM_RUNBOOK.md):
+#   ros2 topic pub -r 50 /behaviour/arm_pose common_msgs/msg/ArmPose \
+#     "{is_left: true, shoulder: {position: [...]}, elbow: {position: [...]}, wrist: {position: [0.0]}, include_hand_pose: false}"
+
+poses:
+  raised:            # pose 1: arm raised
+    shoulder: [-124.0, -40.5, -165.4]   # pitch, roll, yaw
+    elbow:    [-88.7, 14.1]             # pitch, roll
+    wrist:    [0.0]                     # pitch (unwired)
+
+  wave:              # pose 2: hand waving (shoulder_yaw ~+44 deg + elbow_pitch ~+18 deg vs raised)
+    shoulder: [-110.2, -40.4, -114.2]   # pitch, roll, yaw
+    elbow:    [-76.2, 13.1]             # pitch, roll
+    wrist:    [0.0]                     # pitch (unwired)

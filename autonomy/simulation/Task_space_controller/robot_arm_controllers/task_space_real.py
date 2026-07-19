@@ -5,17 +5,17 @@ A cube in the scene is the absolute gripper-tip pose target. Move the cube in
 the viewport and the left arm (6 revolute joints) follows via Differential IK.
 The right arm and both grippers are held at their default poses.
 
-Pass --ros to publish left-arm joint targets to /behaviour/arm_pose every 20ms
-for sim-to-real (see Wato_additional_scripts/robot_arm_controllers/ik_real.py).
-Pass --udp to send them over UDP instead (use when ROS Python version mismatches
-the Isaac Lab env).
+Pass --ros to publish left-arm joint targets to /behaviour/arm_pose every 20ms for
+sim-to-real. Pass --udp to send them over UDP to ros_bridge.py instead (use when the
+Isaac Lab env's Python can't import rclpy).
 
 Sim-to-real ROS2 architecture:
-    task_space_real.py ──► /behaviour/arm_pose ──► joint_command_node ──► /interfacing/motorCMD ──► can_node ──► AK motors (0x0A-0x0E, POSITION_VELOCITY extended frames)
-                                                └──► wrist_node.py     ──────────────────────────────────────► GL40 II (0x16, MIT standard frames)
+    task_space_real.py ──► /behaviour/arm_pose ──► joint_command_node ──► /interfacing/motorCMD ──► can_node ──► AK motors (0x0A-0x0E, POSITION_LOOP frames)
 
-Both joint_command_node and wrist_node.py subscribe to the same /behaviour/arm_pose topic.
-joint_command_node handles the 5 AK arm joints; wrist_node.py handles the GL40 II independently.
+joint_command_node consumes /behaviour/arm_pose and drives the 5 wired AK arm joints
+through the safety layer (seed-from-feedback + velocity/delta/low-pass; see
+autonomy/behaviour/joint_command). The 6th slot (wrist, 0x16) is currently unwired and
+ignored.
 """
 
 import argparse

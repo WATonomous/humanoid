@@ -87,15 +87,6 @@ install(PROGRAMS
 find_package(ament_lint_auto REQUIRED)
 ament_lint_auto_find_test_dependencies()
 
-# Add test executables (comment out if not needed in production)
-# Test controller that publishes to /test_controller topic
-add_executable(test_controller_node test/test_controller.cpp)
-ament_target_dependencies(test_controller_node rclcpp std_msgs)
-
-install(TARGETS
-  test_controller_node
-  DESTINATION lib/${PROJECT_NAME})
-
 install(
   DIRECTORY config/
   DESTINATION share/can/config

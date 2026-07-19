@@ -50,8 +50,8 @@ _DEFAULT_MAPPING = (
 
 # hardware_mapping.yaml label -> bimanual_arm_curobo.urdf joint name, per side.
 # Both chains are a serial shoulder(x3)-elbow(x2)-wrist(x1)-gripper(x2) stack in the
-# same joint order as hardware_mapping.yaml / ros_bridge.py's JOINT_INDEX, matching
-# how left_arm_assembly.urdf's descriptively-named joints line up 1:1 in that script.
+# same joint order as hardware_mapping.yaml, matching how left_arm_assembly.urdf's
+# descriptively-named joints line up 1:1.
 #
 # The "L"-suffixed chain (joint1L, joint2l, ...) IS the robot's left arm: confirmed by
 # ../../Teleop/keyboard_based_teleoperation/bimanual_arm_cfg.py's LEFT_ARM_JOINTS list
@@ -79,12 +79,24 @@ LABEL_TO_URDF_JOINT = {
 }
 
 
-def load_can_id_map(mapping_path: Path, arm_side: str) -> dict[int, dict]:
-    """hardware_mapping.yaml -> {can_id: {label, urdf_joint, direction, zero_offset, limits}}."""
-    with open(mapping_path) as f:
-        config = yaml.safe_load(f)[arm_side]
+def load_can_id_map(
+    mapping_path: Path,
+    hw_side: str,
+    urdf_side: str,
+    flip_labels: set[str] = frozenset(),
+    offset_labels: dict[str, float] | None = None,
+) -> dict[int, dict]:
+    """hardware_mapping.yaml -> {can_id: {label, urdf_joint, direction, zero_offset, limits}}.
 
-    label_to_joint = LABEL_TO_URDF_JOINT[arm_side]
+    hw_side picks which hardware_mapping.yaml section (real motors / CAN ids / calibration)
+    to read; urdf_side picks which URDF arm those angles drive. They differ when a physical
+    arm is mounted/wired as the opposite hand and you want the same feedback projected onto
+    the other arm in the scene (e.g. hw_side="left", urdf_side="right").
+    """
+    with open(mapping_path) as f:
+        config = yaml.safe_load(f)[hw_side]
+
+    label_to_joint = LABEL_TO_URDF_JOINT[urdf_side]
     can_id_map = {}
     for group, joints in config.items():
         for name, cfg in joints.items():
@@ -92,11 +104,19 @@ def load_can_id_map(mapping_path: Path, arm_side: str) -> dict[int, dict]:
             urdf_joint = label_to_joint.get(label)
             if urdf_joint is None:
                 continue
+            # Extra sign flip on top of hardware_mapping's own `direction`, applied only to
+            # this display projection (never to real MotorCmd). Needed per-joint when
+            # projecting onto the mirror-image opposite arm so it moves the intuitive way.
+            direction = int(cfg["direction"]) * (-1 if label in flip_labels else 1)
             can_id_map[int(cfg["can_id"])] = {
                 "label": label,
                 "urdf_joint": urdf_joint,
-                "direction": int(cfg["direction"]),
+                "direction": direction,
                 "zero_offset": float(cfg["zero_offset"]),
+                # Viewer-only constant added to the displayed angle (degrees). Use when the
+                # URDF's zero for a joint sits a fixed amount off the motor's zeroed frame.
+                # Never fed back into any MotorCmd.
+                "display_offset": float((offset_labels or {}).get(label, 0.0)),
                 "lower_limit": float(cfg["lower_limit"]),
                 "upper_limit": float(cfg["upper_limit"]),
             }
@@ -127,14 +147,28 @@ class FeedbackListener(Node):
         # feedback and never commands anything. Clamping display values froze any joint
         # whose real range exceeds its (still-uncalibrated, zero_offset=0) placeholder
         # limit, making it look motionless in sim while it kept moving for real.
-        joint_deg = cfg["zero_offset"] + cfg["direction"] * float(msg.position)
+        joint_deg = (
+            cfg["zero_offset"] + cfg["direction"] * float(msg.position) + cfg["display_offset"]
+        )
         with self.lock:
             self.latest_deg[cfg["urdf_joint"]] = joint_deg
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--arm-side", default="left", choices=["left", "right"])
+    parser.add_argument("--arm-side", default="left", choices=["left", "right"],
+                        help="hardware side: which hardware_mapping.yaml section / real motors to read")
+    parser.add_argument("--urdf-side", default=None, choices=["left", "right"],
+                        help="which URDF arm to drive with that feedback (default: same as --arm-side). "
+                             "Set to the opposite of --arm-side to project onto the other hand.")
+    parser.add_argument("--flip", nargs="*", default=[], metavar="LABEL",
+                        help="hardware_mapping labels whose sign to invert for this projection "
+                             "(e.g. shoulder_roll) -- useful when projecting onto the mirror-image "
+                             "opposite arm and a joint moves the wrong way.")
+    parser.add_argument("--offset", nargs="*", default=[], metavar="LABEL=DEG",
+                        help="viewer-only constant added to a joint's displayed angle, in degrees "
+                             "(e.g. shoulder_yaw=90) -- use when the URDF zero for that joint is a "
+                             "fixed amount off the motor's zeroed frame. Never touches real commands.")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--hz", type=float, default=30.0, help="scene refresh rate")
     parser.add_argument("--mapping", type=Path, default=_DEFAULT_MAPPING)
@@ -145,7 +179,14 @@ def main():
     data = mujoco.MjData(model)
     mujoco.mj_forward(model, data)
 
-    can_id_map = load_can_id_map(args.mapping, args.arm_side)
+    urdf_side = args.urdf_side or args.arm_side
+    offset_labels = {}
+    for item in args.offset:
+        label, _, val = item.partition("=")
+        offset_labels[label.strip()] = float(val)
+    can_id_map = load_can_id_map(
+        args.mapping, args.arm_side, urdf_side, set(args.flip), offset_labels
+    )
     if not can_id_map:
         raise RuntimeError(f"No joints resolved for arm_side={args.arm_side!r} in {args.mapping}")
 
@@ -154,9 +195,12 @@ def main():
         jid = model.joint(cfg["urdf_joint"]).id
         qpos_adr[cfg["urdf_joint"]] = int(model.jnt_qposadr[jid])
 
-    print(f"Tracking {len(can_id_map)} motors from {args.mapping} ({args.arm_side} arm):")
+    print(f"Tracking {len(can_id_map)} motors from {args.mapping} "
+          f"(hardware={args.arm_side} arm -> driving URDF {urdf_side} arm):")
     for can_id, cfg in sorted(can_id_map.items()):
-        print(f"  0x{can_id:02X} -> {cfg['label']:<14} -> {cfg['urdf_joint']}")
+        flip = "  (flipped)" if cfg["label"] in set(args.flip) else ""
+        off = f"  (offset {cfg['display_offset']:+g}°)" if cfg["display_offset"] else ""
+        print(f"  0x{can_id:02X} -> {cfg['label']:<14} -> {cfg['urdf_joint']}{flip}{off}")
 
     rclpy.init()
     node = FeedbackListener(can_id_map)

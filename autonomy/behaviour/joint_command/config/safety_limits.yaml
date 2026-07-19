@@ -3,34 +3,38 @@ safety:
     angle: "deg"
     velocity: "deg_s"
 
+  # NOTE (test config): position clamp is DISABLED so poses outside the placeholder
+  # hardware_mapping limits (±90 etc.) can be reached, and velocity_max is lowered to a
+  # slow crawl for first pose-to-pose tests. Velocity limiting + low-pass smoothing stay
+  # ON. Restore enable_position_clamp:true and higher velocities once limits are calibrated.
   global:
-    enable_position_clamp: true
+    enable_position_clamp: false
     enable_velocity_limit: true
     enable_delta_limit: true
     enable_low_pass: true
-    velocity_max: 120.0
+    velocity_max: 40.0
     delta_max: 2.4
     low_pass_alpha: 0.85
 
   joints:
     shoulder:
       pitch:
-        velocity_max: 100.0
+        velocity_max: 40.0
         delta_max: 2.0
       roll:
-        velocity_max: 100.0
+        velocity_max: 40.0
         delta_max: 2.0
       yaw:
-        velocity_max: 100.0
+        velocity_max: 40.0
         delta_max: 2.0
     elbow:
       pitch:
-        velocity_max: 80.0
+        velocity_max: 40.0
         delta_max: 1.6
       roll:
-        velocity_max: 80.0
+        velocity_max: 40.0
         delta_max: 1.6
     wrist:
       pitch:
-        velocity_max: 120.0
+        velocity_max: 40.0
         delta_max: 2.4
