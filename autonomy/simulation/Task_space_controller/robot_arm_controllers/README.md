@@ -32,7 +32,7 @@ ros2 launch joint_command joint_command.launch.py
 ```bash
 source /opt/ros/jazzy/setup.bash
 source /home/rwahib/wato/humanoid/autonomy/install/setup.bash
-/usr/bin/python3 autonomy/behaviour/joint_command/scripts/ros_bridge.py
+/usr/bin/python3 autonomy/behaviour/joint_command/scripts/udp_to_ros_bridge.py
 ```
 
 ## Terminal 4 -- task_space_real.py

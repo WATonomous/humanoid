@@ -94,6 +94,8 @@ Full checklist (power, CANable udev, calibrate, smoke test):
 
 → [autonomy/interfacing/can/README.md](autonomy/interfacing/can/README.md)
 
+For the full **calibrate → visualize → move** sequence: [ARM_BRINGUP.md](ARM_BRINGUP.md)
+
 Open arm work (sim mirror of calibrated joints in Isaac Lab, VR teleop, etc.) is listed there under **Open arm tasks**.
 
 ```bash

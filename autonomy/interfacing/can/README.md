@@ -70,16 +70,13 @@ Prompt per joint: **Is motor id N?** → **Enter** = yes · type `14` / `0x0E` =
 
 ## Open arm tasks (onboarding / assignable)
 
-Work that should land **before** heavy IK / teleop so new people do not fight broken joint frames:
+Live joint mirror, mjlab sim parity, and interactive calibration are done — see
+[ARM_BRINGUP.md](../../../ARM_BRINGUP.md) for the calibrate → visualize → move sequence.
 
 | Status | Task | Why |
 |--------|------|-----|
-| **TODO** | **Light joint mirror (preferred for calib verify)** — publish `sensor_msgs/JointState` from `/interfacing/motorFeedback` + `hardware_mapping.yaml`, show the arm URDF in **RViz2** (or Foxglove). Optional: overlay commanded vs measured | Fast check that zeros / signs / `can_id`s match reality; no GPU sim required. URDFs already exist under `Humanoid_Wato/arm_assembly/` |
-| **TODO** (later) | **Full sim parity** — same live joint stream into Isaac Lab / mjlab when validating teleop, IK, or policies | Heavier; use after the RViz check is green |
 | **TODO** | **VR teleop of the physical arm** — Quest (or similar) → real motors via teleop + `joint_command` / CAN | End-to-end teleop UX; assignable to one member |
-| In progress | Interactive calibration (`calibrate_arm.py`) + correct `can_id` / `zero_offset` in YAML | Foundation for the tasks above |
-
-Suggested acceptance (light path): move one real joint → same joint moves the same way in RViz; home pose in real ≈ home in the URDF.
+| **TODO** (later) | **Isaac Lab sim-to-real deployment** — `Task_space_controller/robot_arm_controllers/task_space_real.py` (IK) and the `reach` RL task (`HumanoidRLPackage/HumanoidRLSetup/tasks/reach`) driving the real arm (mjlab side already done) | Validates IK/policy behavior against real hardware, not just sim |
 
 ---
 

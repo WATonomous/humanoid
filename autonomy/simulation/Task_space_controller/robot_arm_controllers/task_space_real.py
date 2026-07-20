@@ -5,9 +5,9 @@ A cube in the scene is the absolute gripper-tip pose target. Move the cube in
 the viewport and the left arm (6 revolute joints) follows via Differential IK.
 The right arm and both grippers are held at their default poses.
 
-Pass --ros to publish left-arm joint targets to /behaviour/arm_pose every 20ms for
-sim-to-real. Pass --udp to send them over UDP to ros_bridge.py instead (use when the
-Isaac Lab env's Python can't import rclpy).
+Pass --udp to send left-arm joint targets over UDP to udp_to_ros_bridge.py for sim-to-real
+(the bridge republishes them as ArmPose on /behaviour/arm_pose). No flag = sim-only, no
+hardware output.
 
 Sim-to-real ROS2 architecture:
     task_space_real.py ──► /behaviour/arm_pose ──► joint_command_node ──► /interfacing/motorCMD ──► can_node ──► AK motors (0x0A-0x0E, POSITION_LOOP frames)
@@ -21,13 +21,11 @@ ignored.
 import argparse
 import os
 import sys
-import threading
 
 from isaaclab.app import AppLauncher
 
 parser = argparse.ArgumentParser(description="Bimanual arm task-space IK (cube target, left arm only)")
-parser.add_argument("--ros", action="store_true", help="Publish left-arm joint targets to ROS2.")
-parser.add_argument("--udp", action="store_true", help="Send joint angles over UDP to ros_bridge.py (use when ROS Python version mismatches Isaac Lab env).")
+parser.add_argument("--udp", action="store_true", help="Send joint angles over UDP to udp_to_ros_bridge.py for sim-to-real.")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 
@@ -68,12 +66,9 @@ from isaaclab.utils.math import subtract_frame_transforms  # noqa: E402
 import torch  # noqa: E402
 
 # ---------------------------------------------------------------------------
-# ROS2 / UDP setup — only initialized when --ros / --udp is passed so the sim
-# still runs standalone without a ROS2 environment.
-# Requires: source your ROS2 workspace that has common_msgs built.
+# UDP setup — only initialized when --udp is passed so the sim still runs
+# standalone without touching real hardware.
 # ---------------------------------------------------------------------------
-ros_pub = None
-ros_node = None
 udp_sock = None
 
 UDP_HOST = "127.0.0.1"
@@ -81,12 +76,6 @@ UDP_PORT = 5005
 
 # Sim-to-real publish period (matches joint_command_node's expected command rate).
 PUBLISH_PERIOD = 0.02  # seconds (20 ms)
-
-# Grace period before any command is sent to real hardware. joint_command_node applies
-# no velocity/delta rate-limiting to the very first ArmPose message it ever receives, so
-# this gives you time to manually position the real arm near the sim's starting pose
-# before that unramped first command goes out.
-PUBLISH_START_DELAY = 5.0  # seconds
 
 
 def init_udp():
@@ -96,54 +85,13 @@ def init_udp():
     print(f"[UDP] Sending joint angles to {UDP_HOST}:{UDP_PORT}")
 
 
-def init_ros():
-    global ros_pub, ros_node
-    import rclpy
-    from rclpy.node import Node
-    from common_msgs.msg import ArmPose
-
-    rclpy.init()
-    ros_node = Node("isaac_sim_arm_publisher")
-    ros_pub = ros_node.create_publisher(ArmPose, "/behaviour/arm_pose", 10)
-
-    # Spin ROS2 in a background thread so it doesn't block the sim loop
-    spin_thread = threading.Thread(target=rclpy.spin, args=(ros_node,), daemon=True)
-    spin_thread.start()
-    print("[ROS2] Publisher ready on /behaviour/arm_pose")
-
-
-def publish_joint_pos(joint_pos_des):
-    """Pack the 6 left-arm IK joint targets into ArmPose and publish.
-
-    joint_pos_des is in radians (Isaac Lab convention).
-    hardware_mapping.yaml limits and PositionDeg CAN signal expect degrees,
-    so convert here before publishing.
-    """
-    import math
-    from common_msgs.msg import ArmPose, JointState as WatoJointState
-
-    # Convert radians -> degrees for the CAN motor controller
-    q = [math.degrees(v) for v in joint_pos_des[0].tolist()]
-
-    msg = ArmPose()
-    msg.header.stamp = ros_node.get_clock().now().to_msg()
-
-    shoulder = WatoJointState()
-    shoulder.position = [q[0], q[1], q[2]]   # flexion, abduction, rotation
-    msg.shoulder = shoulder
-
-    elbow = WatoJointState()
-    elbow.position = [q[3], q[4]]             # flexion, forearm_rotation
-    msg.elbow = elbow
-
-    wrist = WatoJointState()
-    wrist.position = [q[5]]                   # wrist_extension
-    msg.wrist = wrist
-
-    ros_pub.publish(msg)
-
-
 def publish_joint_pos_udp(joint_pos_des):
+    # KNOWN GAP: these are raw Isaac Sim joint angles, sent as-is. joint_command_node
+    # treats whatever it receives as calibrated cmd-frame degrees (0 = wherever the real
+    # arm was physically posed during calibrate_arm.py's home step) -- but sim's qpos=0
+    # is an unrelated, arbitrary reference baked into the USD asset. No conversion between
+    # the two happens anywhere in this pipeline, so real-arm motion driven from here will
+    # not track the sim/cube target correctly.
     import math
     import struct
     q = [math.degrees(v) for v in joint_pos_des[0].tolist()]
@@ -240,13 +188,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     diff_ik_controller.reset(env_ids=torch.arange(scene.num_envs, device=sim.device))
 
     # Sim-to-real: accumulate sim time and publish joint targets every 20ms,
-    # independent of the physics step size.
+    # independent of the physics step size. No startup delay needed --
+    # joint_command_node seeds its rate-limiter from live feedback on the first
+    # ArmPose, so even that first command ramps from the real arm's actual pose.
     time_since_publish = 0.0
-    elapsed_time = 0.0
-    started_publishing = False
-    if ros_pub is not None or udp_sock is not None:
-        print(f"[INFO] Waiting {PUBLISH_START_DELAY:.0f}s before publishing to real "
-              f"hardware -- position the real arm near the sim's starting pose now.")
+    if udp_sock is not None:
+        print("[INFO] Publishing to real hardware.")
 
     while simulation_app.is_running():
         cube_pos_w, cube_quat_w = scene["cube"].get_world_poses()
@@ -286,22 +233,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             joint_ids=right_gripper_ids,
         )
 
-        # Send desired left-arm joint targets to the real arm via ROS2 or UDP bridge,
-        # throttled to PUBLISH_PERIOD (20ms) regardless of the physics step size, and
-        # held off entirely for PUBLISH_START_DELAY seconds after startup. time_since_publish
-        # only starts accumulating once the delay has passed, so it can't build up a backlog
-        # during the hold and then burst-publish to "catch up" once it ends.
-        elapsed_time += sim_dt
-        if elapsed_time >= PUBLISH_START_DELAY:
-            time_since_publish += sim_dt
-        if elapsed_time >= PUBLISH_START_DELAY and time_since_publish >= PUBLISH_PERIOD:
+        # Send desired left-arm joint targets to the real arm via the UDP bridge,
+        # throttled to PUBLISH_PERIOD (20ms) regardless of the physics step size.
+        time_since_publish += sim_dt
+        if time_since_publish >= PUBLISH_PERIOD:
             time_since_publish -= PUBLISH_PERIOD
-            if not started_publishing and (ros_pub is not None or udp_sock is not None):
-                started_publishing = True
-                print("[INFO] Publishing to real hardware now.")
-            if ros_pub is not None:
-                publish_joint_pos(joint_pos_des)
-            elif udp_sock is not None:
+            if udp_sock is not None:
                 publish_joint_pos_udp(joint_pos_des)
 
         scene.write_data_to_sim()
@@ -328,13 +265,7 @@ def main():
 
 
 if __name__ == "__main__":
-    if args_cli.ros:
-        init_ros()
-    elif args_cli.udp:
+    if args_cli.udp:
         init_udp()
     main()
     simulation_app.close()
-    if ros_node is not None:
-        import rclpy
-        ros_node.destroy_node()
-        rclpy.shutdown()

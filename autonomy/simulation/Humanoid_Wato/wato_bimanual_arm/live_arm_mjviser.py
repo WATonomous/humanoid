@@ -147,7 +147,7 @@ class FeedbackListener(Node):
         cfg = self.can_id_map.get(int(msg.motor_id))
         if cfg is None:
             return
-        # Invert the calibration transform ros_bridge.py applies to outgoing MotorCmd:
+        # Invert the calibration transform udp_to_ros_bridge.py applies to outgoing MotorCmd:
         # motor_deg = direction * (cmd_deg - zero_offset)  =>  cmd_deg = zero_offset + direction * motor_deg
         #
         # Deliberately NOT clamped to hardware_mapping.yaml's lower/upper_limit here --
