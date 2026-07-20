@@ -28,11 +28,11 @@ sys.path.insert(0, _KEYBOARD_TELEOP_DIR)
 from bimanual_arm_cfg import (  # noqa: E402
     BIMANUAL_ARM_CFG,
     GRIPPER_OPEN,
-    LEFT_ARM_JOINTS,
-    LEFT_EE_BODY,
-    LEFT_FINGER_TIP_BODIES,
-    LEFT_GRIPPER_JOINTS,
     RIGHT_ARM_JOINTS,
+    RIGHT_EE_BODY,
+    RIGHT_FINGER_TIP_BODIES,
+    RIGHT_GRIPPER_JOINTS,
+    LEFT_ARM_JOINTS,
     apply_joint_limits,
     compute_tip_ik_jacobian,
     compute_gripper_tip_pose_b,
@@ -86,10 +86,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     scene.update(sim_dt)
     apply_joint_limits(robot)
 
-    left_arm_names = [resolve_joint_name(robot, name) for name in LEFT_ARM_JOINTS]
+    right_arm_names = [resolve_joint_name(robot, name) for name in RIGHT_ARM_JOINTS]
     print(f"[INFO] Robot joints: {robot.data.joint_names}")
-    print(f"[INFO] Left arm IK joints: {left_arm_names}")
-    print(f"[INFO] Left wrist body (Jacobian anchor): {LEFT_EE_BODY}")
+    print(f"[INFO] Left arm IK joints: {right_arm_names}")
+    print(f"[INFO] Left wrist body (Jacobian anchor): {RIGHT_EE_BODY}")
     print("[INFO] IK tracks fingertip center (link7l/link8l mesh distal midpoint)")
 
     diff_ik_cfg = DifferentialIKControllerCfg(
@@ -105,7 +105,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     goal_marker = VisualizationMarkers(frame_marker_cfg.replace(prim_path="/Visuals/ee_goal"))
 
     robot_entity_cfg = SceneEntityCfg(
-        "robot", joint_names=left_arm_names, body_names=[LEFT_EE_BODY]
+        "robot", joint_names=right_arm_names, body_names=[RIGHT_EE_BODY]
     )
     robot_entity_cfg.resolve(scene)
 
@@ -113,16 +113,16 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         robot_entity_cfg.body_ids[0] - 1 if robot.is_fixed_base else robot_entity_cfg.body_ids[0]
     )
     wrist_body_id = robot_entity_cfg.body_ids[0]
-    finger_body_ids = resolve_body_ids(robot, LEFT_FINGER_TIP_BODIES)
+    finger_body_ids = resolve_body_ids(robot, RIGHT_FINGER_TIP_BODIES)
 
     left_arm_ids = robot_entity_cfg.joint_ids
-    left_gripper_ids = _joint_ids(robot, LEFT_GRIPPER_JOINTS)
-    right_joint_ids = _joint_ids(robot, RIGHT_ARM_JOINTS)
+    right_gripper_ids = _joint_ids(robot, RIGHT_GRIPPER_JOINTS)
+    left_joint_ids = _joint_ids(robot, LEFT_ARM_JOINTS)
     right_gripper_ids = _joint_ids(robot, ["joint7", "joint8"])
-    right_default_pos = robot.data.default_joint_pos[:, right_joint_ids].clone()
+    left_default_pos = robot.data.default_joint_pos[:, left_joint_ids].clone()
 
     gripper_open_targets = torch.tensor(
-        [[GRIPPER_OPEN[name] for name in LEFT_GRIPPER_JOINTS]],
+        [[GRIPPER_OPEN[name] for name in RIGHT_GRIPPER_JOINTS]],
         device=sim.device,
     )
 
@@ -166,8 +166,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         robot.set_joint_position_target(joint_pos_des, joint_ids=left_arm_ids)
 
         # Hold left gripper open; right arm + gripper at default pose
-        robot.set_joint_position_target(gripper_open_targets, joint_ids=left_gripper_ids)
-        robot.set_joint_position_target(right_default_pos, joint_ids=right_joint_ids)
+        robot.set_joint_position_target(gripper_open_targets, joint_ids=right_gripper_ids)
+        robot.set_joint_position_target(left_default_pos, joint_ids=left_joint_ids)
         robot.set_joint_velocity_target(
             torch.zeros(1, len(right_gripper_ids), device=sim.device),
             joint_ids=right_gripper_ids,

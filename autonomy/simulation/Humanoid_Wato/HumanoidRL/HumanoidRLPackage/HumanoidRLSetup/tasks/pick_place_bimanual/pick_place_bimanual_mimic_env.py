@@ -47,10 +47,10 @@ from .pick_place_env_cfg import (
     apply_task_params,
 )
 from .robot_cfg_shim import (
-    LEFT_ARM_JOINTS,
-    LEFT_EE_BODY,
-    LEFT_FINGER_TIP_BODIES,
-    LEFT_GRIPPER_JOINTS,
+    RIGHT_ARM_JOINTS,
+    RIGHT_EE_BODY,
+    RIGHT_FINGER_TIP_BODIES,
+    RIGHT_GRIPPER_JOINTS,
     PickPlaceTaskParams,
     compute_gripper_tip_pose_b,
     compute_tip_ik_jacobian,
@@ -256,9 +256,9 @@ class PickPlaceBimanualMimicEnv(ManagerBasedRLMimicEnv):
 
         robot = self.scene["robot"]
         joint_names = list(robot.data.joint_names)
-        self._left_arm_ids = [joint_names.index(j) for j in LEFT_ARM_JOINTS]
-        self._wrist_body_id, = resolve_body_ids(robot, [LEFT_EE_BODY])
-        self._finger_body_ids = resolve_body_ids(robot, list(LEFT_FINGER_TIP_BODIES))
+        self._right_arm_ids = [joint_names.index(j) for j in RIGHT_ARM_JOINTS]
+        self._wrist_body_id, = resolve_body_ids(robot, [RIGHT_EE_BODY])
+        self._finger_body_ids = resolve_body_ids(robot, list(RIGHT_FINGER_TIP_BODIES))
         self._ee_jacobi_idx = self._wrist_body_id - 1 if robot.is_fixed_base else self._wrist_body_id
 
         self._diff_ik = DifferentialIKController(
@@ -292,7 +292,7 @@ class PickPlaceBimanualMimicEnv(ManagerBasedRLMimicEnv):
 
         robot = self.scene["robot"]
         root_pose_w = robot.data.root_state_w[env_id : env_id + 1, 0:7]
-        joint_pos = robot.data.joint_pos[env_id : env_id + 1][:, self._left_arm_ids]
+        joint_pos = robot.data.joint_pos[env_id : env_id + 1][:, self._right_arm_ids]
         ee_pose_w = robot.data.body_state_w[env_id : env_id + 1, self._wrist_body_id, 0:7]
         ee_pos_b, _ = subtract_frame_transforms(
             root_pose_w[:, 0:3], root_pose_w[:, 3:7], ee_pose_w[:, 0:3], ee_pose_w[:, 3:7]
@@ -303,7 +303,7 @@ class PickPlaceBimanualMimicEnv(ManagerBasedRLMimicEnv):
 
         self._diff_ik.set_command(torch.cat([target_pos, target_quat], dim=0).unsqueeze(0))
         jacobian_w = robot.root_physx_view.get_jacobians()[
-            env_id : env_id + 1, self._ee_jacobi_idx, :, self._left_arm_ids
+            env_id : env_id + 1, self._ee_jacobi_idx, :, self._right_arm_ids
         ]
         jacobian = compute_tip_ik_jacobian(robot, jacobian_w, ee_pos_b, tip_pos_b)
         joint_pos_des = self._diff_ik.compute(tip_pos_b, tip_quat_b, jacobian, joint_pos)[0]

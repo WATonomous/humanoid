@@ -28,6 +28,8 @@ CanNode::CanNode() : Node("can_node"), can_core(this->get_logger()) {
     }
   }
 
+  loadMitProfiles();
+
   // Load parameters from config/params.yaml
   this->declare_parameter("can_interface", "can0");
   this->declare_parameter("device_path", "/dev/canable");
@@ -210,16 +212,36 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
     }
 
     case common_msgs::msg::MotorCmd::MIT_CONTROL: {
+      // MIT_KP/KD/Position/Velocity/Torque are DBC signals with factor=1, offset=0 -- i.e.
+      // their "physical value" IS the raw fixed-point code the manual's packing formula
+      // produces, not real units (rad, rad/s, Nm). msg->kp/kd/position/velocity/torque are
+      // real physical units, so they must be converted via packMitValue() + this motor's
+      // MitProfile BEFORE calling encodeSignal, using the int64_t (raw) overload. Passing
+      // physical values straight through here (as a prior version of this code did) would
+      // silently command the wrong stiffness/torque/position.
+      const auto it = mit_profiles_.find(static_cast<int>(msg->motor_id));
+      if (it == mit_profiles_.end()) {
+        RCLCPP_ERROR(this->get_logger(),
+                     "MIT_CONTROL requested for motor %d with no MIT profile loaded "
+                     "(see config/mit_profiles.yaml) -- refusing to send an unscaled command.",
+                     static_cast<int>(msg->motor_id));
+        return;
+      }
+      const MitProfile& p = it->second;
       dbc_msg = can_messages["MITControlCmd"];
       CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
-      // Can additionally add this to the config file reducing network overhead
-      encodeSignal(findSignalByName(dbc_msg, "MIT_KP"), static_cast<double>(msg->kp), can_msg);
-      encodeSignal(findSignalByName(dbc_msg, "MIT_KD"), static_cast<double>(msg->kd), can_msg);
-      encodeSignal(findSignalByName(dbc_msg, "MIT_Position"), static_cast<double>(msg->position),
+      encodeSignal(findSignalByName(dbc_msg, "MIT_KP"),
+                   static_cast<int64_t>(packMitValue(msg->kp, p.kp_min, p.kp_max, 12)), can_msg);
+      encodeSignal(findSignalByName(dbc_msg, "MIT_KD"),
+                   static_cast<int64_t>(packMitValue(msg->kd, p.kd_min, p.kd_max, 12)), can_msg);
+      encodeSignal(findSignalByName(dbc_msg, "MIT_Position"),
+                   static_cast<int64_t>(packMitValue(msg->position, p.p_min, p.p_max, 16)),
                    can_msg);
-      encodeSignal(findSignalByName(dbc_msg, "MIT_Velocity"), static_cast<double>(msg->velocity),
+      encodeSignal(findSignalByName(dbc_msg, "MIT_Velocity"),
+                   static_cast<int64_t>(packMitValue(msg->velocity, p.v_min, p.v_max, 12)),
                    can_msg);
-      encodeSignal(findSignalByName(dbc_msg, "MIT_Torque"), static_cast<double>(msg->torque),
+      encodeSignal(findSignalByName(dbc_msg, "MIT_Torque"),
+                   static_cast<int64_t>(packMitValue(msg->torque, p.t_min, p.t_max, 12)),
                    can_msg);
       publishCanMessage(can_msg);
       break;
@@ -246,6 +268,54 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
 
   RCLCPP_DEBUG(this->get_logger(), "CAN message sent for control_type=%d motor=%d",
                static_cast<int>(msg->control_type), static_cast<int>(msg->motor_id));
+}
+
+void CanNode::loadMitProfiles() {
+  const std::string path =
+      ament_index_cpp::get_package_share_directory("can") + "/config/mit_profiles.yaml";
+  YAML::Node root;
+  try {
+    root = YAML::LoadFile(path);
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(this->get_logger(), "Failed to load MIT profiles from %s: %s. MIT_CONTROL "
+                                     "commands will be refused for all motors.",
+                 path.c_str(), e.what());
+    return;
+  }
+  const YAML::Node motors = root["motors"];
+  if (!motors) {
+    RCLCPP_ERROR(this->get_logger(), "MIT profiles file %s has no 'motors' key", path.c_str());
+    return;
+  }
+  for (const auto& kv : motors) {
+    const int motor_id = std::stoi(kv.first.as<std::string>());
+    const YAML::Node n = kv.second;
+    MitProfile p;
+    p.p_min = n["p_min"].as<double>();
+    p.p_max = n["p_max"].as<double>();
+    p.v_min = n["v_min"].as<double>();
+    p.v_max = n["v_max"].as<double>();
+    p.t_min = n["t_min"].as<double>();
+    p.t_max = n["t_max"].as<double>();
+    p.kp_min = n["kp_min"].as<double>();
+    p.kp_max = n["kp_max"].as<double>();
+    p.kd_min = n["kd_min"].as<double>();
+    p.kd_max = n["kd_max"].as<double>();
+    mit_profiles_[motor_id] = p;
+    RCLCPP_INFO(this->get_logger(), "Loaded MIT profile for motor %d (%s)", motor_id,
+                n["model"] ? n["model"].as<std::string>().c_str() : "?");
+  }
+}
+
+// CubeMars AK-series manual (V3.2.0) section 4.2 float_to_uint: clamp phys to [min, max],
+// then raw = (phys - min) * (2^bits / (max - min)). NOT (phys-min)/(max-min)*(2^bits - 1) --
+// matches the manual's example code exactly (verified against its C reference impl).
+uint32_t CanNode::packMitValue(double phys, double min, double max, unsigned bits) {
+  if (phys < min) phys = min;
+  if (phys > max) phys = max;
+  const double span = max - min;
+  const double scale = static_cast<double>(1u << bits) / span;
+  return static_cast<uint32_t>((phys - min) * scale);
 }
 
 void CanNode::encodeSignal(const dbcppp::ISignal* signal, int64_t phys_value, CanMessage& can_msg) {

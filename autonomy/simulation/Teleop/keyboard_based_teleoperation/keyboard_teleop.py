@@ -76,10 +76,10 @@ from bimanual_arm_cfg import (
     BIMANUAL_ARM_CFG,
     GRIPPER_CLOSED,
     GRIPPER_OPEN,
-    LEFT_ARM_JOINTS,
-    LEFT_EE_BODY,
-    LEFT_GRIPPER_JOINTS,
     RIGHT_ARM_JOINTS,
+    RIGHT_EE_BODY,
+    RIGHT_GRIPPER_JOINTS,
+    LEFT_ARM_JOINTS,
     apply_joint_limits,
     resolve_joint_name,
 )
@@ -202,18 +202,18 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     scene.update(sim_dt)
     apply_joint_limits(robot)
 
-    left_arm_names = [resolve_joint_name(robot, name) for name in LEFT_ARM_JOINTS]
-    left_gripper_names = [resolve_joint_name(robot, name) for name in LEFT_GRIPPER_JOINTS]
     right_arm_names = [resolve_joint_name(robot, name) for name in RIGHT_ARM_JOINTS]
+    right_gripper_names = [resolve_joint_name(robot, name) for name in RIGHT_GRIPPER_JOINTS]
+    left_arm_names = [resolve_joint_name(robot, name) for name in LEFT_ARM_JOINTS]
 
     print(f"[INFO] Robot joints: {robot.data.joint_names}")
-    print(f"[INFO] Left arm joints: {left_arm_names}")
-    print(f"[INFO] Right arm hold joints: {right_arm_names}")
+    print(f"[INFO] Left arm joints: {right_arm_names}")
+    print(f"[INFO] Right arm hold joints: {left_arm_names}")
 
     diff_ik_cfg = DifferentialIKControllerCfg(command_type="pose", use_relative_mode=True, ik_method="dls")
     diff_ik_controller = DifferentialIKController(diff_ik_cfg, num_envs=scene.num_envs, device=sim.device)
 
-    robot_entity_cfg = SceneEntityCfg("robot", joint_names=left_arm_names, body_names=[LEFT_EE_BODY])
+    robot_entity_cfg = SceneEntityCfg("robot", joint_names=right_arm_names, body_names=[RIGHT_EE_BODY])
     robot_entity_cfg.resolve(scene)
 
     ee_jacobi_idx = robot_entity_cfg.body_ids[0] - 1 if robot.is_fixed_base else robot_entity_cfg.body_ids[0]
@@ -221,21 +221,21 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     finger_body_ids = _body_ids(robot, _FINGER_TIP_BODIES)
 
     left_arm_ids = robot_entity_cfg.joint_ids
-    left_gripper_ids = _joint_ids(robot, LEFT_GRIPPER_JOINTS)
-    right_joint_ids = _joint_ids(robot, RIGHT_ARM_JOINTS)
+    right_gripper_ids = _joint_ids(robot, RIGHT_GRIPPER_JOINTS)
+    left_joint_ids = _joint_ids(robot, LEFT_ARM_JOINTS)
     right_gripper_ids = _joint_ids(robot, ["joint7", "joint8"])
-    right_default_pos = robot.data.default_joint_pos[:, right_joint_ids].clone()
+    left_default_pos = robot.data.default_joint_pos[:, left_joint_ids].clone()
 
     joint_pos = robot.data.default_joint_pos.clone()
     joint_vel = robot.data.default_joint_vel.clone()
     robot.write_joint_state_to_sim(joint_pos, joint_vel)
 
     gripper_open_targets = torch.tensor(
-        [[GRIPPER_OPEN[name] for name in LEFT_GRIPPER_JOINTS]],
+        [[GRIPPER_OPEN[name] for name in RIGHT_GRIPPER_JOINTS]],
         device=sim.device,
     )
     gripper_closed_targets = torch.tensor(
-        [[GRIPPER_CLOSED[name] for name in LEFT_GRIPPER_JOINTS]],
+        [[GRIPPER_CLOSED[name] for name in RIGHT_GRIPPER_JOINTS]],
         device=sim.device,
     )
 
@@ -307,12 +307,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         # Hold gripper fingers at synchronized open/closed pair (one GL40 motor on hardware).
         # High stiffness in cfg + zero velocity target prevents bounce when the arm moves.
         gripper_targets = gripper_closed_targets if close_gripper else gripper_open_targets
-        zero_gripper_vel = torch.zeros(1, len(left_gripper_ids), device=sim.device)
-        robot.set_joint_position_target(gripper_targets, joint_ids=left_gripper_ids)
-        robot.set_joint_velocity_target(zero_gripper_vel, joint_ids=left_gripper_ids)
+        zero_gripper_vel = torch.zeros(1, len(right_gripper_ids), device=sim.device)
+        robot.set_joint_position_target(gripper_targets, joint_ids=right_gripper_ids)
+        robot.set_joint_velocity_target(zero_gripper_vel, joint_ids=right_gripper_ids)
 
         # Keep right arm fixed at default pose (including coupled gripper fingers)
-        robot.set_joint_position_target(right_default_pos, joint_ids=right_joint_ids)
+        robot.set_joint_position_target(left_default_pos, joint_ids=left_joint_ids)
         robot.set_joint_velocity_target(
             torch.zeros(1, len(right_gripper_ids), device=sim.device),
             joint_ids=right_gripper_ids,

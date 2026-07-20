@@ -67,16 +67,21 @@ DEFAULT_JOINT_POS = {
     "joint8l": 0.0,
 }
 
-LEFT_ARM_JOINTS = ["joint1L", "joint2l", "joint3l", "joint4l", "joint5l", "joint6l"]
-LEFT_GRIPPER_JOINTS = ["joint7l", "joint8l"]
-RIGHT_ARM_JOINTS = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]
-RIGHT_GRIPPER_JOINTS = ["joint7", "joint8"]
+# NOTE: the "L"-suffixed URDF chain (joint1L..joint6l) is the robot's REAL,
+# CAN-actuated arm -- confirmed against real hardware (autonomy/interfacing).
+# The mechanical/CAD naming ("L" for what it called "left") was WRONG: this
+# chain is physically the robot's RIGHT arm. Corrected here; the unsuffixed
+# chain (joint1..joint6) is the LEFT arm (mirrored/locked, not CAN-actuated).
+RIGHT_ARM_JOINTS = ["joint1L", "joint2l", "joint3l", "joint4l", "joint5l", "joint6l"]
+RIGHT_GRIPPER_JOINTS = ["joint7l", "joint8l"]
+LEFT_ARM_JOINTS = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]
+LEFT_GRIPPER_JOINTS = ["joint7", "joint8"]
 
-# Joints frozen for planning: right arm + both grippers (grippers are driven
+# Joints frozen for planning: left arm + both grippers (grippers are driven
 # directly as a synchronized pair, outside the planner).
 LOCKED_JOINTS = {
     name: DEFAULT_JOINT_POS[name]
-    for name in RIGHT_ARM_JOINTS + RIGHT_GRIPPER_JOINTS + LEFT_GRIPPER_JOINTS
+    for name in LEFT_ARM_JOINTS + LEFT_GRIPPER_JOINTS + RIGHT_GRIPPER_JOINTS
 }
 
 # NOTE: intentionally INVERTED relative to bimanual_arm_cfg.py. Measured from
@@ -93,16 +98,16 @@ GRIPPER_CLOSED = {"joint7l": -0.05, "joint8l": 0.05}
 FINGER_PAD_BELOW_TIP = 0.0445
 GRIPPER_OPEN_GAP = 0.095
 
-LEFT_EE_BODY = "link6l"
-LEFT_FINGER_TIP_BODIES = ("link7l", "link8l")
-LEFT_FINGER_DISTAL_TIP_LOCAL = {
+RIGHT_EE_BODY = "link6l"
+RIGHT_FINGER_TIP_BODIES = ("link7l", "link8l")
+RIGHT_FINGER_DISTAL_TIP_LOCAL = {
     "link7l": (0.13211595, -0.04057075, -0.00434997),
     "link8l": (-0.13211595, -0.04057075, -0.00435003),
 }
 
 # Fingertip-center offset expressed in the link6l (wrist) frame. Constant for
 # a synchronized gripper pair (q7l = -q8l): derived from joint7l/joint8l URDF
-# origins + LEFT_FINGER_DISTAL_TIP_LOCAL. Fingers extend along wrist -Y.
+# origins + RIGHT_FINGER_DISTAL_TIP_LOCAL. Fingers extend along wrist -Y.
 #   x: ((-0.016558 + 0.13211595) + (0.085558 - 0.13211595)) / 2
 #   y: -0.10361 - 0.04057075
 #   z: 0.004349 - 0.00434997

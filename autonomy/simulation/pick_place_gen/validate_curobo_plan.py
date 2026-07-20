@@ -80,7 +80,7 @@ def fk_calibration(kin) -> dict:
         [[wc.DEFAULT_JOINT_POS[n] for n in names]], device="cuda", dtype=torch.float32
     )
     state = kin.compute_kinematics(JointState.from_position(q, joint_names=names))
-    pose = state.tool_poses.get_link_pose(wc.LEFT_EE_BODY)
+    pose = state.tool_poses.get_link_pose(wc.RIGHT_EE_BODY)
     wrist_pos = pose.position.view(-1).cpu().numpy()
     wrist_quat = pose.quaternion.view(-1).cpu().numpy()
     tip_pos = wrist_pos + quat_to_mat(wrist_quat) @ np.array(wc.FINGERTIP_OFFSET_IN_WRIST)
@@ -136,7 +136,7 @@ def run_grid(args):
 
     # Baseline: near-default goal must plan, else the setup itself is broken
     # (e.g. start state in collision with the table).
-    pose0 = planner.compute_kinematics(q_start).tool_poses.get_link_pose(wc.LEFT_EE_BODY)
+    pose0 = planner.compute_kinematics(q_start).tool_poses.get_link_pose(wc.RIGHT_EE_BODY)
     p0 = pose0.position.view(1, 1, 1, 1, 3).clone()
     p0[..., 2] += 0.05
     base_goal = GoalToolPose(

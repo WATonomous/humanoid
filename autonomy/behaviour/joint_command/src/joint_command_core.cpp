@@ -113,6 +113,12 @@ JointSafetyConfig JointCommandCore::loadJointSafetyConfig(const YAML::Node& join
     cfg.low_pass_alpha = joint_node["low_pass_alpha"].as<double>();
   }
   cfg.low_pass_alpha = std::clamp(cfg.low_pass_alpha, 0.0, 1.0);
+  if (joint_node["mit_kp"]) {
+    cfg.mit_kp = joint_node["mit_kp"].as<double>();
+  }
+  if (joint_node["mit_kd"]) {
+    cfg.mit_kd = joint_node["mit_kd"].as<double>();
+  }
   return cfg;
 }
 
@@ -203,10 +209,24 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose, int8
     }
     next_targets[i] = target;
 
+    const double calibrated_deg = applyCalibration(target, joints_[i]);
+
     common_msgs::msg::MotorCmd cmd;
     cmd.motor_id = joints_[i].motor_id;
     cmd.control_type = control_type;
-    cmd.position = static_cast<float>(applyCalibration(target, joints_[i]));
+    if (control_type == common_msgs::msg::MotorCmd::MIT_CONTROL) {
+      // can_node's MIT path expects position in RADIANS (CubeMars manual MIT protocol),
+      // unlike POSITION_LOOP's PositionDeg which is degrees -- see can_node.cpp packMitValue.
+      // velocity/torque feed-forward left at 0 (pure position+PD hold via kp/kd).
+      constexpr double kDegToRad = 3.14159265358979323846 / 180.0;
+      cmd.position = static_cast<float>(calibrated_deg * kDegToRad);
+      cmd.velocity = 0.0f;
+      cmd.torque = 0.0f;
+      cmd.kp = static_cast<float>(safety.mit_kp);
+      cmd.kd = static_cast<float>(safety.mit_kd);
+    } else {
+      cmd.position = static_cast<float>(calibrated_deg);
+    }
     commands.push_back(cmd);
   }
 

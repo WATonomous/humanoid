@@ -16,11 +16,17 @@ Then open http://<host>:8080 (mjviser's default port, already published by the
 mjlabs compose service) to watch qpos update as the real motors move.
 
 Only hardware_mapping.yaml's "left" side is wired/calibrated today, so only that
-chain is driven live; the other arm stays in its rest pose. In the URDF, the
-robot's left arm is the "L"-suffixed chain (joint1L, joint2l, ..., joint6l) --
-confirmed by mirrored origins (y=-0.16355 vs y=+0.16355 relative to base_link).
-"Left" here means the robot's own left arm, i.e. it appears on your RIGHT if
-you're standing facing the test stand.
+chain is driven live; the other arm stays in its rest pose. hardware_mapping.yaml's
+"left"/"right" keys are the real CAN-wiring labels and are NOT affected by the
+note below -- they're an unrelated namespace from the URDF's own joint naming.
+
+CORRECTED (per direct visual confirmation): the URDF's "L"-suffixed chain
+(joint1L, joint2l, ..., joint6l) is physically the robot's RIGHT arm, not left
+-- the mechanical/CAD naming ("L" for what it called left) was wrong. The
+unsuffixed chain (joint1, joint2, ..., joint6) is the LEFT arm. This does not
+change LABEL_TO_URDF_JOINT below: it maps hardware_mapping.yaml's wiring side to
+whichever URDF chain is physically wired to it, which hasn't changed -- only
+what that URDF chain should be CALLED has.
 
 The gripper (hardware_mapping.yaml can_id 0x15, command-frame units 0-100) has no
 confirmed scale to the prismatic finger joints' travel in meters (joint7l/joint8l),
@@ -53,12 +59,14 @@ _DEFAULT_MAPPING = (
 # same joint order as hardware_mapping.yaml, matching how left_arm_assembly.urdf's
 # descriptively-named joints line up 1:1.
 #
-# The "L"-suffixed chain (joint1L, joint2l, ...) IS the robot's left arm: confirmed by
-# ../../Teleop/keyboard_based_teleoperation/bimanual_arm_cfg.py's LEFT_ARM_JOINTS list
-# and its "left_shoulder"/"left_elbow"/"left_wrist" ImplicitActuatorCfg groups, sourced
-# from Isaac Sim Physics Inspector. (A previous version of this file had this swapped --
-# the likely real cause of that was the now-removed clamp bug above making the correctly-
-# mapped chain look frozen, not an actual left/right mixup.)
+# The "L"-suffixed chain (joint1L, joint2l, ...) is physically the robot's RIGHT arm --
+# ../../Teleop/keyboard_based_teleoperation/bimanual_arm_cfg.py's RIGHT_ARM_JOINTS list
+# and its "right_shoulder"/"right_elbow"/"right_wrist" ImplicitActuatorCfg groups
+# (sourced from Isaac Sim Physics Inspector) were corrected to match -- the mechanical/
+# CAD "L" naming had this backwards. (A previous version of this file had the OPPOSITE
+# swap, i.e. matched the CAD's original left/right claim; the likely real cause of that
+# earlier confusion was the now-removed clamp bug above, not an actual mixup on top of
+# this one -- these are two separate, unrelated corrections made in different sessions.)
 LABEL_TO_URDF_JOINT = {
     "left": {
         "shoulder_pitch": "joint1L",

@@ -10,6 +10,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <yaml-cpp/yaml.h>
 
 // Messages
 #include "rclcpp/generic_subscription.hpp"
@@ -22,6 +23,18 @@
 #include "common_msgs/msg/motor_cmd.hpp"
 #include "common_msgs/msg/motor_feedback.hpp"
 #include "std_msgs/msg/string.hpp"
+
+// Per-motor MIT (Force Control) protocol scaling constants -- see config/mit_profiles.yaml.
+// Physical position/velocity/torque/kp/kd MIN..MAX for THIS motor model, used to pack
+// floats into the MIT CAN frame's raw fixed-point fields. Differs per AK motor model
+// (e.g. AK10-9 vs AK80-9 have different velocity/torque ranges).
+struct MitProfile {
+  double p_min, p_max;
+  double v_min, v_max;
+  double t_min, t_max;
+  double kp_min, kp_max;
+  double kd_min, kd_max;
+};
 
 class CanNode : public rclcpp::Node {
 public:
@@ -49,6 +62,13 @@ private:
   void encodeSignal(const dbcppp::ISignal* signal, double phys_value, CanMessage& can_msg);
   int32_t getMessageId(const dbcppp::IMessage* msg, int device_id) const;
   void receiveCanMessages();
+
+  // MIT (Force Control) support: per-motor scaling constants + the manual's float_to_uint
+  // packing formula. See config/mit_profiles.yaml and can/README.md / MIT protocol section
+  // of the CubeMars AK-series manual.
+  std::unordered_map<int, MitProfile> mit_profiles_;
+  void loadMitProfiles();
+  static uint32_t packMitValue(double phys, double min, double max, unsigned bits);
 
   // Subscribers and publishers
   std::unordered_map<std::string, rclcpp::SubscriptionBase::SharedPtr> _subscribers;

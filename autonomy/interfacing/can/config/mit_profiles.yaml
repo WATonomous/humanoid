@@ -1,0 +1,18 @@
+# Per-motor MIT (Force Control) protocol scaling constants, from the CubeMars AK-series
+# manual (V3.2.0, section 4.2 "Parameter Ranges"). These are the physical MIN/MAX each
+# motor model uses to pack floats into the MIT CAN frame's raw fixed-point fields -- they
+# are NOT the same as hardware_mapping.yaml's calibration (zero_offset/direction/limits),
+# which only applies to POSITION_LOOP. Wrong values here would pack an incorrect raw code
+# and command an unintended stiffness/torque/position via MIT_CONTROL.
+#
+# position (rad), velocity (rad/s), torque (N.m); kp/kd ranges are shared across AK models.
+# Keyed by motor CAN id (decimal), matching hardware_mapping.yaml's left-arm can_id values.
+
+motors:
+  # AK10-9 -- shoulder_pitch (0x0E), shoulder_roll (0x0C)
+  "14": {model: AK10-9, p_min: -12.56, p_max: 12.56, v_min: -28.0, v_max: 28.0, t_min: -54.0, t_max: 54.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
+  "12": {model: AK10-9, p_min: -12.56, p_max: 12.56, v_min: -28.0, v_max: 28.0, t_min: -54.0, t_max: 54.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
+  # AK80-9 -- shoulder_yaw (0x0D), elbow_pitch (0x0A), elbow_roll (0x0B)
+  "13": {model: AK80-9, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
+  "10": {model: AK80-9, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
+  "11": {model: AK80-9, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
