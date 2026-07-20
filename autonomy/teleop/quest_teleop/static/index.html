@@ -168,15 +168,19 @@
         };
       }
 
-      // ── POV quad (both-arms overview camera feed) ────────────────────────
+      // ── POV quad (stereo both-arms overview camera feed) ─────────────────
       // Drawn HUD-locked (eye-space only, no view matrix) so it's always
       // visible regardless of head orientation -- a floating picture-in-
-      // picture panel, not a world-anchored object. Texture is refreshed
-      // periodically from /pov.png, a plain static file that
-      // run_quest_bimanual_teleop.py overwrites ~10x/sec by capturing its
-      // "Both-Arms POV" Kit viewport (see _POV_FRAME_PATH in that script) --
-      // webxr_server.py serves it with zero server-side changes since it's
-      // just another file in the static dir.
+      // picture panel, not a world-anchored object. Full-screen sized (not a
+      // small corner panel) so it reads as an immersive view, not a window.
+      // TWO textures (left/right eye), each refreshed from its own static
+      // file (/pov_left.png, /pov_right.png) that run_quest_bimanual_teleop.py
+      // overwrites ~10x/sec by capturing two IPD-separated Kit viewports that
+      // follow your real head pose (see head_pose in the WS payload below and
+      // _EYE_CAMERA_* in that script) -- real stereo depth + head-tracked
+      // look-around, not a flat mono image. webxr_server.py serves both
+      // files with zero server-side changes, same as the old single-eye
+      // panel.
       function createQuadRenderer(gl) {
         const program = createProgram(
           gl,
@@ -207,7 +211,7 @@
         gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
         gl.bufferData(
           gl.ARRAY_BUFFER,
-          new Float32Array([-0.3, -0.225, 0.3, -0.225, -0.3, 0.225, 0.3, 0.225]),
+          new Float32Array([-1.1, -0.825, 1.1, -0.825, -1.1, 0.825, 1.1, 0.825]),
           gl.STATIC_DRAW
         );
 
@@ -215,20 +219,8 @@
         gl.bindBuffer(gl.ARRAY_BUFFER, texBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]), gl.STATIC_DRAW);
 
-        const texture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        // Placeholder 1x1 opaque-black pixel until the first frame loads, so
-        // the quad doesn't sample from an uninitialized texture (undefined
-        // behaviour / driver-dependent garbage on some WebGL implementations).
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
-
         return {
           program,
-          texture,
           aPosition: gl.getAttribLocation(program, "aPosition"),
           aTexCoord: gl.getAttribLocation(program, "aTexCoord"),
           posBuffer,
@@ -239,7 +231,21 @@
         };
       }
 
-      function drawPovQuad(gl, renderer, projectionMatrix) {
+      function createEyeTexture(gl) {
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        // Placeholder 1x1 opaque-black pixel until the first frame loads, so
+        // the quad doesn't sample from an uninitialized texture (undefined
+        // behaviour / driver-dependent garbage on some WebGL implementations).
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+        return texture;
+      }
+
+      function drawPovQuad(gl, renderer, projectionMatrix, texture) {
         gl.useProgram(renderer.program);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, renderer.posBuffer);
@@ -251,7 +257,7 @@
         gl.vertexAttribPointer(renderer.aTexCoord, 2, gl.FLOAT, false, 0, 0);
 
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, renderer.texture);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.uniform1i(renderer.uTexture, 0);
 
         gl.uniformMatrix4fv(renderer.uProjection, false, projectionMatrix);
@@ -304,24 +310,30 @@
           });
           const pointRenderer = createPointRenderer(gl);
           const quadRenderer = createQuadRenderer(gl);
+          const leftEyeTexture = createEyeTexture(gl);
+          const rightEyeTexture = createEyeTexture(gl);
 
-          // Periodically fetch the latest POV frame and stash it; the actual
-          // gl.texImage2D upload happens once in onFrame (not here) since
-          // WebGL calls must happen on the frame that has the XR context
-          // bound -- this loop just keeps a decoded ImageBitmap ready.
-          let pendingPovBitmap = null;
-          async function refreshPovTexture() {
+          // Periodically fetch both eyes' latest POV frames and stash them;
+          // the actual gl.texImage2D upload happens once in onFrame (not
+          // here) since WebGL calls must happen on the frame that has the XR
+          // context bound -- this loop just keeps decoded ImageBitmaps ready.
+          let pendingLeftBitmap = null;
+          let pendingRightBitmap = null;
+          async function refreshPovTexture(path, setPending) {
             try {
-              const res = await fetch(`/pov.png?t=${Date.now()}`, { cache: "no-store" });
+              const res = await fetch(`${path}?t=${Date.now()}`, { cache: "no-store" });
               if (!res.ok) return;
               const blob = await res.blob();
-              pendingPovBitmap = await createImageBitmap(blob);
+              setPending(await createImageBitmap(blob));
             } catch (e) {
               // Transient fetch/decode failure (frame not written yet, network
               // hiccup) -- next interval tick retries, nothing to do here.
             }
           }
-          const povFetchInterval = setInterval(refreshPovTexture, 200);
+          const povFetchInterval = setInterval(() => {
+            refreshPovTexture("/pov_left.png", (bmp) => { pendingLeftBitmap = bmp; });
+            refreshPovTexture("/pov_right.png", (bmp) => { pendingRightBitmap = bmp; });
+          }, 200);
           session.addEventListener("end", () => clearInterval(povFetchInterval));
 
           session.updateRenderState({
@@ -339,7 +351,8 @@
               left_wrist: emptyPose(),
               right_wrist: emptyPose(),
               left_hand_joints: Array(75).fill(0),
-              right_hand_joints: Array(75).fill(0)
+              right_hand_joints: Array(75).fill(0),
+              head_pose: emptyPose()
             };
 
             for (const inputSource of session.inputSources) {
@@ -359,14 +372,21 @@
               }
             }
 
-            if (pendingPovBitmap) {
-              gl.bindTexture(gl.TEXTURE_2D, quadRenderer.texture);
-              gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pendingPovBitmap);
-              pendingPovBitmap = null;
+            if (pendingLeftBitmap) {
+              gl.bindTexture(gl.TEXTURE_2D, leftEyeTexture);
+              gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pendingLeftBitmap);
+              pendingLeftBitmap = null;
+            }
+            if (pendingRightBitmap) {
+              gl.bindTexture(gl.TEXTURE_2D, rightEyeTexture);
+              gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pendingRightBitmap);
+              pendingRightBitmap = null;
             }
 
             const pose = frame.getViewerPose(refSpace);
             if (pose) {
+              payload.head_pose = poseToJson(pose);
+
               gl.bindFramebuffer(gl.FRAMEBUFFER, session.renderState.baseLayer.framebuffer);
               gl.enable(gl.DEPTH_TEST);
               gl.clearColor(0.0, 0.0, 0.0, useAr ? 0.0 : 1.0);
@@ -376,7 +396,11 @@
                 const viewport = session.renderState.baseLayer.getViewport(view);
                 gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
 
-                drawPovQuad(gl, quadRenderer, view.projectionMatrix);
+                // view.eye is "left"/"right"/"none" per the WebXR spec -- fall
+                // back to the left texture for "none" (mono/AR passthrough
+                // frames with a single combined view, no eye separation).
+                const eyeTexture = view.eye === "right" ? rightEyeTexture : leftEyeTexture;
+                drawPovQuad(gl, quadRenderer, view.projectionMatrix, eyeTexture);
 
                 drawHandPoints(
                   gl,

@@ -70,6 +70,14 @@ sys.path.insert(0, str(_KEYBOARD_TELEOP_DIR))
 parser = argparse.ArgumentParser(description="Quest bimanual arm teleop (both arms: DLS fingertip IK)")
 parser.add_argument("--gain", type=float, default=1.0,
                     help="Motion gain: metres of EE motion per metre of real wrist motion")
+parser.add_argument("--publish-real-left-arm", action="store_true",
+                    help="Also publish the left arm's DLS-solved joint targets to /behaviour/arm_pose for "
+                         "joint_command_node to drive the REAL physical left arm over CAN. Off by default -- "
+                         "sim-only unless explicitly requested. RIGHT ARM HAS NO REAL-HARDWARE CAN MAPPING YET "
+                         "(hardware_mapping.yaml only has a left: section) -- this flag does not and cannot "
+                         "touch the right arm. Requires can_node + joint_command_node already running, the "
+                         "CANable adapter connected, e-stop armed, and the real arm manually positioned near "
+                         "the sim's rest pose (see PUBLISH_START_DELAY below).")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 
@@ -150,6 +158,11 @@ _QUEST_TO_WORLD = torch.tensor(
      [0.0, 1.0, 0.0]],
     dtype=torch.float32,
 )
+# X (first component) reverted back to +1 (2026-07-20, third time) -- the
+# _HOME_TIP_X_OFFSET experiment that motivated flipping this to -1 has been
+# removed (see that constant's comment): the arm stays at its natural rest
+# position (X~0.42), so +1 (reach extends toward +X, matching the camera --
+# also reverted to face +X) is correct again.
 _AXIS_SIGN_LEFT = torch.tensor([1.0, -1.0, 1.0])
 _AXIS_SIGN_RIGHT = torch.tensor([1.0, -1.0, 1.0])
 
@@ -158,6 +171,28 @@ _GAIN_RAMP_START_M = 0.15
 _GAIN_RAMP_END_M = 0.35
 
 _MAX_REACH_M = 0.28
+
+# Home/rest IK target X offset -- REMOVED (2026-07-20). Was used to drag the
+# arm's rest position to the other side of the mount/stand brace, but the
+# user flagged that this made IK behavior inconsistent between the natural
+# (front) and offset (back) positions and asked for it to just run where the
+# arms naturally are. Reverted to 0 -- the fix for "camera doesn't see the
+# grippers" is now entirely on the camera/enclosure side (aim the camera at
+# the arms' real rest position; the enclosure was already widened on
+# 2026-07-20 to comfortably contain it), not by moving the arm itself.
+_HOME_TIP_X_OFFSET = 0.0
+
+# Real-hardware bridge timing (2026-07-20, see --publish-real-left-arm).
+# Mirrors Task_space_controller/robot_arm_controllers/task_space_real.py's
+# PUBLISH_PERIOD/PUBLISH_START_DELAY exactly -- same joint_command_node on
+# the other end, same reasoning: it applies NO velocity/delta rate-limiting
+# to the very first ArmPose message it ever receives after startup, so an
+# un-delayed first publish could snap the real arm hard from wherever it
+# physically is to the sim's current target. The delay gives a human time to
+# manually position the real arm near the sim pose first. Do not shorten
+# this without re-reading that rationale.
+_REAL_ARM_PUBLISH_PERIOD_S = 0.02  # 20ms = 50Hz, matches joint_command_node's control_rate_hz
+_REAL_ARM_PUBLISH_START_DELAY_S = 5.0
 
 # Base-yaw trial (2026-07-18) tried and REJECTED -- user confirmed it swung
 # the gripper to the wrong side of the mount/stand bar. Reverting to the
@@ -205,77 +240,114 @@ _DLS_LAMBDA = 0.2
 _DLS_LAMBDA_RIGHT = 0.35
 
 _ENCLOSURE_MATERIAL = sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0), emissive_color=(1.0, 1.0, 1.0))
-# Shifted back 0.2m (2026-07-18) -- after the base-yaw joint trial (moving the
-# arm instead) was rejected as the wrong direction, the fix is to move the box
-# instead of the arm: same depth (X_SPAN unchanged), whole box translated
-# toward -X to clear the mount/stand structural bar the back wall was
-# crowding. Trial magnitude -- check live whether 0.2m is enough clearance or
-# needs more.
-_ENCLOSURE_X_SHIFT = -0.2
-_ENCLOSURE_BACK_X = -0.25 + _ENCLOSURE_X_SHIFT
+# Back wall shifted back 0.2m (2026-07-18) to clear the mount/stand
+# structural bar. Front boundary extended out to 0.75m (2026-07-20) -- the
+# open "front" (+X) edge used to be at just 0.123m, but the rest EE position
+# is at X~0.42-0.43 (confirmed via the live root-pose diagnostic) and full
+# reach extends _MAX_REACH_M=0.28m further, i.e. up to ~0.71m -- the arms
+# were sticking out past the box's own front boundary the whole time. 0.75m
+# gives a bit of margin beyond full reach so the arms are always inside the
+# enclosure, not straddling its edge.
+_ENCLOSURE_BACK_X = -0.45
+_ENCLOSURE_FRONT_X = 0.75  # open front (arm reach direction) -- extended to actually contain the arms, see above
 _ENCLOSURE_Y_MIN = -0.9
 _ENCLOSURE_Y_MAX = 1.0
 _ENCLOSURE_TOP_Z = 0.9
-_ENCLOSURE_FRONT_X = 0.323 + _ENCLOSURE_X_SHIFT  # open front (arm reach direction), shifted with the rest of the box
 _ENCLOSURE_Y_CTR = (_ENCLOSURE_Y_MIN + _ENCLOSURE_Y_MAX) / 2
 _ENCLOSURE_Y_SPAN = _ENCLOSURE_Y_MAX - _ENCLOSURE_Y_MIN
 _ENCLOSURE_X_SPAN = _ENCLOSURE_FRONT_X - _ENCLOSURE_BACK_X
 _ENCLOSURE_X_CTR = (_ENCLOSURE_BACK_X + _ENCLOSURE_FRONT_X) / 2
 
 
-_TABLE_X_MIN, _TABLE_X_MAX = _ENCLOSURE_BACK_X, 0.6
+_TABLE_X_MIN, _TABLE_X_MAX = _ENCLOSURE_BACK_X, _ENCLOSURE_FRONT_X  # matches the enclosure's new footprint
 _TABLE_Y_MIN, _TABLE_Y_MAX = _ENCLOSURE_Y_MIN, _ENCLOSURE_Y_MAX
 _TABLE_THICKNESS = 0.05
 
-# External RealSense D455, mounted on top of the base_link brace (the shared
-# mount structure between the two arms) so a single feed shows BOTH grippers
-# at once -- an operator overview camera, same idea as Ramy's PerceptionCamera
-# in the old bimanual_arm_lightbox.usd (a plain Camera, not an rsd455 asset)
-# and the SO101 vial task's camera_external_D455 (an rsd455 mounted on the
-# lightbox, not the arm itself). Mounted as a child of base_link (not the env
-# root) so it's expressed in the robot's own base frame -- rest tip base-frame
-# X is ~0.42-0.43 (both grippers reach in +X, see the "[Quest][diag] rest EE
-# pos" log line), so identity orientation (rsd455's local +X = lens boresight)
-# already faces the grippers without a yaw flip. Height/offset above the brace
-# is an untested first guess -- tune live.
+# Stereo head-tracked camera pair (real immersion, not a flat single-camera
+# POV window): two RealSense D455s mounted on base_link, one per eye,
+# IPD-separated, that follow the operator's real head pose each frame (see
+# head_pose in QuestHandPose.msg / index.html's payload.head_pose). Same
+# "home on first tracked sample, then home + world-frame delta" pattern as
+# the wrist-driven arms below -- head_home_xyz/quat track the anchor, the
+# _HEAD_VIEWPOINT_HOME pose (base-frame, relative to base_link) is where the
+# viewpoint sits when your head is at its home pose.
+#
+# rsd455's local axes (measured against the actual payload, see
+# run_quest_openxr_bimanual_teleop.py's docstring and the original
+# bimanual_arm_lightbox.usd wrist-camera comments): +X = lens boresight
+# (forward), +Z = up. For a right-handed frame that makes local -Y "right"
+# (forward x up = X x Z = -Y) -- IPD offset is applied along that axis,
+# rotated by the viewpoint's current orientation each frame.
 _RSD455_USD_URL = (
     "https://omniverse-content-production.s3-us-west-2.amazonaws.com/"
     "Assets/Isaac/5.1/Isaac/Sensors/Intel/RealSense/rsd455.usd"
 )
-_EXTERNAL_CAMERA_MOUNT = (
-    (0.0, 0.0, 0.75),                              # translate xyz, relative to base_link
-    (0.9238795325112867, 0.0, 0.3826834323650898, 0.0),  # orient wxyz -- 45deg downward pitch about Y (was identity/level)
-)
+_HEAD_VIEWPOINT_HOME_POS = (0.0, 0.0, 0.75)  # translate xyz, relative to base_link -- same as old single camera
+_HEAD_VIEWPOINT_HOME_QUAT = (0.9026085152688121, 0.0, 0.43046238879166954, 0.0)  # ~51deg downward pitch about Y, facing +X
+# Precisely computed look-at (2026-07-20), not a round-number guess like the
+# earlier 45deg versions: direction from _HEAD_VIEWPOINT_HOME_POS (0,0,0.75)
+# to the actual average of both arms' natural rest tip positions
+# (~(0.422, 0.016, 0.229), from the "[Quest][diag] rest EE pos" log line),
+# via atan2 of the XZ-plane components (Y offset is small, ~0.016m, ignored
+# for this single-axis-rotation aim). _HOME_TIP_X_OFFSET is back to 0 (see
+# that constant) so this targets the arms' one true rest position again, not
+# a moving target.
+_EYE_LOCAL_RIGHT = torch.tensor([0.0, -1.0, 0.0])
+_EYE_IPD_M = 0.063
 # Sub-path to the actual renderable Camera prim inside the rsd455 payload --
 # same as the SO101 vial task's camera_external_D455 (task_env_cfg.py).
 _RSD455_CAMERA_SUBPATH = "rsd455/RSD455/Camera_OmniVision_OV9782_Right"
 
 
-def _attach_rsd455_camera(parent_prim_path: str, translate: tuple, orient_wxyz: tuple) -> str:
-    """Attach an rsd455 payload as a `camera_mount` child Xform of any prim
-    (a robot link for a wrist camera, or the env root for a fixed external
-    one). Returns the camera_mount prim path."""
+def _attach_rsd455_camera(parent_prim_path: str, mount_name: str, translate: tuple, orient_wxyz: tuple) -> str:
+    """Attach an rsd455 payload as a `mount_name` child Xform of any prim.
+    Returns the mount prim path. Safe to call _set_mount_pose(..., create=
+    False) on the returned path repeatedly afterward -- see that function's
+    docstring for why create=True is only used once, here."""
+    mount_path = f"{parent_prim_path}/{mount_name}"
+    _set_mount_pose(mount_path, translate, orient_wxyz, create=True)
     stage = omni.usd.get_context().get_stage()
-    mount_path = f"{parent_prim_path}/camera_mount"
-    mount_xform = UsdGeom.Xform.Define(stage, mount_path)
-    xformable = UsdGeom.Xformable(mount_xform)
-    xformable.ClearXformOpOrder()
-    xformable.AddTranslateOp(precision=UsdGeom.XformOp.PrecisionDouble).Set(Gf.Vec3d(*translate))
-    w, x, y, z = orient_wxyz
-    xformable.AddOrientOp(precision=UsdGeom.XformOp.PrecisionDouble).Set(Gf.Quatd(w, Gf.Vec3d(x, y, z)))
-
     rsd_prim = stage.DefinePrim(f"{mount_path}/rsd455")
     rsd_prim.GetPayloads().AddPayload(_RSD455_USD_URL)
     return mount_path
 
 
+def _set_mount_pose(mount_path: str, translate: tuple, orient_wxyz: tuple, create: bool = False) -> None:
+    """Set (or create) a camera mount Xform's translate/orient. Called every
+    frame for the stereo eye mounts to follow head tracking.
+
+    NOTE: AddTranslateOp()/AddOrientOp() are NOT idempotent in this USD
+    version -- calling them again on a prim that already has that op raises
+    'xformOp already exists in xformOpOrder' (confirmed live, this used to
+    assume otherwise and crashed on the second frame). So ops are added ONCE
+    at create=True, and every subsequent call fetches the existing ops via
+    GetOrderedXformOps() and .Set()s them directly instead."""
+    stage = omni.usd.get_context().get_stage()
+    if create:
+        prim = UsdGeom.Xform.Define(stage, mount_path)
+        xformable = UsdGeom.Xformable(prim)
+        xformable.ClearXformOpOrder()
+        translate_op = xformable.AddTranslateOp(precision=UsdGeom.XformOp.PrecisionDouble)
+        orient_op = xformable.AddOrientOp(precision=UsdGeom.XformOp.PrecisionDouble)
+    else:
+        prim = stage.GetPrimAtPath(mount_path)
+        xformable = UsdGeom.Xformable(prim)
+        ops = xformable.GetOrderedXformOps()
+        translate_op = next(op for op in ops if op.GetOpType() == UsdGeom.XformOp.TypeTranslate)
+        orient_op = next(op for op in ops if op.GetOpType() == UsdGeom.XformOp.TypeOrient)
+
+    translate_op.Set(Gf.Vec3d(*translate))
+    w, x, y, z = orient_wxyz
+    orient_op.Set(Gf.Quatd(w, Gf.Vec3d(x, y, z)))
+
+
 def _open_pov_viewport(camera_prim_path: str, window_name: str):
     """Best-effort: open a Kit viewport window locked to a camera prim, for a
-    live wrist-POV feed on the host monitor. Returns the viewport_api (so the
-    caller can periodically capture frames from it -- see
-    _POV_FRAME_PATH/capture_viewport_to_file in run_simulator) or None if the
-    viewport extension isn't available in this Kit experience -- this is a
-    convenience feature, not required for teleop to function."""
+    live POV feed on the host monitor AND the source for the periodic
+    capture_viewport_to_file calls that feed the Quest browser (see
+    _POV_FRAME_PATH_LEFT/RIGHT in run_simulator). Returns the viewport_api or
+    None if the viewport extension isn't available in this Kit experience --
+    a missing viewport degrades the feed, it doesn't crash teleop."""
     try:
         from omni.kit.viewport.utility import create_viewport_window
 
@@ -287,12 +359,18 @@ def _open_pov_viewport(camera_prim_path: str, window_name: str):
         return None
 
 
-# Frame the POV viewport gets captured to, for the Quest browser to fetch.
-# Lives in the WebXR static dir (autonomy/teleop/quest_teleop/static/) so
-# webxr_server.py's existing SimpleHTTPRequestHandler serves it as a plain
-# static file -- no server code changes needed. Captured every
-# _POV_CAPTURE_EVERY_N_STEPS sim steps (100Hz sim loop / 10 = ~10Hz feed).
-_POV_FRAME_PATH = _SIM_DIR.parent / "teleop" / "quest_teleop" / "static" / "pov.png"
+# Frames the eye viewports get captured to, for the Quest browser to fetch as
+# payload.head_pose-tracked stereo textures (see index.html's
+# leftEyeTexture/rightEyeTexture). Live in the WebXR static dir
+# (autonomy/teleop/quest_teleop/static/) so webxr_server.py's existing
+# SimpleHTTPRequestHandler serves them as plain static files -- no server
+# code changes needed. Captured every _POV_CAPTURE_EVERY_N_STEPS sim steps
+# (100Hz sim loop / 10 = ~10Hz feed); the camera mounts themselves are
+# repositioned every frame (cheap USD attribute writes) so head tracking
+# feels responsive even though the rendered image only updates at ~10Hz.
+_POV_STATIC_DIR = _SIM_DIR.parent / "teleop" / "quest_teleop" / "static"
+_POV_FRAME_PATH_LEFT = _POV_STATIC_DIR / "pov_left.png"
+_POV_FRAME_PATH_RIGHT = _POV_STATIC_DIR / "pov_right.png"
 _POV_CAPTURE_EVERY_N_STEPS = 10
 
 
@@ -412,6 +490,39 @@ def _pinch_dist(hand_joints: list) -> float:
     return (thumb - index).norm().item()
 
 
+def _publish_real_left_arm_pose(pub, clock_node, joint_pos_des_rad) -> None:
+    """Build and publish an ArmPose for the real left arm from a DLS
+    solution. Field layout/units copied EXACTLY from
+    Task_space_controller/robot_arm_controllers/task_space_real.py's
+    publish_joint_pos -- same LEFT_ARM_JOINTS order (joint1L, joint2l,
+    joint3l, joint4l, joint5l, joint6l) maps 1:1 to
+    shoulder(flexion,abduction,rotation) / elbow(flexion,forearm_rotation) /
+    wrist(extension), degrees (hardware_mapping.yaml + the CAN PositionDeg
+    signal expect degrees, joint_pos_des is radians)."""
+    import math
+
+    from common_msgs.msg import ArmPose as WatoArmPose, JointState as WatoJointState
+
+    q = [math.degrees(v) for v in joint_pos_des_rad[0].tolist()]
+
+    msg = WatoArmPose()
+    msg.header.stamp = clock_node.get_clock().now().to_msg()
+
+    shoulder = WatoJointState()
+    shoulder.position = [q[0], q[1], q[2]]
+    msg.shoulder = shoulder
+
+    elbow = WatoJointState()
+    elbow.position = [q[3], q[4]]
+    msg.elbow = elbow
+
+    wrist = WatoJointState()
+    wrist.position = [q[5]]
+    msg.wrist = wrist
+
+    pub.publish(msg)
+
+
 def _ee_pose_in_base(robot, body_id: int):
     root_pose_w = robot.data.root_state_w[:, 0:7]
     ee_pose_w = robot.data.body_state_w[:, body_id, 0:7]
@@ -452,6 +563,11 @@ class _ArmDlsController:
         self.home_tip_pos_b: torch.Tensor | None = None
         self.home_tip_quat_b: torch.Tensor | None = None
         self.wrist_orient_offset: torch.Tensor | None = None
+        # Latest DLS solution in arm_joint_names order, radians -- read by the
+        # optional real-hardware bridge (see --publish-real-left-arm) to build
+        # ArmPose messages. Not used for anything sim-side; solve_and_apply
+        # already applies the solution to the sim robot directly.
+        self.last_joint_pos_des: torch.Tensor | None = None
 
     def tip_pose_b(self, robot, root_pose_w):
         return compute_gripper_tip_pose_b(
@@ -469,6 +585,7 @@ class _ArmDlsController:
         self.controller.set_command(torch.cat([target_pos_b, target_quat_b], dim=1))
         joint_pos = robot.data.joint_pos[:, self.arm_ids]
         joint_pos_des = self.controller.compute(tip_pos_b, tip_quat_b, jacobian_b, joint_pos)
+        self.last_joint_pos_des = joint_pos_des
 
         # Snap directly to the DLS solution instead of waiting on the PD
         # actuator to catch up — see module docstring for why (live testing
@@ -493,18 +610,27 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     scene.update(sim_dt)
     apply_joint_limits(robot)
 
+    _root_pose_w_diag = robot.data.root_state_w[0, :7].tolist()
+    print(f"[Quest][diag] robot root world pose (pos xyz, quat wxyz)={_root_pose_w_diag}", flush=True)
+
     _base_link_prim_path = "/World/envs/env_0/Robot/base_link"  # num_envs is always 1 in this script
     _base_link_prim = omni.usd.get_context().get_stage().GetPrimAtPath(_base_link_prim_path)
     print(f"[Quest] base_link prim valid={_base_link_prim.IsValid()} "
           f"authored={_base_link_prim.HasAuthoredReferences() or _base_link_prim.GetTypeName() != ''} "
           f"body_names={list(robot.data.body_names)}", flush=True)
-    external_cam_mount = _attach_rsd455_camera(_base_link_prim_path, *_EXTERNAL_CAMERA_MOUNT)
-    print(f"[Quest] External RealSense D455 (both-arms overview, on base_link brace) attached: {external_cam_mount}", flush=True)
-    pov_viewport_api = _open_pov_viewport(f"{external_cam_mount}/{_RSD455_CAMERA_SUBPATH}", "Both-Arms POV")
-    if pov_viewport_api is not None:
-        _POV_FRAME_PATH.parent.mkdir(parents=True, exist_ok=True)
-        print(f"[Quest] POV feed will be captured to {_POV_FRAME_PATH} "
-              f"(served by webxr_server.py's static handler at /pov.png)", flush=True)
+    left_eye_mount = _attach_rsd455_camera(
+        _base_link_prim_path, "left_eye_camera_mount", _HEAD_VIEWPOINT_HOME_POS, _HEAD_VIEWPOINT_HOME_QUAT
+    )
+    right_eye_mount = _attach_rsd455_camera(
+        _base_link_prim_path, "right_eye_camera_mount", _HEAD_VIEWPOINT_HOME_POS, _HEAD_VIEWPOINT_HOME_QUAT
+    )
+    print(f"[Quest] Stereo head-tracked RealSense D455 pair attached: {left_eye_mount}, {right_eye_mount}", flush=True)
+    left_eye_viewport_api = _open_pov_viewport(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}", "Left Eye POV")
+    right_eye_viewport_api = _open_pov_viewport(f"{right_eye_mount}/{_RSD455_CAMERA_SUBPATH}", "Right Eye POV")
+    if left_eye_viewport_api is not None and right_eye_viewport_api is not None:
+        _POV_STATIC_DIR.mkdir(parents=True, exist_ok=True)
+        print(f"[Quest] Stereo POV feed will be captured to {_POV_FRAME_PATH_LEFT} / {_POV_FRAME_PATH_RIGHT} "
+              f"(served by webxr_server.py's static handler at /pov_left.png, /pov_right.png)", flush=True)
 
     left_arm_names = [resolve_joint_name(robot, n) for n in LEFT_ARM_JOINTS]
     right_arm_names = [resolve_joint_name(robot, n) for n in _RIGHT_ARM_JOINTS]
@@ -542,18 +668,49 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     root_pose_w0 = robot.data.root_state_w[:, 0:7]
     init_tip_pos_b_l, init_tip_quat_b_l = left_arm.tip_pose_b(robot, root_pose_w0)
     init_tip_pos_b_r, init_tip_quat_b_r = right_arm.tip_pose_b(robot, root_pose_w0)
-    print(f"[Quest][diag] rest EE pos (base frame) L(tip)={init_tip_pos_b_l[0].tolist()} "
-          f"R(tip)={init_tip_pos_b_r[0].tolist()}", flush=True)
+    print(f"[Quest][diag] rest EE pos (base frame, from FK of default joint pose) "
+          f"L(tip)={init_tip_pos_b_l[0].tolist()} R(tip)={init_tip_pos_b_r[0].tolist()}", flush=True)
+    init_tip_pos_b_l[:, 0] += _HOME_TIP_X_OFFSET
+    init_tip_pos_b_r[:, 0] += _HOME_TIP_X_OFFSET
+    print(f"[Quest][diag] rest EE pos AFTER _HOME_TIP_X_OFFSET={_HOME_TIP_X_OFFSET} (IK target, not yet solved) "
+          f"L(tip)={init_tip_pos_b_l[0].tolist()} R(tip)={init_tip_pos_b_r[0].tolist()}", flush=True)
 
     rclpy.init()
     receiver = QuestRosReceiver()
     threading.Thread(target=rclpy.spin, args=(receiver,), daemon=True).start()
+
+    # Real-hardware bridge (left arm only, see --publish-real-left-arm help
+    # text and the module-level REAL_ARM_PUBLISH_* constants for the safety
+    # rationale). Publisher is created on the SAME node/spin-thread as the
+    # Quest receiver above rather than a second rclpy context.
+    real_left_arm_pub = None
+    real_left_arm_elapsed_s = 0.0
+    real_left_arm_since_publish_s = 0.0
+    real_left_arm_started = False
+    if args_cli.publish_real_left_arm:
+        from common_msgs.msg import ArmPose as WatoArmPose, JointState as WatoJointState
+
+        real_left_arm_pub = receiver.create_publisher(WatoArmPose, "/behaviour/arm_pose", 10)
+        print(f"[Quest][REAL HARDWARE] Left arm will start publishing to /behaviour/arm_pose in "
+              f"{_REAL_ARM_PUBLISH_START_DELAY_S:.0f}s. Position the REAL left arm near the sim's "
+              f"rest pose NOW. Right arm is NOT published (no hardware CAN mapping exists).", flush=True)
 
     # Targets applied every frame (unconditionally), updated only while tracked.
     target_pos_b_left = init_tip_pos_b_l.clone()
     target_quat_b_left = init_tip_quat_b_l.clone()
     target_pos_b_right = init_tip_pos_b_r.clone()
     target_quat_b_right = init_tip_quat_b_r.clone()
+
+    # Head-tracked stereo viewpoint state -- same home-on-first-tracked-sample
+    # pattern as the arms above, homed independently (a person can start
+    # moving their head before their wrists are tracked or vice versa).
+    head_home_xyz: torch.Tensor | None = None
+    head_home_quat: torch.Tensor | None = None
+    head_home_viewpoint_pos_b = torch.tensor([_HEAD_VIEWPOINT_HOME_POS], dtype=torch.float32, device=device)
+    head_home_viewpoint_quat_b = torch.tensor([_HEAD_VIEWPOINT_HOME_QUAT], dtype=torch.float32, device=device)
+    head_viewpoint_pos_b = head_home_viewpoint_pos_b.clone()
+    head_viewpoint_quat_b = head_home_viewpoint_quat_b.clone()
+    eye_local_right = _EYE_LOCAL_RIGHT.to(device)
 
     left_closed = False
     right_closed = False
@@ -574,8 +731,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     ))
 
     def _recalibrate() -> None:
+        nonlocal head_home_xyz, head_home_quat
         left_arm.quest_home_xyz = None
         right_arm.quest_home_xyz = None
+        head_home_xyz = None
+        head_home_quat = None
         print("[Quest] Recalibrating — hold wrists in a comfortable pose.", flush=True)
 
     def _on_keyboard_event(event, *args, **kwargs) -> None:
@@ -601,11 +761,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             right_xyz_q = _wrist_xyz(msg.right_wrist).to(device)
             left_quat = _wrist_quat_wxyz(msg.left_wrist).to(device)
             right_quat = _wrist_quat_wxyz(msg.right_wrist).to(device)
+            head_xyz_q = _wrist_xyz(msg.head_pose).to(device)
+            head_quat = _wrist_quat_wxyz(msg.head_pose).to(device)
             left_joints = list(msg.left_hand_joints)
             right_joints = list(msg.right_hand_joints)
 
             left_tracked = _is_tracked(left_xyz_q, left_quat)
             right_tracked = _is_tracked(right_xyz_q, right_quat)
+            head_tracked = _is_tracked(head_xyz_q, head_quat)
 
             root_quat_w = robot.data.root_state_w[:, 3:7]
             root_pose_w = robot.data.root_state_w[:, 0:7]
@@ -700,6 +863,18 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 dq_right_base = quat_mul(quat_mul(quat_inv(root_quat_w), dq_right_world), root_quat_w)
                 target_quat_b_right = quat_mul(dq_right_base, right_arm.home_tip_quat_b)
 
+            # ── Stereo viewpoint: FULLY FIXED, no head tracking at all
+            # (2026-07-20: position-tracking felt like flying around the
+            # scene; the fixed-position/rotate-only follow-up still felt like
+            # unwanted movement -- user asked for a plain fixed camera at the
+            # home angle, no movement). head_viewpoint_pos_b/quat_b are left
+            # at their home values set before the loop and never touched
+            # here. head_home_xyz/quat and head_tracked are now unused for
+            # positioning (still computed above for the _is_tracked call) --
+            # if head tracking is wanted again later, this block's git
+            # history has both the fixed-pivot-rotate-only and full-tracking
+            # versions to restore from.
+
             diag_frame += 1
             if diag_frame % 100 == 0:
                 if left_arm.quest_home_xyz is not None and left_tracked:
@@ -730,8 +905,31 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                     right_closed = True
 
         # ── Differential IK (DLS) solve, both arms, every frame ─────────────────
-        left_arm.solve_and_apply(robot, device, target_pos_b_left, target_quat_b_left)
-        right_arm.solve_and_apply(robot, device, target_pos_b_right, target_quat_b_right)
+        tip_pos_b_l_now = left_arm.solve_and_apply(robot, device, target_pos_b_left, target_quat_b_left)
+        tip_pos_b_r_now = right_arm.solve_and_apply(robot, device, target_pos_b_right, target_quat_b_right)
+
+        # ── Real-hardware bridge (left arm only) ─────────────────────────────────
+        # Same held-off-then-throttled pattern as task_space_real.py: elapsed
+        # time only starts accumulating toward the publish period AFTER the
+        # startup delay has fully passed, so it can't build up a backlog
+        # during the hold and burst-publish once the delay ends.
+        if real_left_arm_pub is not None:
+            real_left_arm_elapsed_s += sim_dt
+            if real_left_arm_elapsed_s >= _REAL_ARM_PUBLISH_START_DELAY_S:
+                real_left_arm_since_publish_s += sim_dt
+            if (real_left_arm_elapsed_s >= _REAL_ARM_PUBLISH_START_DELAY_S
+                    and real_left_arm_since_publish_s >= _REAL_ARM_PUBLISH_PERIOD_S):
+                real_left_arm_since_publish_s -= _REAL_ARM_PUBLISH_PERIOD_S
+                if not real_left_arm_started:
+                    real_left_arm_started = True
+                    print("[Quest][REAL HARDWARE] Publishing left arm to /behaviour/arm_pose now.", flush=True)
+                _publish_real_left_arm_pose(real_left_arm_pub, receiver, left_arm.last_joint_pos_des)
+
+        if pov_capture_frame % 100 == 0:
+            err_l = (target_pos_b_left - tip_pos_b_l_now).norm().item()
+            err_r = (target_pos_b_right - tip_pos_b_r_now).norm().item()
+            print(f"[Quest][diag] home-offset convergence: L target_err={err_l:.3f}m tip={tip_pos_b_l_now[0].tolist()} "
+                  f"R target_err={err_r:.3f}m tip={tip_pos_b_r_now[0].tolist()}", flush=True)
 
         # ── Gripper targets ────────────────────────────────────────────────────
         robot.set_joint_position_target(left_g_closed if left_closed else left_g_open, joint_ids=left_gripper_ids)
@@ -743,11 +941,25 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         sim.step()
         scene.update(sim_dt)
 
+        # ── Stereo eye mounts follow the current head viewpoint every frame
+        # (cheap USD attribute writes, keeps head tracking responsive even
+        # though the rendered image only refreshes at the throttled capture
+        # rate below). IPD offset applied along the viewpoint's current
+        # "right" axis (eye_local_right, rotated into base frame). ──────────
+        right_offset_b = quat_apply(head_viewpoint_quat_b, eye_local_right.unsqueeze(0)) * (_EYE_IPD_M / 2)
+        left_eye_pos_b = (head_viewpoint_pos_b - right_offset_b)[0].tolist()
+        right_eye_pos_b = (head_viewpoint_pos_b + right_offset_b)[0].tolist()
+        head_orient_b = head_viewpoint_quat_b[0].tolist()
+        _set_mount_pose(left_eye_mount, tuple(left_eye_pos_b), tuple(head_orient_b))
+        _set_mount_pose(right_eye_mount, tuple(right_eye_pos_b), tuple(head_orient_b))
+
         pov_capture_frame += 1
-        if pov_viewport_api is not None and pov_capture_frame % _POV_CAPTURE_EVERY_N_STEPS == 0:
+        if (left_eye_viewport_api is not None and right_eye_viewport_api is not None
+                and pov_capture_frame % _POV_CAPTURE_EVERY_N_STEPS == 0):
             from omni.kit.viewport.utility import capture_viewport_to_file
 
-            capture_viewport_to_file(pov_viewport_api, str(_POV_FRAME_PATH))
+            capture_viewport_to_file(left_eye_viewport_api, str(_POV_FRAME_PATH_LEFT))
+            capture_viewport_to_file(right_eye_viewport_api, str(_POV_FRAME_PATH_RIGHT))
 
 
 def main() -> None:

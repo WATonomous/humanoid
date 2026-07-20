@@ -1,0 +1,46 @@
+# CloudXR runtime overlay for the simulation_isaac module -- adds the
+# NVIDIA CloudXR runtime container that OpenXR-based apps (Isaac Sim's
+# isaaclab.python.xr.openxr.kit experience) connect to for stereo VR
+# rendering + head/hand tracking streamed to a Quest headset. Not merged
+# into docker-compose.simulation_isaac.yaml directly since most workflows
+# (SO101 IL, HumanoidRL, plain Quest hand-tracking teleop) don't need it --
+# bring it up explicitly with both files:
+#
+#   docker compose -f modules/docker-compose.simulation_isaac.yaml \
+#                   -f modules/docker-compose.simulation_isaac_cloudxr.patch.yaml \
+#                   up -d
+#
+# Requires accepting NVIDIA's CloudXR Runtime EULA (ACCEPT_EULA below) and
+# the Quest + this host on the same Wi-Fi/LAN -- CloudXR streams over UDP
+# media ports (47998-48012) that `adb reverse` (TCP-only, USB) can't tunnel.
+# Network mode is host (matching simulation_isaac_dev) so those ports bind
+# directly to the host's LAN interface, reachable from the Quest.
+
+services:
+  cloudxr-runtime:
+    image: nvcr.io/nvidia/cloudxr-runtime:5.0.1
+    network_mode: host
+    gpus: all
+    environment:
+      - ACCEPT_EULA=Y
+    volumes:
+      - openxr-volume:/openxr:rw
+    healthcheck:
+      test: ["CMD", "test", "-S", "/openxr/run/ipc_cloudxr"]
+      interval: 1s
+      timeout: 1s
+      retries: 10
+      start_period: 5s
+    profiles: [develop]
+
+  simulation_isaac_dev:
+    environment:
+      - XDG_RUNTIME_DIR=/openxr/run
+      - XR_RUNTIME_JSON=/openxr/share/openxr/1/openxr_cloudxr.json
+    volumes:
+      - openxr-volume:/openxr:rw
+    depends_on:
+      - cloudxr-runtime
+
+volumes:
+  openxr-volume:

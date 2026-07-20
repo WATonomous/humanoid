@@ -435,3 +435,113 @@ by default — re-tune those manually if rotation axes still feel misaligned,
 same as before this feature existed). A mathematically sound auto-cal would
 need multiple independent rotation samples to solve for the actual
 sensor/body axis-convention correction, not a single home-pose snapshot.
+
+---
+
+## Real hardware bridge (left arm only)
+
+`run_quest_bimanual_teleop.py --publish-real-left-arm` publishes the LEFT
+arm's live DLS-solved joint targets to `/behaviour/arm_pose` (ROS 2), so
+`joint_command_node` drives the real physical left arm over CAN in lockstep
+with your Quest hand tracking. **Off by default** — normal runs are sim-only
+and completely unaffected by this flag.
+
+### Right arm is NOT supported yet
+
+`autonomy/behaviour/joint_command/config/hardware_mapping.yaml` only has a
+`left:` section — there are no CAN IDs documented anywhere in this repo for
+the right arm's motors, and `joint_command_node` is single-arm per instance
+(`arm_side` param, currently hardcoded to `"left"` in
+`joint_command.yaml`/`joint_command.launch.py`), not something that routes
+both arms off one topic. `--publish-real-left-arm` only ever builds and
+sends the left arm's `ArmPose`; there is no equivalent right-arm flag because
+there's nothing on the other end to receive it yet. Adding it requires:
+
+1. The right arm's actual motor CAN IDs (physical/hardware knowledge, not
+   something to guess — sending a position command to the wrong physical
+   motor ID is exactly the kind of mistake that damages hardware).
+2. A `right:` section in `hardware_mapping.yaml` with those IDs.
+3. A second `joint_command_node` instance (`arm_side: "right"`, its own
+   `input_topic`/`motor_cmd_topic` params so it doesn't collide with the left
+   instance) and the matching publish call in the teleop script.
+
+### Message mapping
+
+Field layout and units are copied exactly from the existing sim-to-real
+precedent, `Task_space_controller/robot_arm_controllers/task_space_real.py`
+(`publish_joint_pos`) — same `LEFT_ARM_JOINTS` order
+(`joint1L, joint2l, joint3l, joint4l, joint5l, joint6l`) maps 1:1 to:
+
+| ArmPose field | Source joint | Meaning |
+|---|---|---|
+| `shoulder.position[0]` | `joint1L` | flexion |
+| `shoulder.position[1]` | `joint2l` | abduction |
+| `shoulder.position[2]` | `joint3l` | rotation |
+| `elbow.position[0]` | `joint4l` | flexion |
+| `elbow.position[1]` | `joint5l` | forearm rotation |
+| `wrist.position[0]` | `joint6l` | extension |
+
+`joint_pos_des` from the DLS solver is radians (Isaac Lab convention);
+`hardware_mapping.yaml`'s limits and the CAN `PositionDeg` signal expect
+degrees, so `_publish_real_left_arm_pose` converts before publishing.
+
+### Safety: the 5-second startup delay
+
+`joint_command_node` applies **no velocity/delta rate-limiting to the very
+first `ArmPose` message** it receives after startup — every message after
+that is smoothed (position clamp → velocity limit → delta limit → low-pass),
+but not the first one. An un-delayed first publish could snap the real arm
+hard from wherever it physically is to whatever the sim's current IK target
+happens to be. `_REAL_ARM_PUBLISH_START_DELAY_S = 5.0` holds off all
+publishing for 5s after the flag is enabled — **that window is for a human to
+manually position the real arm near the sim's rest pose**, not a technical
+formality. Don't shorten it. Don't skip using it (i.e. don't stand there
+without actually re-positioning the arm during the delay).
+
+Publish rate is throttled to `_REAL_ARM_PUBLISH_PERIOD_S = 0.02` (50Hz,
+matching `joint_command_node`'s `control_rate_hz`) using the same
+held-off-then-throttled accumulator pattern as `task_space_real.py`, so the
+delay can't build up a backlog and burst-publish once it ends. Actual
+observed rate can be lower than 50Hz if the sim itself runs below real-time
+(seen at ~10Hz in one `--device cpu` test with no GPU) — this isn't a bug,
+`joint_command_node`'s safety layer doesn't require exactly 50Hz, just
+degrades gracefully to whatever rate actually arrives.
+
+### Bring-up checklist
+
+1. Connect the CANable adapter (`/dev/canable`, `can0` @ 1Mbps).
+2. `ros2 launch can can.launch.py`
+3. `ros2 launch joint_command joint_command.launch.py`
+4. E-stop armed and within reach, power supply on.
+5. **A human physically present, hand on the e-stop, for the entire first
+   test** -- not optional.
+6. Run the teleop script with `--publish-real-left-arm` added:
+   ```bash
+   ./run_quest_bimanual_teleop.sh --publish-real-left-arm
+   ```
+7. Watch for:
+   ```
+   [Quest][REAL HARDWARE] Left arm will start publishing to /behaviour/arm_pose in 5s. ...
+   ```
+   During those 5 seconds, manually position the real left arm near wherever
+   the sim's rest pose currently has it.
+8. After the delay:
+   ```
+   [Quest][REAL HARDWARE] Publishing left arm to /behaviour/arm_pose now.
+   ```
+   The real arm should now track the sim (and therefore your Quest hand
+   tracking) in real time.
+
+### Do you need a physical RealSense on the real arm?
+
+No, not for this. The stereo camera feed documented earlier in this README
+(the "Both-Arms POV" stereo pair, `pov_left.png`/`pov_right.png`) is captured
+entirely from the Isaac Sim viewport — it's a property of the simulated
+scene, has no connection to the real-hardware bridge above, and doesn't
+require or benefit from a physical camera. For the first real-hardware test,
+having a human physically present (already required, see the checklist
+above) watching the real arm directly is sufficient. A physical RealSense
+would only be needed later if you want the same in-VR camera view *of the
+real arm* instead of the simulated one -- that needs an actual D455, a real
+camera-capture pipeline (not `capture_viewport_to_file`), and is unrelated to
+today's joint-command bridge.

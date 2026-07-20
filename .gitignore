@@ -17,6 +17,10 @@ log/
 **/certs/*
 
 autonomy/teleop/quest_teleop_server/certs/*
+
+# Runtime-captured POV frames (overwritten live by run_quest_bimanual_teleop.py's
+# stereo camera capture, ~10x/sec) -- not source, shouldn't be committed.
+autonomy/teleop/quest_teleop/static/pov*.png
 datasets/
 outputs/
 
