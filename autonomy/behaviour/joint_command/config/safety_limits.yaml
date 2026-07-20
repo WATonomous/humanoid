@@ -2,11 +2,20 @@ safety:
   units:
     angle: "deg"
     velocity: "deg_s"
+    # mit_kp/mit_kd: only used when joint_command.yaml's control_type is MIT_CONTROL (0).
+    # Per-motor units (kp in [0,500], kd in [0,5] for AK-series -- see
+    # can/config/mit_profiles.yaml). Unset/0 (the default below) is a deliberate safe no-op:
+    # zero stiffness/damping means the joint stays free even under MIT_CONTROL. Set explicitly
+    # per joint to enable compliant holding; start LOW (e.g. kp<10) and increase gradually.
 
-  # NOTE (test config): position clamp is DISABLED so poses outside the placeholder
-  # hardware_mapping limits (±90 etc.) can be reached, and velocity_max is lowered to a
-  # slow crawl for first pose-to-pose tests. Velocity limiting + low-pass smoothing stay
-  # ON. Restore enable_position_clamp:true and higher velocities once limits are calibrated.
+  # NOTE (test config): position clamp is DISABLED. Originally this was because
+  # hardware_mapping.yaml's limits were unmeasured placeholders (±90 etc); that's no
+  # longer true -- calibrate_arm.py's software zero-mode has now been run for real,
+  # producing real per-joint limits (see hardware_mapping.yaml). TODO: re-enable
+  # enable_position_clamp:true now that proper calibration is in place, and re-verify
+  # each joint's limits are current before flipping it (re-run calibration after any
+  # power cycle first -- see hardware_mapping.yaml's header note on encoder drift).
+  # velocity_max is still a deliberate slow crawl for testing; raise once trusted.
   global:
     enable_position_clamp: false
     enable_velocity_limit: true
@@ -15,6 +24,8 @@ safety:
     velocity_max: 40.0
     delta_max: 2.4
     low_pass_alpha: 0.85
+    mit_kp: 0.0   # 0 = MIT_CONTROL is a safe no-op until set per-joint below
+    mit_kd: 0.0
 
   joints:
     shoulder:

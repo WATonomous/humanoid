@@ -23,10 +23,10 @@ from bimanual_arm_cfg import (  # noqa: E402,F401
     BIMANUAL_ARM_CFG,
     GRIPPER_CLOSED,
     GRIPPER_OPEN,
-    LEFT_ARM_JOINTS,
-    LEFT_EE_BODY,
-    LEFT_FINGER_TIP_BODIES,
-    LEFT_GRIPPER_JOINTS,
+    RIGHT_ARM_JOINTS,
+    RIGHT_EE_BODY,
+    RIGHT_FINGER_TIP_BODIES,
+    RIGHT_GRIPPER_JOINTS,
     compute_gripper_tip_pose_b,
     compute_gripper_tip_pose_w,
     compute_tip_ik_jacobian,
@@ -36,7 +36,7 @@ import wato_constants  # noqa: E402,F401
 from task_params import PickPlaceTaskParams  # noqa: E402,F401
 
 # Recorded joint order for the dataset (arm 6 + gripper pair).
-LEFT_JOINTS_ALL = LEFT_ARM_JOINTS + LEFT_GRIPPER_JOINTS
+RIGHT_JOINTS_ALL = RIGHT_ARM_JOINTS + RIGHT_GRIPPER_JOINTS
 
 
 def check_constants_consistency() -> None:
@@ -50,8 +50,8 @@ def check_constants_consistency() -> None:
 
     import bimanual_arm_cfg as bac
 
-    assert wato_constants.LEFT_EE_BODY == bac.LEFT_EE_BODY
-    assert wato_constants.LEFT_FINGER_DISTAL_TIP_LOCAL == bac.LEFT_FINGER_DISTAL_TIP_LOCAL
+    assert wato_constants.RIGHT_EE_BODY == bac.RIGHT_EE_BODY
+    assert wato_constants.RIGHT_FINGER_DISTAL_TIP_LOCAL == bac.RIGHT_FINGER_DISTAL_TIP_LOCAL
     # the upstream dicts are the inversion of ours (both files agree on values)
     assert wato_constants.GRIPPER_OPEN == bac.GRIPPER_CLOSED
     for name, (lo, hi) in bac.JOINT_POS_LIMITS.items():

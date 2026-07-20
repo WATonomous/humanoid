@@ -18,6 +18,7 @@ find_package(std_msgs REQUIRED) # ROS2 message package
 find_package(Boost REQUIRED) # Boost libraries
 
 find_package(common_msgs REQUIRED)
+find_package(yaml-cpp REQUIRED) # MIT protocol per-motor scaling constants (mit_profiles.yaml)
 
 # Compiles source files into a library
 # A library is not executed, instead other executables can link
@@ -56,8 +57,8 @@ target_link_libraries(can_lib
 add_executable(can_node src/can_node.cpp src/can_core.cpp)
 ament_target_dependencies(can_node rclcpp std_msgs)
 
-# Link to the previously built libraries 
-target_link_libraries(can_node can_lib)
+# Link to the previously built libraries
+target_link_libraries(can_node can_lib yaml-cpp)
 
 # Copy executable to installation location
 install(TARGETS

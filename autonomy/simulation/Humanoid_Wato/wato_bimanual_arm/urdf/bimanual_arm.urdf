@@ -87,9 +87,14 @@
   <joint
     name="joint1"
     type="revolute">
+    <!-- rpy re-zeroed 2026-07-20: was "0 0 0"; baked in a -180deg rotation about
+         the joint axis (0 -1 0) so qpos=0 now represents what was qpos=-180deg.
+         xyz unchanged; downstream joints/meshes need no compensation (URDF
+         composes origin*axis-rotation, so this is a self-contained per-joint
+         re-parameterization: new_qpos = old_qpos + 180deg). -->
     <origin
       xyz="0 0.16355 0.5172"
-      rpy="0 0 0" />
+      rpy="0 3.141592653589793 0" />
     <parent
       link="base_link" />
     <child
@@ -145,9 +150,13 @@
   <joint
     name="joint2"
     type="revolute">
+    <!-- rpy re-zeroed 2026-07-20: was "0 0 0"; baked in a +90deg rotation about
+         the joint axis (1 0 0) so qpos=0 now represents what was qpos=+90deg.
+         xyz unchanged; see joint1's comment above for why no other joint/mesh
+         needs compensation. -->
     <origin
       xyz="0.0315 0.084 0"
-      rpy="0 0 0" />
+      rpy="1.5707963267948966 0 0" />
     <parent
       link="link1" />
     <child
@@ -203,9 +212,13 @@
   <joint
     name="joint3"
     type="revolute">
+    <!-- rpy re-zeroed 2026-07-20: was "0 0 0"; baked in a +90deg rotation about
+         the joint axis (0 -1 0) so qpos=0 now represents what was qpos=+90deg.
+         xyz unchanged; see joint1's comment (further up this file) for why no
+         other joint/mesh needs compensation. -->
     <origin
       xyz="-0.017 0.171 0"
-      rpy="0 0 0" />
+      rpy="0 -1.5707963267948966 0" />
     <parent
       link="link2" />
     <child

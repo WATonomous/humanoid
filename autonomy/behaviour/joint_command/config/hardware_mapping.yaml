@@ -1,46 +1,57 @@
 # 6-DOF arm + 1-DOF gripper. joint_command uses the six arm joints only;
 # gripper is kept for future / manual MotorCmd use. Hand DOFs live elsewhere when needed.
+#
+# IMPORTANT: the AK-series encoders are SINGLE-TURN absolute (no memory of which motor-shaft
+# revolution across a power cycle). zero_offset here is a plain stored number -- it survives
+# power cycles fine, but it's only valid if the raw encoder reports the same value for the
+# same physical pose every time, which isn't guaranteed for joints whose range spans more
+# than one motor-shaft turn. Empirically: elbow.pitch/elbow.roll (AK80-9) drifted ~84°/~160°
+# across a single power cycle while shoulder.pitch/roll (AK10-9) stayed stable -- likely a
+# gear-ratio-dependent effect. Re-run calibrate_arm.py after EVERY power-on for elbow.pitch,
+# elbow.roll, and shoulder.yaw (also AK80-9, untested but same motor model) before trusting
+# these values; shoulder.pitch/roll have so far held across power cycles but re-check if in
+# doubt.
 left:
   shoulder:
     pitch:
-      can_id: 0x0E
-      lower_limit: -90
-      upper_limit: 90
+      can_id: 14
+      lower_limit: -9.20001220703125
+      upper_limit: 10.699996948242188
       direction: 1
-      zero_offset: 0
+      zero_offset: 185.39999389648438
       limit_range: true
     roll:
-      can_id: 0x0C
-      lower_limit: -90
-      upper_limit: 90
-      direction: 1
-      zero_offset: 0
+      can_id: 12
+      direction: -1
+      zero_offset: -84.4
+      lower_limit: -7.700000000000003
+      upper_limit: 3.6999999999999886
       limit_range: true
     yaw:
-      can_id: 0x0D
-      lower_limit: -90
-      upper_limit: 90
+      can_id: 13
+      lower_limit: -11.300003051757812
+      upper_limit: 38.19999694824219
       direction: 1
-      zero_offset: 0
+      zero_offset: 177.89999389648438
       limit_range: true
   elbow:
     pitch:
-      can_id: 0x0A
-      lower_limit: -130
-      upper_limit: 0
-      direction: 1
-      zero_offset: 0
+      can_id: 10
+      direction: -1
+      zero_offset: -5.0
+      lower_limit: -20.9
+      upper_limit: 18.6
       limit_range: true
     roll:
-      can_id: 0x0B
-      lower_limit: -130
-      upper_limit: 0
+      can_id: 11
+      lower_limit: -32.40000915527344
+      upper_limit: 29.5
       direction: 1
-      zero_offset: 0
+      zero_offset: 163.89999389648438
       limit_range: true
   wrist:
     pitch:
-      can_id: 0x16
+      can_id: 22
       lower_limit: -90
       upper_limit: 90
       direction: 1
@@ -48,10 +59,9 @@ left:
       limit_range: true
   gripper:
     open_close:
-      can_id: 0x15
+      can_id: 21
       lower_limit: 0
       upper_limit: 100
       direction: 1
       zero_offset: 0
       limit_range: true
- 

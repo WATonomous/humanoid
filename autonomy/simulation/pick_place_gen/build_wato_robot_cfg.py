@@ -61,7 +61,7 @@ def fit_spheres(urdf_path: str, out_path: str, sphere_density: float, seed: int,
     builder = RobotBuilder(
         urdf_path=urdf_path,
         asset_path=os.path.dirname(urdf_path),
-        tool_frames=[wc.LEFT_EE_BODY],
+        tool_frames=[wc.RIGHT_EE_BODY],
     )
     builder.fit_collision_spheres(
         sphere_density=sphere_density,
@@ -83,7 +83,7 @@ def post_process(yml_path: str) -> None:
         cfg = yaml.safe_load(f)
     kin = cfg["kinematics"]
 
-    kin["tool_frames"] = [wc.LEFT_EE_BODY]
+    kin["tool_frames"] = [wc.RIGHT_EE_BODY]
     kin["lock_joints"] = dict(wc.LOCKED_JOINTS)
 
     cspace = kin["cspace"]
@@ -96,7 +96,7 @@ def post_process(yml_path: str) -> None:
     # Attached-object link for carrying grasped objects (franka.yml pattern).
     extra_links = kin.get("extra_links") or {}
     extra_links["attached_object"] = {
-        "parent_link_name": wc.LEFT_EE_BODY,
+        "parent_link_name": wc.RIGHT_EE_BODY,
         "link_name": "attached_object",
         "joint_name": "attach_joint",
         "joint_type": "FIXED",
@@ -107,7 +107,7 @@ def post_process(yml_path: str) -> None:
     extra_spheres["attached_object"] = 8
     kin["extra_collision_spheres"] = extra_spheres
     ignore = kin.get("self_collision_ignore") or {}
-    for link in (wc.LEFT_EE_BODY, "link7l", "link8l", "link5l"):
+    for link in (wc.RIGHT_EE_BODY, "link7l", "link8l", "link5l"):
         ignore.setdefault(link, [])
         if "attached_object" not in ignore[link]:
             ignore[link].append("attached_object")
@@ -131,7 +131,7 @@ def post_process(yml_path: str) -> None:
     with open(yml_path, "w") as f:
         yaml.safe_dump(cfg, f, sort_keys=False)
     print(f"Post-processed {yml_path}: lock_joints={list(kin['lock_joints'])},")
-    print(f"  tool_frames={kin['tool_frames']}, attached_object under {wc.LEFT_EE_BODY}")
+    print(f"  tool_frames={kin['tool_frames']}, attached_object under {wc.RIGHT_EE_BODY}")
 
 
 def _default_pose_collisions(kin_cfg: dict) -> list:

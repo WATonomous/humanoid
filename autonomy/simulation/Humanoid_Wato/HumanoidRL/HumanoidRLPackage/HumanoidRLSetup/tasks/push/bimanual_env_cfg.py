@@ -35,8 +35,8 @@ from isaaclab.utils import configclass
 
 from HumanoidRLPackage.HumanoidRLSetup.tasks.pick_place_bimanual.robot_cfg_shim import (
     BIMANUAL_ARM_CFG,
-    LEFT_ARM_JOINTS,
-    LEFT_EE_BODY,
+    RIGHT_ARM_JOINTS,
+    RIGHT_EE_BODY,
 )
 
 from . import mdp
@@ -114,7 +114,7 @@ def _bimanual_ee_frame_cfg(*, debug_vis: bool) -> FrameTransformerCfg:
         visualizer_cfg=marker_cfg,
         target_frames=[
             FrameTransformerCfg.FrameCfg(
-                prim_path="{ENV_REGEX_NS}/Robot/" + LEFT_EE_BODY,
+                prim_path="{ENV_REGEX_NS}/Robot/" + RIGHT_EE_BODY,
                 name="end_effector",
                 offset=OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0)),
             ),
@@ -135,7 +135,7 @@ class BimanualPushBlockEnvCfg(PushBlockEnvCfg):
 
         self.actions.arm_action = mdp.JointPositionActionCfg(
             asset_name="robot",
-            joint_names=LEFT_ARM_JOINTS,
+            joint_names=RIGHT_ARM_JOINTS,
             scale=0.5,
             use_default_offset=True,
         )

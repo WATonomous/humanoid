@@ -59,19 +59,11 @@ docker exec -d watod_hy-jc-dry bash -c 'source /opt/ros/humble/setup.bash; sourc
   "{is_left: true, shoulder: {position: [-124.0, -40.5, -165.4]}, elbow: {position: [-88.7, 14.1]}, wrist: {position: [0.0]}, include_hand_pose: false}"'
 ```
 
-## Wave (alternate the two recorded poses)
-Poses live in `recorded_poses.yaml` (baked into `scripts/wave_demo.py`). Node must be up + 1/1.
-```bash
-docker exec -d watod_hy-jc-dry bash -c 'source /opt/ros/humble/setup.bash; source /opt/watonomous/setup.bash; \
-  source /root/ament_ws/install/setup.bash; \
-  python3 /root/ament_ws/src/joint_command/scripts/wave_demo.py --period 2.0'
-```
-
 ## Record poses by hand (free the arm)
 Disabling the motors makes them limp — **support the arm first**. Then hand-position and read.
 ```bash
 # free the arm
-docker exec watod_hy-jc-dry bash -c 'pkill -f wave_demo.py; pkill -f "install/joint_command/lib"; sleep 2'
+docker exec watod_hy-jc-dry bash -c 'pkill -f "install/joint_command/lib"; sleep 2'
 docker exec watod_hy-interfacing-1 bash -c 'source /opt/watonomous/setup.bash; \
   for id in 10 11 12 13 14; do ros2 topic pub --once /interfacing/motorCMD common_msgs/msg/MotorCmd "{motor_id: $id, control_type: 8}"; done'
 
@@ -80,7 +72,10 @@ docker exec watod_hy-interfacing-1 bash -c 'source /opt/watonomous/setup.bash; \
   timeout 2 ros2 topic echo /interfacing/motorFeedback 2>/dev/null | awk "/motor_id:/{id=\$2} /position:/{p[id]=\$2} \
   END{printf \"14=%s 12=%s 13=%s 10=%s 11=%s\n\", p[14],p[12],p[13],p[10],p[11]}"'
 ```
-Put the values into `recorded_poses.yaml` and the `POSES` dict in `scripts/wave_demo.py`.
+Values are in raw motor-frame degrees; convert via each joint's `zero_offset`/`direction` in
+`hardware_mapping.yaml` before using as an `/behaviour/arm_pose` target (cmd-frame).
+Recorded poses go stale whenever calibration changes — re-capture after any recalibration
+rather than reusing old numbers.
 
 ## Watch feedback (any time)
 ```bash
@@ -91,7 +86,7 @@ docker exec watod_hy-interfacing-1 bash -c 'source /opt/watonomous/setup.bash; \
 
 ## Stop
 ```bash
-docker exec watod_hy-jc-dry bash -c 'pkill -f wave_demo.py; pkill -f "install/joint_command/lib"'  # arm holds last pose
+docker exec watod_hy-jc-dry bash -c 'pkill -f "install/joint_command/lib"'  # arm holds last pose
 # (to also free the arm, send control_type 8 as in the record step)
 ```
 

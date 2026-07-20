@@ -101,18 +101,26 @@ from isaaclab.utils.math import (  # noqa: E402
     subtract_frame_transforms,
 )
 
+# NOTE on the aliasing below: bimanual_arm_cfg.py's LEFT_*/RIGHT_* constants were
+# corrected (the "L"-suffixed URDF chain is physically the RIGHT arm, not left --
+# the mechanical/CAD naming had it backwards). This file's own left_*/right_* local
+# variables mean something different: "the arm driven by the LEFT/RIGHT Quest
+# wrist" (msg.left_wrist / msg.right_wrist), a Quest-hand-relative label that is
+# NOT part of that correction. Aliasing here keeps every local left_*/right_*
+# variable below pointing at the SAME physical URDF chain (and therefore the same
+# real hardware) it always did -- only the upstream symbol names changed.
 from bimanual_arm_cfg import (  # noqa: E402
     BIMANUAL_ARM_CFG,
     GRIPPER_CLOSED,
     GRIPPER_OPEN,
-    LEFT_ARM_JOINTS,
-    LEFT_EE_BODY,
-    LEFT_FINGER_TIP_BODIES,
-    LEFT_FINGER_DISTAL_TIP_LOCAL,
-    LEFT_GRIPPER_JOINTS,
-    RIGHT_EE_BODY,
-    RIGHT_FINGER_TIP_BODIES,
-    RIGHT_FINGER_DISTAL_TIP_LOCAL,
+    RIGHT_ARM_JOINTS as LEFT_ARM_JOINTS,
+    RIGHT_EE_BODY as LEFT_EE_BODY,
+    RIGHT_FINGER_TIP_BODIES as LEFT_FINGER_TIP_BODIES,
+    RIGHT_FINGER_DISTAL_TIP_LOCAL as LEFT_FINGER_DISTAL_TIP_LOCAL,
+    RIGHT_GRIPPER_JOINTS as LEFT_GRIPPER_JOINTS,
+    LEFT_EE_BODY as RIGHT_EE_BODY,
+    LEFT_FINGER_TIP_BODIES as RIGHT_FINGER_TIP_BODIES,
+    LEFT_FINGER_DISTAL_TIP_LOCAL as RIGHT_FINGER_DISTAL_TIP_LOCAL,
     apply_joint_limits,
     compute_gripper_tip_pose_b,
     compute_tip_ik_jacobian,

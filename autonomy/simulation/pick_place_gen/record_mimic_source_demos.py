@@ -99,12 +99,12 @@ class GroundTruth:
         self.params = params
         self.robot = self.scene["robot"]
         self.origin = self.scene.env_origins[0]
-        arm6 = shim.LEFT_ARM_JOINTS
+        arm6 = shim.RIGHT_ARM_JOINTS
         names = list(self.robot.data.joint_names)
         self.arm_ids = [names.index(j) for j in arm6]
-        self.grip_ids = [names.index(j) for j in shim.LEFT_GRIPPER_JOINTS]
-        self.wrist_id, = shim.resolve_body_ids(self.robot, [shim.LEFT_EE_BODY])
-        self.finger_ids = shim.resolve_body_ids(self.robot, list(shim.LEFT_FINGER_TIP_BODIES))
+        self.grip_ids = [names.index(j) for j in shim.RIGHT_GRIPPER_JOINTS]
+        self.wrist_id, = shim.resolve_body_ids(self.robot, [shim.RIGHT_EE_BODY])
+        self.finger_ids = shim.resolve_body_ids(self.robot, list(shim.RIGHT_FINGER_TIP_BODIES))
 
     def q_arm(self):
         return self.robot.data.joint_pos[0, self.arm_ids].cpu().numpy()
@@ -272,10 +272,10 @@ def main():
     gt = GroundTruth(env, params)
 
     action_term = env.unwrapped.action_manager.get_term("arm_action")
-    assert action_term._joint_names == shim.LEFT_JOINTS_ALL, action_term._joint_names
+    assert action_term._joint_names == shim.RIGHT_JOINTS_ALL, action_term._joint_names
 
     expert = CuRoboExpert(params)
-    assert expert.joint_names == shim.LEFT_ARM_JOINTS, expert.joint_names
+    assert expert.joint_names == shim.RIGHT_ARM_JOINTS, expert.joint_names
     orch = Orchestrator(expert, params, rng)
 
     control_dt = params.episode.sim_dt * params.episode.decimation
