@@ -241,8 +241,7 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
                    static_cast<int64_t>(packMitValue(msg->velocity, p.v_min, p.v_max, 12)),
                    can_msg);
       encodeSignal(findSignalByName(dbc_msg, "MIT_Torque"),
-                   static_cast<int64_t>(packMitValue(msg->torque, p.t_min, p.t_max, 12)),
-                   can_msg);
+                   static_cast<int64_t>(packMitValue(msg->torque, p.t_min, p.t_max, 12)), can_msg);
       publishCanMessage(can_msg);
       break;
     }
@@ -277,8 +276,9 @@ void CanNode::loadMitProfiles() {
   try {
     root = YAML::LoadFile(path);
   } catch (const std::exception& e) {
-    RCLCPP_ERROR(this->get_logger(), "Failed to load MIT profiles from %s: %s. MIT_CONTROL "
-                                     "commands will be refused for all motors.",
+    RCLCPP_ERROR(this->get_logger(),
+                 "Failed to load MIT profiles from %s: %s. MIT_CONTROL "
+                 "commands will be refused for all motors.",
                  path.c_str(), e.what());
     return;
   }
@@ -311,8 +311,10 @@ void CanNode::loadMitProfiles() {
 // then raw = (phys - min) * (2^bits / (max - min)). NOT (phys-min)/(max-min)*(2^bits - 1) --
 // matches the manual's example code exactly (verified against its C reference impl).
 uint32_t CanNode::packMitValue(double phys, double min, double max, unsigned bits) {
-  if (phys < min) phys = min;
-  if (phys > max) phys = max;
+  if (phys < min)
+    phys = min;
+  if (phys > max)
+    phys = max;
   const double span = max - min;
   const double scale = static_cast<double>(1u << bits) / span;
   return static_cast<uint32_t>((phys - min) * scale);
