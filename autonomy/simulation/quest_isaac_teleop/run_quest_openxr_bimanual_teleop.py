@@ -6,7 +6,7 @@ script, hand-tracking input ONLY, Isaac Sim renders to the host monitor),
 this script drives BOTH the sim's stereo rendering AND hand tracking through
 Isaac Lab's native isaaclab.devices.openxr.OpenXRDevice, connected to the
 NVIDIA CloudXR Runtime container (see
-modules/docker-compose.simulation_isaac_cloudxr.patch.yaml). The Quest runs
+docker/simulation/isaac_lab/docker-compose.cloudxr.patch.yaml). The Quest runs
 the NVIDIA CloudXR Streaming Client app (not the Meta Browser) and connects
 directly over Wi-Fi/LAN -- no adb reverse tunnels, no webxr_server.py, no
 quest_teleop_node ROS bridge. None of that pipeline is used here.

@@ -2,13 +2,23 @@
 # NVIDIA CloudXR runtime container that OpenXR-based apps (Isaac Sim's
 # isaaclab.python.xr.openxr.kit experience) connect to for stereo VR
 # rendering + head/hand tracking streamed to a Quest headset. Not merged
-# into docker-compose.simulation_isaac.yaml directly since most workflows
-# (SO101 IL, HumanoidRL, plain Quest hand-tracking teleop) don't need it --
-# bring it up explicitly with both files:
+# into modules/docker-compose.simulation_isaac.yaml directly since most
+# workflows (SO101 IL, HumanoidRL, plain Quest hand-tracking teleop) don't
+# need it -- bring it up explicitly with both files:
 #
 #   docker compose -f modules/docker-compose.simulation_isaac.yaml \
-#                   -f modules/docker-compose.simulation_isaac_cloudxr.patch.yaml \
+#                   -f docker/simulation/isaac_lab/docker-compose.cloudxr.patch.yaml \
 #                   up -d
+#
+# Deliberately lives OUTSIDE modules/, unlike every other docker-compose.*
+# file in this repo -- .github/templates/docker_context/docker_context.sh
+# globs `modules -maxdepth 1 -name "docker-compose*"` and treats every match
+# as its own standalone CI module, config'd alone (no base file merged in).
+# This file only ADDS to simulation_isaac_dev (env/volumes/depends_on) and
+# has no image/build for it on its own, so CI picked it up as a phantom
+# module and failed with "service simulation_isaac_dev has neither an image
+# nor a build context specified". Keeping it out of modules/ avoids that
+# glob entirely without touching the shared CI script.
 #
 # Requires accepting NVIDIA's CloudXR Runtime EULA (ACCEPT_EULA below) and
 # the Quest + this host on the same Wi-Fi/LAN -- CloudXR streams over UDP
