@@ -1,16 +1,3 @@
-# 6-DOF arm + 1-DOF gripper. joint_command uses the six arm joints only;
-# gripper is kept for future / manual MotorCmd use. Hand DOFs live elsewhere when needed.
-#
-# IMPORTANT: the AK-series encoders are SINGLE-TURN absolute (no memory of which motor-shaft
-# revolution across a power cycle). zero_offset here is a plain stored number -- it survives
-# power cycles fine, but it's only valid if the raw encoder reports the same value for the
-# same physical pose every time, which isn't guaranteed for joints whose range spans more
-# than one motor-shaft turn. Empirically: elbow.pitch/elbow.roll (AK80-9) drifted ~84°/~160°
-# across a single power cycle while shoulder.pitch/roll (AK10-9) stayed stable -- likely a
-# gear-ratio-dependent effect. Re-run calibrate_arm.py after EVERY power-on for elbow.pitch,
-# elbow.roll, and shoulder.yaw (also AK80-9, untested but same motor model) before trusting
-# these values; shoulder.pitch/roll have so far held across power cycles but re-check if in
-# doubt.
 left:
   shoulder:
     pitch:
@@ -38,16 +25,16 @@ left:
     pitch:
       can_id: 10
       direction: -1
-      zero_offset: -5.0
-      lower_limit: -20.9
-      upper_limit: 18.6
+      zero_offset: -105.5
+      lower_limit: -37.400001525878906
+      upper_limit: 47.19999694824219
       limit_range: true
     roll:
       can_id: 11
-      lower_limit: -32.40000915527344
-      upper_limit: 29.5
+      lower_limit: -46.099998474121094
+      upper_limit: 36.0
       direction: 1
-      zero_offset: 163.89999389648438
+      zero_offset: -129.5
       limit_range: true
   wrist:
     pitch:

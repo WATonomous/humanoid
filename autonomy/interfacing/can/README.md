@@ -1,94 +1,55 @@
 # CAN interfacing (`can` package)
 
 ROS 2 bridge: `/interfacing/motorCMD` ↔ CAN ↔ `/interfacing/motorFeedback`.
-
-Wiring / power: [Electrical docs](https://watonomous.github.io/humanoid-docs/electrical/index.html) · Architecture: [Interfacing docs](https://watonomous.github.io/humanoid-docs/interfacing/index.html)
+[Electrical docs](https://watonomous.github.io/humanoid-docs/electrical/index.html) · [Interfacing docs](https://watonomous.github.io/humanoid-docs/interfacing/index.html)
 
 ## Arm bring-up
 
-### Hardware
-1. Battery + E-stop (closed = powered). Motor power is separate from CAN.
-2. CANable USB → host; CAN_H/CAN_L → arm (120 Ω termination).
-
-### Host (once per machine)
-
-```bash
-./autonomy/interfacing/can/scripts/can_udev.sh install   # → /dev/canable
-```
-
-`watod-config.local.sh`:
-
-```bash
-ACTIVE_MODULES="interfacing"
-MODE_OF_OPERATION="develop"
-```
-
-```bash
-./watod build && ./watod up -d
-./watod -t interfacing
-source /opt/watonomous/setup.bash
-```
-
-`can.launch.py` brings up `can_node` + SLCAN (`/dev/canable` → `can0` @ 1 Mbps). The compose file sets `FASTDDS_BUILTIN_TRANSPORTS=UDPv4` so shells can discover `can_node`.
+1. **Hardware**: battery + E-stop closed (motor power ≠ CAN power). CANable USB → host; CAN_H/CAN_L → arm (120 Ω term).
+2. **Host setup (once)**: `./autonomy/interfacing/can/scripts/can_udev.sh install` → `/dev/canable`.
+   `watod-config.local.sh`: `ACTIVE_MODULES="interfacing"`, `MODE_OF_OPERATION="develop"`.
+3. **Bring up**:
+   ```bash
+   ./watod build && ./watod up -d
+   ./watod -t interfacing
+   source /opt/watonomous/setup.bash
+   ```
+   `can.launch.py` starts `can_node` + SLCAN (`/dev/canable` → `can0` @ 1 Mbps).
 
 ### Verify
-
 ```bash
 ros2 node list                  # /can_node
 candump can0                    # e.g. 0x290A–0x290E
 ros2 topic echo /interfacing/motorFeedback common_msgs/msg/MotorFeedback --once
-# filter one motor:  ... | grep -A6 "motor_id: 14"
 ```
-
-### Smoke test (optional)
-
-Arm clear, hand on E-stop. Command **near** last feedback — do not jump to `0` blind.
-
-```bash
-ros2 topic pub --once /interfacing/motorCMD common_msgs/msg/MotorCmd \
-  "{motor_id: 14, control_type: 4, position: 649.0}"
-```
-
-`control_type`: `4` position (deg), `5` set origin, `8` disable.
 
 ### Calibrate (`calibrate_arm.py`)
-
-Per joint: confirm motor id → home zero → one end Enter → other end Enter. Writes `zero_offset`, limits, and remapped `can_id` with `--write-mapping`.
-
-The script source is bind-mounted; run it from the mount so you get the latest prompts without rebuilding:
-
+Per joint: confirm motor id → home zero → one end Enter → other end Enter → writes `zero_offset`/limits/`can_id`.
 ```bash
 source /opt/watonomous/setup.bash
 python3 /root/ament_ws/src/interfacing/can/scripts/calibrate_arm.py \
   --arm-side left --write-mapping --mapping /calibration/hardware_mapping.yaml
-# or after rebuild:  ros2 run can calibrate_arm.py --arm-side left --write-mapping
 ```
-
-Prompt per joint: **Is motor id N?** → **Enter** = yes · type `14` / `0x0E` = correct id · **s** = skip · **q** = quit.
+Prompt: **Enter**=yes · id=correct id · **s**=skip · **q**=quit.
 
 ---
 
 ## Open arm tasks (onboarding / assignable)
 
 Live joint mirror, mjlab sim parity, and interactive calibration are done — see
-[ARM_BRINGUP.md](../../../ARM_BRINGUP.md) for the calibrate → visualize → move sequence.
+[ARM_BRINGUP.md](../../../ARM_BRINGUP.md) for calibrate → visualize → move.
 
 | Status | Task | Why |
 |--------|------|-----|
-| **TODO** | **VR teleop of the physical arm** — Quest (or similar) → real motors via teleop + `joint_command` / CAN | End-to-end teleop UX; assignable to one member |
-| **TODO** (later) | **Isaac Lab sim-to-real deployment** — `Task_space_controller/robot_arm_controllers/task_space_real.py` (IK) and the `reach` RL task (`HumanoidRLPackage/HumanoidRLSetup/tasks/reach`) driving the real arm (mjlab side already done) | Validates IK/policy behavior against real hardware, not just sim |
+| TODO | **VR teleop** — Quest → real motors via teleop + `joint_command` / CAN | End-to-end teleop UX |
+| TODO (later) | **Isaac Lab sim-to-real** — `task_space_real.py` (IK) + `reach` RL task driving the real arm | Validate IK/policy against real hardware |
 
 ---
 
 ## Topics / config
 
-| Topic | Direction |
-|-------|-----------|
-| `/interfacing/motorCMD` (`MotorCmd`) | ROS → CAN |
-| `/interfacing/motorFeedback` (`MotorFeedback`) | CAN → ROS |
+`/interfacing/motorCMD` (`MotorCmd`, ROS→CAN) · `/interfacing/motorFeedback` (`MotorFeedback`, CAN→ROS)
 
-| Param (`config/params.yaml`) | Default |
-|------------------------------|---------|
-| `can_interface` / `device_path` / `bustype` / `bitrate` | `can0` / `/dev/canable` / `slcan` / `1000000` |
+`config/params.yaml` defaults: `can_interface=can0` `device_path=/dev/canable` `bustype=slcan` `bitrate=1000000`
 
-DBC: `autonomy/interfacing/dbc/humanoid.dbc`. Debug: `candump can0`.
+DBC: `autonomy/interfacing/dbc/humanoid.dbc` · Debug: `candump can0`
