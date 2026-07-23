@@ -39,6 +39,7 @@ common_msgs::msg::QuestHandPose QuestMessageParser::make_empty_message() {
 
   msg.left_wrist.orientation.w = 1.0;
   msg.right_wrist.orientation.w = 1.0;
+  msg.head_pose.orientation.w = 1.0;
 
   msg.left_hand_joints.resize(HAND_ARRAY_SIZE, 0.0f);
   msg.right_hand_joints.resize(HAND_ARRAY_SIZE, 0.0f);
@@ -57,6 +58,10 @@ common_msgs::msg::QuestHandPose QuestMessageParser::parse(const std::string& jso
 
   if (data.contains("right_wrist")) {
     fill_pose(data.at("right_wrist"), msg.right_wrist);
+  }
+
+  if (data.contains("head_pose")) {
+    fill_pose(data.at("head_pose"), msg.head_pose);
   }
 
   if (data.contains("left_hand_joints")) {
