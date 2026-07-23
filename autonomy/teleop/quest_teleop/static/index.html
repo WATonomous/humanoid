@@ -168,19 +168,13 @@
         };
       }
 
-      // ── POV quad (stereo both-arms overview camera feed) ─────────────────
-      // Drawn HUD-locked (eye-space only, no view matrix) so it's always
-      // visible regardless of head orientation -- a floating picture-in-
-      // picture panel, not a world-anchored object. Full-screen sized (not a
-      // small corner panel) so it reads as an immersive view, not a window.
-      // TWO textures (left/right eye), each refreshed from its own static
+      // POV quad: stereo camera feed, drawn HUD-locked (eye-space only, no
+      // view matrix) so it's always visible regardless of head orientation.
+      // Two textures (left/right eye), each refreshed from its own static
       // file (/pov_left.png, /pov_right.png) that run_quest_bimanual_teleop.py
-      // overwrites ~10x/sec by capturing two IPD-separated Kit viewports that
-      // follow your real head pose (see head_pose in the WS payload below and
-      // _EYE_CAMERA_* in that script) -- real stereo depth + head-tracked
-      // look-around, not a flat mono image. webxr_server.py serves both
-      // files with zero server-side changes, same as the old single-eye
-      // panel.
+      // overwrites ~10x/sec by capturing two fixed, IPD-separated Kit
+      // viewports -- real stereo depth, not a flat mono image.
+      // webxr_server.py serves both as plain static files, no server changes.
       function createQuadRenderer(gl) {
         const program = createProgram(
           gl,

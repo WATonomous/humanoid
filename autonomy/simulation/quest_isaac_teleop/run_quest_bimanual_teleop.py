@@ -138,31 +138,18 @@ _RIGHT_GRIPPER_OPEN = {"joint7": -0.05, "joint8": 0.05}
 _RIGHT_GRIPPER_CLOSED = {"joint7": 0.0, "joint8": 0.0}
 
 # WebXR (Y-up: X-right, Y-up, -Z-forward) -> simulation world frame (Z-up).
-# Identical mapping to run_quest_bimanual_teleop.py — see that file for the
-# derivation/rationale of each constant below.
-# X/Z swapped (2026-07-18) -- live testing showed physical forward/back hand
-# motion driving world Y (lateral) and physical left/right hand motion
-# driving world X (forward-reach), for BOTH arms -- i.e. this headset/
-# webxr_server's local reference space has quest X and Z swapped relative to
-# the assumed X-right/-Z-forward convention (its local-floor "forward" axis
-# was anchored 90 deg off from the physical direction the operator treats as
-# forward, not a per-arm issue). Fix: route qx into the forward-reach row and
-# qz into the lateral row (previously the reverse), keeping the same
-# coefficient signs each row had before so the already-tuned axis_sign_left/
-# right lateral-direction flip (see below) still lands on the correct
-# (now qz-sourced) row unchanged. Still a proper rotation (det +1, verified) --
-# do not further negate a row, that corrupts orientation via quat_from_matrix.
+# Routes qx into the forward-reach row and qz into the lateral row (this
+# headset/webxr_server's local reference space has them swapped relative to
+# the assumed X-right/-Z-forward convention). Must stay a proper rotation
+# (det +1) -- don't negate a row, that corrupts orientation via
+# quat_from_matrix. Use _AXIS_SIGN_LEFT/RIGHT below to flip individual axes
+# instead.
 _QUEST_TO_WORLD = torch.tensor(
     [[-1.0, 0.0, 0.0],
      [0.0, 0.0, 1.0],
      [0.0, 1.0, 0.0]],
     dtype=torch.float32,
 )
-# X (first component) reverted back to +1 (2026-07-20, third time) -- the
-# _HOME_TIP_X_OFFSET experiment that motivated flipping this to -1 has been
-# removed (see that constant's comment): the arm stays at its natural rest
-# position (X~0.42), so +1 (reach extends toward +X, matching the camera --
-# also reverted to face +X) is correct again.
 _AXIS_SIGN_LEFT = torch.tensor([1.0, -1.0, 1.0])
 _AXIS_SIGN_RIGHT = torch.tensor([1.0, -1.0, 1.0])
 
@@ -172,49 +159,33 @@ _GAIN_RAMP_END_M = 0.35
 
 _MAX_REACH_M = 0.28
 
-# Home/rest IK target X offset -- REMOVED (2026-07-20). Was used to drag the
-# arm's rest position to the other side of the mount/stand brace, but the
-# user flagged that this made IK behavior inconsistent between the natural
-# (front) and offset (back) positions and asked for it to just run where the
-# arms naturally are. Reverted to 0 -- the fix for "camera doesn't see the
-# grippers" is now entirely on the camera/enclosure side (aim the camera at
-# the arms' real rest position; the enclosure was already widened on
-# 2026-07-20 to comfortably contain it), not by moving the arm itself.
+# Home/rest IK target X offset. Keep at 0 -- the arm should run at its
+# natural rest position; fix camera/framing issues on the camera/enclosure
+# side (see _HEAD_VIEWPOINT_HOME_* below), not by dragging the arm's target
+# away from where it actually rests.
 _HOME_TIP_X_OFFSET = 0.0
 
-# Real-hardware bridge timing (2026-07-20, see --publish-real-left-arm).
-# Mirrors Task_space_controller/robot_arm_controllers/task_space_real.py's
+# Real-hardware bridge timing (see --publish-real-left-arm). Mirrors
+# Task_space_controller/robot_arm_controllers/task_space_real.py's
 # PUBLISH_PERIOD/PUBLISH_START_DELAY exactly -- same joint_command_node on
-# the other end, same reasoning: it applies NO velocity/delta rate-limiting
-# to the very first ArmPose message it ever receives after startup, so an
-# un-delayed first publish could snap the real arm hard from wherever it
-# physically is to the sim's current target. The delay gives a human time to
-# manually position the real arm near the sim pose first. Do not shorten
-# this without re-reading that rationale.
+# the other end, which applies NO velocity/delta rate-limiting to the very
+# first ArmPose message it receives after startup. An un-delayed first
+# publish could snap the real arm hard from wherever it physically is to the
+# sim's current target. The delay exists so a human can manually position
+# the real arm near the sim pose first -- don't shorten it.
 _REAL_ARM_PUBLISH_PERIOD_S = 0.02  # 20ms = 50Hz, matches joint_command_node's control_rate_hz
 _REAL_ARM_PUBLISH_START_DELAY_S = 5.0
 
-# Base-yaw trial (2026-07-18) tried and REJECTED -- user confirmed it swung
-# the gripper to the wrong side of the mount/stand bar. Reverting to the
-# shared _DEFAULT_JOINT_POS (bimanual_arm_cfg.py) unmodified; the fix instead
-# moves the lightbox enclosure back to give the arm's original rest pose room
-# (see _ENCLOSURE_X_SHIFT below), not the arm's joints.
-
 _WRIST_ORIENT_OFFSET_LEFT = torch.tensor([1.0, 0.0, 0.0, 0.0])
 _WRIST_ORIENT_OFFSET_RIGHT = torch.tensor([0.0, 0.0, 0.0, 1.0])
-# Trying 180deg about world Z first (2026-07-18) -- user reported the right
-# arm's orientation feels "backwards" during live tracking. Auto-cal removal
-# reverted wrist_orient_offset to identity (no correction) for both arms, and
-# the README already documents the raw uncorrected per-arm axis-convention
-# mismatch as asymmetric (previously ~30 right / ~90 left) -- but if a 180deg
-# offset doesn't fix a genuine "rotate one way, EE goes the opposite way"
-# feel, this isn't a fixed-angle misalignment at all, it's a chirality/mirror
-# issue (WebXR often reports left/right hand joint orientations in mirrored
-# local conventions, since a hand skeleton itself is chiral) -- that can't be
-# fixed with any rotation-offset quaternion here, it needs a sign flip on the
-# raw quest wrist quaternion components instead. Retune/replace per the
-# README's "Wrist orientation alignment" table based on what the live test
-# shows.
+# Per-arm rotation-offset conjugation applied to the wrist orientation delta.
+# Identity = no correction. If rotating your wrist drives the EE the wrong
+# way, retune per the README's "Wrist orientation alignment" table -- but if
+# a fixed-angle offset doesn't fix a "rotate one way, EE goes the opposite
+# way" feel, it's likely a chirality/mirror issue (WebXR can report
+# left/right hand joints in mirrored local conventions), which needs a sign
+# flip on the raw wrist quaternion components instead, not a rotation offset
+# here.
 
 _THUMB_TIP_IDX = 4
 _INDEX_TIP_IDX = 9
@@ -222,32 +193,20 @@ _PINCH_CLOSE_M = 0.030
 _PINCH_OPEN_M = 0.050
 
 _DLS_LAMBDA = 0.2
-# Right arm gets extra damping (not a smaller _MAX_REACH_M) to deal with the
-# instability observed near full extension: live-session diagnostics
-# (2026-07-18) showed it freezing mid-reach for ~55s with target_err stuck
-# above even the 0.28m reach clamp -- a real DLS solve normally converges on
-# a static target within ~1s, so that plateau meant it hit an unstable/
-# singular patch of its workspace it couldn't recover from without hitting R
-# to recalibrate. The two arms' default joint poses were measured
-# independently (not mirrored), so the right arm's rest pose isn't
-# necessarily as well-conditioned for full-extension reaches as the left's.
-# Shrinking _MAX_REACH_M would have sidestepped that region entirely but
-# also given up real workspace; heavier damping keeps the full 0.28m reach
-# and instead makes the solver more conservative (bounded correction per
-# step) exactly where the Jacobian conditioning gets bad, at the cost of
-# slower convergence there. Retune live if it now feels sluggish well before
-# full extension, or still locks up at the extreme.
+# Right arm gets extra damping (not a smaller _MAX_REACH_M): near full
+# extension its Jacobian conditioning is worse than the left arm's (the two
+# arms' default joint poses were measured independently, not mirrored), and
+# it would freeze mid-reach with target_err stuck near the clamp. Heavier
+# damping keeps the full reach distance but makes the solver more
+# conservative exactly where conditioning gets bad. Retune live if it's
+# sluggish well before full extension, or still locks up at the extreme.
 _DLS_LAMBDA_RIGHT = 0.35
 
 _ENCLOSURE_MATERIAL = sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0), emissive_color=(1.0, 1.0, 1.0))
-# Back wall shifted back 0.2m (2026-07-18) to clear the mount/stand
-# structural bar. Front boundary extended out to 0.75m (2026-07-20) -- the
-# open "front" (+X) edge used to be at just 0.123m, but the rest EE position
-# is at X~0.42-0.43 (confirmed via the live root-pose diagnostic) and full
-# reach extends _MAX_REACH_M=0.28m further, i.e. up to ~0.71m -- the arms
-# were sticking out past the box's own front boundary the whole time. 0.75m
-# gives a bit of margin beyond full reach so the arms are always inside the
-# enclosure, not straddling its edge.
+# Back wall shifted to clear the mount/stand structural bar. Front boundary
+# extended to 0.75m so the enclosure actually contains the arms' full reach
+# (rest EE X~0.42-0.43 + _MAX_REACH_M=0.28 = ~0.71m) instead of the arms
+# sticking out past it.
 _ENCLOSURE_BACK_X = -0.45
 _ENCLOSURE_FRONT_X = 0.75  # open front (arm reach direction) -- extended to actually contain the arms, see above
 _ENCLOSURE_Y_MIN = -0.9
@@ -263,35 +222,27 @@ _TABLE_X_MIN, _TABLE_X_MAX = _ENCLOSURE_BACK_X, _ENCLOSURE_FRONT_X  # matches th
 _TABLE_Y_MIN, _TABLE_Y_MAX = _ENCLOSURE_Y_MIN, _ENCLOSURE_Y_MAX
 _TABLE_THICKNESS = 0.05
 
-# Stereo head-tracked camera pair (real immersion, not a flat single-camera
-# POV window): two RealSense D455s mounted on base_link, one per eye,
-# IPD-separated, that follow the operator's real head pose each frame (see
-# head_pose in QuestHandPose.msg / index.html's payload.head_pose). Same
-# "home on first tracked sample, then home + world-frame delta" pattern as
-# the wrist-driven arms below -- head_home_xyz/quat track the anchor, the
-# _HEAD_VIEWPOINT_HOME pose (base-frame, relative to base_link) is where the
-# viewpoint sits when your head is at its home pose.
+# Stereo camera pair (real depth via two eye textures, not a flat
+# single-camera POV): two RealSense D455s mounted on base_link, fixed at
+# _HEAD_VIEWPOINT_HOME_POS/QUAT (head tracking is currently disabled -- see
+# the "FULLY FIXED" note further down -- head_pose is still read from
+# QuestHandPose.msg but unused for positioning).
 #
-# rsd455's local axes (measured against the actual payload, see
-# run_quest_openxr_bimanual_teleop.py's docstring and the original
-# bimanual_arm_lightbox.usd wrist-camera comments): +X = lens boresight
-# (forward), +Z = up. For a right-handed frame that makes local -Y "right"
-# (forward x up = X x Z = -Y) -- IPD offset is applied along that axis,
-# rotated by the viewpoint's current orientation each frame.
+# rsd455's local axes: +X = lens boresight (forward), +Z = up. That makes
+# local -Y "right" (forward x up = X x Z = -Y) -- IPD offset is applied
+# along that axis, rotated by the viewpoint's current orientation.
 _RSD455_USD_URL = (
     "https://omniverse-content-production.s3-us-west-2.amazonaws.com/"
     "Assets/Isaac/5.1/Isaac/Sensors/Intel/RealSense/rsd455.usd"
 )
-_HEAD_VIEWPOINT_HOME_POS = (0.0, 0.0, 0.75)  # translate xyz, relative to base_link -- same as old single camera
-_HEAD_VIEWPOINT_HOME_QUAT = (0.9026085152688121, 0.0, 0.43046238879166954, 0.0)  # ~51deg downward pitch about Y, facing +X
-# Precisely computed look-at (2026-07-20), not a round-number guess like the
-# earlier 45deg versions: direction from _HEAD_VIEWPOINT_HOME_POS (0,0,0.75)
-# to the actual average of both arms' natural rest tip positions
-# (~(0.422, 0.016, 0.229), from the "[Quest][diag] rest EE pos" log line),
-# via atan2 of the XZ-plane components (Y offset is small, ~0.016m, ignored
-# for this single-axis-rotation aim). _HOME_TIP_X_OFFSET is back to 0 (see
-# that constant) so this targets the arms' one true rest position again, not
-# a moving target.
+_HEAD_VIEWPOINT_HOME_POS = (0.0, 0.0, 0.75)  # translate xyz, relative to base_link
+_HEAD_VIEWPOINT_HOME_QUAT = (0.9026085152688121, 0.0, 0.43046238879166954, 0.0)  # ~51deg downward pitch, facing +X
+# Computed look-at: direction from _HEAD_VIEWPOINT_HOME_POS to the average of
+# both arms' natural rest tip positions (~(0.422, 0.016, 0.229), see the
+# "[Quest][diag] rest EE pos" log line), via atan2 of the XZ-plane
+# components (the small ~0.016m Y offset is ignored for this
+# single-axis-rotation aim). Recompute if the rest pose or camera position
+# changes.
 _EYE_LOCAL_RIGHT = torch.tensor([0.0, -1.0, 0.0])
 _EYE_IPD_M = 0.063
 # Sub-path to the actual renderable Camera prim inside the rsd455 payload --
@@ -473,8 +424,8 @@ def _ramped_gain(disp_m: torch.Tensor, gain_near: float) -> torch.Tensor:
 
 
 def _is_tracked(pos: torch.Tensor, quat_wxyz: torch.Tensor, eps: float = 1e-6) -> bool:
-    """True unless this is the WebXR "untracked hand" sentinel (see
-    run_quest_bimanual_teleop.py for the full rationale)."""
+    """True unless this is WebXR's "untracked hand" sentinel: zero position
+    + identity orientation."""
     return not (
         torch.allclose(pos, torch.zeros_like(pos), atol=eps)
         and torch.allclose(quat_wxyz, torch.tensor([1.0, 0.0, 0.0, 0.0], device=quat_wxyz.device), atol=eps)
@@ -780,32 +731,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 left_arm.quest_home_xyz = left_xyz_q.clone()
                 left_arm.quest_home_quat = left_quat.clone()
                 # Anchor to the fixed launch-time rest tip pose, not wherever
-                # the tip currently sits — see run_quest_bimanual_teleop.py's
-                # equivalent comment for why (avoids baking in IK lag / making
-                # recalibration a no-op).
+                # the tip currently sits -- avoids baking in IK lag / making
+                # recalibration a no-op.
                 left_arm.home_tip_pos_b = init_tip_pos_b_l.clone()
                 left_arm.home_tip_quat_b = init_tip_quat_b_l.clone()
                 target_pos_b_left = left_arm.home_tip_pos_b.clone()
                 target_quat_b_left = left_arm.home_tip_quat_b.clone()
-
-                # NOTE: previously recomputed wrist_orient_offset here from
-                # ee_quat_w_l / q_home_w_l ("auto-calibration"). Removed —
-                # that formula (offset = ee_home * quest_home^-1, applied as
-                # a conjugation on every subsequent delta) is mathematically
-                # invalid: it relates two orientations with no physical
-                # relationship (arbitrary robot rest pose vs. whatever way
-                # the user's wrist happened to be pointing at homing) and a
-                # single home sample can't determine the actual sensor/body
-                # axis-convention correction (that needs multiple independent
-                # rotation samples). Verified in sim: it converges to a
-                # stable but ~50-60deg WRONG orientation (not a convergence
-                # speed issue), and destabilizes tip position while doing so
-                # — worse on the right arm (~0.11m residual vs ~0.06m left
-                # for the same commanded rotation). wrist_orient_offset now
-                # stays at the static _WRIST_ORIENT_OFFSET_LEFT/RIGHT
-                # constant set below main(); re-tune those manually per the
-                # README's "Wrist orientation alignment" table if rotation
-                # axes still feel misaligned.
                 print(f"[Quest] Left wrist tracked — homed at {left_xyz_q.tolist()}", flush=True)
 
             if right_arm.quest_home_xyz is None and right_tracked:
@@ -815,9 +746,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 right_arm.home_tip_quat_b = init_tip_quat_b_r.clone()
                 target_pos_b_right = right_arm.home_tip_pos_b.clone()
                 target_quat_b_right = right_arm.home_tip_quat_b.clone()
-
-                # See matching note in the left-wrist homing block above —
-                # auto-calibration removed, wrist_orient_offset stays static.
                 print(f"[Quest] Right wrist tracked — homed at {right_xyz_q.tolist()}", flush=True)
 
             # ── Target (fingertip-tip, base frame) ──────────────────────────────
@@ -863,17 +791,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 dq_right_base = quat_mul(quat_mul(quat_inv(root_quat_w), dq_right_world), root_quat_w)
                 target_quat_b_right = quat_mul(dq_right_base, right_arm.home_tip_quat_b)
 
-            # ── Stereo viewpoint: FULLY FIXED, no head tracking at all
-            # (2026-07-20: position-tracking felt like flying around the
-            # scene; the fixed-position/rotate-only follow-up still felt like
-            # unwanted movement -- user asked for a plain fixed camera at the
-            # home angle, no movement). head_viewpoint_pos_b/quat_b are left
-            # at their home values set before the loop and never touched
-            # here. head_home_xyz/quat and head_tracked are now unused for
-            # positioning (still computed above for the _is_tracked call) --
-            # if head tracking is wanted again later, this block's git
-            # history has both the fixed-pivot-rotate-only and full-tracking
-            # versions to restore from.
+            # Stereo viewpoint is fully fixed -- no head tracking.
+            # head_viewpoint_pos_b/quat_b stay at their home values for the
+            # whole run; head_home_xyz/quat/head_tracked above are unused for
+            # positioning (only feed _is_tracked). Head-tracked position and
+            # rotate-only variants are both in git history if wanted again.
 
             diag_frame += 1
             if diag_frame % 100 == 0:
@@ -941,11 +863,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         sim.step()
         scene.update(sim_dt)
 
-        # ── Stereo eye mounts follow the current head viewpoint every frame
-        # (cheap USD attribute writes, keeps head tracking responsive even
-        # though the rendered image only refreshes at the throttled capture
-        # rate below). IPD offset applied along the viewpoint's current
-        # "right" axis (eye_local_right, rotated into base frame). ──────────
+        # Stereo eye mounts follow the current head viewpoint (a no-op right
+        # now since it's fixed -- see above -- but cheap, and ready if head
+        # tracking comes back). IPD offset applied along the viewpoint's
+        # current "right" axis, rotated into base frame.
         right_offset_b = quat_apply(head_viewpoint_quat_b, eye_local_right.unsqueeze(0)) * (_EYE_IPD_M / 2)
         left_eye_pos_b = (head_viewpoint_pos_b - right_offset_b)[0].tolist()
         right_eye_pos_b = (head_viewpoint_pos_b + right_offset_b)[0].tolist()
