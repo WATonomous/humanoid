@@ -17,8 +17,6 @@ log/
 **/certs/*
 
 autonomy/teleop/quest_teleop_server/certs/*
-
-autonomy/teleop/quest_teleop/static/pov*.png
 datasets/
 outputs/
 
