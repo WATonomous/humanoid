@@ -15,7 +15,7 @@ left:
       upper_limit: 3.6999999999999886
       limit_range: true
     yaw:
-      can_id: 13
+      can_id: 11
       lower_limit: -11.300003051757812
       upper_limit: 38.19999694824219
       direction: 1
@@ -30,7 +30,7 @@ left:
       upper_limit: 47.19999694824219
       limit_range: true
     roll:
-      can_id: 11
+      can_id: 13
       lower_limit: -46.099998474121094
       upper_limit: 36.0
       direction: 1
