@@ -37,4 +37,17 @@ private:
   std::map<int, double> latest_feedback_;
   bool seeded_from_feedback_{false};
   bool logged_publish_count_{false};
+
+  // Command staleness watchdog: without this, have_latest_cmds_/seeded_from_feedback_
+  // stay true for the node's entire lifetime once set, so control_timer_ keeps
+  // republishing whatever ArmPose target it last received FOREVER -- including across a
+  // can_node/interfacing restart, causing an instant snap to a stale target the moment
+  // CAN communication resumes (observed directly: arm jumped to a target from a much
+  // earlier run the instant the interfacing container came back up). If no fresh ArmPose
+  // arrives within command_timeout_sec_, stop publishing AND clear seeded_from_feedback_,
+  // so the next real command must re-seed from fresh feedback and ramp safely again,
+  // exactly like a first-ever command after node startup.
+  double command_timeout_sec_{1.0};
+  rclcpp::Time last_armpose_time_;
+  bool have_armpose_time_{false};
 };

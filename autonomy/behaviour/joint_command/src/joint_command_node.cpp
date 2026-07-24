@@ -14,6 +14,7 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
   this->declare_parameter("motor_cmd_topic", "/interfacing/motorCMD");
   this->declare_parameter("control_type", common_msgs::msg::MotorCmd::POSITION_LOOP);
   this->declare_parameter("feedback_topic", "/interfacing/motorFeedback");
+  this->declare_parameter("command_timeout_sec", 1.0);
 
   const std::string arm_side = this->get_parameter("arm_side").as_string();
   control_rate_hz_ = this->get_parameter("control_rate_hz").as_double();
@@ -21,6 +22,7 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
   const std::string motor_cmd_topic = this->get_parameter("motor_cmd_topic").as_string();
   control_type_ = static_cast<int8_t>(this->get_parameter("control_type").as_int());
   const std::string feedback_topic = this->get_parameter("feedback_topic").as_string();
+  command_timeout_sec_ = this->get_parameter("command_timeout_sec").as_double();
 
   const YAML::Node hardware_config =
       YAML::LoadFile(ament_index_cpp::get_package_share_directory("joint_command") +
@@ -91,6 +93,8 @@ void JointCommandNode::armPoseCallback(const common_msgs::msg::ArmPose::SharedPt
   try {
     latest_cmds_ = core_.armPoseToMotorCmds(*msg, control_type_);
     have_latest_cmds_ = true;
+    last_armpose_time_ = this->get_clock()->now();
+    have_armpose_time_ = true;
   } catch (const std::exception& e) {
     RCLCPP_ERROR(this->get_logger(), "Failed to process ArmPose: %s", e.what());
   }
@@ -103,6 +107,19 @@ void JointCommandNode::motorFeedbackCallback(const common_msgs::msg::MotorFeedba
 
 void JointCommandNode::controlTimerCallback() {
   if (!have_latest_cmds_) {
+    return;
+  }
+  if (have_armpose_time_ &&
+      (this->get_clock()->now() - last_armpose_time_).seconds() > command_timeout_sec_) {
+    // No fresh ArmPose within the timeout window: stop republishing the stale cached
+    // target and force a fresh seed-from-feedback + ramp on the next real command,
+    // instead of instantly resuming motion toward a target that could be arbitrarily old.
+    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
+                         "ArmPose stream stale (no message in %.1fs): halting motor "
+                         "commands until a fresh ArmPose re-seeds the rate-limiter.",
+                         command_timeout_sec_);
+    have_latest_cmds_ = false;
+    seeded_from_feedback_ = false;
     return;
   }
   publishMotorCommands(latest_cmds_);
