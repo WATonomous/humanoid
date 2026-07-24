@@ -14,7 +14,7 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
   this->declare_parameter("motor_cmd_topic", "/interfacing/motorCMD");
   this->declare_parameter("control_type", common_msgs::msg::MotorCmd::POSITION_LOOP);
   this->declare_parameter("feedback_topic", "/interfacing/motorFeedback");
-  this->declare_parameter("command_timeout_sec", 1.0);
+  this->declare_parameter("command_timeout_sec", 10.0);
 
   const std::string arm_side = this->get_parameter("arm_side").as_string();
   control_rate_hz_ = this->get_parameter("control_rate_hz").as_double();

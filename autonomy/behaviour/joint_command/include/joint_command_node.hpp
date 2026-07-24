@@ -47,7 +47,7 @@ private:
   // arrives within command_timeout_sec_, stop publishing AND clear seeded_from_feedback_,
   // so the next real command must re-seed from fresh feedback and ramp safely again,
   // exactly like a first-ever command after node startup.
-  double command_timeout_sec_{1.0};
+  double command_timeout_sec_{10.0};
   rclcpp::Time last_armpose_time_;
   bool have_armpose_time_{false};
 };
