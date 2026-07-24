@@ -15,6 +15,7 @@
 ##   - behaviour            :   joint_command, voxel_grid
 ##   - simulation_isaac     :   Isaac Lab (SO101 IL, HumanoidRL, Quest teleop)
 ##   - simulation_mj        :   MuJoCo / mjlab (mjlabs service)
+##   - simulation_mj.cpu    :   MuJoCo / mjlab CPU-only (mjlabs service)
 
 ACTIVE_MODULES="interfacing"
 

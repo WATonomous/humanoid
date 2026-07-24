@@ -59,7 +59,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --no-cache-dir mujoco mjviser numpy jax[cuda12] brax flax optax
+RUN pip3 install --no-cache-dir mujoco mjviser numpy jax[cuda12] brax flax optax warp-lang newton viser trimesh
 
 # ── ROS Networking & Entrypoint ──────────────────────────────────────────────
 ENV ROS_DOMAIN_ID=0
