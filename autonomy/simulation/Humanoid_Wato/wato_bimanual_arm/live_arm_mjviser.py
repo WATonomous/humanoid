@@ -26,7 +26,8 @@ CORRECTED (per direct visual confirmation): the URDF's "L"-suffixed chain
 unsuffixed chain (joint1, joint2, ..., joint6) is the LEFT arm. This does not
 change LABEL_TO_URDF_JOINT below: it maps hardware_mapping.yaml's wiring side to
 whichever URDF chain is physically wired to it, which hasn't changed -- only
-what that URDF chain should be CALLED has.
+what that URDF chain should be CALLED has. See ARM_BRINGUP.md for the
+validated invocation (--arm-side left --urdf-side right).
 
 The gripper (hardware_mapping.yaml can_id 0x15, command-frame units 0-100) has no
 confirmed scale to the prismatic finger joints' travel in meters (joint7l/joint8l),

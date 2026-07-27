@@ -41,11 +41,12 @@ sys.path.insert(0, _KEYBOARD_TELEOP_DIR)
 from bimanual_arm_cfg import (  # noqa: E402
     BIMANUAL_ARM_CFG,
     GRIPPER_OPEN,
-    RIGHT_ARM_JOINTS,
-    RIGHT_EE_BODY,
-    RIGHT_FINGER_TIP_BODIES,
-    RIGHT_GRIPPER_JOINTS,
     LEFT_ARM_JOINTS,
+    LEFT_EE_BODY,
+    LEFT_FINGER_TIP_BODIES,
+    LEFT_FINGER_DISTAL_TIP_LOCAL,
+    LEFT_GRIPPER_JOINTS,
+    RIGHT_ARM_JOINTS,
     RIGHT_GRIPPER_JOINTS,
     apply_joint_limits,
     compute_tip_ik_jacobian,
@@ -97,6 +98,7 @@ def publish_joint_pos_udp(joint_pos_des):
     q = [math.degrees(v) for v in joint_pos_des[0].tolist()]
     data = struct.pack("6d", *q)
     udp_sock.sendto(data, (UDP_HOST, UDP_PORT))
+    print(f"[UDP] angles sent (deg): {[f'{v:.2f}' for v in q]}")
 
 
 def _joint_ids(robot, names: list[str]) -> list[int]:
@@ -117,15 +119,10 @@ class TableTopSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75)),
     )
 
-    # Spawned at the active/correct arm's (link7/link8, unsuffixed chain) actual measured
-    # fingertip midpoint at its default pose -- the old value (0.26, -0.23, 0.15) was
-    # ~0.31 units from the OTHER (passive, joint1L..6l) arm's resting hand but ~0.95 units
-    # from this arm's, meaning the IK was starting by reaching almost a meter toward where
-    # the wrong arm's hand rests. Drag the cube from here once the sim is running.
     cube = AssetBaseCfg(
         prim_path="/World/cube",
         spawn=sim_utils.CuboidCfg(size=[0.1, 0.1, 0.1]),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.24, 0.64, 0.53)),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(-0.234, 0.288, -0.222)),
     )
 
     robot = BIMANUAL_ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
@@ -138,14 +135,25 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     scene.update(sim_dt)
     apply_joint_limits(robot)
 
-    right_arm_names = [resolve_joint_name(robot, name) for name in RIGHT_ARM_JOINTS]
+    left_arm_names = [resolve_joint_name(robot, name) for name in LEFT_ARM_JOINTS[:6]]
     print(f"[INFO] Robot joints: {robot.data.joint_names}")
-    print(f"[INFO] Left arm IK joints: {right_arm_names}")
-    print(f"[INFO] Left wrist body (Jacobian anchor): {RIGHT_EE_BODY}")
-    print("[INFO] IK tracks fingertip center (link7l/link8l mesh distal midpoint)")
+    print(f"[INFO] Left arm IK joints: {left_arm_names}")
+    print(f"[INFO] Left wrist body (Jacobian anchor): {LEFT_EE_BODY}")
+    print("[INFO] IK tracks fingertip center (link7/link8 mesh distal midpoint)")
 
+    # lambda_val raised well above IsaacLab's default (0.01): compute() takes a full
+    # one-shot Newton step every frame (joint_pos + J^T(JJ^T + lambda^2 I)^-1 * error),
+    # not a small gradient step. This 6-joint arm doing a 3-DOF position-only task has 3
+    # redundant DOF, so the 3x6 position Jacobian is often poorly-conditioned -- with weak
+    # damping, a near-singular direction gets amplified by ~1/lambda^2 (10000x at the
+    # default 0.01), turning even sub-millimeter position error (e.g. float rounding
+    # between the cube's exact position and the measured fingertip position) into a
+    # multi-hundred-degree single-step joint jump. Confirmed directly: joint4 hit 447 deg
+    # and joint6 hit 610 deg from a cube spawned at the exact measured default-pose
+    # fingertip position. Higher damping trades a bit of tracking speed for stability.
     diff_ik_cfg = DifferentialIKControllerCfg(
-        command_type="position", use_relative_mode=False, ik_method="dls"
+        command_type="position", use_relative_mode=False, ik_method="dls",
+        ik_params={"lambda_val": 0.2},
     )
     diff_ik_controller = DifferentialIKController(
         diff_ik_cfg, num_envs=scene.num_envs, device=sim.device
@@ -157,7 +165,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     goal_marker = VisualizationMarkers(frame_marker_cfg.replace(prim_path="/Visuals/ee_goal"))
 
     robot_entity_cfg = SceneEntityCfg(
-        "robot", joint_names=right_arm_names, body_names=[RIGHT_EE_BODY]
+        "robot", joint_names=left_arm_names, body_names=[LEFT_EE_BODY]
     )
     robot_entity_cfg.resolve(scene)
 
@@ -165,25 +173,34 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         robot_entity_cfg.body_ids[0] - 1 if robot.is_fixed_base else robot_entity_cfg.body_ids[0]
     )
     wrist_body_id = robot_entity_cfg.body_ids[0]
-    finger_body_ids = resolve_body_ids(robot, RIGHT_FINGER_TIP_BODIES)
+    finger_body_ids = resolve_body_ids(robot, LEFT_FINGER_TIP_BODIES)
 
     left_arm_ids = robot_entity_cfg.joint_ids
-    right_gripper_ids = _joint_ids(robot, RIGHT_GRIPPER_JOINTS)
-    left_joint_ids = _joint_ids(robot, LEFT_ARM_JOINTS)
+    left_gripper_ids = _joint_ids(robot, LEFT_GRIPPER_JOINTS)
+    right_joint_ids = _joint_ids(robot, RIGHT_ARM_JOINTS)
     right_gripper_ids = _joint_ids(robot, RIGHT_GRIPPER_JOINTS)
 
     gripper_open_targets = torch.tensor(
-        [[GRIPPER_OPEN[name] for name in RIGHT_GRIPPER_JOINTS]],
+        [[GRIPPER_OPEN[name] for name in LEFT_GRIPPER_JOINTS]],
         device=sim.device,
     )
 
     joint_position = robot.data.default_joint_pos.clone()
     joint_vel = robot.data.default_joint_vel.clone()
     robot.write_joint_state_to_sim(joint_position, joint_vel)
-    left_default_pos = joint_position[:, left_joint_ids].clone()
+    right_default_pos = joint_position[:, right_joint_ids].clone()
+    right_gripper_default_pos = joint_position[:, right_gripper_ids].clone()
     scene.write_data_to_sim()
     sim.step()
     scene.update(sim_dt)
+
+    _startup_tip_pos_w, _ = compute_gripper_tip_pose_w(
+        robot, wrist_body_id, finger_body_ids,
+        tip_bodies=LEFT_FINGER_TIP_BODIES, tip_local=LEFT_FINGER_DISTAL_TIP_LOCAL,
+    )
+    print(f"[INFO] Left arm fingertip-center world position at default pose: "
+          f"{_startup_tip_pos_w[0].tolist()} -- set the cube's init_state pos to this "
+          f"so the IK starts close to the resting hand.")
 
     diff_ik_controller.reset(env_ids=torch.arange(scene.num_envs, device=sim.device))
 
@@ -209,7 +226,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             root_pose_w[:, 0:3], root_pose_w[:, 3:7], ee_pose_w[:, 0:3], ee_pose_w[:, 3:7]
         )
         tip_pos_b, tip_quat_b = compute_gripper_tip_pose_b(
-            robot, root_pose_w, wrist_body_id, finger_body_ids
+            robot, root_pose_w, wrist_body_id, finger_body_ids,
+            tip_bodies=LEFT_FINGER_TIP_BODIES, tip_local=LEFT_FINGER_DISTAL_TIP_LOCAL,
         )
 
         # set_command needs ee_quat to hold current orientation (used for display only in position mode)
@@ -225,12 +243,13 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         joint_pos_des = diff_ik_controller.compute(tip_pos_b, tip_quat_b, jacobian, joint_pos)
         robot.set_joint_position_target(joint_pos_des, joint_ids=left_arm_ids)
 
-        # Hold left gripper open; right arm + gripper at default pose
-        robot.set_joint_position_target(gripper_open_targets, joint_ids=right_gripper_ids)
-        robot.set_joint_position_target(left_default_pos, joint_ids=left_joint_ids)
+        # Hold left (real-hardware) gripper open; right arm + gripper at default pose
+        robot.set_joint_position_target(gripper_open_targets, joint_ids=left_gripper_ids)
+        robot.set_joint_position_target(right_default_pos, joint_ids=right_joint_ids)
+        robot.set_joint_position_target(right_gripper_default_pos, joint_ids=right_gripper_ids)
         robot.set_joint_velocity_target(
-            torch.zeros(1, len(right_gripper_ids), device=sim.device),
-            joint_ids=right_gripper_ids,
+            torch.zeros(1, len(left_gripper_ids), device=sim.device),
+            joint_ids=left_gripper_ids,
         )
 
         # Send desired left-arm joint targets to the real arm via the UDP bridge,
@@ -245,7 +264,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         sim.step()
         scene.update(sim_dt)
 
-        tip_pos_w, tip_quat_w = compute_gripper_tip_pose_w(robot, wrist_body_id, finger_body_ids)
+        tip_pos_w, tip_quat_w = compute_gripper_tip_pose_w(
+            robot, wrist_body_id, finger_body_ids,
+            tip_bodies=LEFT_FINGER_TIP_BODIES, tip_local=LEFT_FINGER_DISTAL_TIP_LOCAL,
+        )
         ee_marker.visualize(tip_pos_w, tip_quat_w)
         goal_marker.visualize(cube_pos_w, cube_quat_w)
 

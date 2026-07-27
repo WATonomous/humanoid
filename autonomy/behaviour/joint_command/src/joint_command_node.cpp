@@ -14,7 +14,7 @@ JointCommandNode::JointCommandNode() : Node("joint_command_node") {
   this->declare_parameter("motor_cmd_topic", "/interfacing/motorCMD");
   this->declare_parameter("control_type", common_msgs::msg::MotorCmd::POSITION_LOOP);
   this->declare_parameter("feedback_topic", "/interfacing/motorFeedback");
-  this->declare_parameter("command_timeout_sec", 10.0);
+  this->declare_parameter("command_timeout_sec", 0.5);
 
   const std::string arm_side = this->get_parameter("arm_side").as_string();
   control_rate_hz_ = this->get_parameter("control_rate_hz").as_double();
@@ -95,6 +95,7 @@ void JointCommandNode::armPoseCallback(const common_msgs::msg::ArmPose::SharedPt
     have_latest_cmds_ = true;
     last_armpose_time_ = this->get_clock()->now();
     have_armpose_time_ = true;
+    disable_sent_ = false;
   } catch (const std::exception& e) {
     RCLCPP_ERROR(this->get_logger(), "Failed to process ArmPose: %s", e.what());
   }
@@ -120,6 +121,27 @@ void JointCommandNode::controlTimerCallback() {
                          command_timeout_sec_);
     have_latest_cmds_ = false;
     seeded_from_feedback_ = false;
+    if (!disable_sent_) {
+      // Going silent alone leaves POSITION_LOOP motors holding their last commanded
+      // position forever (that's their own onboard control loop, not something this
+      // node's silence affects) -- send an explicit one-shot DISABLE per motor so the
+      // arm actually goes free/limp the moment the ArmPose source (e.g.
+      // task_space_real.py) stops, instead of staying locked in place.
+      std::vector<common_msgs::msg::MotorCmd> disable_cmds;
+      disable_cmds.reserve(latest_cmds_.size());
+      for (const auto& cmd : latest_cmds_) {
+        common_msgs::msg::MotorCmd disable_cmd;
+        disable_cmd.motor_id = cmd.motor_id;
+        disable_cmd.control_type = common_msgs::msg::MotorCmd::DISABLE;
+        disable_cmds.push_back(disable_cmd);
+      }
+      for (const auto& cmd : disable_cmds) {
+        motor_cmd_pub_->publish(cmd);
+      }
+      RCLCPP_WARN(this->get_logger(), "Sent DISABLE to %zu motors -- arm is now free to move.",
+                  disable_cmds.size());
+      disable_sent_ = true;
+    }
     return;
   }
   publishMotorCommands(latest_cmds_);
