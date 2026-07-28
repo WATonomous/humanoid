@@ -1,7 +1,9 @@
 // Code for CAN implementation
+#include "Drivers/UART_STM32.h"
 #include <SimpleFOC.h>
 #include <encoders/mt6835/MagneticSensorMT6835.h>
 
+#include "Drivers/BNO085.h"
 #include "Drivers/FDCAN_STM32.h"
 #include "Drivers/SysClock.h"
 #include "Drivers/TIM.h"
@@ -26,6 +28,7 @@
 FDCAN_FilterTypeDef sFilterConfig;
 FDCAN_TxHeaderTypeDef TxHeader;
 FDCAN_RxHeaderTypeDef RxHeader;
+BNO085 imu;
 
 BLDCMotor motor = BLDCMotor(7);
 BLDCDriver3PWM driver = BLDCDriver3PWM(phaseA, phaseB, phaseC);
@@ -54,13 +57,44 @@ void doLimit(char* cmd) {
 }
 
 void setup() {
+  // HAL_Init();
+  // SystemClock_Config();
+
+  // Serial.begin(115200);
+  // while (!Serial)
+  //   ;
+  // Serial.println("STM32 Serial OK!");
+
   HAL_Init();
   SystemClock_Config();
 
+  MX_LPUART1_Init();
+
+  UART_Print("...\r\n");
+  UART_Print("STM32 UART test\r\n");
+  UART_Print("If you can read this, COM3 is working\r\n");
+  UART_Print("why is this so finicky?\r\n");
+
   Serial.begin(115200);
-  while (!Serial)
-    ;
-  Serial.println("STM32 Serial OK!");
+  delay(1000);
+
+  Serial.println("=== STM32 STARTING ===");
+
+  MX_FDCAN2_Init();
+  MX_TIM4_Init();
+  MX_I2C1_Init();
+
+  Serial.println("=== PERIPHERALS INITIALIZED ===");
+
+  if (!imu.begin()) {
+    Serial.println("=== BNO085 FAILED ===");
+
+    while (1) {
+      delay(1000);
+    }
+  }
+
+  Serial.println("=== BNO085 INITIALIZED ===");
 
   /* Configure the system clock */
 
@@ -73,6 +107,14 @@ void setup() {
   MX_TIM4_Init();
 
   // MT6835_Init(&hspi1, MT_CS_GPIO, MT_CS_PIN);
+
+  MX_I2C1_Init();
+
+  if (!imu.begin()) {
+    while (1) {
+      // IMU initialization failed
+    }
+  }
 
   /* USER CODE BEGIN 2 */
   TxHeader.Identifier = 0x123; // Standard ID
@@ -204,6 +246,25 @@ void loop() {
   // Serial.println("ENCODER:");
   encoder.update();
   Serial.println(encoder.getAngle());
+
+  Serial.println("=== LOOP RUNNING ===");
+  imu.update();
+
+  Quaternion q = imu.getQuaternion();
+
+  Serial.print("W: ");
+  Serial.print(q.w, 3);
+
+  Serial.print("  X: ");
+  Serial.print(q.x, 3);
+
+  Serial.print("  Y: ");
+  Serial.print(q.y, 3);
+
+  Serial.print("  Z: ");
+  Serial.println(q.z, 3);
+
+  delay(100);
 
   // uint32_t mdeg = {1};
   // TxData_C2_To_C3[0] = (mdeg >> 24) & 0xFF;
