@@ -58,7 +58,14 @@ bool BNO085::enableGyroscope(uint32_t interval_us) {
 }
 
 Quaternion BNO085::getQuaternion() const {
-  return rotationVector;
+  Quaternion q;
+
+  q.w = rotationVector.un.rotationVector.real;
+  q.x = rotationVector.un.rotationVector.i;
+  q.y = rotationVector.un.rotationVector.j;
+  q.z = rotationVector.un.rotationVector.k;
+
+  return q;
 }
 
 sh2_SensorValue_t BNO085::getAccelerometer() const {

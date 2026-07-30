@@ -2,6 +2,7 @@
 #define BNO085_H
 
 #include "sh2.h"
+#include "sh2_err.h"
 #include "sh2_SensorValue.h"
 
 struct Quaternion {

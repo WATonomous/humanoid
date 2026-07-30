@@ -5,6 +5,7 @@
 
 #include "Drivers/BNO085.h"
 #include "Drivers/FDCAN_STM32.h"
+#include "Drivers/I2C_STM32.h"
 #include "Drivers/SysClock.h"
 #include "Drivers/TIM.h"
 
@@ -44,6 +45,12 @@ uint8_t TxData_C2_To_C3[64];
 uint8_t RxData_C3[8];
 volatile int txDone = 0;
 const static char motor_id = 'M';
+
+void AppError_Handler(void) {
+  __disable_irq();
+  while (1) {
+  }
+}
 
 Commander command = Commander(Serial);
 void doTarget(char* cmd) {
@@ -219,7 +226,7 @@ void loop() {
     }
     prevTime = currTime;
     if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan2, &TxHeader, TxData_C2_To_C3) != HAL_OK) {
-      Error_Handler();
+      AppError_Handler();
     }
 
     while (HAL_FDCAN_IsTxBufferMessagePending(&hfdcan2, FDCAN_TX_BUFFER0)) {
