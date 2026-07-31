@@ -200,13 +200,11 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
     }
 
     case common_msgs::msg::MotorCmd::POSITION_VELOCITY: {
-      // PosVelPosition is already "deg" per the DBC (matches POSITION_LOOP's PositionDeg), so
-      // msg->position passes through unscaled. PosVelSpeed/PosVelAccel are ERPM/(ERPM/s2) on
-      // the wire, so msg->velocity/acceleration (deg/s, deg/s2 -- same convention as everywhere
-      // else this message is used) must go through degPerSecToErpm() first. That conversion is
-      // only validated for AK10-9/AK80-9 (see degPerSecToErpm's declaration comment); reuse
-      // mit_profiles_ as the "known AK-series motor" gate and refuse otherwise, same as
-      // MIT_CONTROL below does for a missing profile.
+      // PosVelPosition is deg per the DBC, so position passes through unscaled. PosVelSpeed/
+      // PosVelAccel are ERPM on the wire, so velocity/acceleration go through degPerSecToErpm()
+      // first (see its declaration comment). Gated on mit_profiles_ (known AK-series motors only),
+      // same as MIT_CONTROL below.
+
       const auto it = mit_profiles_.find(static_cast<int>(msg->motor_id));
       if (it == mit_profiles_.end()) {
         RCLCPP_ERROR(this->get_logger(),
@@ -232,13 +230,11 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
     }
 
     case common_msgs::msg::MotorCmd::MIT_CONTROL: {
-      // MIT_KP/KD/Position/Velocity/Torque are DBC signals with factor=1, offset=0 -- i.e.
-      // their "physical value" IS the raw fixed-point code the manual's packing formula
-      // produces, not real units (rad, rad/s, Nm). msg->kp/kd/position/velocity/torque are
-      // real physical units, so they must be converted via packMitValue() + this motor's
-      // MitProfile BEFORE calling encodeSignal, using the int64_t (raw) overload. Passing
-      // physical values straight through here (as a prior version of this code did) would
-      // silently command the wrong stiffness/torque/position.
+      // MIT DBC signals (factor=1, offset=0) expect the manual's raw fixed-point code, not real
+      // units -- so msg->kp/kd/position/velocity/torque must go through packMitValue() + this
+      // motor's MitProfile before encodeSignal (int64_t overload). A prior version passed physical
+      // values straight through, silently commanding the wrong stiffness/torque/position.
+
       const auto it = mit_profiles_.find(static_cast<int>(msg->motor_id));
       if (it == mit_profiles_.end()) {
         RCLCPP_ERROR(this->get_logger(),

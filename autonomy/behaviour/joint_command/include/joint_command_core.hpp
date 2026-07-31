@@ -29,23 +29,18 @@ struct JointSafetyConfig {
   double delta_max{2.0};       // degrees / control step
   double low_pass_alpha{0.85}; // q_out = alpha * q_prev + (1-alpha) * q_cmd
 
-  // Reactive trapezoidal velocity profile: accelerate at accel_max -> cruise at velocity_max
-  // -> decelerate to land exactly on target, re-planned every tick (the target itself may be
-  // moving, e.g. IK/teleop). When enabled this REPLACES enable_velocity_limit's plain clamp
-  // and enable_low_pass's smoothing for this joint (both would otherwise re-discount the ramp's
-  // own speed, which is exactly the bug this fix addresses -- see JointCommand.md). delta_max
-  // still applies underneath it as an independent hard per-tick ceiling. Defaults to false:
-  // this has not been bench-tested on real hardware yet, so existing configs are unaffected
-  // until a joint opts in explicitly.
+  // Reactive trapezoidal ramp: accel_max -> cruise at velocity_max -> decelerate onto target,
+  // re-planned every tick since the target can keep moving (IK/teleop). Replaces the plain
+  // velocity clamp + low-pass when enabled (both under-deliver speed -- see JointCommand.md).
+  // delta_max still applies independently. Off by default: not yet bench-tested on hardware.
+
   bool enable_trapezoidal_limit{false};
   double accel_max{60.0}; // degrees / second^2
 
-  // MIT_CONTROL (compliant holding) gains. Only used when armPoseToMotorCmds is called with
-  // control_type=MIT_CONTROL; ignored for POSITION_LOOP etc. Default 0/0 is deliberately a
-  // safe no-op (zero stiffness/damping = motor free) -- a joint must be explicitly configured
-  // with nonzero mit_kp/mit_kd to actually hold under MIT. Units match the CubeMars AK-series
-  // manual's MIT protocol range for this motor (see can/config/mit_profiles.yaml): kp in
-  // [0,500], kd in [0,5] -- can_node clamps to the exact per-motor range before sending.
+  // MIT_CONTROL PD gains -- ignored for POSITION_LOOP etc. Default 0/0 = joint free until set
+  // per-joint. Ranges kp:[0,500], kd:[0,5] (AK-series, see can/config/mit_profiles.yaml);
+  // can_node clamps to exact per-motor range before sending.
+  
   double mit_kp{0.0};
   double mit_kd{0.0};
 };
