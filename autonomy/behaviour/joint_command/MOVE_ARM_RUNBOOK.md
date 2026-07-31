@@ -93,6 +93,11 @@ docker exec watod_hy-jc-dry bash -c 'pkill -f "install/joint_command/lib"'  # ar
 ## Notes
 - **Speed / smoothing:** edit `config/safety_limits.yaml` (`velocity_max`, `low_pass_alpha`,
   the `enable_*` flags), then rebuild (Setup) + restart the node. Currently 40°/s, clamp off.
+  Note: with `enable_trapezoidal_limit: false` (default), the low-pass stage discounts
+  steady-state speed to roughly `(1-low_pass_alpha)` of `velocity_max` — 40°/s + alpha 0.85
+  behaves like ~6°/s in practice, not 40. `enable_trapezoidal_limit: true` (plus `accel_max`)
+  gives you the actual configured cruise speed, but has not been bench-tested yet — start with
+  a low `accel_max` and a clear arm the first time you flip it on.
 - **Didn't move?** `ros2 topic info /interfacing/motorCMD` shows `Publisher count: 0` → node
   lost discovery; restart it (safe — it re-seeds from live feedback). Discovery drops are
   mostly triggered by churning many short-lived `ros2 topic pub/echo/hz` processes on the host

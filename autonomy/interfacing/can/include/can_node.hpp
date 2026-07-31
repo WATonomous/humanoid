@@ -70,6 +70,19 @@ private:
   void loadMitProfiles();
   static uint32_t packMitValue(double phys, double min, double max, unsigned bits);
 
+  // POSITION_VELOCITY (PosVelSpeed/PosVelAccel) is wire-encoded in ERPM (electrical RPM =
+  // mechanical output RPM * gear_ratio * pole_pairs), not deg/s -- see humanoid.dbc. Pole pair
+  // count (21) and gear ratio (9:1) below are sourced from CubeMars's AK10-9 V3.0 / AK80-9 V3.0
+  // product pages (cubemars.com), NOT the printed PDF manual or a physical motor label --
+  // cross-check against those before trusting this for real motion. Confirmed identical for
+  // both AK10-9 and AK80-9. mit_profiles_ (loaded only for these two models, see
+  // config/mit_profiles.yaml) is reused as the "is this a motor we've validated these
+  // constants for" gate, so GL40 (wrist/gripper) or any other model is refused rather than
+  // silently mis-scaled.
+  static constexpr double kAkSeriesPolePairs = 21.0;
+  static constexpr double kAkSeriesGearRatio = 9.0;
+  static double degPerSecToErpm(double deg_per_sec);
+
   // Subscribers and publishers
   std::unordered_map<std::string, rclcpp::SubscriptionBase::SharedPtr> _subscribers;
 

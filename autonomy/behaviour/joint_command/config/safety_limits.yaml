@@ -16,12 +16,20 @@ safety:
   # each joint's limits are current before flipping it (re-run calibration after any
   # power cycle first -- see hardware_mapping.yaml's header note on encoder drift).
   # velocity_max is still a deliberate slow crawl for testing; raise once trusted.
+  # enable_trapezoidal_limit (default false): replaces the velocity clamp + low-pass above with
+  # a reactive trapezoidal ramp (accelerate at accel_max -> cruise at velocity_max -> decelerate
+  # onto target). The clamp+low-pass stack silently discounts steady-state speed by ~(1-alpha)
+  # -- at alpha=0.85 that's velocity_max:40 actually producing ~6 deg/s, not 40. Left OFF by
+  # default: this has not yet been bench-tested on real hardware. Enable per-joint (or in
+  # global) only after a bench test confirms the ramp behaves as expected at low accel_max.
   global:
     enable_position_clamp: false
     enable_velocity_limit: true
     enable_delta_limit: true
     enable_low_pass: true
+    enable_trapezoidal_limit: false
     velocity_max: 40.0
+    accel_max: 60.0
     delta_max: 2.4
     low_pass_alpha: 0.85
     mit_kp: 0.0   # 0 = MIT_CONTROL is a safe no-op until set per-joint below

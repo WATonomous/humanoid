@@ -22,12 +22,27 @@ Repeat in order (skip rate/smooth steps on the first message after startup):
    $$
    q \leftarrow \mathrm{clip}(q,\ q_{\min},\ q_{\max}).
    $$
-2. **Velocity limit** — cap change per control tick using previous moderated target $q^{\mathrm{prev}}_i$:
-   $$
-   \Delta q_{\max} = \frac{\texttt{velocity\_max}}{\texttt{control\_rate\_hz}}.
-   $$
-3. **Delta limit** — additional per-step cap `delta_max` (degrees/tick).
-4. **Low-pass** — exponential smoothing with $\alpha =$ `low_pass_alpha`:
+2. **Velocity/ramp limit** — one of two modes, selected per joint by `enable_trapezoidal_limit`:
+   - **Plain clamp** (`enable_trapezoidal_limit: false`, default) — cap change per control tick
+     using previous moderated target $q^{\mathrm{prev}}_i$:
+     $$
+     \Delta q_{\max} = \frac{\texttt{velocity\_max}}{\texttt{control\_rate\_hz}}.
+     $$
+     **Known issue:** this clamp's output still passes through the low-pass step below, which
+     re-discounts it. A low-pass with $\alpha=0.85$ cuts *steady-state* speed to roughly
+     $(1-\alpha)$ of the clamped value — `velocity_max: 40` (deg/s) in practice produces
+     **~6 deg/s**, not 40, once the low-pass settles. Confirmed numerically; this is why
+     `enable_trapezoidal_limit` exists.
+   - **Trapezoidal ramp** (`enable_trapezoidal_limit: true`) — accelerate at `accel_max`
+     (deg/s²) toward `velocity_max`, then decelerate at `accel_max` to land exactly on target
+     with no overshoot, re-planned every tick (the target itself may still be moving, e.g. IK
+     or teleop chasing a live cube). This mode **replaces** the plain clamp and the low-pass
+     step for that joint — running both would just reintroduce the same discounting bug.
+     Not yet bench-tested on real hardware; keep off until validated on your own arm at a low
+     `accel_max`, then raise gradually.
+3. **Delta limit** — additional per-step cap `delta_max` (degrees/tick), applied in both modes.
+4. **Low-pass** — exponential smoothing with $\alpha =$ `low_pass_alpha`, **only applied when
+   `enable_trapezoidal_limit` is false**:
    $$
    q \leftarrow \alpha\, q^{\mathrm{prev}} + (1-\alpha)\, q.
    $$
@@ -37,7 +52,18 @@ Repeat in order (skip rate/smooth steps on the first message after startup):
    q_{\mathrm{motor}} = \texttt{direction} \cdot (q - \texttt{zero\_offset}).
    $$
 
-Store $q$ as $q^{\mathrm{prev}}$ for the next message.
+Store $q$ as $q^{\mathrm{prev}}$ (and, for the trapezoidal mode, its ramp velocity) for the next message.
+
+### Structural limitation (both modes)
+
+A continuously streaming target source (IK chasing a moving cube, VR teleop, a policy) feeds
+the moderator a target that's only slightly ahead of the arm's current position *every tick* —
+so the ramp/clamp may never reach `velocity_max` regardless of its value, since there's rarely
+enough distance-to-target to justify cruising. This is structural, not a moderator bug. The
+robust fix is to send velocity/accel as part of the target and let the motor's own firmware
+servo loop (CAN `POSITION_VELOCITY`, see `can_node.cpp`) handle the ramp instead of inferring
+speed from position deltas on the ROS side — see the CAN interfacing docs for the deg/s→ERPM
+conversion needed to use that control type.
 
 ## Config files
 
@@ -57,9 +83,11 @@ Start conservative on hardware, then increase until motion is responsive without
 
 | Parameter | Effect |
 |-----------|--------|
-| `velocity_max` | Max joint speed (converted to °/tick) |
+| `velocity_max` | Max joint speed — cruise speed in trapezoidal mode, plain clamp otherwise |
+| `accel_max` | Trapezoidal mode only: acceleration/deceleration rate (deg/s²) |
 | `delta_max` | Hard cap on ° change per tick |
-| `low_pass_alpha` | Higher → smoother/slower (e.g. `0.85`) |
+| `low_pass_alpha` | Higher → smoother/slower (e.g. `0.85`); ignored when trapezoidal mode is on |
+| `enable_trapezoidal_limit` | Switch from plain clamp+low-pass to the trapezoidal ramp (per-joint) |
 | `enable_*` | Toggle each stage without recompiling |
 
 ## Launch

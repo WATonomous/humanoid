@@ -1,5 +1,6 @@
 #include "can_node.hpp"
 #include <chrono>
+#include <cmath>
 #include <cstring> // Required for std::memcpy
 #include <functional>
 #include <rclcpp/serialization.hpp>
@@ -199,14 +200,33 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
     }
 
     case common_msgs::msg::MotorCmd::POSITION_VELOCITY: {
+      // PosVelPosition is already "deg" per the DBC (matches POSITION_LOOP's PositionDeg), so
+      // msg->position passes through unscaled. PosVelSpeed/PosVelAccel are ERPM/(ERPM/s2) on
+      // the wire, so msg->velocity/acceleration (deg/s, deg/s2 -- same convention as everywhere
+      // else this message is used) must go through degPerSecToErpm() first. That conversion is
+      // only validated for AK10-9/AK80-9 (see degPerSecToErpm's declaration comment); reuse
+      // mit_profiles_ as the "known AK-series motor" gate and refuse otherwise, same as
+      // MIT_CONTROL below does for a missing profile.
+      const auto it = mit_profiles_.find(static_cast<int>(msg->motor_id));
+      if (it == mit_profiles_.end()) {
+        RCLCPP_ERROR(this->get_logger(),
+                     "POSITION_VELOCITY requested for motor %d with no MIT profile loaded "
+                     "(see config/mit_profiles.yaml) -- pole-pair/gear-ratio conversion is only "
+                     "validated for AK10-9/AK80-9, refusing to send an unscaled command.",
+                     static_cast<int>(msg->motor_id));
+        return;
+      }
       dbc_msg = can_messages["PositionVelocityCmd"];
       CanMessage can_msg(getMessageId(dbc_msg, msg->motor_id), dbc_msg->MessageSize());
       encodeSignal(findSignalByName(dbc_msg, "PosVelPosition"), static_cast<double>(msg->position),
                    can_msg);
-      encodeSignal(findSignalByName(dbc_msg, "PosVelSpeed"), static_cast<double>(msg->velocity),
-                   can_msg);
-      encodeSignal(findSignalByName(dbc_msg, "PosVelAccel"), static_cast<double>(msg->acceleration),
-                   can_msg);
+      encodeSignal(findSignalByName(dbc_msg, "PosVelSpeed"),
+                   degPerSecToErpm(static_cast<double>(msg->velocity)), can_msg);
+      // PosVelAccel's DBC range is [0|327670] (magnitude only, no sign bit) -- the firmware
+      // applies it symmetrically for both accel and decel, so a negative input here would
+      // silently wrap rather than mean "decelerate". Guard with abs().
+      encodeSignal(findSignalByName(dbc_msg, "PosVelAccel"),
+                   std::abs(degPerSecToErpm(static_cast<double>(msg->acceleration))), can_msg);
       publishCanMessage(can_msg);
       break;
     }
@@ -310,6 +330,11 @@ void CanNode::loadMitProfiles() {
 // CubeMars AK-series manual (V3.2.0) section 4.2 float_to_uint: clamp phys to [min, max],
 // then raw = (phys - min) * (2^bits / (max - min)). NOT (phys-min)/(max-min)*(2^bits - 1) --
 // matches the manual's example code exactly (verified against its C reference impl).
+double CanNode::degPerSecToErpm(double deg_per_sec) {
+  constexpr double kDegPerSecToOutputRpm = 1.0 / 6.0; // rpm = (deg/s) * 60s/min / 360deg/rev
+  return deg_per_sec * kDegPerSecToOutputRpm * kAkSeriesGearRatio * kAkSeriesPolePairs;
+}
+
 uint32_t CanNode::packMitValue(double phys, double min, double max, unsigned bits) {
   if (phys < min)
     phys = min;
