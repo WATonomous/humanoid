@@ -1,33 +1,20 @@
-"""Real-time Isaac Sim visualization of the physical bimanual test stand (Isaac Lab
+"""Real-time Isaac Sim viewer for the physical bimanual test stand (Isaac Lab
 counterpart to live_arm_mjviser.py, same directory).
 
-Drives one of BIMANUAL_ARM_CFG's two joint chains directly from live
-/interfacing/motorFeedback data, same --arm-side/--urdf-side split as
-live_arm_mjviser.py: --arm-side picks which hardware_mapping.yaml section / real motors
-to read (only "left" is wired/calibrated today); --urdf-side picks which URDF chain to
-animate with that feedback. Defaults to --urdf-side right (the unsuffixed joint1..joint6
-chain), matching live_arm_mjviser.py's own validated default invocation in
-ARM_BRINGUP.md (--arm-side left --urdf-side right) -- confirmed by direct observation
-against the real test stand that the suffixed joint1L..joint6l chain is NOT the visually
-correct one here, despite bimanual_arm_cfg.py's docstring claiming otherwise. Read-only:
-never calls set_joint_position_target or publishes MotorCmd -- each tick it force-writes
-joint state via write_joint_state_to_sim(), the same direct-overwrite semantics
-live_arm_mjviser.py uses on data.qpos (no PD lag/interpolation, exact live mirror). It
-cannot move the real arm.
+Drives one of BIMANUAL_ARM_CFG's two joint chains from live /interfacing/motorFeedback.
+--arm-side picks which hardware_mapping.yaml motors to read (only "left" is
+wired/calibrated today); --urdf-side picks which URDF chain to animate. Defaults to
+--urdf-side right (unsuffixed joint1..joint6) -- confirmed against the real test stand
+that this is the visually correct chain, NOT joint1L..joint6l as bimanual_arm_cfg.py's
+docstring claims. Read-only: force-writes joint state via write_joint_state_to_sim()
+each tick (no PD lag, exact mirror); never commands the real arm.
 
-Zero position matches live_arm_mjviser.py: both compute
-zero_offset + direction*motor_deg + display_offset from hardware_mapping.yaml's
-calibrated zero_offset per joint. This also matches BIMANUAL_ARM_CFG's default/rest pose
-for BOTH chains (see bimanual_arm_cfg.py's _load_zero_offsets_deg()), so joints with no
-live feedback yet (e.g. wrist_pitch, not wired today) sit at the calibrated zero instead
-of a stale Physics Inspector snapshot. task_space_real.py's own sim-zero is matched the
-same way, on the OTHER chain (RIGHT_ARM_JOINTS, which it always drives for real hardware
-output regardless of which chain looks right in this viewer).
+Zero position: zero_offset + direction*motor_deg + display_offset per joint, matching
+live_arm_mjviser.py and BIMANUAL_ARM_CFG's rest pose, so unwired joints (e.g.
+wrist_pitch) sit at calibrated zero rather than a stale snapshot.
 
-rclpy can't be imported inside env_isaaclab (its compiled extension targets the system
-ROS Python, not conda's -- see udp_to_ros_bridge.py for the same constraint in the
-opposite direction). So this script never imports rclpy: it reads motor feedback from a
-UDP socket instead, fed by feedback_to_udp_bridge.py running under system ROS Python.
+For better compatibility with everyone's system, feedback comes via UDP from feedback_to_udp_bridge.py (system ROS
+Python) instead of a direct subscription.
 
 Terminal 1 (system python, ROS sourced):
     source /opt/ros/jazzy/setup.bash
@@ -39,6 +26,7 @@ Terminal 2 (env_isaaclab):
     cd /home/rwahib/wato/humanoid
     python autonomy/simulation/Humanoid_Wato/wato_bimanual_arm/live_arm_isaacsim.py
 """
+
 
 import argparse
 import os
@@ -141,13 +129,12 @@ def load_can_id_map(
             urdf_joint = label_to_joint.get(label)
             if urdf_joint is None:
                 continue
-            # MUST negate zero_offset together with direction, not direction alone:
-            # zero_offset was computed as -home_pos/direction during calibration so that
-            # zero_offset + direction*home_pos == 0 at the real motor's physical zero pose.
-            # Flipping direction alone breaks that identity and shifts the displayed pose
-            # by 2*zero_offset at the real zero -- negating both preserves
-            # joint_deg(home_pos) == 0 while correctly reversing the sense of motion
-            # elsewhere (verified: joint_deg_new(raw) == -joint_deg_old(raw) identically).
+            # Must negate zero_offset together with direction, not direction alone: zero_offset was
+            # derived as -home_pos/direction so zero_offset + direction*home_pos == 0 at the real
+            # zero pose. Flipping direction alone breaks that and shifts the zero pose by
+            # 2*zero_offset. Negating both preserves joint_deg(home_pos)==0 while correctly
+            # reversing motion sense (verified: joint_deg_new(raw) == -joint_deg_old(raw)).
+
             flip = label in flip_labels
             direction = int(cfg["direction"]) * (-1 if flip else 1)
             zero_offset = float(cfg["zero_offset"]) * (-1 if flip else 1)
