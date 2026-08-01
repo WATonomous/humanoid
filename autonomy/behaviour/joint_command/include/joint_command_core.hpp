@@ -71,7 +71,7 @@ public:
     return joints_.size();
   }
 
-// Private helpers (stateless math) + the mutable per-joint state vectors.
+  // Private helpers (stateless math) + the mutable per-joint state vectors.
 private:
   static JointConfig loadJointConfig(const YAML::Node& joint_node);
   static JointSafetyConfig loadJointSafetyConfig(const YAML::Node& joint_node,
