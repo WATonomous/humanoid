@@ -40,12 +40,12 @@ struct JointSafetyConfig {
   // MIT_CONTROL PD gains -- ignored for POSITION_LOOP etc. Default 0/0 = joint free until set
   // per-joint. Ranges kp:[0,500], kd:[0,5] (AK-series, see can/config/mit_profiles.yaml);
   // can_node clamps to exact per-motor range before sending.
-  
   double mit_kp{0.0};
   double mit_kd{0.0};
 };
 
-// Public API: load hardware config, load safety config, run one moderation tick, seed from feedback.
+// Public API: load hardware config, load safety config, run one moderation tick, seed from
+// feedback.
 class JointCommandCore {
 public:
   bool loadFromYaml(const YAML::Node& config, const std::string& arm_side);

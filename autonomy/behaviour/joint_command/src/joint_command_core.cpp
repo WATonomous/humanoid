@@ -241,7 +241,8 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose, int8
     prev_velocities_.assign(joints_.size(), 0.0);
   }
 
-  // Per-joint moderation loop: clamp -> velocity-limit (trapezoidal or plain+low-pass) -> delta-limit -> clamp.
+  // Per-joint moderation loop: clamp -> velocity-limit (trapezoidal or plain+low-pass) ->
+  // delta-limit -> clamp.
   for (size_t i = 0; i < joints_.size(); ++i) {
     const JointSafetyConfig& safety = safety_[i];
 
