@@ -46,8 +46,17 @@ private:
   // earlier run the instant the interfacing container came back up). If no fresh ArmPose
   // arrives within command_timeout_sec_, stop publishing AND clear seeded_from_feedback_,
   // so the next real command must re-seed from fresh feedback and ramp safely again,
-  // exactly like a first-ever command after node startup.
-  double command_timeout_sec_{10.0};
+  // exactly like a first-ever command after node startup. Kept short (not the original
+  // 10s) so stopping the ArmPose publisher (e.g. task_space_real.py) frees the arm almost
+  // immediately, rather than leaving it held for up to 10 more seconds.
+  double command_timeout_sec_{0.5};
   rclcpp::Time last_armpose_time_;
   bool have_armpose_time_{false};
+
+  // Sent once (not spammed every control tick) the instant staleness is detected, so the
+  // motors actually go limp/free instead of just no-longer-receiving-new-targets --
+  // POSITION_LOOP motors hold their last commanded position indefinitely on their own
+  // onboard control loop; going silent alone does NOT release them. Reset to false again
+  // on the next fresh ArmPose so a future staleness event re-disables.
+  bool disable_sent_{false};
 };

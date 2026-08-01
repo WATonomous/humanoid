@@ -47,6 +47,12 @@ from isaaclab.assets.articulation import ArticulationCfg
 _THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 _BIMANUAL_ROOT = os.path.abspath(os.path.join(_THIS_DIR, "..", "..", "Humanoid_Wato", "wato_bimanual_arm"))
 _ARM_USD_PATH = os.path.join(_BIMANUAL_ROOT, "urdf", "bimanual_arm", "bimanual_arm.usd")
+# Real-hardware calibration data (direction/zero_offset/limits per joint), read by
+# live_arm_isaacsim.py and live_arm_mjviser.py to project live CAN feedback onto this
+# URDF's joint coordinates.
+_HARDWARE_MAPPING_PATH = os.path.abspath(
+    os.path.join(_THIS_DIR, "..", "..", "..", "behaviour", "joint_command", "config", "hardware_mapping.yaml")
+)
 
 
 def _deg(degrees: float) -> float:
@@ -100,6 +106,7 @@ _DEFAULT_JOINT_POS = {
 
 LEFT_ARM_JOINTS = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7", "joint8"]
 RIGHT_ARM_JOINTS = ["joint1L", "joint2l", "joint3l", "joint4l", "joint5l", "joint6l"]
+LEFT_GRIPPER_JOINTS = ["joint7", "joint8"]
 RIGHT_GRIPPER_JOINTS = ["joint7l", "joint8l"]
 # Jacobian anchor is the wrist link; IK pose target is the fingertip center (see below).
 RIGHT_EE_BODY = "link6l"
@@ -124,8 +131,8 @@ LEFT_FINGER_DISTAL_TIP_LOCAL = {
 
 # Gripper finger targets (joint7: [-0.05, 0], joint8: [0, 0.05])
 # Synchronized pair mimics single GL40 motor driving both fingers via linkage.
-GRIPPER_OPEN = {"joint7l": -0.05, "joint8l": 0.05}
-GRIPPER_CLOSED = {"joint7l": 0.0, "joint8l": 0.0}
+GRIPPER_OPEN = {"joint7l": -0.05, "joint8l": 0.05, "joint7": -0.05, "joint8": 0.05}
+GRIPPER_CLOSED = {"joint7l": 0.0, "joint8l": 0.0, "joint7": 0.0, "joint8": 0.0}
 
 # Prismatic gripper PD — tuned for hold during arm motion (not from motor datasheet).
 # If fingers bounce when the shoulder moves, raise stiffness; if jittery, raise damping.
