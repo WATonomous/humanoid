@@ -81,7 +81,7 @@ private:
   static double clampStep(double target, double previous, double delta_max);
   static double applyLowPass(double target, double previous, double alpha);
   static double stepTrapezoidal(double target, double prev_pos, double& prev_vel,
-                                 double velocity_max, double accel_max, double dt);
+                                double velocity_max, double accel_max, double dt);
 
   std::vector<JointConfig> joints_;
   std::vector<JointSafetyConfig> safety_;

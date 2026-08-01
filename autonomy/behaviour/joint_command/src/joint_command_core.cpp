@@ -5,7 +5,6 @@
 #include <map>
 #include <stdexcept>
 
-
 // Function made to parse one joint's YAML block into a JointConfig.
 JointConfig JointCommandCore::loadJointConfig(const YAML::Node& joint_node) {
   JointConfig joint;
@@ -257,8 +256,8 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose, int8
         // ramp's own speed (a low-pass after a velocity clamp silently cuts steady-state speed
         // by ~(1-alpha) -- see JointCommand.md), which is the bug this profile fixes.
         target = stepTrapezoidal(target, prev_targets_[i], prev_velocities_[i],
-                                  std::abs(safety.velocity_max), std::abs(safety.accel_max),
-                                  1.0 / control_rate_hz_);
+                                 std::abs(safety.velocity_max), std::abs(safety.accel_max),
+                                 1.0 / control_rate_hz_);
       } else if (safety.enable_velocity_limit && control_rate_hz_ > 0.0) {
         const double velocity_step = std::abs(safety.velocity_max) / control_rate_hz_;
         target = clampStep(target, prev_targets_[i], velocity_step);
