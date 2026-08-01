@@ -76,8 +76,8 @@ private:
   // verify before trusting for real motion. mit_profiles_ doubles as the "validated AK-series
   // motor" gate, so GL40/unknown models are refused rather than silently mis-scaled.
 
-  static constexpr double kAkSeriesPolePairs = 21.0;
-  static constexpr double kAkSeriesGearRatio = 9.0;
+  static constexpr double kAkSeriesPolePairs = 21.0; // CubeMars AK-series motors have 21 pole pairs (can be changed in firmware)
+  static constexpr double kAkSeriesGearRatio = 9.0; // CubeMars AK-series motors have 9:1 gear ratio (can be changed in firmware)
   static double degPerSecToErpm(double deg_per_sec);
 
   // Subscribers and publishers

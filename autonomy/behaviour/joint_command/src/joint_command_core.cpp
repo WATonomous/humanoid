@@ -175,7 +175,6 @@ double JointCommandCore::applyLowPass(double target, double previous, double alp
   return alpha * previous + (1.0 - alpha) * target;
 }
 
-// Accelerate/cruise/decelerate ramp onto a (possibly moving) target, no overshoot.
 double JointCommandCore::stepTrapezoidal(double target, double prev_pos, double& prev_vel,
                                          double velocity_max, double accel_max, double dt) {
   const double error = target - prev_pos;

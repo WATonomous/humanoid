@@ -15,9 +15,9 @@ safety:
     enable_position_clamp: false
     enable_velocity_limit: true
     enable_delta_limit: true
-    enable_low_pass: true
+    enable_low_pass: false
     enable_trapezoidal_limit: false
-    velocity_max: 40.0
+    velocity_max: 20.0
     accel_max: 60.0
     delta_max: 2.4
     low_pass_alpha: 0.85
@@ -27,22 +27,22 @@ safety:
   joints:
     shoulder:
       pitch:
-        velocity_max: 40.0
+        velocity_max: 20.0
         delta_max: 2.0
       roll:
-        velocity_max: 40.0
+        velocity_max: 20.0
         delta_max: 2.0
       yaw:
-        velocity_max: 40.0
+        velocity_max: 20.0
         delta_max: 2.0
     elbow:
       pitch:
-        velocity_max: 40.0
+        velocity_max: 20.0
         delta_max: 1.6
       roll:
-        velocity_max: 40.0
+        velocity_max: 20.0
         delta_max: 1.6
     wrist:
       pitch:
-        velocity_max: 40.0
+        velocity_max: 20.0
         delta_max: 2.4
