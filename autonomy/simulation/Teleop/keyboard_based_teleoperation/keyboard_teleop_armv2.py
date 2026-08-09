@@ -15,8 +15,10 @@ Teleop bindings: https://isaac-sim.github.io/IsaacLab/v2.0.1/source/overview/tel
   C/V     Rotate along z-axis
   R       Reset arm to default pose
 
-Also opens an "Ego Cam Preview" viewport locked to ego_cam so its framing is
-visible live while driving the arm.
+Also opens an "Ego Cam Preview" viewport locked to ego_cam, and the same
+stereo "Left Eye POV"/"Right Eye POV" RSD455 pair (at the finalized
+position/orientation) used in run_quest_armWithStand_teleop.py, so their
+framing is visible live while driving the arm with the keyboard.
 """
 
 import argparse
@@ -32,6 +34,9 @@ simulation_app = app_launcher.app
 
 import torch
 
+import omni.usd
+from pxr import Gf, UsdGeom
+
 import isaaclab.sim as sim_utils
 from isaaclab.assets import AssetBaseCfg
 from isaaclab.controllers import DifferentialIKController, DifferentialIKControllerCfg
@@ -40,6 +45,19 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.math import subtract_frame_transforms
+
+# Finalized stereo head camera (see run_quest_armWithStand_teleop.py for the
+# derivation/tuning history) -- kept in sync manually, not imported, since
+# this is a standalone quick-test script.
+_RSD455_USD_URL = (
+    "https://omniverse-content-production.s3-us-west-2.amazonaws.com/"
+    "Assets/Isaac/5.1/Isaac/Sensors/Intel/RealSense/rsd455.usd"
+)
+_HEAD_VIEWPOINT_HOME_POS = (0.08667797629999999, 0.04, 0.25258678130000006)
+_HEAD_VIEWPOINT_HOME_QUAT = (0.9063077870366499, 0.0, 0.42261826174069944, 0.0)  # ~50deg downward pitch
+_EYE_LOCAL_RIGHT = torch.tensor([0.0, -1.0, 0.0])
+_EYE_IPD_M = 0.063
+_RSD455_CAMERA_SUBPATH = "rsd455/RSD455/Camera_OmniVision_OV9782_Right"
 
 from armWithStand_v2_cfg import (
     ARM_V2_CFG,
@@ -88,16 +106,54 @@ def _joint_ids(robot, names: list[str]) -> list[int]:
     return [name_to_id[resolve_joint_name(robot, name)] for name in names]
 
 
-def _open_ego_cam_preview(robot_prim_path: str) -> None:
+def _open_pov_viewport(camera_prim_path: str, window_name: str):
     try:
         from omni.kit.viewport.utility import create_viewport_window
 
-        ego_cam_path = f"{robot_prim_path}/base_link/ego_cam"
-        viewport_window = create_viewport_window("Ego Cam Preview", width=640, height=480)
-        viewport_window.viewport_api.camera_path = ego_cam_path
-        print(f"[INFO] Opened 'Ego Cam Preview' viewport locked to {ego_cam_path}")
+        viewport_window = create_viewport_window(window_name, width=640, height=480)
+        viewport_window.viewport_api.camera_path = camera_prim_path
+        print(f"[INFO] Opened '{window_name}' viewport locked to {camera_prim_path}")
+        return viewport_window.viewport_api
     except Exception as exc:  # noqa: BLE001 -- best-effort convenience feature
-        print(f"[INFO] Could not open Ego Cam Preview viewport: {exc}")
+        print(f"[INFO] Could not open '{window_name}' viewport: {exc}")
+        return None
+
+
+def _open_ego_cam_preview(robot_prim_path: str) -> None:
+    _open_pov_viewport(f"{robot_prim_path}/base_link/ego_cam", "Ego Cam Preview")
+
+
+def _attach_rsd455_camera(parent_prim_path: str, mount_name: str, translate: tuple, orient_wxyz: tuple) -> str:
+    stage = omni.usd.get_context().get_stage()
+    mount_path = f"{parent_prim_path}/{mount_name}"
+    prim = UsdGeom.Xform.Define(stage, mount_path)
+    xformable = UsdGeom.Xformable(prim)
+    xformable.ClearXformOpOrder()
+    translate_op = xformable.AddTranslateOp(precision=UsdGeom.XformOp.PrecisionDouble)
+    orient_op = xformable.AddOrientOp(precision=UsdGeom.XformOp.PrecisionDouble)
+    translate_op.Set(Gf.Vec3d(*translate))
+    w, x, y, z = orient_wxyz
+    orient_op.Set(Gf.Quatd(w, Gf.Vec3d(x, y, z)))
+    rsd_prim = stage.DefinePrim(f"{mount_path}/rsd455")
+    rsd_prim.GetPayloads().AddPayload(_RSD455_USD_URL)
+    return mount_path
+
+
+def _open_stereo_pov_preview(robot_prim_path: str) -> None:
+    base_link_path = f"{robot_prim_path}/base_link"
+    eye_local_right = _EYE_LOCAL_RIGHT
+    from isaaclab.utils.math import quat_apply
+
+    head_quat = torch.tensor([_HEAD_VIEWPOINT_HOME_QUAT], dtype=torch.float32)
+    head_pos = torch.tensor([_HEAD_VIEWPOINT_HOME_POS], dtype=torch.float32)
+    right_offset = quat_apply(head_quat, eye_local_right.unsqueeze(0)) * (_EYE_IPD_M / 2)
+    left_pos = (head_pos - right_offset)[0].tolist()
+    right_pos = (head_pos + right_offset)[0].tolist()
+
+    left_mount = _attach_rsd455_camera(base_link_path, "left_eye_camera_mount", tuple(left_pos), _HEAD_VIEWPOINT_HOME_QUAT)
+    right_mount = _attach_rsd455_camera(base_link_path, "right_eye_camera_mount", tuple(right_pos), _HEAD_VIEWPOINT_HOME_QUAT)
+    _open_pov_viewport(f"{left_mount}/{_RSD455_CAMERA_SUBPATH}", "Left Eye POV")
+    _open_pov_viewport(f"{right_mount}/{_RSD455_CAMERA_SUBPATH}", "Right Eye POV")
 
 
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
@@ -108,6 +164,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     apply_joint_limits(robot)
 
     _open_ego_cam_preview("/World/envs/env_0/Robot")
+    _open_stereo_pov_preview("/World/envs/env_0/Robot")
 
     driven_arm_names = [resolve_joint_name(robot, name) for name in RIGHT_ARM_JOINTS]
     driven_gripper_names = [resolve_joint_name(robot, name) for name in RIGHT_GRIPPER_JOINTS]
