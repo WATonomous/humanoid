@@ -291,8 +291,8 @@ _RSD455_USD_URL = (
 # correct live; position then nudged 5mm along the gaze direction
 # (head_pos + 0.005*forward) since the camera mount stand itself was
 # blocking the bottom of frame at the original position.
-_HEAD_VIEWPOINT_HOME_POS = (0.07703616214999999, 0.04, 0.26407744790000004)  # translate xyz, relative to base_link -- nudged forward (5,10,20,20,10,+20mm) and left (20,20mm) per live feedback
-_HEAD_VIEWPOINT_HOME_QUAT = (0.9762960071199334, 0.0, 0.21643961393810288, 0.0)  # ~25deg downward pitch, facing +X, no roll
+_HEAD_VIEWPOINT_HOME_POS = (0.08667797629999999, 0.04, 0.25258678130000006)  # translate xyz, relative to base_link -- nudged forward (5,10,20,20,10,20,+15mm) and left (20,20mm) per live feedback
+_HEAD_VIEWPOINT_HOME_QUAT = (0.9063077870366499, 0.0, 0.42261826174069944, 0.0)  # ~50deg downward pitch, facing +X, no roll (was ~25deg, tilted 25deg further per live feedback)
 _EYE_LOCAL_RIGHT = torch.tensor([0.0, -1.0, 0.0])
 _EYE_IPD_M = 0.063
 # Sub-path to the actual renderable Camera prim inside the rsd455 payload --
