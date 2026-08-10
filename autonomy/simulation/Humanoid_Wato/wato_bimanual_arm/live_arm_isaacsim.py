@@ -9,7 +9,7 @@ that this is the visually correct chain, NOT joint1L..joint6l as bimanual_arm_cf
 docstring claims. Read-only: force-writes joint state via write_joint_state_to_sim()
 each tick (no PD lag, exact mirror); never commands the real arm.
 
-Zero position: zero_offset + direction*motor_deg + display_offset per joint, matching
+Zero position: zero_offset + direction*motor_deg per joint, matching
 live_arm_mjviser.py and BIMANUAL_ARM_CFG's rest pose, so unwired joints (e.g.
 wrist_pitch) sit at calibrated zero rather than a stale snapshot.
 
@@ -48,10 +48,6 @@ parser.add_argument("--urdf-side", default="right", choices=["left", "right"],
 parser.add_argument("--flip", nargs="*", default=[], metavar="LABEL",
                      help="hardware_mapping labels whose sign to invert (e.g. shoulder_roll) -- "
                           "same as live_arm_mjviser.py's --flip.")
-parser.add_argument("--offset", nargs="*", default=[], metavar="LABEL=DEG",
-                     help="viewer-only constant added to a joint's displayed angle, in degrees "
-                          "(e.g. shoulder_yaw=90) -- same as live_arm_mjviser.py's --offset. "
-                          "Never touches real commands.")
 parser.add_argument("--host", type=str, default="127.0.0.1", help="feedback_to_udp_bridge.py host")
 parser.add_argument("--port", type=int, default=5006, help="feedback_to_udp_bridge.py port")
 AppLauncher.add_app_launcher_args(parser)
@@ -110,12 +106,11 @@ def load_can_id_map(
     hw_side: str,
     urdf_side: str,
     flip_labels: set = frozenset(),
-    offset_labels: dict = None,
 ) -> dict:
-    """hardware_mapping.yaml -> {can_id: {label, urdf_joint, direction, zero_offset, display_offset,
+    """hardware_mapping.yaml -> {can_id: {label, urdf_joint, direction, zero_offset,
     lower_limit, upper_limit}}.
 
-    Same fields, --flip/--offset semantics, and hw_side/urdf_side split as
+    Same fields, --flip semantics, and hw_side/urdf_side split as
     live_arm_mjviser.py's load_can_id_map.
     """
     with open(mapping_path) as f:
@@ -143,7 +138,6 @@ def load_can_id_map(
                 "urdf_joint": urdf_joint,
                 "direction": direction,
                 "zero_offset": zero_offset,
-                "display_offset": float((offset_labels or {}).get(label, 0.0)),
                 "lower_limit": float(cfg["lower_limit"]),
                 "upper_limit": float(cfg["upper_limit"]),
             }
@@ -182,8 +176,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene,
           f"(hardware={args_cli.arm_side} arm -> driving URDF {args_cli.urdf_side} arm):")
     for can_id, cfg in sorted(can_id_map.items()):
         flip = "  (flipped)" if cfg["label"] in set(args_cli.flip) else ""
-        off = f"  (offset {cfg['display_offset']:+g}°)" if cfg["display_offset"] else ""
-        print(f"  0x{can_id:02X} -> {cfg['label']:<14} -> {cfg['urdf_joint']}{flip}{off}")
+        print(f"  0x{can_id:02X} -> {cfg['label']:<14} -> {cfg['urdf_joint']}{flip}")
 
     joint_position = robot.data.default_joint_pos.clone()
     joint_vel = robot.data.default_joint_vel.clone()
@@ -214,7 +207,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene,
             cfg = can_id_map.get(motor_id)
             if cfg is None:
                 continue
-            joint_deg = cfg["zero_offset"] + cfg["direction"] * position + cfg["display_offset"]
+            joint_deg = cfg["zero_offset"] + cfg["direction"] * position
             prev = _last_deg.get(motor_id)
             if prev is not None and abs(joint_deg - prev) > _JUMP_WARN_DEG:
                 print(f"[WARN] {cfg['label']} (motor {motor_id}) jumped {prev:.2f}deg -> "
@@ -233,14 +226,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene,
 
 
 def main() -> None:
-    offset_labels = {}
-    for item in args_cli.offset:
-        label, _, val = item.partition("=")
-        offset_labels[label.strip()] = float(val)
-
     can_id_map = load_can_id_map(
         _HARDWARE_MAPPING_PATH, args_cli.arm_side, args_cli.urdf_side,
-        set(args_cli.flip), offset_labels
+        set(args_cli.flip)
     )
     if not can_id_map:
         raise RuntimeError(
