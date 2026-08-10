@@ -1,44 +1,19 @@
 """Quest bimanual arm teleoperation — runs inside the simulation_isaac
 container.
 
-Both arms are controlled via Quest hand tracking. Hand pose data arrives via
-ROS 2 /quest_teleop topic published by quest_teleop_node (also in this
-container). The left Quest wrist drives the left arm, the right Quest wrist
-drives the right arm. Pinching thumb + index closes the corresponding
-gripper.
+Both arms are controlled via Quest hand tracking, received over ROS 2
+/quest_teleop (published by quest_teleop_node, also in this container).
+Left wrist -> left arm, right wrist -> right arm. Pinch thumb+index to close
+the corresponding gripper.
 
-IK solver: isaaclab.controllers.DifferentialIKController (ik_method="dls",
-damped least squares), tracking each gripper's fingertip-tip-center frame —
-the same controller/target used by
-Task_space_controller/robot_arm_controllers/task_space_test.py, just fed
-from the Quest wrists instead of a draggable cube.
+IK: DifferentialIKController (ik_method="dls"), tracking each gripper's
+fingertip-tip-center frame (LEFT_/RIGHT_FINGER_TIP_BODIES in
+bimanual_arm_cfg.py), not the raw wrist link — see compute_gripper_tip_pose_b
+there. lambda_val=0.2 (both arms) keeps the Jacobian well-conditioned near
+full extension; retune live if needed.
 
-Each arm is fingertip-tip referenced (LEFT_/RIGHT_FINGER_TIP_BODIES in
-bimanual_arm_cfg.py: midpoint of each gripper's two finger distal tips), not
-the raw wrist link — see compute_gripper_tip_pose_b / compute_tip_ik_jacobian
-there. RIGHT_FINGER_DISTAL_TIP_LOCAL was measured directly from the link7/
-link8 STL vertex data (mesh outward-X extreme, Y/Z bounding-box center) using
-the same method as the pre-existing LEFT_FINGER_DISTAL_TIP_LOCAL constants —
-link7/link8 are NOT a simple mirror of link7l/link8l (separate STL files,
-swapped X-extent — see bimanual_arm_cfg.py for the measurement).
-
-Orientation of each tip frame is defined as its own wrist link's orientation
-(see compute_gripper_tip_pose_w); only the tracked *position* is offset to
-each fingertip midpoint instead of the wrist origin.
-
-lambda_val=0.2 (both arms) was tuned live on the left arm: at the DLS
-default (0.01), a ~0.1m commanded tip displacement pushed the Jacobian
-condition number from ~60 to 4000+ and some axes moved AWAY from target
-instead of converging. 0.2 keeps the condition number bounded (~100) and
-converges to a stable ~0.05m residual instead. Not yet validated on the
-right arm specifically (mechanically mirrors the left, so 0.2 is a
-reasonable starting point) — retune per-arm live if needed.
-
-Coordinate mapping
-------------------
-WebXR uses a Y-up frame (X-right, Y-up, -Z-forward). The robot base is in
-a Z-up world frame and is rotated 180° about Z, so the mapping is applied in
-two stages (see _QUEST_TO_WORLD and the per-arm delta computation below).
+WebXR is Y-up (X-right, Y-up, -Z-forward); the robot base is Z-up and rotated
+180° about Z — see _QUEST_TO_WORLD for the mapping.
 
 Usage
 -----
@@ -71,13 +46,11 @@ parser = argparse.ArgumentParser(description="Quest bimanual arm teleop (both ar
 parser.add_argument("--gain", type=float, default=1.0,
                     help="Motion gain: metres of EE motion per metre of real wrist motion")
 parser.add_argument("--publish-real-left-arm", action="store_true",
-                    help="Also publish the left arm's DLS-solved joint targets to /behaviour/arm_pose for "
-                         "joint_command_node to drive the REAL physical left arm over CAN. Off by default -- "
-                         "sim-only unless explicitly requested. RIGHT ARM HAS NO REAL-HARDWARE CAN MAPPING YET "
-                         "(hardware_mapping.yaml only has a left: section) -- this flag does not and cannot "
-                         "touch the right arm. Requires can_node + joint_command_node already running, the "
-                         "CANable adapter connected, e-stop armed, and the real arm manually positioned near "
-                         "the sim's rest pose (see PUBLISH_START_DELAY below).")
+                    help="Also publish the left arm's DLS-solved joint targets to /behaviour/arm_pose, "
+                         "driving the REAL physical left arm over CAN. Off by default. Left arm only -- "
+                         "no hardware CAN mapping exists for the right arm. Requires can_node + "
+                         "joint_command_node running, e-stop armed, and the real arm positioned near the "
+                         "sim's rest pose first (see PUBLISH_START_DELAY below).")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 
@@ -111,14 +84,11 @@ from isaaclab.utils.math import (  # noqa: E402
     subtract_frame_transforms,
 )
 
-# NOTE on the aliasing below: bimanual_arm_cfg.py's LEFT_*/RIGHT_* constants were
-# corrected (the "L"-suffixed URDF chain is physically the RIGHT arm, not left --
-# the mechanical/CAD naming had it backwards). This file's own left_*/right_* local
-# variables mean something different: "the arm driven by the LEFT/RIGHT Quest
-# wrist" (msg.left_wrist / msg.right_wrist), a Quest-hand-relative label that is
-# NOT part of that correction. Aliasing here keeps every local left_*/right_*
-# variable below pointing at the SAME physical URDF chain (and therefore the same
-# real hardware) it always did -- only the upstream symbol names changed.
+# NOTE: bimanual_arm_cfg.py's LEFT_*/RIGHT_* now name the correct physical
+# arm (URDF's "L"-suffixed chain is actually the right arm). This file's
+# left_*/right_* locals mean something different -- "driven by the
+# left/right Quest wrist" -- so the aliases below just keep them pointing at
+# the same physical arm as before, unaffected by that rename.
 from bimanual_arm_cfg import (  # noqa: E402
     BIMANUAL_ARM_CFG,
     GRIPPER_CLOSED,
@@ -145,13 +115,10 @@ _RIGHT_GRIPPER_JOINTS = ["joint7", "joint8"]
 _RIGHT_GRIPPER_OPEN = {"joint7": -0.05, "joint8": 0.05}
 _RIGHT_GRIPPER_CLOSED = {"joint7": 0.0, "joint8": 0.0}
 
-# WebXR (Y-up: X-right, Y-up, -Z-forward) -> simulation world frame (Z-up).
-# Routes qx into the forward-reach row and qz into the lateral row (this
-# headset/webxr_server's local reference space has them swapped relative to
-# the assumed X-right/-Z-forward convention). Must stay a proper rotation
-# (det +1) -- don't negate a row, that corrupts orientation via
-# quat_from_matrix. Use _AXIS_SIGN_LEFT/RIGHT below to flip individual axes
-# instead.
+# WebXR (X-right, Y-up, -Z-forward) -> world (Z-up). Routes qx into forward
+# and qz into lateral (swapped vs. the naive X-right/-Z-forward mapping).
+# Must stay a proper rotation (det +1) -- flip signs via _AXIS_SIGN_LEFT/
+# RIGHT below, not by negating a row here (that corrupts quat_from_matrix).
 _QUEST_TO_WORLD = torch.tensor(
     [[-1.0, 0.0, 0.0],
      [0.0, 0.0, 1.0],
@@ -167,33 +134,26 @@ _GAIN_RAMP_END_M = 0.35
 
 _MAX_REACH_M = 0.28
 
-# Home/rest IK target X offset. Keep at 0 -- the arm should run at its
-# natural rest position; fix camera/framing issues on the camera/enclosure
-# side (see _HEAD_VIEWPOINT_HOME_* below), not by dragging the arm's target
-# away from where it actually rests.
+# Home/rest IK target X offset. Keep at 0 -- fix camera/framing issues on
+# the camera/enclosure side instead of moving the arm's actual rest target.
 _HOME_TIP_X_OFFSET = 0.0
 
-# Real-hardware bridge timing (see --publish-real-left-arm). Mirrors
-# Task_space_controller/robot_arm_controllers/task_space_real.py's
-# PUBLISH_PERIOD/PUBLISH_START_DELAY exactly -- same joint_command_node on
-# the other end, which applies NO velocity/delta rate-limiting to the very
-# first ArmPose message it receives after startup. An un-delayed first
-# publish could snap the real arm hard from wherever it physically is to the
-# sim's current target. The delay exists so a human can manually position
-# the real arm near the sim pose first -- don't shorten it.
+# Real-hardware bridge timing (see --publish-real-left-arm). Matches
+# task_space_real.py's PUBLISH_PERIOD/PUBLISH_START_DELAY -- joint_command_node
+# applies no rate-limiting to the first ArmPose it receives, so an un-delayed
+# publish could snap the real arm from its physical pose to the sim's
+# current target. The delay gives a human time to position it near the sim
+# pose first -- don't shorten it.
 _REAL_ARM_PUBLISH_PERIOD_S = 0.02  # 20ms = 50Hz, matches joint_command_node's control_rate_hz
 _REAL_ARM_PUBLISH_START_DELAY_S = 5.0
 
 _WRIST_ORIENT_OFFSET_LEFT = torch.tensor([1.0, 0.0, 0.0, 0.0])
 _WRIST_ORIENT_OFFSET_RIGHT = torch.tensor([0.0, 0.0, 0.0, 1.0])
-# Per-arm rotation-offset conjugation applied to the wrist orientation delta.
-# Identity = no correction. If rotating your wrist drives the EE the wrong
-# way, retune per the README's "Wrist orientation alignment" table -- but if
-# a fixed-angle offset doesn't fix a "rotate one way, EE goes the opposite
-# way" feel, it's likely a chirality/mirror issue (WebXR can report
-# left/right hand joints in mirrored local conventions), which needs a sign
-# flip on the raw wrist quaternion components instead, not a rotation offset
-# here.
+# Per-arm rotation offset applied to the wrist orientation delta (identity =
+# no correction). Retune per the README's "Wrist orientation alignment"
+# table if wrist rotation drives the EE the wrong way -- but if a fixed
+# offset can't fix an inverted feel, it's a chirality/mirror issue instead,
+# needing a sign flip on the raw wrist quaternion, not a rotation offset.
 
 _THUMB_TIP_IDX = 4
 _INDEX_TIP_IDX = 9
@@ -201,20 +161,14 @@ _PINCH_CLOSE_M = 0.030
 _PINCH_OPEN_M = 0.050
 
 _DLS_LAMBDA = 0.2
-# Right arm gets extra damping (not a smaller _MAX_REACH_M): near full
-# extension its Jacobian conditioning is worse than the left arm's (the two
-# arms' default joint poses were measured independently, not mirrored), and
-# it would freeze mid-reach with target_err stuck near the clamp. Heavier
-# damping keeps the full reach distance but makes the solver more
-# conservative exactly where conditioning gets bad. Retune live if it's
-# sluggish well before full extension, or still locks up at the extreme.
+# Right arm gets extra damping, not a smaller _MAX_REACH_M: its Jacobian
+# conditioning is worse near full extension, so it'd otherwise freeze
+# mid-reach. Retune live if sluggish early or still locking up at extension.
 _DLS_LAMBDA_RIGHT = 0.35
 
 _ENCLOSURE_MATERIAL = sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0), emissive_color=(1.0, 1.0, 1.0))
-# Back wall shifted to clear the mount/stand structural bar. Front boundary
-# extended to 0.75m so the enclosure actually contains the arms' full reach
-# (rest EE X~0.42-0.43 + _MAX_REACH_M=0.28 = ~0.71m) instead of the arms
-# sticking out past it.
+# Front boundary extended to 0.75m so the enclosure actually contains the
+# arms' full reach (rest EE X~0.42-0.43 + _MAX_REACH_M=0.28 = ~0.71m).
 _ENCLOSURE_BACK_X = -0.45
 _ENCLOSURE_FRONT_X = 0.75  # open front (arm reach direction) -- extended to actually contain the arms, see above
 _ENCLOSURE_Y_MIN = -0.9
@@ -232,29 +186,22 @@ _TABLE_THICKNESS = 0.05
 
 # Stereo camera pair (real depth via two eye textures, not a flat
 # single-camera POV): two RealSense D455s mounted on base_link, fixed at
-# _HEAD_VIEWPOINT_HOME_POS/QUAT (head tracking is currently disabled -- see
-# the "FULLY FIXED" note further down -- head_pose is still read from
-# QuestHandPose.msg but unused for positioning).
+# _HEAD_VIEWPOINT_HOME_POS/QUAT -- head tracking is disabled, head_pose is
+# read from QuestHandPose.msg but unused for positioning.
 #
-# rsd455's local axes: +X = lens boresight (forward), +Z = up. That makes
-# local -Y "right" (forward x up = X x Z = -Y) -- IPD offset is applied
-# along that axis, rotated by the viewpoint's current orientation.
+# rsd455 local axes: +X = boresight (forward), +Z = up, so local -Y = right
+# (X x Z = -Y) -- IPD offset is applied along that axis.
 _RSD455_USD_URL = (
     "https://omniverse-content-production.s3-us-west-2.amazonaws.com/"
     "Assets/Isaac/5.1/Isaac/Sensors/Intel/RealSense/rsd455.usd"
 )
 _HEAD_VIEWPOINT_HOME_POS = (0.0, 0.0, 0.75)  # translate xyz, relative to base_link
 _HEAD_VIEWPOINT_HOME_QUAT = (0.9026085152688121, 0.0, 0.43046238879166954, 0.0)  # ~51deg downward pitch, facing +X
-# Computed look-at: direction from _HEAD_VIEWPOINT_HOME_POS to the average of
-# both arms' natural rest tip positions (~(0.422, 0.016, 0.229), see the
-# "[Quest][diag] rest EE pos" log line), via atan2 of the XZ-plane
-# components (the small ~0.016m Y offset is ignored for this
-# single-axis-rotation aim). Recompute if the rest pose or camera position
-# changes.
+# Look-at from _HEAD_VIEWPOINT_HOME_POS toward both arms' rest tip positions
+# (~(0.422, 0.016, 0.229)) -- recompute if the rest pose or camera moves.
 _EYE_LOCAL_RIGHT = torch.tensor([0.0, -1.0, 0.0])
 _EYE_IPD_M = 0.063
-# Sub-path to the actual renderable Camera prim inside the rsd455 payload --
-# same as the SO101 vial task's camera_external_D455 (task_env_cfg.py).
+# Sub-path to the renderable Camera prim inside the rsd455 payload.
 _RSD455_CAMERA_SUBPATH = "rsd455/RSD455/Camera_OmniVision_OV9782_Right"
 
 
@@ -275,12 +222,11 @@ def _set_mount_pose(mount_path: str, translate: tuple, orient_wxyz: tuple, creat
     """Set (or create) a camera mount Xform's translate/orient. Called every
     frame for the stereo eye mounts to follow head tracking.
 
-    NOTE: AddTranslateOp()/AddOrientOp() are NOT idempotent in this USD
-    version -- calling them again on a prim that already has that op raises
-    'xformOp already exists in xformOpOrder' (confirmed live, this used to
-    assume otherwise and crashed on the second frame). So ops are added ONCE
-    at create=True, and every subsequent call fetches the existing ops via
-    GetOrderedXformOps() and .Set()s them directly instead."""
+    NOTE: AddTranslateOp()/AddOrientOp() are NOT idempotent -- calling them
+    again on a prim that already has that op raises 'xformOp already exists
+    in xformOpOrder'. So ops are added ONCE at create=True, and every
+    subsequent call fetches the existing ops via GetOrderedXformOps() and
+    .Set()s them directly instead."""
     stage = omni.usd.get_context().get_stage()
     if create:
         prim = UsdGeom.Xform.Define(stage, mount_path)
@@ -302,11 +248,10 @@ def _set_mount_pose(mount_path: str, translate: tuple, orient_wxyz: tuple, creat
 
 def _open_pov_viewport(camera_prim_path: str, window_name: str):
     """Best-effort: open a Kit viewport window locked to a camera prim, for a
-    live POV feed on the host monitor AND the source for the periodic
+    live POV feed on the host monitor and as the source for the periodic
     capture_viewport_to_file calls that feed the Quest browser (see
-    _POV_FRAME_PATH_LEFT/RIGHT in run_simulator). Returns the viewport_api or
-    None if the viewport extension isn't available in this Kit experience --
-    a missing viewport degrades the feed, it doesn't crash teleop."""
+    _POV_FRAME_PATH_LEFT/RIGHT). Returns None if unavailable -- degrades the
+    feed rather than crashing teleop."""
     try:
         from omni.kit.viewport.utility import create_viewport_window
 
@@ -318,15 +263,10 @@ def _open_pov_viewport(camera_prim_path: str, window_name: str):
         return None
 
 
-# Frames the eye viewports get captured to, for the Quest browser to fetch as
-# payload.head_pose-tracked stereo textures (see index.html's
-# leftEyeTexture/rightEyeTexture). Live in the WebXR static dir
-# (autonomy/teleop/quest_teleop/static/) so webxr_server.py's existing
-# SimpleHTTPRequestHandler serves them as plain static files -- no server
-# code changes needed. Captured every _POV_CAPTURE_EVERY_N_STEPS sim steps
-# (100Hz sim loop / 10 = ~10Hz feed); the camera mounts themselves are
-# repositioned every frame (cheap USD attribute writes) so head tracking
-# feels responsive even though the rendered image only updates at ~10Hz.
+# Frames the eye viewports get captured to, for the Quest browser to fetch
+# as stereo textures (index.html's leftEyeTexture/rightEyeTexture). Live in
+# the WebXR static dir so webxr_server.py serves them as plain static files.
+# Captured every _POV_CAPTURE_EVERY_N_STEPS sim steps (100Hz / 10 = ~10Hz).
 _POV_STATIC_DIR = _SIM_DIR.parent / "teleop" / "quest_teleop" / "static"
 _POV_FRAME_PATH_LEFT = _POV_STATIC_DIR / "pov_left.png"
 _POV_FRAME_PATH_RIGHT = _POV_STATIC_DIR / "pov_right.png"
@@ -482,6 +422,50 @@ def _publish_real_left_arm_pose(pub, clock_node, joint_pos_des_rad) -> None:
     pub.publish(msg)
 
 
+def _update_arm_target(
+    arm, xyz_q, quat, tracked, init_tip_pos_b, init_tip_quat_b, gain,
+    quest_to_world, quest_to_world_quat, axis_sign, root_quat_w, label,
+    target_pos_b, target_quat_b,
+):
+    """Home an arm on its first tracked sample (anchored to the fixed
+    launch-time rest pose), then compute this frame's fingertip-tip IK
+    target from the wrist delta since homing. If untracked (before or after
+    homing), target_pos_b/target_quat_b pass through unchanged -- the arm
+    holds its last commanded pose rather than resetting.
+
+    Returns (target_pos_b, target_quat_b, gain_used) -- gain_used is None on
+    any frame the target wasn't recomputed."""
+    if arm.quest_home_xyz is None:
+        if not tracked:
+            return target_pos_b, target_quat_b, None
+        arm.quest_home_xyz = xyz_q.clone()
+        arm.quest_home_quat = quat.clone()
+        arm.home_tip_pos_b = init_tip_pos_b.clone()
+        arm.home_tip_quat_b = init_tip_quat_b.clone()
+        print(f"[Quest] {label} wrist tracked — homed at {xyz_q.tolist()}", flush=True)
+
+    if not tracked:
+        return target_pos_b, target_quat_b, None
+
+    disp_raw = xyz_q - arm.quest_home_xyz
+    arm_gain = _ramped_gain(disp_raw.norm(), gain)
+    delta_w = (quest_to_world @ disp_raw) * arm_gain * axis_sign
+    delta_w = delta_w * min(1.0, _MAX_REACH_M / max(delta_w.norm().item(), 1e-6))
+    target_pos_b = arm.home_tip_pos_b + quat_apply_inverse(root_quat_w, delta_w.unsqueeze(0))
+    if disp_raw.norm().item() > 0.05:
+        print(f"[Quest][axisdbg] {label[0]} quest_disp(x,y,z)={disp_raw.tolist()}  "
+              f"world_delta={delta_w.tolist()}  "
+              f"base_delta_from_home={(target_pos_b - arm.home_tip_pos_b)[0].tolist()}", flush=True)
+
+    dq = quat_mul(quat.unsqueeze(0), quat_inv(arm.quest_home_quat.unsqueeze(0)))
+    dq_world = quat_mul(quat_mul(quest_to_world_quat, dq), quat_inv(quest_to_world_quat))
+    dq_world = quat_mul(quat_mul(arm.wrist_orient_offset, dq_world), quat_inv(arm.wrist_orient_offset))
+    dq_base = quat_mul(quat_mul(quat_inv(root_quat_w), dq_world), root_quat_w)
+    target_quat_b = quat_mul(dq_base, arm.home_tip_quat_b)
+
+    return target_pos_b, target_quat_b, arm_gain
+
+
 def _ee_pose_in_base(robot, body_id: int):
     root_pose_w = robot.data.root_state_w[:, 0:7]
     ee_pose_w = robot.data.body_state_w[:, body_id, 0:7]
@@ -547,8 +531,8 @@ class _ArmDlsController:
         self.last_joint_pos_des = joint_pos_des
 
         # Snap directly to the DLS solution instead of waiting on the PD
-        # actuator to catch up — see module docstring for why (live testing
-        # found ~0.1 rad of actuator lag on the shoulder joint alone).
+        # actuator to catch up (live testing found ~0.1 rad of lag on the
+        # shoulder joint alone).
         robot.set_joint_position_target(joint_pos_des, joint_ids=self.arm_ids)
         robot.write_joint_state_to_sim(
             joint_pos_des,
@@ -638,10 +622,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     receiver = QuestRosReceiver()
     threading.Thread(target=rclpy.spin, args=(receiver,), daemon=True).start()
 
-    # Real-hardware bridge (left arm only, see --publish-real-left-arm help
-    # text and the module-level REAL_ARM_PUBLISH_* constants for the safety
-    # rationale). Publisher is created on the SAME node/spin-thread as the
-    # Quest receiver above rather than a second rclpy context.
+    # Real-hardware bridge (left arm only, see --publish-real-left-arm).
+    # Publisher shares the Quest receiver's node/spin-thread rather than a
+    # second rclpy context.
     real_left_arm_pub = None
     real_left_arm_elapsed_s = 0.0
     real_left_arm_since_publish_s = 0.0
@@ -660,9 +643,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     target_pos_b_right = init_tip_pos_b_r.clone()
     target_quat_b_right = init_tip_quat_b_r.clone()
 
-    # Head-tracked stereo viewpoint state -- same home-on-first-tracked-sample
-    # pattern as the arms above, homed independently (a person can start
-    # moving their head before their wrists are tracked or vice versa).
+    # Head viewpoint state -- same home-on-first-tracked-sample pattern as
+    # the arms above, homed independently of them.
     head_home_xyz: torch.Tensor | None = None
     head_home_quat: torch.Tensor | None = None
     head_home_viewpoint_pos_b = torch.tensor([_HEAD_VIEWPOINT_HOME_POS], dtype=torch.float32, device=device)
@@ -734,76 +716,21 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             tip_pos_b_l, _ = left_arm.tip_pose_b(robot, root_pose_w)
             tip_pos_b_r, _ = right_arm.tip_pose_b(robot, root_pose_w)
 
-            # ── Homing (fingertip-tip anchored) ─────────────────────────────────
-            if left_arm.quest_home_xyz is None and left_tracked:
-                left_arm.quest_home_xyz = left_xyz_q.clone()
-                left_arm.quest_home_quat = left_quat.clone()
-                # Anchor to the fixed launch-time rest tip pose, not wherever
-                # the tip currently sits -- avoids baking in IK lag / making
-                # recalibration a no-op.
-                left_arm.home_tip_pos_b = init_tip_pos_b_l.clone()
-                left_arm.home_tip_quat_b = init_tip_quat_b_l.clone()
-                target_pos_b_left = left_arm.home_tip_pos_b.clone()
-                target_quat_b_left = left_arm.home_tip_quat_b.clone()
-                print(f"[Quest] Left wrist tracked — homed at {left_xyz_q.tolist()}", flush=True)
-
-            if right_arm.quest_home_xyz is None and right_tracked:
-                right_arm.quest_home_xyz = right_xyz_q.clone()
-                right_arm.quest_home_quat = right_quat.clone()
-                right_arm.home_tip_pos_b = init_tip_pos_b_r.clone()
-                right_arm.home_tip_quat_b = init_tip_quat_b_r.clone()
-                target_pos_b_right = right_arm.home_tip_pos_b.clone()
-                target_quat_b_right = right_arm.home_tip_quat_b.clone()
-                print(f"[Quest] Right wrist tracked — homed at {right_xyz_q.tolist()}", flush=True)
-
-            # ── Target (fingertip-tip, base frame) ──────────────────────────────
-            if left_arm.quest_home_xyz is not None and left_tracked:
-                left_disp_raw = left_xyz_q - left_arm.quest_home_xyz
-                left_gain = _ramped_gain(left_disp_raw.norm(), gain)
-                left_delta_w = (quest_to_world @ left_disp_raw) * left_gain * axis_sign_left
-                left_delta_w = left_delta_w * min(1.0, _MAX_REACH_M / max(left_delta_w.norm().item(), 1e-6))
-                target_pos_b_left_dbg = (
-                    left_arm.home_tip_pos_b + quat_apply_inverse(root_quat_w, left_delta_w.unsqueeze(0))
-                )
-                if left_disp_raw.norm().item() > 0.05:
-                    print(f"[Quest][axisdbg] L quest_disp(x,y,z)={left_disp_raw.tolist()}  "
-                          f"world_delta={left_delta_w.tolist()}  "
-                          f"base_delta_from_home={(target_pos_b_left_dbg - left_arm.home_tip_pos_b)[0].tolist()}",
-                          flush=True)
-                target_pos_b_left = target_pos_b_left_dbg
-                dq_left = quat_mul(left_quat.unsqueeze(0), quat_inv(left_arm.quest_home_quat.unsqueeze(0)))
-                dq_left_world = quat_mul(quat_mul(quest_to_world_quat, dq_left), quat_inv(quest_to_world_quat))
-                dq_left_world = quat_mul(quat_mul(left_arm.wrist_orient_offset, dq_left_world),
-                                         quat_inv(left_arm.wrist_orient_offset))
-                dq_left_base = quat_mul(quat_mul(quat_inv(root_quat_w), dq_left_world), root_quat_w)
-                target_quat_b_left = quat_mul(dq_left_base, left_arm.home_tip_quat_b)
-
-            if right_arm.quest_home_xyz is not None and right_tracked:
-                right_disp_raw = right_xyz_q - right_arm.quest_home_xyz
-                right_gain = _ramped_gain(right_disp_raw.norm(), gain)
-                right_delta_w = (quest_to_world @ right_disp_raw) * right_gain * axis_sign_right
-                right_delta_w = right_delta_w * min(1.0, _MAX_REACH_M / max(right_delta_w.norm().item(), 1e-6))
-                target_pos_b_right_dbg = (
-                    right_arm.home_tip_pos_b + quat_apply_inverse(root_quat_w, right_delta_w.unsqueeze(0))
-                )
-                if right_disp_raw.norm().item() > 0.05:
-                    print(f"[Quest][axisdbg] R quest_disp(x,y,z)={right_disp_raw.tolist()}  "
-                          f"world_delta={right_delta_w.tolist()}  "
-                          f"base_delta_from_home={(target_pos_b_right_dbg - right_arm.home_tip_pos_b)[0].tolist()}",
-                          flush=True)
-                target_pos_b_right = target_pos_b_right_dbg
-                dq_right = quat_mul(right_quat.unsqueeze(0), quat_inv(right_arm.quest_home_quat.unsqueeze(0)))
-                dq_right_world = quat_mul(quat_mul(quest_to_world_quat, dq_right), quat_inv(quest_to_world_quat))
-                dq_right_world = quat_mul(quat_mul(right_arm.wrist_orient_offset, dq_right_world),
-                                          quat_inv(right_arm.wrist_orient_offset))
-                dq_right_base = quat_mul(quat_mul(quat_inv(root_quat_w), dq_right_world), root_quat_w)
-                target_quat_b_right = quat_mul(dq_right_base, right_arm.home_tip_quat_b)
+            # ── Homing + target (fingertip-tip, base frame) ─────────────────────
+            target_pos_b_left, target_quat_b_left, left_gain = _update_arm_target(
+                left_arm, left_xyz_q, left_quat, left_tracked, init_tip_pos_b_l, init_tip_quat_b_l,
+                gain, quest_to_world, quest_to_world_quat, axis_sign_left, root_quat_w, "Left",
+                target_pos_b_left, target_quat_b_left,
+            )
+            target_pos_b_right, target_quat_b_right, right_gain = _update_arm_target(
+                right_arm, right_xyz_q, right_quat, right_tracked, init_tip_pos_b_r, init_tip_quat_b_r,
+                gain, quest_to_world, quest_to_world_quat, axis_sign_right, root_quat_w, "Right",
+                target_pos_b_right, target_quat_b_right,
+            )
 
             # Stereo viewpoint is fully fixed -- no head tracking.
-            # head_viewpoint_pos_b/quat_b stay at their home values for the
-            # whole run; head_home_xyz/quat/head_tracked above are unused for
-            # positioning (only feed _is_tracked). Head-tracked position and
-            # rotate-only variants are both in git history if wanted again.
+            # head_viewpoint_pos_b/quat_b stay at their home values; the
+            # head_home_xyz/quat/head_tracked vars above only feed _is_tracked.
 
             diag_frame += 1
             if diag_frame % 100 == 0:
@@ -839,10 +766,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         tip_pos_b_r_now = right_arm.solve_and_apply(robot, device, target_pos_b_right, target_quat_b_right)
 
         # ── Real-hardware bridge (left arm only) ─────────────────────────────────
-        # Same held-off-then-throttled pattern as task_space_real.py: elapsed
-        # time only starts accumulating toward the publish period AFTER the
-        # startup delay has fully passed, so it can't build up a backlog
-        # during the hold and burst-publish once the delay ends.
+        # Held-off-then-throttled, same as task_space_real.py: the publish
+        # timer only starts after the startup delay, so it can't build up a
+        # backlog and burst-publish once the delay ends.
         if real_left_arm_pub is not None:
             real_left_arm_elapsed_s += sim_dt
             if real_left_arm_elapsed_s >= _REAL_ARM_PUBLISH_START_DELAY_S:
@@ -871,9 +797,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         sim.step()
         scene.update(sim_dt)
 
-        # Stereo eye mounts follow the current head viewpoint (a no-op right
-        # now since it's fixed -- see above -- but cheap, and ready if head
-        # tracking comes back). IPD offset applied along the viewpoint's
+        # Stereo eye mounts follow the head viewpoint (a no-op since it's
+        # fixed, but cheap). IPD offset applied along the viewpoint's
         # current "right" axis, rotated into base frame.
         right_offset_b = quat_apply(head_viewpoint_quat_b, eye_local_right.unsqueeze(0)) * (_EYE_IPD_M / 2)
         left_eye_pos_b = (head_viewpoint_pos_b - right_offset_b)[0].tolist()

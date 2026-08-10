@@ -7,7 +7,7 @@
 #
 # Then inside the container:
 #   cd /workspace/humanoid/autonomy/simulation/quest_isaac_teleop
-#   ./run_quest_armWithStand_teleop.sh
+#   ./run_quest_armv2_teleop.sh
 
 set -e
 
@@ -18,6 +18,6 @@ export PYTHONPATH="${SCRIPT_DIR}:${SCRIPT_DIR}/../Teleop/keyboard_based_teleoper
 
 
 exec "${ISAAC_LAB}/isaaclab.sh" -p \
-  "${SCRIPT_DIR}/run_quest_armWithStand_teleop.py" \
+  "${SCRIPT_DIR}/run_quest_armv2_teleop.py" \
   --device cpu \
   "$@"
