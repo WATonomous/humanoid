@@ -64,11 +64,11 @@ Inside the simulation_isaac container:
     ISAAC_LAB=/workspace/isaaclab \\
     PYTHONPATH=/workspace/humanoid/autonomy/simulation/quest_isaac_teleop:$PYTHONPATH \\
     /workspace/isaaclab/isaaclab.sh -p \\
-        /workspace/humanoid/autonomy/simulation/quest_isaac_teleop/run_quest_armWithStand_teleop.py \\
+        /workspace/humanoid/autonomy/simulation/quest_isaac_teleop/run_quest_armv2_teleop.py \\
         --device cpu
 
 Or via the helper script:
-    ./run_quest_armWithStand_teleop.sh
+    ./run_quest_armv2_teleop.sh
 """
 
 import argparse
@@ -110,6 +110,7 @@ from common_msgs.msg import QuestHandPose  # noqa: E402
 
 import carb  # noqa: E402
 import omni.appwindow  # noqa: E402
+import omni.kit.app  # noqa: E402
 import omni.usd  # noqa: E402
 from pxr import Gf, UsdGeom  # noqa: E402
 
@@ -168,30 +169,36 @@ _RIGHT_GRIPPER_JOINTS = ["joint7", "joint8"]
 _RIGHT_GRIPPER_OPEN = {"joint7": 0.0, "joint8": 0.0}
 _RIGHT_GRIPPER_CLOSED = {"joint7": -0.05, "joint8": 0.05}
 
-# WebXR (Y-up: X-right, Y-up, -Z-forward) -> simulation world frame (Z-up).
-# Routes qx into the forward-reach row and qz into the lateral row (this
-# headset/webxr_server's local reference space has them swapped relative to
-# the assumed X-right/-Z-forward convention). Must stay a proper rotation
-# (det +1) -- don't negate a row, that corrupts orientation via
-# quat_from_matrix. Use _AXIS_SIGN_LEFT/RIGHT below to flip individual axes
-# instead.
+# WebXR (Y-up: X-right, Y-up, -Z-forward) -> simulation world frame (Z-up)
+# used ONLY for wrist ORIENTATION deltas below (dq_left_world/dq_right_world)
+# -- kept as a fixed world-frame rotation since wrist rotation isn't a
+# viewing-direction-relative quantity the way hand POSITION is.
 _QUEST_TO_WORLD = torch.tensor(
     [[-1.0, 0.0, 0.0],
      [0.0, 0.0, 1.0],
      [0.0, 1.0, 0.0]],
     dtype=torch.float32,
 )
-# X flipped from bimanual's (1,-1,1): synthetic-message testing showed
-# left/right tracks correctly with X flipped (-1). Y additionally flipped
-# here per live headset feedback: front/back was still inverted after the X
-# fix (up/down and left/right confirmed correct by the user; front/back is
-# the remaining axis, Y, by elimination) -- flipped Y's sign to invert it.
-# Not independently re-verified via synthetic message (Y's real-world
-# forward/back mapping depends on the user's physical orientation relative
-# to the WebXR tracking origin, which can't be tested from here) -- confirm
-# live and report back if it's still wrong.
-_AXIS_SIGN_LEFT = torch.tensor([-1.0, 1.0, 1.0])
-_AXIS_SIGN_RIGHT = torch.tensor([-1.0, 1.0, 1.0])
+# Hand POSITION deltas are mapped camera-relative instead (see
+# _CAM_LOCAL_FORWARD/UP/RIGHT and their use in the main loop below) --
+# verified via synthetic single-axis ros2 topic pub tests (isolate raw
+# x/y/z, read the [axisdbg] world_delta) that the straight fixed-world-frame
+# mapping (still used for orientation above) puts raw X into the world
+# forward/back row and raw Z into the lateral row -- i.e. physically moving
+# your hand right/left drove the arm forward/back and vice versa. Rather
+# than patch that swap with more sign flips, position deltas are now built
+# directly from verified WebXR semantics (X=right, Y=up, -Z=forward) applied
+# in the camera's own basis, then rotated into world by the camera's fixed
+# mount tilt -- so "push away from you, into the view" tracks the camera's
+# actual boresight (partially world -Z at this ~60deg downward tilt) instead
+# of raw world +X. Flip an entry here only if a live headset test shows a
+# genuine handedness/chirality issue, not for tilt -- tilt is now handled by
+# the camera-relative basis itself.
+_AXIS_SIGN_LEFT = torch.tensor([1.0, 1.0, 1.0])  # [right, up, forward]
+_AXIS_SIGN_RIGHT = torch.tensor([1.0, 1.0, 1.0])  # [right, up, forward]
+_CAM_LOCAL_FORWARD = torch.tensor([1.0, 0.0, 0.0])  # rsd455 local +X = boresight
+_CAM_LOCAL_UP = torch.tensor([0.0, 0.0, 1.0])  # rsd455 local +Z = up
+_CAM_LOCAL_RIGHT = torch.tensor([0.0, -1.0, 0.0])  # matches _EYE_LOCAL_RIGHT below
 
 _GAIN_FAR = 1.0
 _GAIN_RAMP_START_M = 0.15
@@ -248,6 +255,27 @@ _DLS_LAMBDA = 0.2
 # sluggish well before full extension, or still locks up at the extreme.
 _DLS_LAMBDA_RIGHT = 0.35
 
+# Joint-space output smoothing -- mirrors joint_command_core.cpp's actual
+# ACTIVE default on the interfacing-fixes branch: plain velocity clamp +
+# delta clamp (clampStep), NOT the trapezoidal ramp (enable_trapezoidal_limit
+# defaults to false there -- untested on hardware, so not imitated here
+# either) and NOT a low-pass filter (removed entirely on that branch --
+# see commit 6fe705a5 -- it silently discounts steady-state speed).
+# Values start from safety_limits.yaml's `global` block (velocity_max: 20
+# deg/s, delta_max: 2.4 deg), converted to radians -- velocity_max bumped to
+# 40deg/s per live feedback (20 was hardware's conservative bench-testing
+# speed and visibly lagged behind the target during fast VR hand motion; not
+# read from the yaml automatically, see this constant's own definition).
+# delta_max left at the original 2.4deg. The real config also has tighter
+# PER-JOINT overrides (shoulder/elbow/wrist), not applied here --
+# armWithStand_v2_cfg.py's joint grouping (2-DOF shoulder/3-DOF elbow)
+# doesn't match hardware_mapping.yaml's ArmPose split (3-DOF shoulder/2-DOF
+# elbow, already flagged elsewhere as unverified), so mapping per-joint
+# values onto this file's joint order isn't trustworthy yet -- the uniform
+# global value is applied to all 6 joints instead.
+_JOINT_VELOCITY_MAX_RAD_S = 0.6981317007977318  # 40 deg/s
+_JOINT_DELTA_MAX_RAD = 0.041887902047863905  # 2.4 deg per control step (this frame's dt)
+
 _ENCLOSURE_MATERIAL = sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0), emissive_color=(1.0, 1.0, 1.0))
 # Back wall shifted to clear the mount/stand structural bar. Front boundary
 # extended to 0.75m so the enclosure actually contains the arms' full reach
@@ -300,13 +328,38 @@ _RSD455_USD_URL = (
 # correct live; position then nudged 5mm along the gaze direction
 # (head_pos + 0.005*forward) since the camera mount stand itself was
 # blocking the bottom of frame at the original position.
-_HEAD_VIEWPOINT_HOME_POS = (0.08667797629999999, 0.04, 0.25258678130000006)  # translate xyz, relative to base_link -- nudged forward (5,10,20,20,10,20,+15mm) and left (20,20mm) per live feedback
-_HEAD_VIEWPOINT_HOME_QUAT = (0.9063077870366499, 0.0, 0.42261826174069944, 0.0)  # ~50deg downward pitch, facing +X, no roll (was ~25deg, tilted 25deg further per live feedback)
+_HEAD_VIEWPOINT_HOME_POS = (0.0905602619765378, 0.04, 0.23809789390566405)  # translate xyz, relative to base_link -- nudged along the gaze direction (5,10,20,20,10,20,15,5,+10mm) and left (20,20mm) per live feedback
+_HEAD_VIEWPOINT_HOME_QUAT = (0.9063077870366499, 0.0, 0.42261826174069944, 0.0)  # ~50deg downward pitch, facing +X, no roll (was ~40deg, tilted 10deg more/downward per live feedback)
 _EYE_LOCAL_RIGHT = torch.tensor([0.0, -1.0, 0.0])
 _EYE_IPD_M = 0.063
 # Sub-path to the actual renderable Camera prim inside the rsd455 payload --
 # same as the SO101 vial task's camera_external_D455 (task_env_cfg.py).
 _RSD455_CAMERA_SUBPATH = "rsd455/RSD455/Camera_OmniVision_OV9782_Right"
+# Widen the RSD455's baked-in FOV (~90.5deg horizontal by default, measured
+# live: focalLength=1.93 at horizontalAperture=3.896) to ~120deg -- the head
+# is too close to the arm to see its full range of motion by moving the
+# camera further back (the stand/mount geometry blocks the view first), so
+# widen the lens instead. focalLength solved from the standard
+# fov = 2*atan(aperture / (2*focalLength)) relation, aperture unchanged.
+_RSD455_WIDENED_FOCAL_LENGTH = 1.1246782979523935  # ~120deg horizontal FOV
+
+
+def _widen_camera_fov(camera_prim_path: str, focal_length: float) -> None:
+    """Override a (possibly not-yet-loaded) Camera prim's focalLength. The
+    rsd455 payload can take a few frames to compose after AddPayload(), so
+    this retries for a short while rather than assuming the prim is already
+    valid -- setting the attribute before the payload loads would silently
+    no-op (or fail) instead of taking effect."""
+    stage = omni.usd.get_context().get_stage()
+    app = omni.kit.app.get_app_interface()
+    for _ in range(100):
+        cam_prim = stage.GetPrimAtPath(camera_prim_path)
+        if cam_prim.IsValid() and cam_prim.IsA(UsdGeom.Camera):
+            UsdGeom.Camera(cam_prim).GetFocalLengthAttr().Set(focal_length)
+            print(f"[Quest] Widened FOV on {camera_prim_path} (focalLength={focal_length})", flush=True)
+            return
+        app.update()
+    print(f"[Quest] WARNING: could not widen FOV on {camera_prim_path} (camera prim never became valid)", flush=True)
 
 
 def _attach_rsd455_camera(parent_prim_path: str, mount_name: str, translate: tuple, orient_wxyz: tuple) -> str:
@@ -545,6 +598,25 @@ def _publish_real_left_arm_pose(pub, clock_node, joint_pos_des_rad) -> None:
     pub.publish(msg)
 
 
+def _clamp_step(target: torch.Tensor, previous: torch.Tensor, delta_max) -> torch.Tensor:
+    """Direct port of joint_command_core.cpp's clampStep -- a generic
+    rate-limit-toward-target. delta_max may be a scalar or a tensor matching
+    target's shape."""
+    return previous + torch.clamp(target - previous, -delta_max, delta_max)
+
+
+def _step_velocity_and_delta_clamp(
+    target: torch.Tensor, prev_pos: torch.Tensor, velocity_max: float, delta_max: float, dt: float,
+) -> torch.Tensor:
+    """Mirrors joint_command_core.cpp's non-trapezoidal moderation path:
+    velocity-limit clamp (velocity_max converted to a per-frame step via dt)
+    then a fixed delta-limit clamp, applied in that order."""
+    velocity_step = abs(velocity_max) * dt
+    stepped = _clamp_step(target, prev_pos, velocity_step)
+    stepped = _clamp_step(stepped, prev_pos, abs(delta_max))
+    return stepped
+
+
 def _ee_pose_in_base(robot, body_id: int):
     root_pose_w = robot.data.root_state_w[:, 0:7]
     ee_pose_w = robot.data.body_state_w[:, body_id, 0:7]
@@ -587,9 +659,15 @@ class _ArmDlsController:
         self.wrist_orient_offset: torch.Tensor | None = None
         # Latest DLS solution in arm_joint_names order, radians -- read by the
         # optional real-hardware bridge (see --publish-real-left-arm) to build
-        # ArmPose messages. Not used for anything sim-side; solve_and_apply
-        # already applies the solution to the sim robot directly.
+        # ArmPose messages. Deliberately the RAW (pre-ramp) solution, not the
+        # trapezoidal-smoothed one applied to the sim robot below -- the real
+        # arm runs its own independent smoothing in joint_command_core.cpp,
+        # so double-smoothing here would just add extra bridge latency.
         self.last_joint_pos_des: torch.Tensor | None = None
+        # Smoothing state (see _step_velocity_and_delta_clamp) -- None until
+        # the first solve_and_apply call, which seeds it from the robot's
+        # actual current joint pose.
+        self.smoothed_pos: torch.Tensor | None = None
 
     def tip_pose_b(self, robot, root_pose_w):
         return compute_gripper_tip_pose_b(
@@ -597,7 +675,7 @@ class _ArmDlsController:
             self.finger_tip_bodies, self.finger_distal_local,
         )
 
-    def solve_and_apply(self, robot, device, target_pos_b, target_quat_b):
+    def solve_and_apply(self, robot, device, target_pos_b, target_quat_b, dt: float):
         root_pose_w = robot.data.root_state_w[:, 0:7]
         wrist_pos_b, _ = _ee_pose_in_base(robot, self.body_id)
         tip_pos_b, tip_quat_b = self.tip_pose_b(robot, root_pose_w)
@@ -609,13 +687,22 @@ class _ArmDlsController:
         joint_pos_des = self.controller.compute(tip_pos_b, tip_quat_b, jacobian_b, joint_pos)
         self.last_joint_pos_des = joint_pos_des
 
-        # Snap directly to the DLS solution instead of waiting on the PD
-        # actuator to catch up — see module docstring for why (live testing
-        # found ~0.1 rad of actuator lag on the shoulder joint alone).
-        robot.set_joint_position_target(joint_pos_des, joint_ids=self.arm_ids)
+        if self.smoothed_pos is None:
+            self.smoothed_pos = joint_pos.clone()
+        self.smoothed_pos = _step_velocity_and_delta_clamp(
+            joint_pos_des, self.smoothed_pos,
+            _JOINT_VELOCITY_MAX_RAD_S, _JOINT_DELTA_MAX_RAD, dt,
+        )
+
+        # Snap to the smoothed (not raw) solution instead of waiting on the
+        # PD actuator to catch up — see module docstring for why the
+        # actuator itself is bypassed (live testing found ~0.1 rad of
+        # actuator lag on the shoulder joint alone). The clamp above is what
+        # provides smoothing now that the actuator isn't doing it implicitly.
+        robot.set_joint_position_target(self.smoothed_pos, joint_ids=self.arm_ids)
         robot.write_joint_state_to_sim(
-            joint_pos_des,
-            torch.zeros((1, len(self.arm_ids)), device=device),
+            self.smoothed_pos,
+            torch.zeros_like(self.smoothed_pos),
             joint_ids=self.arm_ids,
         )
         return tip_pos_b
@@ -647,6 +734,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         _base_link_prim_path, "right_eye_camera_mount", _HEAD_VIEWPOINT_HOME_POS, _HEAD_VIEWPOINT_HOME_QUAT
     )
     print(f"[Quest] Stereo head-tracked RealSense D455 pair attached: {left_eye_mount}, {right_eye_mount}", flush=True)
+    _widen_camera_fov(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}", _RSD455_WIDENED_FOCAL_LENGTH)
+    _widen_camera_fov(f"{right_eye_mount}/{_RSD455_CAMERA_SUBPATH}", _RSD455_WIDENED_FOCAL_LENGTH)
     left_eye_viewport_api = _open_pov_viewport(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}", "Left Eye POV")
     right_eye_viewport_api = _open_pov_viewport(f"{right_eye_mount}/{_RSD455_CAMERA_SUBPATH}", "Right Eye POV")
     if left_eye_viewport_api is not None and right_eye_viewport_api is not None:
@@ -671,6 +760,15 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     quest_to_world_quat = quat_from_matrix(quest_to_world.unsqueeze(0))
     axis_sign_left = _AXIS_SIGN_LEFT.to(device)
     axis_sign_right = _AXIS_SIGN_RIGHT.to(device)
+    # Camera-relative basis vectors (world frame), built by rotating the
+    # rsd455's local forward/up/right axes by the camera's fixed mount tilt
+    # (_HEAD_VIEWPOINT_HOME_QUAT). Hand position deltas are composed directly
+    # along these instead of fixed world axes -- see _AXIS_SIGN_LEFT/RIGHT's
+    # comment above for why.
+    camera_tilt_quat = torch.tensor([_HEAD_VIEWPOINT_HOME_QUAT], dtype=torch.float32, device=device)
+    cam_fwd_world = quat_apply(camera_tilt_quat, _CAM_LOCAL_FORWARD.to(device).unsqueeze(0)).squeeze(0)
+    cam_up_world = quat_apply(camera_tilt_quat, _CAM_LOCAL_UP.to(device).unsqueeze(0)).squeeze(0)
+    cam_right_world = quat_apply(camera_tilt_quat, _CAM_LOCAL_RIGHT.to(device).unsqueeze(0)).squeeze(0)
     left_arm.wrist_orient_offset = _WRIST_ORIENT_OFFSET_LEFT.to(device).unsqueeze(0)
     right_arm.wrist_orient_offset = _WRIST_ORIENT_OFFSET_RIGHT.to(device).unsqueeze(0)
 
@@ -823,7 +921,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             if left_arm.quest_home_xyz is not None and left_tracked:
                 left_disp_raw = left_xyz_q - left_arm.quest_home_xyz
                 left_gain = _ramped_gain(left_disp_raw.norm(), gain)
-                left_delta_w = (quest_to_world @ left_disp_raw) * left_gain * axis_sign_left
+                left_right_amt = left_disp_raw[0] * axis_sign_left[0]
+                left_up_amt = left_disp_raw[1] * axis_sign_left[1]
+                left_fwd_amt = -left_disp_raw[2] * axis_sign_left[2]
+                left_delta_w = (
+                    left_right_amt * cam_right_world
+                    + left_up_amt * cam_up_world
+                    + left_fwd_amt * cam_fwd_world
+                ) * left_gain
                 left_delta_w = left_delta_w * min(1.0, _MAX_REACH_M / max(left_delta_w.norm().item(), 1e-6))
                 target_pos_b_left_dbg = (
                     left_arm.home_tip_pos_b + quat_apply_inverse(root_quat_w, left_delta_w.unsqueeze(0))
@@ -844,7 +949,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             if right_arm.quest_home_xyz is not None and right_tracked:
                 right_disp_raw = right_xyz_q - right_arm.quest_home_xyz
                 right_gain = _ramped_gain(right_disp_raw.norm(), gain)
-                right_delta_w = (quest_to_world @ right_disp_raw) * right_gain * axis_sign_right
+                right_right_amt = right_disp_raw[0] * axis_sign_right[0]
+                right_up_amt = right_disp_raw[1] * axis_sign_right[1]
+                right_fwd_amt = -right_disp_raw[2] * axis_sign_right[2]
+                right_delta_w = (
+                    right_right_amt * cam_right_world
+                    + right_up_amt * cam_up_world
+                    + right_fwd_amt * cam_fwd_world
+                ) * right_gain
                 right_delta_w = right_delta_w * min(1.0, _MAX_REACH_M / max(right_delta_w.norm().item(), 1e-6))
                 target_pos_b_right_dbg = (
                     right_arm.home_tip_pos_b + quat_apply_inverse(root_quat_w, right_delta_w.unsqueeze(0))
@@ -898,8 +1010,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                     right_closed = True
 
         # ── Differential IK (DLS) solve, both arms, every frame ─────────────────
-        tip_pos_b_l_now = left_arm.solve_and_apply(robot, device, target_pos_b_left, target_quat_b_left)
-        tip_pos_b_r_now = right_arm.solve_and_apply(robot, device, target_pos_b_right, target_quat_b_right)
+        tip_pos_b_l_now = left_arm.solve_and_apply(robot, device, target_pos_b_left, target_quat_b_left, sim_dt)
+        tip_pos_b_r_now = right_arm.solve_and_apply(robot, device, target_pos_b_right, target_quat_b_right, sim_dt)
 
         # ── Real-hardware bridge (left arm only) ─────────────────────────────────
         # Same held-off-then-throttled pattern as task_space_real.py: elapsed

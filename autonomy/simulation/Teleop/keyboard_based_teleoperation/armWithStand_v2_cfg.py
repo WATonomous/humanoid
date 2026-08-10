@@ -39,7 +39,7 @@ What this means for the values below:
     damping/effort numbers are motor/mechanism-derived (same GL40 hardware
     presumed), not orientation-derived, so they're a reasonable carry-over
     but still worth confirming against the real mechanism.
-  - _WRIST_ORIENT_OFFSET_LEFT/RIGHT in run_quest_armWithStand_teleop.py
+  - _WRIST_ORIENT_OFFSET_LEFT/RIGHT in run_quest_armv2_teleop.py
     (not in this file) were reset to identity for the same reason as
     _DEFAULT_JOINT_POS -- bimanual's offsets were empirically tuned against
     its own joint6 axis and don't transfer. Needs live retuning once wrist

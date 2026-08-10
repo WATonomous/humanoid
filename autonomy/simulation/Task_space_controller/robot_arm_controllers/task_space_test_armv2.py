@@ -4,7 +4,7 @@ only) -- adapted from task_space_test.py (the bimanual original).
 A cube in the scene is the absolute gripper-fingertip-center pose target.
 Select it in the viewport (click it, press W for the Move gizmo) and drag it
 with the mouse -- the arm follows via the same DifferentialIKController +
-fingertip-tip Jacobian math run_quest_armWithStand_teleop.py uses, just fed
+fingertip-tip Jacobian math run_quest_armv2_teleop.py uses, just fed
 from a draggable cube instead of Quest hand tracking. Useful for isolating
 whether jerky/inconsistent motion during VR teleop is a tracking-input
 problem (mouse-dragging the cube should be perfectly smooth) or something in
