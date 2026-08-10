@@ -111,19 +111,12 @@ JointSafetyConfig JointCommandCore::loadJointSafetyConfig(const YAML::Node& join
   if (joint_node["enable_delta_limit"]) {
     cfg.enable_delta_limit = joint_node["enable_delta_limit"].as<bool>();
   }
-  if (joint_node["enable_low_pass"]) {
-    cfg.enable_low_pass = joint_node["enable_low_pass"].as<bool>();
-  }
   if (joint_node["velocity_max"]) {
     cfg.velocity_max = joint_node["velocity_max"].as<double>();
   }
   if (joint_node["delta_max"]) {
     cfg.delta_max = joint_node["delta_max"].as<double>();
   }
-  if (joint_node["low_pass_alpha"]) {
-    cfg.low_pass_alpha = joint_node["low_pass_alpha"].as<double>();
-  }
-  cfg.low_pass_alpha = std::clamp(cfg.low_pass_alpha, 0.0, 1.0);
   if (joint_node["mit_kp"]) {
     cfg.mit_kp = joint_node["mit_kp"].as<double>();
   }
@@ -168,10 +161,6 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double c
 // Generic rate-limit-toward-target, and exponential smoothing.
 double JointCommandCore::clampStep(double target, double previous, double delta_max) {
   return previous + std::clamp(target - previous, -delta_max, delta_max);
-}
-
-double JointCommandCore::applyLowPass(double target, double previous, double alpha) {
-  return alpha * previous + (1.0 - alpha) * target;
 }
 
 double JointCommandCore::stepTrapezoidal(double target, double prev_pos, double& prev_vel,
@@ -240,7 +229,7 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose, int8
     prev_velocities_.assign(joints_.size(), 0.0);
   }
 
-  // Per-joint moderation loop: clamp -> velocity-limit (trapezoidal or plain+low-pass) ->
+  // Per-joint moderation loop: clamp -> velocity-limit (trapezoidal or plain clamp) ->
   // delta-limit -> clamp.
   for (size_t i = 0; i < joints_.size(); ++i) {
     const JointSafetyConfig& safety = safety_[i];
@@ -252,9 +241,9 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose, int8
 
     if (have_prev_targets_) {
       if (safety.enable_trapezoidal_limit && control_rate_hz_ > 0.0) {
-        // Replaces the plain velocity clamp and low-pass below: both of those re-discount the
-        // ramp's own speed (a low-pass after a velocity clamp silently cuts steady-state speed
-        // by ~(1-alpha) -- see JointCommand.md), which is the bug this profile fixes.
+        // Replaces the plain velocity clamp below: a bare clamp has no acceleration phase,
+        // but at least (unlike the low-pass this replaced) it never discounts steady-state
+        // speed -- see JointCommand.md for why the low-pass was removed.
         target = stepTrapezoidal(target, prev_targets_[i], prev_velocities_[i],
                                  std::abs(safety.velocity_max), std::abs(safety.accel_max),
                                  1.0 / control_rate_hz_);
@@ -264,9 +253,6 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose, int8
       }
       if (safety.enable_delta_limit) {
         target = clampStep(target, prev_targets_[i], std::abs(safety.delta_max));
-      }
-      if (!safety.enable_trapezoidal_limit && safety.enable_low_pass) {
-        target = applyLowPass(target, prev_targets_[i], safety.low_pass_alpha);
       }
     }
 

@@ -24,15 +24,13 @@ struct JointSafetyConfig {
   bool enable_position_clamp{true};
   bool enable_velocity_limit{true};
   bool enable_delta_limit{true};
-  bool enable_low_pass{true};
-  double velocity_max{30.0};   // degrees / second
-  double delta_max{2.0};       // degrees / control step
-  double low_pass_alpha{0.85}; // q_out = alpha * q_prev + (1-alpha) * q_cmd
+  double velocity_max{30.0}; // degrees / second
+  double delta_max{2.0};     // degrees / control step
 
   // Reactive trapezoidal ramp: accel_max -> cruise at velocity_max -> decelerate onto target,
   // re-planned every tick since the target can keep moving (IK/teleop). Replaces the plain
-  // velocity clamp + low-pass when enabled (both under-deliver speed -- see JointCommand.md).
-  // delta_max still applies independently. Off by default: not yet bench-tested on hardware.
+  // velocity clamp when enabled. delta_max still applies independently. Off by default: not
+  // yet bench-tested on hardware.
 
   bool enable_trapezoidal_limit{false};
   double accel_max{60.0}; // degrees / second^2
@@ -44,8 +42,6 @@ struct JointSafetyConfig {
   double mit_kd{0.0};
 };
 
-// Public API: load hardware config, load safety config, run one moderation tick, seed from
-// feedback.
 class JointCommandCore {
 public:
   bool loadFromYaml(const YAML::Node& config, const std::string& arm_side);
@@ -71,7 +67,6 @@ public:
     return joints_.size();
   }
 
-  // Private helpers (stateless math) + the mutable per-joint state vectors.
 private:
   static JointConfig loadJointConfig(const YAML::Node& joint_node);
   static JointSafetyConfig loadJointSafetyConfig(const YAML::Node& joint_node,
@@ -79,7 +74,6 @@ private:
   static double clampAngle(double angle, const JointConfig& joint);
   static double applyCalibration(double angle, const JointConfig& joint);
   static double clampStep(double target, double previous, double delta_max);
-  static double applyLowPass(double target, double previous, double alpha);
   static double stepTrapezoidal(double target, double prev_pos, double& prev_vel,
                                 double velocity_max, double accel_max, double dt);
 

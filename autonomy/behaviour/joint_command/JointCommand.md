@@ -28,31 +28,33 @@ Repeat in order (skip rate/smooth steps on the first message after startup):
      $$
      \Delta q_{\max} = \frac{\texttt{velocity\_max}}{\texttt{control\_rate\_hz}}.
      $$
-     **Known issue:** this clamp's output still passes through the low-pass step below, which
-     re-discounts it. A low-pass with $\alpha=0.85$ cuts *steady-state* speed to roughly
-     $(1-\alpha)$ of the clamped value — `velocity_max: 40` (deg/s) in practice produces
-     **~6 deg/s**, not 40, once the low-pass settles. Confirmed numerically; this is why
-     `enable_trapezoidal_limit` exists.
+     This clamp previously fed into a low-pass smoothing step, which re-discounted it: at
+     $\alpha=0.85$, steady-state speed settled to roughly $(1-\alpha)$ of the clamped value —
+     `velocity_max: 40` (deg/s) produced **~6 deg/s** in practice, not 40. Confirmed
+     numerically. The low-pass has since been **removed entirely** (see below) — this plain
+     clamp now delivers the full configured speed, just with no acceleration ramp (an instant
+     jump to the allowed per-tick step rather than a smooth ramp-up).
    - **Trapezoidal ramp** (`enable_trapezoidal_limit: true`) — accelerate at `accel_max`
      (deg/s²) toward `velocity_max`, then decelerate at `accel_max` to land exactly on target
      with no overshoot, re-planned every tick (the target itself may still be moving, e.g. IK
-     or teleop chasing a live cube). This mode **replaces** the plain clamp and the low-pass
-     step for that joint — running both would just reintroduce the same discounting bug.
+     or teleop chasing a live cube). This mode **replaces** the plain clamp for that joint.
      Not yet bench-tested on real hardware; keep off until validated on your own arm at a low
      `accel_max`, then raise gradually.
 3. **Delta limit** — additional per-step cap `delta_max` (degrees/tick), applied in both modes.
-4. **Low-pass** — exponential smoothing with $\alpha =$ `low_pass_alpha`, **only applied when
-   `enable_trapezoidal_limit` is false**:
-   $$
-   q \leftarrow \alpha\, q^{\mathrm{prev}} + (1-\alpha)\, q.
-   $$
-5. **Position clamp again** — limits still hold after smoothing.
-6. **Calibration** — map to motor frame before publish:
+4. **Position clamp again** — limits still hold after rate-limiting.
+5. **Calibration** — map to motor frame before publish:
    $$
    q_{\mathrm{motor}} = \texttt{direction} \cdot (q - \texttt{zero\_offset}).
    $$
 
 Store $q$ as $q^{\mathrm{prev}}$ (and, for the trapezoidal mode, its ramp velocity) for the next message.
+
+**Why the low-pass was removed rather than just disabled:** it never bounded speed on its own
+— for a large target jump its first step is `(1-alpha)` of the *entire* error, which scales
+unboundedly with the jump size, unlike the clamp's fixed deg/tick ceiling. Once the
+trapezoidal ramp covers the "smooth motion" use case, the low-pass had no remaining purpose
+that wasn't better served by either the plain clamp or the ramp, so it was deleted rather
+than left as a footgun someone could re-enable later.
 
 ### Structural limitation (both modes)
 
@@ -71,7 +73,7 @@ conversion needed to use that control type.
 |------|------|
 | `config/joint_command.yaml` | ROS params: arm side, topics, control rate, control type |
 | `config/hardware_mapping.yaml` | Per-joint `can_id`, limits, `direction`, `zero_offset` |
-| `config/safety_limits.yaml` | Moderation toggles and per-joint `velocity_max`, `delta_max`, `low_pass_alpha` |
+| `config/safety_limits.yaml` | Moderation toggles and per-joint `velocity_max`, `delta_max`, `accel_max` |
 
 Safety YAML uses a top-level `safety:` key with `global` defaults and optional `joints` overrides (shoulder/elbow/wrist paths match hardware mapping).
 
@@ -86,8 +88,7 @@ Start conservative on hardware, then increase until motion is responsive without
 | `velocity_max` | Max joint speed — cruise speed in trapezoidal mode, plain clamp otherwise |
 | `accel_max` | Trapezoidal mode only: acceleration/deceleration rate (deg/s²) |
 | `delta_max` | Hard cap on ° change per tick |
-| `low_pass_alpha` | Higher → smoother/slower (e.g. `0.85`); ignored when trapezoidal mode is on |
-| `enable_trapezoidal_limit` | Switch from plain clamp+low-pass to the trapezoidal ramp (per-joint) |
+| `enable_trapezoidal_limit` | Switch from the plain clamp to the trapezoidal ramp (per-joint) |
 | `enable_*` | Toggle each stage without recompiling |
 
 ## Launch

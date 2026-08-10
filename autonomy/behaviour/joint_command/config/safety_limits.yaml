@@ -9,18 +9,17 @@ safety:
     # Position clamp DISABLED for now -- re-enable once hardware_mapping.yaml limits are re-verified.
     # velocity_max kept low deliberately for testing. Velocity limits should also be written to motor firmware
     # enable_trapezoidal_limit (default false): reactive accel/cruise/decel ramp, replaces the
-    # clamp+low-pass stack above (which under-delivers steady-state speed). Untested on hardware.
+    # plain velocity clamp above. Untested on hardware. The old low-pass stage was removed
+    # entirely (it discounted steady-state speed with no real safety benefit -- see JointCommand.md).
 
   global:
     enable_position_clamp: false
     enable_velocity_limit: true
     enable_delta_limit: true
-    enable_low_pass: false
     enable_trapezoidal_limit: false
     velocity_max: 20.0
     accel_max: 60.0
     delta_max: 2.4
-    low_pass_alpha: 0.85
     mit_kp: 0.0   # 0 = MIT_CONTROL is a safe no-op until set per-joint below
     mit_kd: 0.0
 
