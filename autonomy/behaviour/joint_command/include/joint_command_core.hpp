@@ -9,6 +9,7 @@
 #include "common_msgs/msg/motor_cmd.hpp"
 #include "yaml-cpp/yaml.h"
 
+// Static per-joint hardware facts (motor ID, direction, zero offset, limits).
 struct JointConfig {
   int8_t motor_id{0};
   double lower_limit{-180.0};
@@ -18,21 +19,25 @@ struct JointConfig {
   bool limit_range{false};
 };
 
+// Tunable per-joint safety/moderation settings, reloadable from YAML.
 struct JointSafetyConfig {
   bool enable_position_clamp{true};
   bool enable_velocity_limit{true};
   bool enable_delta_limit{true};
-  bool enable_low_pass{true};
-  double velocity_max{30.0};   // degrees / second
-  double delta_max{2.0};       // degrees / control step
-  double low_pass_alpha{0.85}; // q_out = alpha * q_prev + (1-alpha) * q_cmd
+  double velocity_max{30.0}; // degrees / second
+  double delta_max{2.0};     // degrees / control step
 
-  // MIT_CONTROL (compliant holding) gains. Only used when armPoseToMotorCmds is called with
-  // control_type=MIT_CONTROL; ignored for POSITION_LOOP etc. Default 0/0 is deliberately a
-  // safe no-op (zero stiffness/damping = motor free) -- a joint must be explicitly configured
-  // with nonzero mit_kp/mit_kd to actually hold under MIT. Units match the CubeMars AK-series
-  // manual's MIT protocol range for this motor (see can/config/mit_profiles.yaml): kp in
-  // [0,500], kd in [0,5] -- can_node clamps to the exact per-motor range before sending.
+  // Reactive trapezoidal ramp: accel_max -> cruise at velocity_max -> decelerate onto target,
+  // re-planned every tick since the target can keep moving (IK/teleop). Replaces the plain
+  // velocity clamp when enabled. delta_max still applies independently. Off by default: not
+  // yet bench-tested on hardware.
+
+  bool enable_trapezoidal_limit{false};
+  double accel_max{60.0}; // degrees / second^2
+
+  // MIT_CONTROL PD gains -- ignored for POSITION_LOOP etc. Default 0/0 = joint free until set
+  // per-joint. Ranges kp:[0,500], kd:[0,5] (AK-series, see can/config/mit_profiles.yaml);
+  // can_node clamps to exact per-motor range before sending.
   double mit_kp{0.0};
   double mit_kd{0.0};
 };
@@ -69,11 +74,13 @@ private:
   static double clampAngle(double angle, const JointConfig& joint);
   static double applyCalibration(double angle, const JointConfig& joint);
   static double clampStep(double target, double previous, double delta_max);
-  static double applyLowPass(double target, double previous, double alpha);
+  static double stepTrapezoidal(double target, double prev_pos, double& prev_vel,
+                                double velocity_max, double accel_max, double dt);
 
   std::vector<JointConfig> joints_;
   std::vector<JointSafetyConfig> safety_;
   std::vector<double> prev_targets_;
+  std::vector<double> prev_velocities_; // degrees / second, one per joint, for the trapezoidal ramp
   bool have_prev_targets_{false};
   double control_rate_hz_{50.0};
 };

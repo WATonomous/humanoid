@@ -70,6 +70,17 @@ private:
   void loadMitProfiles();
   static uint32_t packMitValue(double phys, double min, double max, unsigned bits);
 
+  // POSITION_VELOCITY's PosVelSpeed/PosVelAccel are wire-encoded in ERPM (mechanical RPM *
+  // gear_ratio * pole_pairs), not deg/s -- see humanoid.dbc. Pole pairs (21) and gear ratio
+  // (9:1) below are from CubeMars's product pages, NOT the manual or a physical label --
+  // verify before trusting for real motion. mit_profiles_ doubles as the "validated AK-series
+  // motor" gate, so GL40/unknown models are refused rather than silently mis-scaled.
+
+  // CubeMars AK-series: 21 pole pairs, 9:1 gear ratio (both configurable in firmware).
+  static constexpr double kAkSeriesPolePairs = 21.0;
+  static constexpr double kAkSeriesGearRatio = 9.0;
+  static double degPerSecToErpm(double deg_per_sec);
+
   // Subscribers and publishers
   std::unordered_map<std::string, rclcpp::SubscriptionBase::SharedPtr> _subscribers;
 

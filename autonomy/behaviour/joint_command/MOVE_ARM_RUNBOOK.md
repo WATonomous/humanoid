@@ -1,7 +1,7 @@
 # Move / wave the arm — runbook
 
 Drive the real arm through the `joint_command` safety layer: it seeds from live feedback
-(no startup slam), then velocity-limits + smooths every command. Read-only visualization
+(no startup slam), then velocity-limits every command. Read-only visualization
 is separate (`wato_bimanual_arm/live_arm_mjviser.py`).
 
 > ⚠️ Moves real motors. Arm clear, hand on the E-stop. Test config has the **position
@@ -91,8 +91,13 @@ docker exec watod_hy-jc-dry bash -c 'pkill -f "install/joint_command/lib"'  # ar
 ```
 
 ## Notes
-- **Speed / smoothing:** edit `config/safety_limits.yaml` (`velocity_max`, `low_pass_alpha`,
-  the `enable_*` flags), then rebuild (Setup) + restart the node. Currently 40°/s, clamp off.
+- **Speed:** edit `config/safety_limits.yaml` (`velocity_max`, the `enable_*` flags), then
+  rebuild (Setup) + restart the node. With `enable_trapezoidal_limit: false` (default), the
+  arm now moves at the full configured `velocity_max` (the old low-pass stage that discounted
+  steady-state speed to ~15% of it has been removed) but with no acceleration ramp — motion
+  starts abruptly at the allowed per-tick rate. `enable_trapezoidal_limit: true` (plus
+  `accel_max`) adds a smooth accel/cruise/decel ramp instead, but has not been bench-tested
+  yet — start with a low `accel_max` and a clear arm the first time you flip it on.
 - **Didn't move?** `ros2 topic info /interfacing/motorCMD` shows `Publisher count: 0` → node
   lost discovery; restart it (safe — it re-seeds from live feedback). Discovery drops are
   mostly triggered by churning many short-lived `ros2 topic pub/echo/hz` processes on the host

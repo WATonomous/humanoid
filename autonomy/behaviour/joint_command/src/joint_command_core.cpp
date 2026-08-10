@@ -5,6 +5,7 @@
 #include <map>
 #include <stdexcept>
 
+// Function made to parse one joint's YAML block into a JointConfig.
 JointConfig JointCommandCore::loadJointConfig(const YAML::Node& joint_node) {
   JointConfig joint;
   joint.motor_id = static_cast<int8_t>(joint_node["can_id"].as<int>());
@@ -16,6 +17,7 @@ JointConfig JointCommandCore::loadJointConfig(const YAML::Node& joint_node) {
   return joint;
 }
 
+// Loads all 6 joints for an arm side, resets safety/state to defaults.
 bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string& arm_side) {
   joints_.clear();
 
@@ -49,10 +51,12 @@ bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string&
   // Previously this started false, letting the first command bypass all rate limiting
   // and jump straight to its target -- visible as a sudden snap before smooth tracking.
   prev_targets_.assign(joints_.size(), 0.0);
+  prev_velocities_.assign(joints_.size(), 0.0);
   have_prev_targets_ = true;
   return true;
 }
 
+// Overwrites the assumed-0 start pose with real measured motor angles.
 size_t JointCommandCore::seedPrevTargetsFromFeedback(const std::map<int, double>& motor_positions) {
   std::vector<double> seeded(joints_.size(), 0.0);
   size_t matched = 0;
@@ -69,10 +73,15 @@ size_t JointCommandCore::seedPrevTargetsFromFeedback(const std::map<int, double>
     ++matched;
   }
   prev_targets_ = std::move(seeded);
+  // Real feedback carries no velocity sample here, so the ramp starts from rest each time it's
+  // re-seeded (e.g. after a hand-move) -- safe, since starting from 0 can only under-accelerate,
+  // never overshoot.
+  prev_velocities_.assign(joints_.size(), 0.0);
   have_prev_targets_ = true;
   return matched;
 }
 
+// Hard-limit clip, and arm-frame<->motor-frame conversion.
 double JointCommandCore::clampAngle(double angle, const JointConfig& joint) {
   if (!joint.limit_range) {
     return angle;
@@ -80,10 +89,12 @@ double JointCommandCore::clampAngle(double angle, const JointConfig& joint) {
   return std::clamp(angle, joint.lower_limit, joint.upper_limit);
 }
 
+// Applies calibration lol
 double JointCommandCore::applyCalibration(double angle, const JointConfig& joint) {
   return static_cast<double>(joint.direction) * (angle - joint.zero_offset);
 }
 
+// Applies a joint's YAML overrides on top of a base/default config.
 JointSafetyConfig JointCommandCore::loadJointSafetyConfig(const YAML::Node& joint_node,
                                                           const JointSafetyConfig& base) {
   JointSafetyConfig cfg = base;
@@ -100,28 +111,28 @@ JointSafetyConfig JointCommandCore::loadJointSafetyConfig(const YAML::Node& join
   if (joint_node["enable_delta_limit"]) {
     cfg.enable_delta_limit = joint_node["enable_delta_limit"].as<bool>();
   }
-  if (joint_node["enable_low_pass"]) {
-    cfg.enable_low_pass = joint_node["enable_low_pass"].as<bool>();
-  }
   if (joint_node["velocity_max"]) {
     cfg.velocity_max = joint_node["velocity_max"].as<double>();
   }
   if (joint_node["delta_max"]) {
     cfg.delta_max = joint_node["delta_max"].as<double>();
   }
-  if (joint_node["low_pass_alpha"]) {
-    cfg.low_pass_alpha = joint_node["low_pass_alpha"].as<double>();
-  }
-  cfg.low_pass_alpha = std::clamp(cfg.low_pass_alpha, 0.0, 1.0);
   if (joint_node["mit_kp"]) {
     cfg.mit_kp = joint_node["mit_kp"].as<double>();
   }
   if (joint_node["mit_kd"]) {
     cfg.mit_kd = joint_node["mit_kd"].as<double>();
   }
+  if (joint_node["enable_trapezoidal_limit"]) {
+    cfg.enable_trapezoidal_limit = joint_node["enable_trapezoidal_limit"].as<bool>();
+  }
+  if (joint_node["accel_max"]) {
+    cfg.accel_max = joint_node["accel_max"].as<double>();
+  }
   return cfg;
 }
 
+// Resolves global defaults then per-joint overrides for all 6 joints.
 bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double control_rate_hz) {
   if (joints_.empty()) {
     return false;
@@ -147,14 +158,46 @@ bool JointCommandCore::loadSafetyFromYaml(const YAML::Node& safety_cfg, double c
   return true;
 }
 
+// Generic rate-limit-toward-target, and exponential smoothing.
 double JointCommandCore::clampStep(double target, double previous, double delta_max) {
   return previous + std::clamp(target - previous, -delta_max, delta_max);
 }
 
-double JointCommandCore::applyLowPass(double target, double previous, double alpha) {
-  return alpha * previous + (1.0 - alpha) * target;
+double JointCommandCore::stepTrapezoidal(double target, double prev_pos, double& prev_vel,
+                                         double velocity_max, double accel_max, double dt) {
+  const double error = target - prev_pos;
+  const double direction = (error > 0.0) ? 1.0 : (error < 0.0 ? -1.0 : 0.0);
+  const double accel_step = accel_max * dt;
+
+  double desired_vel;
+  if (direction == 0.0 || (prev_vel != 0.0 && (prev_vel > 0.0) != (direction > 0.0))) {
+    // Already there, or still moving the wrong way (target reversed under us) -- brake to a
+    // stop before committing to the new direction, so we never yank straight through zero.
+    const double braked = std::abs(prev_vel) - accel_step;
+    desired_vel = (braked > 0.0) ? std::copysign(braked, prev_vel) : 0.0;
+  } else {
+    const double stopping_distance = (prev_vel * prev_vel) / (2.0 * accel_max);
+    if (std::abs(error) <= stopping_distance) {
+      // Close enough that cruising another tick would overshoot -- decelerate.
+      desired_vel = direction * std::max(0.0, std::abs(prev_vel) - accel_step);
+    } else {
+      // Free to speed up toward cruise.
+      desired_vel = direction * std::min(velocity_max, std::abs(prev_vel) + accel_step);
+    }
+  }
+
+  double step = desired_vel * dt;
+  if (std::abs(step) >= std::abs(error)) {
+    // Never overshoot within a single tick; land exactly on target and stop.
+    step = error;
+    desired_vel = 0.0;
+  }
+
+  prev_vel = desired_vel;
+  return prev_pos + step;
 }
 
+// Setup: validates message shape, flattens angles, defensive state resizing.
 std::vector<common_msgs::msg::MotorCmd>
 JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose, int8_t control_type) {
   if (joints_.size() != 6) {
@@ -182,7 +225,12 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose, int8
     prev_targets_.assign(joints_.size(), 0.0);
     have_prev_targets_ = true;
   }
+  if (prev_velocities_.size() != joints_.size()) {
+    prev_velocities_.assign(joints_.size(), 0.0);
+  }
 
+  // Per-joint moderation loop: clamp -> velocity-limit (trapezoidal or plain clamp) ->
+  // delta-limit -> clamp.
   for (size_t i = 0; i < joints_.size(); ++i) {
     const JointSafetyConfig& safety = safety_[i];
 
@@ -192,15 +240,19 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose, int8
     }
 
     if (have_prev_targets_) {
-      if (safety.enable_velocity_limit && control_rate_hz_ > 0.0) {
+      if (safety.enable_trapezoidal_limit && control_rate_hz_ > 0.0) {
+        // Replaces the plain velocity clamp below: a bare clamp has no acceleration phase,
+        // but at least (unlike the low-pass this replaced) it never discounts steady-state
+        // speed -- see JointCommand.md for why the low-pass was removed.
+        target = stepTrapezoidal(target, prev_targets_[i], prev_velocities_[i],
+                                 std::abs(safety.velocity_max), std::abs(safety.accel_max),
+                                 1.0 / control_rate_hz_);
+      } else if (safety.enable_velocity_limit && control_rate_hz_ > 0.0) {
         const double velocity_step = std::abs(safety.velocity_max) / control_rate_hz_;
         target = clampStep(target, prev_targets_[i], velocity_step);
       }
       if (safety.enable_delta_limit) {
         target = clampStep(target, prev_targets_[i], std::abs(safety.delta_max));
-      }
-      if (safety.enable_low_pass) {
-        target = applyLowPass(target, prev_targets_[i], safety.low_pass_alpha);
       }
     }
 
@@ -209,6 +261,7 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose, int8
     }
     next_targets[i] = target;
 
+    // Build MotorCmd: calibrate, branch MIT vs. position-loop encoding, save state for next tick.
     const double calibrated_deg = applyCalibration(target, joints_[i]);
 
     common_msgs::msg::MotorCmd cmd;
