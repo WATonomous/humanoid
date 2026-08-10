@@ -181,8 +181,17 @@ _QUEST_TO_WORLD = torch.tensor(
      [0.0, 1.0, 0.0]],
     dtype=torch.float32,
 )
-_AXIS_SIGN_LEFT = torch.tensor([1.0, -1.0, 1.0])
-_AXIS_SIGN_RIGHT = torch.tensor([1.0, -1.0, 1.0])
+# X flipped from bimanual's (1,-1,1): synthetic-message testing showed
+# left/right tracks correctly with X flipped (-1). Y additionally flipped
+# here per live headset feedback: front/back was still inverted after the X
+# fix (up/down and left/right confirmed correct by the user; front/back is
+# the remaining axis, Y, by elimination) -- flipped Y's sign to invert it.
+# Not independently re-verified via synthetic message (Y's real-world
+# forward/back mapping depends on the user's physical orientation relative
+# to the WebXR tracking origin, which can't be tested from here) -- confirm
+# live and report back if it's still wrong.
+_AXIS_SIGN_LEFT = torch.tensor([-1.0, 1.0, 1.0])
+_AXIS_SIGN_RIGHT = torch.tensor([-1.0, 1.0, 1.0])
 
 _GAIN_FAR = 1.0
 _GAIN_RAMP_START_M = 0.15

@@ -120,9 +120,16 @@ JOINT_POS_LIMITS = {
     "joint8l": _JOINT8_LIMIT,
 }
 
-# --- Default poses: URDF zero (see module docstring -- bimanual's tuned
-# degree values do NOT transfer, different joint axes per joint). Retune live
-# via Physics Inspector for a more ergonomic rest pose once available.
+# --- Default poses: URDF zero. Tried two alternatives live and both were
+# rejected: (1) IK-solved "reach forward and up" target didn't converge
+# cleanly (stuck ~0.2m error, joint angles past a full rotation); (2)
+# directly reusing bimanual's tuned degree values looked plausibly bent in
+# a narrow test crop but was confirmed wrong ("not naturally forward") once
+# actually viewed live -- expected, since armWithStand's joint axes differ
+# per-joint from bimanual's (see module docstring), so bimanual's angles
+# don't correspond to the same physical configuration here. Back to zero
+# as the known, correct-by-construction baseline. Retune live via Physics
+# Inspector for a real ergonomic pose if wanted.
 _DEFAULT_JOINT_POS = {
     "joint1": 0.0,
     "joint2": 0.0,
