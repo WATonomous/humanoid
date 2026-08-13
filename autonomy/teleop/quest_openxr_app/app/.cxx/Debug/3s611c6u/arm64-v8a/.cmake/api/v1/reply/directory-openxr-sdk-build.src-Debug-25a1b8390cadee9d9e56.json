@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "openxr-sdk-build/src",
+		"source" : "/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/third_party/OpenXR-SDK/src"
+	}
+}

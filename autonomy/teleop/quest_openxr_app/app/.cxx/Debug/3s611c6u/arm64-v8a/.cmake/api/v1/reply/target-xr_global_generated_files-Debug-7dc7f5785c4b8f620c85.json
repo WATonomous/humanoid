@@ -1,0 +1,39 @@
+{
+	"backtrace" : 1,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_custom_target"
+		],
+		"files" : 
+		[
+			"/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/third_party/OpenXR-SDK/src/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 530,
+				"parent" : 0
+			}
+		]
+	},
+	"folder" : 
+	{
+		"name" : "Generated"
+	},
+	"id" : "xr_global_generated_files::@e1174178b8d829a11cab",
+	"name" : "xr_global_generated_files",
+	"paths" : 
+	{
+		"build" : "openxr-sdk-build/src",
+		"source" : "/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/third_party/OpenXR-SDK/src"
+	},
+	"sources" : [],
+	"type" : "UTILITY"
+}

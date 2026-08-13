@@ -1,0 +1,262 @@
+Performing C++ SOURCE FILE Test HAVE_FILESYSTEM_IN_STD failed with the following output:
+Change Dir: /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/rwahib/android-sdk/cmake/3.22.1/bin/ninja cmTC_56761 && [1/2] Building CXX object CMakeFiles/cmTC_56761.dir/src.cxx.o
+FAILED: CMakeFiles/cmTC_56761.dir/src.cxx.o 
+/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android29 --sysroot=/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DHAVE_FILESYSTEM_IN_STD -I/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/third_party/OpenXR-SDK/src/common -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -std=c++17 -DCMAKE_CXX_STANDARD=14 -DCMAKE_CXX_STANDARD_REQUIRED=TRUE -fPIC -std=c++14 -MD -MT CMakeFiles/cmTC_56761.dir/src.cxx.o -MF CMakeFiles/cmTC_56761.dir/src.cxx.o.d -o CMakeFiles/cmTC_56761.dir/src.cxx.o -c /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx
+/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx:8:15: error: use of undeclared identifier 'is_regular_file'
+        (void)is_regular_file("/");
+              ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+#include <stdfs_conditions.h>
+    
+    #if defined(USE_FINAL_FS) && USE_FINAL_FS
+    #include <filesystem>
+    using namespace std::filesystem;
+    #endif
+    int main() {
+        (void)is_regular_file("/");
+        return 0;
+    }
+    
+    
+Performing C++ SOURCE FILE Test HAVE_FILESYSTEM_IN_STDEXPERIMENTAL failed with the following output:
+Change Dir: /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/rwahib/android-sdk/cmake/3.22.1/bin/ninja cmTC_92d00 && [1/2] Building CXX object CMakeFiles/cmTC_92d00.dir/src.cxx.o
+FAILED: CMakeFiles/cmTC_92d00.dir/src.cxx.o 
+/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android29 --sysroot=/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DHAVE_FILESYSTEM_IN_STDEXPERIMENTAL -I/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/third_party/OpenXR-SDK/src/common -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -std=c++17 -DCMAKE_CXX_STANDARD=14 -DCMAKE_CXX_STANDARD_REQUIRED=TRUE -fPIC -std=c++14 -MD -MT CMakeFiles/cmTC_92d00.dir/src.cxx.o -MF CMakeFiles/cmTC_92d00.dir/src.cxx.o.d -o CMakeFiles/cmTC_92d00.dir/src.cxx.o -c /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx
+/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx:8:15: error: use of undeclared identifier 'is_regular_file'
+        (void)is_regular_file("/");
+              ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+#include <stdfs_conditions.h>
+    
+    #if defined(USE_EXPERIMENTAL_FS) && USE_EXPERIMENTAL_FS
+    #include <experimental/filesystem>
+    using namespace std::experimental::filesystem;
+    #endif
+    int main() {
+        (void)is_regular_file("/");
+        return 0;
+    }
+    
+    
+Performing C++ SOURCE FILE Test HAVE_FILESYSTEM_IN_STD_17 failed with the following output:
+Change Dir: /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/rwahib/android-sdk/cmake/3.22.1/bin/ninja cmTC_66138 && [1/2] Building CXX object CMakeFiles/cmTC_66138.dir/src.cxx.o
+FAILED: CMakeFiles/cmTC_66138.dir/src.cxx.o 
+/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android29 --sysroot=/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DHAVE_FILESYSTEM_IN_STD_17 -I/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/third_party/OpenXR-SDK/src/common -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -std=c++17 -DCMAKE_CXX_STANDARD=17 -DCMAKE_CXX_STANDARD_REQUIRED=TRUE -fPIC -std=c++14 -MD -MT CMakeFiles/cmTC_66138.dir/src.cxx.o -MF CMakeFiles/cmTC_66138.dir/src.cxx.o.d -o CMakeFiles/cmTC_66138.dir/src.cxx.o -c /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx
+/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx:8:15: error: use of undeclared identifier 'is_regular_file'
+        (void)is_regular_file("/");
+              ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+#include <stdfs_conditions.h>
+    
+    #if defined(USE_FINAL_FS) && USE_FINAL_FS
+    #include <filesystem>
+    using namespace std::filesystem;
+    #endif
+    int main() {
+        (void)is_regular_file("/");
+        return 0;
+    }
+    
+    
+Performing C++ SOURCE FILE Test HAVE_FILESYSTEM_WITHOUT_LIB failed with the following output:
+Change Dir: /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/rwahib/android-sdk/cmake/3.22.1/bin/ninja cmTC_f3661 && [1/2] Building CXX object CMakeFiles/cmTC_f3661.dir/src.cxx.o
+FAILED: CMakeFiles/cmTC_f3661.dir/src.cxx.o 
+/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android29 --sysroot=/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DHAVE_FILESYSTEM_WITHOUT_LIB -I/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/third_party/OpenXR-SDK/src/common -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -std=c++17  -fPIE -std=c++14 -MD -MT CMakeFiles/cmTC_f3661.dir/src.cxx.o -MF CMakeFiles/cmTC_f3661.dir/src.cxx.o.d -o CMakeFiles/cmTC_f3661.dir/src.cxx.o -c /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx
+/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx:12:15: error: use of undeclared identifier 'is_regular_file'
+        (void)is_regular_file("/");
+              ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+#include <stdfs_conditions.h>
+    
+    #if defined(USE_FINAL_FS) && USE_FINAL_FS
+    #include <filesystem>
+    using namespace std::filesystem;
+    #endif
+    #if defined(USE_EXPERIMENTAL_FS) && USE_EXPERIMENTAL_FS
+    #include <experimental/filesystem>
+    using namespace std::experimental::filesystem;
+    #endif
+    int main() {
+        (void)is_regular_file("/");
+        return 0;
+    }
+    
+    
+Performing C++ SOURCE FILE Test HAVE_FILESYSTEM_NEEDING_LIBSTDCXXFS failed with the following output:
+Change Dir: /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/rwahib/android-sdk/cmake/3.22.1/bin/ninja cmTC_5f127 && [1/2] Building CXX object CMakeFiles/cmTC_5f127.dir/src.cxx.o
+FAILED: CMakeFiles/cmTC_5f127.dir/src.cxx.o 
+/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android29 --sysroot=/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DHAVE_FILESYSTEM_NEEDING_LIBSTDCXXFS -I/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/third_party/OpenXR-SDK/src/common -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -std=c++17  -fPIE -std=c++14 -MD -MT CMakeFiles/cmTC_5f127.dir/src.cxx.o -MF CMakeFiles/cmTC_5f127.dir/src.cxx.o.d -o CMakeFiles/cmTC_5f127.dir/src.cxx.o -c /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx
+/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx:12:15: error: use of undeclared identifier 'is_regular_file'
+        (void)is_regular_file("/");
+              ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+#include <stdfs_conditions.h>
+    
+    #if defined(USE_FINAL_FS) && USE_FINAL_FS
+    #include <filesystem>
+    using namespace std::filesystem;
+    #endif
+    #if defined(USE_EXPERIMENTAL_FS) && USE_EXPERIMENTAL_FS
+    #include <experimental/filesystem>
+    using namespace std::experimental::filesystem;
+    #endif
+    int main() {
+        (void)is_regular_file("/");
+        return 0;
+    }
+    
+    
+Performing C++ SOURCE FILE Test HAVE_FILESYSTEM_NEEDING_LIBCXXFS failed with the following output:
+Change Dir: /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/rwahib/android-sdk/cmake/3.22.1/bin/ninja cmTC_6082a && [1/2] Building CXX object CMakeFiles/cmTC_6082a.dir/src.cxx.o
+FAILED: CMakeFiles/cmTC_6082a.dir/src.cxx.o 
+/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android29 --sysroot=/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DHAVE_FILESYSTEM_NEEDING_LIBCXXFS -I/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/third_party/OpenXR-SDK/src/common -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -std=c++17  -fPIE -std=c++14 -MD -MT CMakeFiles/cmTC_6082a.dir/src.cxx.o -MF CMakeFiles/cmTC_6082a.dir/src.cxx.o.d -o CMakeFiles/cmTC_6082a.dir/src.cxx.o -c /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx
+/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp/src.cxx:12:15: error: use of undeclared identifier 'is_regular_file'
+        (void)is_regular_file("/");
+              ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+#include <stdfs_conditions.h>
+    
+    #if defined(USE_FINAL_FS) && USE_FINAL_FS
+    #include <filesystem>
+    using namespace std::filesystem;
+    #endif
+    #if defined(USE_EXPERIMENTAL_FS) && USE_EXPERIMENTAL_FS
+    #include <experimental/filesystem>
+    using namespace std::experimental::filesystem;
+    #endif
+    int main() {
+        (void)is_regular_file("/");
+        return 0;
+    }
+    
+    
+Performing C SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD failed with the following output:
+Change Dir: /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/rwahib/android-sdk/cmake/3.22.1/bin/ninja cmTC_622a0 && [1/2] Building C object CMakeFiles/cmTC_622a0.dir/src.c.o
+FAILED: CMakeFiles/cmTC_622a0.dir/src.c.o 
+/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=aarch64-none-linux-android29 --sysroot=/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DCMAKE_HAVE_LIBC_PTHREAD  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -fPIE -MD -MT CMakeFiles/cmTC_622a0.dir/src.c.o -MF CMakeFiles/cmTC_622a0.dir/src.c.o.d -o CMakeFiles/cmTC_622a0.dir/src.c.o -c /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp/src.c
+/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp/src.c:13:3: error: call to undeclared function 'pthread_cancel'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+  pthread_cancel(thread);
+  ^
+/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp/src.c:13:3: note: did you mean 'pthread_once'?
+/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/pthread.h:258:5: note: 'pthread_once' declared here
+int pthread_once(pthread_once_t* _Nonnull __once, void (* _Nonnull __init_routine)(void));
+    ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+#include <pthread.h>
+
+static void* test_func(void* data)
+{
+  return data;
+}
+
+int main(void)
+{
+  pthread_t thread;
+  pthread_create(&thread, NULL, test_func, NULL);
+  pthread_detach(thread);
+  pthread_cancel(thread);
+  pthread_join(thread, NULL);
+  pthread_atfork(NULL, NULL, NULL);
+  pthread_exit(NULL);
+
+  return 0;
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/rwahib/android-sdk/cmake/3.22.1/bin/ninja cmTC_9aaec && [1/2] Building C object CMakeFiles/cmTC_9aaec.dir/CheckFunctionExists.c.o
+[2/2] Linking C executable cmTC_9aaec
+FAILED: cmTC_9aaec 
+: && /home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=aarch64-none-linux-android29 --sysroot=/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -DCHECK_FUNCTION_EXISTS=pthread_create -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--no-undefined-version -Wl,--fatal-warnings -Wl,--no-undefined -Qunused-arguments CMakeFiles/cmTC_9aaec.dir/CheckFunctionExists.c.o -o cmTC_9aaec  -lpthreads  -latomic -lm && :
+ld.lld: error: unable to find library -lpthreads
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+ninja: build stopped: subcommand failed.
+
+
+
+Determining if the function pthread_create exists in the pthread failed with the following output:
+Change Dir: /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/rwahib/android-sdk/cmake/3.22.1/bin/ninja cmTC_a7447 && [1/2] Building C object CMakeFiles/cmTC_a7447.dir/CheckFunctionExists.c.o
+[2/2] Linking C executable cmTC_a7447
+FAILED: cmTC_a7447 
+: && /home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=aarch64-none-linux-android29 --sysroot=/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -DCHECK_FUNCTION_EXISTS=pthread_create -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--no-undefined-version -Wl,--fatal-warnings -Wl,--no-undefined -Qunused-arguments CMakeFiles/cmTC_a7447.dir/CheckFunctionExists.c.o -o cmTC_a7447  -lpthread  -latomic -lm && :
+ld.lld: error: unable to find library -lpthread
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+ninja: build stopped: subcommand failed.
+
+
+
+Determining if the function secure_getenv exists failed with the following output:
+Change Dir: /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/rwahib/android-sdk/cmake/3.22.1/bin/ninja cmTC_f4877 && [1/2] Building C object CMakeFiles/cmTC_f4877.dir/CheckFunctionExists.c.o
+[2/2] Linking C executable cmTC_f4877
+FAILED: cmTC_f4877 
+: && /home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=aarch64-none-linux-android29 --sysroot=/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -DCHECK_FUNCTION_EXISTS=secure_getenv -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--no-undefined-version -Wl,--fatal-warnings -Wl,--no-undefined -Qunused-arguments CMakeFiles/cmTC_f4877.dir/CheckFunctionExists.c.o -o cmTC_f4877  -latomic -lm && :
+ld.lld: error: undefined symbol: secure_getenv
+>>> referenced by CheckFunctionExists.c:17 (/home/rwahib/android-sdk/cmake/3.22.1/share/cmake-3.22/Modules/CheckFunctionExists.c:17)
+>>>               CMakeFiles/cmTC_f4877.dir/CheckFunctionExists.c.o:(main)
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+ninja: build stopped: subcommand failed.
+
+
+
+Determining if the function __secure_getenv exists failed with the following output:
+Change Dir: /home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/.cxx/Debug/3s611c6u/arm64-v8a/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/rwahib/android-sdk/cmake/3.22.1/bin/ninja cmTC_0e376 && [1/2] Building C object CMakeFiles/cmTC_0e376.dir/CheckFunctionExists.c.o
+[2/2] Linking C executable cmTC_0e376
+FAILED: cmTC_0e376 
+: && /home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=aarch64-none-linux-android29 --sysroot=/home/rwahib/android-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -DCHECK_FUNCTION_EXISTS=__secure_getenv -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--no-undefined-version -Wl,--fatal-warnings -Wl,--no-undefined -Qunused-arguments CMakeFiles/cmTC_0e376.dir/CheckFunctionExists.c.o -o cmTC_0e376  -latomic -lm && :
+ld.lld: error: undefined symbol: __secure_getenv
+>>> referenced by CheckFunctionExists.c:17 (/home/rwahib/android-sdk/cmake/3.22.1/share/cmake-3.22/Modules/CheckFunctionExists.c:17)
+>>>               CMakeFiles/cmTC_0e376.dir/CheckFunctionExists.c.o:(main)
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+ninja: build stopped: subcommand failed.
+
+
+

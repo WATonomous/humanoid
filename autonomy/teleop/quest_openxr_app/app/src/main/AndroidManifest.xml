@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Minimal Meta Quest OpenXR app manifest,NativeActivity (no Java/Kotlin code), pure
+C++/OpenXR/OpenGL ES. Renders the stereo POV feed already produced by
+run_quest_armv2_teleop.py + served by webxr_server.py's new plain-HTTP mirror (port 8080),
+as a replacement display client for the existing browser/WebXR one (index.html),v1 scope is
+display-only (no hand tracking / wrist control sent back yet, see quest_openxr_app/README.md).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.wato.questopenxr">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Without this permission AND the com.oculus.handtracking.* metadata below, Quest's OS
+         assumes any VR app needs physical controllers and blocks launch with a system
+         "controllers required" dialog if none are paired: hit exactly this live (see
+         RequiresControllersLaunchInterceptor / app_launch_blocked_controller_required in
+         logcat) even though this app doesn't use hand tracking data yet (v1 is display-only,
+         see README.md); declaring support is still what tells Quest a controller isn't
+         mandatory. -->
+    <uses-permission android:name="com.oculus.permission.HAND_TRACKING" />
+
+    <!-- Standalone 6DoF headset, not required to also work as a phone-based/cardboard viewer. -->
+    <uses-feature android:name="android.hardware.vr.headtracking" android:version="1" android:required="true" />
+    <!-- The permission/metadata above weren't enough on their own (still hit the "controllers
+         required" launch-blocking dialog live); this uses-feature declaration is what Meta's
+         RequiresControllersLaunchInterceptor actually keys off to allow a controller-free
+         (hands-only) launch. required="false" since headset input isn't used at all yet in
+         this display-only v1. -->
+    <uses-feature android:name="oculus.software.handtracking" android:required="false" />
+
+    <application
+        android:allowBackup="false"
+        android:label="Pioneer connection"
+        android:hasCode="false">
+
+        <!-- Meta's OpenXR loader looks for this on the manifest's <application> to know the
+             app is OpenXR-based (as opposed to the legacy Oculus Mobile SDK). -->
+        <meta-data android:name="com.oculus.vr.focusaware" android:value="true" />
+        <meta-data android:name="com.oculus.handtracking.frequency" android:value="HIGH" />
+        <meta-data android:name="com.oculus.handtracking.version" android:value="V2.0" />
+
+        <activity android:name="android.app.NativeActivity"
+            android:label="Pioneer connection"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="false"
+            android:exported="true">
+            <!-- android.app.lib_name must match CMake's target/output library name (see
+                 CMakeLists.txt: add_library(questopenxr ...) -> libquestopenxr.so). -->
+            <meta-data android:name="android.app.lib_name" android:value="questopenxr" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <!-- Marks this as a VR-launchable app in the Quest's app library, same as any
+                     other native VR app (Meta's category, not part of AOSP's standard set). -->
+                <category android:name="com.oculus.intent.category.VR" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

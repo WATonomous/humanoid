@@ -1,0 +1,32 @@
+# Dataset schema: push-box-into-container, wato_arm_v2 (armWithStand),
+# link6l arm chain, Quest VR teleop via run_quest_armv2_teleop.py.
+robot_id: wato_arm_v2_push_box_sim_v1
+repo_id: humanoid/wato_arm_v2_push_box
+fps: 30
+
+# observation.state AND action are joint positions, in this order.
+# Gripper: only joint7l is logged -- joint8l is a synchronized mirror of it
+# (single GL40 motor drives both fingers, see armWithStand_v2_cfg.py's
+# GRIPPER_OPEN/CLOSED comment), not an independent degree of freedom.
+joint_names:
+  - joint1L
+  - joint2l
+  - joint3l
+  - joint4l
+  - joint5l
+  - joint6l
+  - joint7l
+
+images:
+  ego:
+    height: 480
+    width: 640
+    enabled: true
+  wrist:
+    height: 480
+    width: 640
+    enabled: true
+
+record:
+  root: datasets/record_wato_arm_v2_push_box
+  use_videos: true

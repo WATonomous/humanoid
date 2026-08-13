@@ -6,7 +6,7 @@ import subprocess
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import torch
@@ -157,11 +157,16 @@ class SimLeRobotRecorder:
         self,
         action: np.ndarray | torch.Tensor,
         state: np.ndarray | torch.Tensor,
-        images: dict[str, np.ndarray | torch.Tensor],
+        images: dict[str, np.ndarray | torch.Tensor] | Callable[[], dict[str, np.ndarray | torch.Tensor]],
         depth_buffers: dict[str, np.ndarray | torch.Tensor] | None = None,
         instance_id_seg_buffers: dict[str, np.ndarray | torch.Tensor] | None = None,
     ) -> bool:
         """Handle episode flags and push one frame if the rate allows.
+
+        `images` may be a plain dict, or a zero-arg callable that produces one --
+        pass a callable when capturing images is expensive (e.g. GPU->CPU camera
+        reads); it's only invoked on frames actually pushed to the buffer,
+        instead of once per call regardless of whether this tick is a no-op.
 
         Returns True if an episode was just saved (so callers can trigger a scene reset).
         No-op if start_keyboard() was never called.
@@ -181,7 +186,8 @@ class SimLeRobotRecorder:
             now = time.monotonic()
             if now - self._last_frame_t >= self._frame_period:
                 self._last_frame_t = now
-                self.push_frame_to_buffer(action, state, images, depth_buffers, instance_id_seg_buffers)
+                resolved_images = images() if callable(images) else images
+                self.push_frame_to_buffer(action, state, resolved_images, depth_buffers, instance_id_seg_buffers)
         return False
 
     @property

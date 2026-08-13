@@ -1,0 +1,15 @@
+# Copyright (c) 2017-2024, The Khronos Group Inc.
+#
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+prefix=/usr/local
+exec_prefix=/usr/local
+libdir=${exec_prefix}/
+includedir=${prefix}/include
+
+Name: questopenxr
+Description: OpenXR Loader
+Version: 1.1
+Libs: -L${libdir} -lopenxr_loader -pthread
+Cflags: -I${includedir}
+

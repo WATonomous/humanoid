@@ -168,6 +168,70 @@
         };
       }
 
+      // IK-target marker, drawn as a small HUD-locked quad (2 triangles) in the SAME eye-space
+      // (no view matrix) as the POV image quad itself -- positioned from a UV the Python backend
+      // projects through the REAL eye cameras (see run_quest_armv2_teleop.py's
+      // _project_world_point_to_uv), not the browser's own raw WebXR hand-tracking position.
+      // Those are different coordinate spaces: the operator's physical room-scale hand position
+      // has no fixed relationship to the robot's (head-locked, fixed) camera view, which is why
+      // drawing at the raw hand position put the marker "at my wrist" instead of "in front of me,
+      // teleoped by me" per live feedback. Anchoring to the same quad space as the POV image
+      // itself guarantees the marker always lands on the pixel it actually projects to, matching
+      // the original Isaac Sim USD marker's on-screen behavior.
+      // Not gl.POINTS: point-sprite size is subject to ALIASED_POINT_SIZE_RANGE, a hardware/
+      // driver cap WebGL only guarantees down to [1,1]; a quad has no such limit. The fragment
+      // shader fakes sphere shading (radial falloff + off-center highlight) to read as a small
+      // lit ball, matching the retired markers' look (opacity 0.3, left=blue/right=orange).
+      function createMarkerQuadRenderer(gl) {
+        const program = createProgram(
+          gl,
+          `
+            attribute vec2 aPosition;
+            attribute vec2 aUV;
+            uniform mat4 uProjection;
+            uniform float uQuadZ;
+            varying vec2 vUV;
+
+            void main() {
+              gl_Position = uProjection * vec4(aPosition, uQuadZ, 1.0);
+              vUV = aUV;
+            }
+          `,
+          `
+            precision mediump float;
+            varying vec2 vUV;
+            uniform vec4 uColor;
+
+            void main() {
+              float r = length(vUV);
+              if (r > 1.0) {
+                discard;
+              }
+              vec2 highlightOffset = vec2(-0.36, 0.36);
+              float highlight = smoothstep(0.9, 0.0, length(vUV - highlightOffset));
+              vec3 shaded = mix(uColor.rgb * 0.6, uColor.rgb, 1.0 - r) + highlight * 0.35;
+              gl_FragColor = vec4(shaded, uColor.a);
+            }
+          `
+        );
+
+        return {
+          program,
+          posBuffer: gl.createBuffer(),
+          uvBuffer: gl.createBuffer(),
+          aPosition: gl.getAttribLocation(program, "aPosition"),
+          aUV: gl.getAttribLocation(program, "aUV"),
+          uProjection: gl.getUniformLocation(program, "uProjection"),
+          uQuadZ: gl.getUniformLocation(program, "uQuadZ"),
+          uColor: gl.getUniformLocation(program, "uColor")
+        };
+      }
+
+      // Shared with the marker-overlay UV->quad-space mapping below, so a marker position
+      // computed from the backend's projected UV lands on the same pixel of the POV image
+      // regardless of how these bounds are tuned.
+      const POV_QUAD_X0 = -1.1, POV_QUAD_Y0 = -0.825, POV_QUAD_X1 = 1.1, POV_QUAD_Y1 = 0.825;
+
       // POV quad: stereo camera feed, drawn HUD-locked (eye-space only, no
       // view matrix) so it's always visible regardless of head orientation.
       // Two textures (left/right eye), each refreshed from its own static
@@ -175,7 +239,12 @@
       // overwrites ~10x/sec by capturing two fixed, IPD-separated Kit
       // viewports -- real stereo depth, not a flat mono image.
       // webxr_server.py serves both as plain static files, no server changes.
-      function createQuadRenderer(gl) {
+      // x0/y0/x1/y1 are in the same local quad-space as the original hardcoded
+      // POV quad (-1.1..1.1 X, -0.825..0.825 Y at Z=-1.5 -- see drawPovQuad),
+      // which approximates the eye's near-plane frustum extent. Defaults
+      // reproduce the original full-view POV quad; a smaller sub-range
+      // (e.g. top-right corner) makes a picture-in-picture HUD overlay.
+      function createQuadRenderer(gl, x0 = -1.1, y0 = -0.825, x1 = 1.1, y1 = 0.825) {
         const program = createProgram(
           gl,
           `
@@ -205,7 +274,7 @@
         gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
         gl.bufferData(
           gl.ARRAY_BUFFER,
-          new Float32Array([-1.1, -0.825, 1.1, -0.825, -1.1, 0.825, 1.1, 0.825]),
+          new Float32Array([x0, y0, x1, y0, x0, y1, x1, y1]),
           gl.STATIC_DRAW
         );
 
@@ -239,7 +308,7 @@
         return texture;
       }
 
-      function drawPovQuad(gl, renderer, projectionMatrix, texture) {
+      function drawPovQuad(gl, renderer, projectionMatrix, texture, quadZ = -1.5) {
         gl.useProgram(renderer.program);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, renderer.posBuffer);
@@ -255,7 +324,7 @@
         gl.uniform1i(renderer.uTexture, 0);
 
         gl.uniformMatrix4fv(renderer.uProjection, false, projectionMatrix);
-        gl.uniform1f(renderer.uQuadZ, -1.5);
+        gl.uniform1f(renderer.uQuadZ, quadZ);
 
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -281,6 +350,57 @@
         gl.drawArrays(gl.POINTS, 0, 25);
       }
 
+      // IK-target indicator, drawn as a small HUD-locked quad at the backend-projected UV (see
+      // createMarkerQuadRenderer above for why: matching the POV image's own screen-space, not
+      // the operator's raw WebXR hand position). markerInfo is one {u, v, visible} entry from
+      // the polled /marker_uv.json, already selected for the correct eye by the caller.
+      function drawMarkerAtUV(gl, renderer, markerInfo, projectionMatrix, color) {
+        if (!markerInfo || !markerInfo.visible) return;
+
+        // Map UV (0..1, top-left origin, matching the PNG's own row order) onto the same
+        // x0..x1/y0..y1 quad-space the POV image quad itself is drawn in (POV_QUAD_*), so the
+        // marker lands on the same on-screen position as the pixel it was projected from.
+        const quadCX = POV_QUAD_X0 + markerInfo.u * (POV_QUAD_X1 - POV_QUAD_X0);
+        const quadCY = POV_QUAD_Y0 + (1.0 - markerInfo.v) * (POV_QUAD_Y1 - POV_QUAD_Y0);
+        // Confirmed working at 0.06; live feedback was it's now blocking the view of the cube --
+        // shrunk to 40% of that (~0.024) per live feedback.
+        const halfSize = 0.024;
+
+        const corners = new Float32Array([
+          quadCX - halfSize, quadCY - halfSize,
+          quadCX + halfSize, quadCY - halfSize,
+          quadCX - halfSize, quadCY + halfSize,
+          quadCX + halfSize, quadCY + halfSize,
+        ]);
+        const uvs = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
+
+        gl.useProgram(renderer.program);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, renderer.posBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, corners, gl.DYNAMIC_DRAW);
+        gl.enableVertexAttribArray(renderer.aPosition);
+        gl.vertexAttribPointer(renderer.aPosition, 2, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, renderer.uvBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.DYNAMIC_DRAW);
+        gl.enableVertexAttribArray(renderer.aUV);
+        gl.vertexAttribPointer(renderer.aUV, 2, gl.FLOAT, false, 0, 0);
+
+        gl.uniformMatrix4fv(renderer.uProjection, false, projectionMatrix);
+        // Slightly closer than the main POV quad (-1.5) so it reliably draws on top, same
+        // reasoning as the wrist_cam HUD quad.
+        gl.uniform1f(renderer.uQuadZ, -1.45);
+        // Matches the retired Isaac Sim USD markers: same left=blue/right=orange colors, sphere-
+        // shaded (see createMarkerQuadRenderer), same 0.3 opacity now that positioning is
+        // confirmed working.
+        gl.uniform4fv(renderer.uColor, [color[0], color[1], color[2], 0.3]);
+
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.disable(gl.BLEND);
+      }
+
       document.getElementById("start").onclick = async () => {
         const wsUrl = `wss://${window.location.hostname}:9090`;
         const ws = new WebSocket(wsUrl);
@@ -303,9 +423,15 @@
             alpha: true
           });
           const pointRenderer = createPointRenderer(gl);
-          const quadRenderer = createQuadRenderer(gl);
+          const markerRenderer = createMarkerQuadRenderer(gl);
+          const quadRenderer = createQuadRenderer(gl, POV_QUAD_X0, POV_QUAD_Y0, POV_QUAD_X1, POV_QUAD_Y1);
+          // Small picture-in-picture HUD in the bottom-right of each eye's view, per live
+          // feedback (was top-right) -- same quad-space convention as the main POV quad, just a
+          // smaller sub-range positioned toward +X/-Y (right/down).
+          const wristHudRenderer = createQuadRenderer(gl, 0.55, -0.80, 1.05, -0.45);
           const leftEyeTexture = createEyeTexture(gl);
           const rightEyeTexture = createEyeTexture(gl);
+          const wristCamTexture = createEyeTexture(gl);
 
           // Periodically fetch both eyes' latest POV frames and stash them;
           // the actual gl.texImage2D upload happens once in onFrame (not
@@ -313,6 +439,7 @@
           // context bound -- this loop just keeps decoded ImageBitmaps ready.
           let pendingLeftBitmap = null;
           let pendingRightBitmap = null;
+          let pendingWristBitmap = null;
           async function refreshPovTexture(path, setPending) {
             try {
               const res = await fetch(`${path}?t=${Date.now()}`, { cache: "no-store" });
@@ -324,10 +451,30 @@
               // hiccup) -- next interval tick retries, nothing to do here.
             }
           }
+          // Polled the same way and cadence as the POV images -- written atomically (temp file +
+          // rename) by run_quest_armv2_teleop.py, so this should never observe a torn/partial
+          // JSON, but a stale/absent value here just means the marker skips a draw this frame.
+          let markerUV = null;
+          async function refreshMarkerUV() {
+            try {
+              const res = await fetch(`/marker_uv.json?t=${Date.now()}`, { cache: "no-store" });
+              if (!res.ok) return;
+              markerUV = await res.json();
+            } catch (e) {
+              // Same as refreshPovTexture -- transient failure, next tick retries.
+            }
+          }
+          // Was 200ms (5fps) -- a hard cap on headset display fps completely
+          // independent of the sim's own render/capture rate (run_quest_armv2_teleop.py's
+          // render_interval/_POV_CAPTURE_EVERY_N_STEPS). 33ms (~30Hz) polls faster than the
+          // backend's current ~20Hz capture rate so the browser never misses a freshly-written
+          // frame, with headroom if the backend rate is raised later.
           const povFetchInterval = setInterval(() => {
             refreshPovTexture("/pov_left.png", (bmp) => { pendingLeftBitmap = bmp; });
             refreshPovTexture("/pov_right.png", (bmp) => { pendingRightBitmap = bmp; });
-          }, 200);
+            refreshPovTexture("/wrist_cam.png", (bmp) => { pendingWristBitmap = bmp; });
+            refreshMarkerUV();
+          }, 33);
           session.addEventListener("end", () => clearInterval(povFetchInterval));
 
           session.updateRenderState({
@@ -376,6 +523,11 @@
               gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pendingRightBitmap);
               pendingRightBitmap = null;
             }
+            if (pendingWristBitmap) {
+              gl.bindTexture(gl.TEXTURE_2D, wristCamTexture);
+              gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pendingWristBitmap);
+              pendingWristBitmap = null;
+            }
 
             const pose = frame.getViewerPose(refSpace);
             if (pose) {
@@ -395,6 +547,10 @@
                 // frames with a single combined view, no eye separation).
                 const eyeTexture = view.eye === "right" ? rightEyeTexture : leftEyeTexture;
                 drawPovQuad(gl, quadRenderer, view.projectionMatrix, eyeTexture);
+                // Small wrist_cam picture-in-picture, drawn slightly closer than the main POV
+                // quad (-1.45 vs -1.5) so it reliably renders on top with depth testing enabled,
+                // instead of z-fighting/flickering against the main quad at the same depth.
+                drawPovQuad(gl, wristHudRenderer, view.projectionMatrix, wristCamTexture, -1.45);
 
                 drawHandPoints(
                   gl,
@@ -412,6 +568,20 @@
                   view.projectionMatrix,
                   view.transform.inverse.matrix,
                   [0.0, 0.75, 1.0, 1.0]
+                );
+
+                // IK-target indicators (blue=left, red=right, matching the retired Isaac Sim USD
+                // markers' colors) -- drawn at the backend-projected UV for THIS eye (view.eye),
+                // i.e. the actual pixel the target occupies in the POV image, not the operator's
+                // raw wrist-tracking position (see drawMarkerAtUV/createMarkerQuadRenderer above).
+                const _markerEye = view.eye === "right" ? markerUV && markerUV.right_eye : markerUV && markerUV.left_eye;
+                drawMarkerAtUV(
+                  gl, markerRenderer, _markerEye && _markerEye.left_arm,
+                  view.projectionMatrix, [0.2, 0.5, 1.0, 0.8]
+                );
+                drawMarkerAtUV(
+                  gl, markerRenderer, _markerEye && _markerEye.right_arm,
+                  view.projectionMatrix, [1.0, 0.3, 0.1, 0.8]
                 );
               }
             }
