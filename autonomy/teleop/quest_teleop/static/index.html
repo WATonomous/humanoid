@@ -427,8 +427,12 @@
           const quadRenderer = createQuadRenderer(gl, POV_QUAD_X0, POV_QUAD_Y0, POV_QUAD_X1, POV_QUAD_Y1);
           // Small picture-in-picture HUD in the bottom-right of each eye's view, per live
           // feedback (was top-right) -- same quad-space convention as the main POV quad, just a
-          // smaller sub-range positioned toward +X/-Y (right/down).
-          const wristHudRenderer = createQuadRenderer(gl, 0.55, -0.80, 1.05, -0.45);
+          // smaller sub-range positioned toward +X/-Y (right/down). Bumped ~20% bigger once, then
+          // 150% of THAT size per live feedback (was 0.45,-0.82,1.05,-0.40 -- 0.6x0.42), scaled
+          // up from its center (0.75,-0.61) to 0.9x0.63 rather than from a corner, so it grows
+          // evenly instead of pushing further off in one direction. Slightly exceeds the main
+          // quad's approximate -0.825/1.1 bounds now (minor, not a hard clip boundary).
+          const wristHudRenderer = createQuadRenderer(gl, 0.30, -0.93, 1.20, -0.30);
           const leftEyeTexture = createEyeTexture(gl);
           const rightEyeTexture = createEyeTexture(gl);
           const wristCamTexture = createEyeTexture(gl);
@@ -464,18 +468,24 @@
               // Same as refreshPovTexture -- transient failure, next tick retries.
             }
           }
-          // Was 200ms (5fps) -- a hard cap on headset display fps completely
-          // independent of the sim's own render/capture rate (run_quest_armv2_teleop.py's
-          // render_interval/_POV_CAPTURE_EVERY_N_STEPS). 33ms (~30Hz) polls faster than the
-          // backend's current ~20Hz capture rate so the browser never misses a freshly-written
-          // frame, with headroom if the backend rate is raised later.
-          const povFetchInterval = setInterval(() => {
-            refreshPovTexture("/pov_left.png", (bmp) => { pendingLeftBitmap = bmp; });
-            refreshPovTexture("/pov_right.png", (bmp) => { pendingRightBitmap = bmp; });
-            refreshPovTexture("/wrist_cam.png", (bmp) => { pendingWristBitmap = bmp; });
-            refreshMarkerUV();
-          }, 33);
-          session.addEventListener("end", () => clearInterval(povFetchInterval));
+          // No fixed poll interval (was setInterval(..., 33), a hard 30fps cap independent of
+          // the sim's own render/capture rate) -- per explicit live request to remove the cap.
+          // Instead, immediately re-fetch as soon as the previous round-trip finishes, so the
+          // only limit on poll rate is how fast the network/backend actually responds, not an
+          // artificial fixed delay.
+          let povPollActive = true;
+          async function povPollLoop() {
+            while (povPollActive) {
+              await Promise.all([
+                refreshPovTexture("/pov_left.png", (bmp) => { pendingLeftBitmap = bmp; }),
+                refreshPovTexture("/pov_right.png", (bmp) => { pendingRightBitmap = bmp; }),
+                refreshPovTexture("/wrist_cam.png", (bmp) => { pendingWristBitmap = bmp; }),
+                refreshMarkerUV(),
+              ]);
+            }
+          }
+          povPollLoop();
+          session.addEventListener("end", () => { povPollActive = false; });
 
           session.updateRenderState({
             baseLayer: new XRWebGLLayer(session, gl, {

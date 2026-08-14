@@ -135,7 +135,7 @@ import carb  # noqa: E402
 import omni.appwindow  # noqa: E402
 import omni.kit.app  # noqa: E402
 import omni.usd  # noqa: E402
-from pxr import Gf, Usd, UsdGeom  # noqa: E402
+from pxr import Gf, PhysxSchema, Usd, UsdGeom, UsdPhysics, UsdShade  # noqa: E402
 
 import isaaclab.sim as sim_utils  # noqa: E402
 from isaaclab.assets import AssetBaseCfg, RigidObjectCfg  # noqa: E402
@@ -151,6 +151,7 @@ from isaaclab.utils.math import (  # noqa: E402
     quat_from_matrix,
     quat_inv,
     quat_mul,
+    quat_slerp,
     subtract_frame_transforms,
 )
 
@@ -421,7 +422,7 @@ _CONTAINER_USD_PATH = str(
 )
 _CONTAINER_POS = (0.3, -0.07041, 0.70917)  # +33cm net with the table
 _CONTAINER_ROT = (0.7071067811865476, 0.0, 0.0, 0.7071067811865475)  # wxyz
-_BOX_POS = (0.3, 0.2, 0.70917)  # pushed back, per live feedback
+_BOX_POS = (0.2, 0.2, 0.70917)  # moved 0.1m closer in X, per live feedback (was 0.3)
 
 # Stereo camera pair (real depth via two eye textures, not a flat
 # single-camera POV): two RealSense D455s mounted on base_link, fixed at
@@ -506,6 +507,52 @@ _RSD455_CAMERA_SUBPATH = "rsd455/RSD455/Camera_OmniVision_OV9782_Right"
 # widen the lens instead. focalLength solved from the standard
 # fov = 2*atan(aperture / (2*focalLength)) relation, aperture unchanged.
 _RSD455_WIDENED_FOCAL_LENGTH = 1.1246782979523935  # ~120deg horizontal FOV
+
+_BOX_STATIC_FRICTION = 1.5
+_BOX_DYNAMIC_FRICTION = 1.2
+# Applied to the gripper fingers too, not just the box -- friction_combine_mode="max" on the box
+# alone SHOULD make PhysX use the higher of the two materials regardless of what the finger
+# material is, but that depends on trusting PhysX's combine-mode priority resolution between two
+# different materials exactly as documented. Setting high friction on both sides directly is more
+# robust: the effective friction is high no matter which material's combine rule actually wins.
+_GRIPPER_STATIC_FRICTION = 1.5
+_GRIPPER_DYNAMIC_FRICTION = 1.2
+
+
+def _apply_friction_material(
+    prim_path: str, static_friction: float, dynamic_friction: float, material_name: str = "GripMaterial",
+) -> None:
+    """Binds a high-friction PhysX rigid-body material to a prim's collision geometry, applied
+    directly via USD API at runtime (UsdFileCfg doesn't accept physics_material as a constructor
+    kwarg the way CuboidCfg does -- confirmed live, and the gripper fingers are part of the
+    robot's own USD asset, not a separate spawn config at all). Originally added for the box,
+    which was relying on PhysX's own default (0.5/0.5 friction) and kept dropping after being
+    picked up, per live feedback; now also applied to the gripper finger links themselves (see
+    _GRIPPER_STATIC_FRICTION's comment for why). friction_combine_mode="max" (not PhysX's default
+    "average") means the effective friction between any two of these materials is the HIGHER one,
+    not diluted."""
+    stage = omni.usd.get_context().get_stage()
+    material_path = f"{prim_path}/{material_name}"
+    material = UsdShade.Material.Define(stage, material_path)
+    material_prim = material.GetPrim()
+
+    usd_physics_material_api = UsdPhysics.MaterialAPI.Apply(material_prim)
+    usd_physics_material_api.CreateStaticFrictionAttr().Set(static_friction)
+    usd_physics_material_api.CreateDynamicFrictionAttr().Set(dynamic_friction)
+    usd_physics_material_api.CreateRestitutionAttr().Set(0.0)
+
+    physx_material_api = PhysxSchema.PhysxMaterialAPI.Apply(material_prim)
+    physx_material_api.CreateFrictionCombineModeAttr().Set("max")
+
+    target_prim = stage.GetPrimAtPath(prim_path)
+    if not target_prim.IsValid():
+        print(f"[Quest] WARNING: could not apply friction -- {prim_path} not valid", flush=True)
+        return
+    UsdShade.MaterialBindingAPI.Apply(target_prim).Bind(
+        material, bindingStrength=UsdShade.Tokens.strongerThanDescendants, materialPurpose="physics",
+    )
+    print(f"[Quest] Applied grip-friction material to {prim_path} "
+          f"(static={static_friction}, dynamic={dynamic_friction}, combine=max)", flush=True)
 
 
 def _widen_camera_fov(camera_prim_path: str, focal_length: float) -> None:
@@ -991,6 +1038,56 @@ class _OneEuroFilter:
         self.dx_prev = None
 
 
+class _OneEuroQuatFilter:
+    """SLERP-based One Euro filter for the raw Quest wrist ORIENTATION, addressing a gap
+    _OneEuroFilter never covered: that class only filters wrist POSITION -- raw wrist quaternion
+    jitter was going straight into the IK target every frame completely unfiltered, live-reported
+    as "wrist rotation isn't smooth at all." Same adaptive philosophy as _OneEuroFilter (heavy
+    smoothing when angular velocity is low, relaxes during fast rotation so deliberate motion
+    doesn't lag), but using quat_slerp instead of linear blending -- a naive per-component
+    low-pass on quaternion components would need renormalizing afterward and doesn't respect the
+    unit-quaternion manifold's geometry the way SLERP does. Confirmed as the standard technique
+    for exactly this problem: VR teleop systems (e.g. BEAVR) use complementary filtering +
+    quaternion SLERP blending for hand-orientation jitter specifically."""
+
+    def __init__(self, min_cutoff: float = 1.0, beta: float = 0.5, d_cutoff: float = 1.0):
+        self.min_cutoff = min_cutoff  # Hz -- baseline smoothing strength when nearly still
+        self.beta = beta  # how aggressively angular speed relaxes the cutoff
+        self.d_cutoff = d_cutoff  # Hz -- smooths the angular-velocity estimate itself
+        self.q_prev: torch.Tensor | None = None
+        self.angvel_prev: float = 0.0
+
+    @staticmethod
+    def _alpha(cutoff: float, dt: float) -> float:
+        tau = 1.0 / (2.0 * math.pi * cutoff)
+        return 1.0 / (1.0 + tau / dt)
+
+    def filter(self, q: torch.Tensor, dt: float) -> torch.Tensor:
+        if self.q_prev is None:
+            self.q_prev = q.clone()
+            self.angvel_prev = 0.0
+            return q.clone()
+        dt = max(dt, 1e-4)
+        # Angular distance between the last filtered quat and this new raw sample, as the
+        # "speed" signal driving the adaptive cutoff (same role dx plays in _OneEuroFilter).
+        dot = torch.clamp(torch.dot(self.q_prev, q).abs(), -1.0, 1.0)
+        angle = 2.0 * torch.acos(dot).item()
+        angvel = angle / dt
+        a_d = self._alpha(self.d_cutoff, dt)
+        smoothed_angvel = a_d * angvel + (1.0 - a_d) * self.angvel_prev
+        cutoff = self.min_cutoff + self.beta * smoothed_angvel
+        a = self._alpha(cutoff, dt)
+        q_filtered = quat_slerp(self.q_prev, q, a)
+        self.q_prev = q_filtered
+        self.angvel_prev = smoothed_angvel
+        return q_filtered
+
+    def reset(self) -> None:
+        """See _OneEuroFilter.reset's docstring -- same reasoning, called from the same places."""
+        self.q_prev = None
+        self.angvel_prev = 0.0
+
+
 def _smooth_damp(
     current: torch.Tensor, current_vel: torch.Tensor, target: torch.Tensor,
     smooth_time: float, max_speed: float, dt: float,
@@ -1105,6 +1202,10 @@ class _ArmDlsController:
         # _OneEuroFilter's docstring for why this is separate from smoothed_pos/smoothed_vel
         # above (input-tracking-jitter filtering vs. output-joint-command smoothing).
         self.pos_filter = _OneEuroFilter()
+        # Same idea, for wrist ORIENTATION -- see _OneEuroQuatFilter's docstring. This was the
+        # missing piece behind the live-reported "wrist rotation isn't smooth at all": position
+        # had input-side filtering, orientation never did.
+        self.quat_filter = _OneEuroQuatFilter()
 
     def tip_pose_b(self, robot, root_pose_w):
         return compute_gripper_tip_pose_b(
@@ -1119,38 +1220,20 @@ class _ArmDlsController:
         jacobian_w = robot.root_physx_view.get_jacobians()[:, self.ee_jacobi_idx, :, self.arm_ids]
         jacobian_b = compute_tip_ik_jacobian(robot, jacobian_w, wrist_pos_b, tip_pos_b)
 
-        # Adaptive DLS damping (see _adaptive_dls_lambda) -- raises the controller's damping
-        # only when this frame's pose is actually close to a singularity, instead of always
-        # applying the fixed floor value. Mutates the SAME cfg object compute() reads below
-        # (DifferentialIKController re-reads cfg.ik_params["lambda_val"] every call, confirmed
-        # by reading its source -- no need to reconstruct the controller).
-        adaptive_lambda, self.last_manipulability = _adaptive_dls_lambda(
-            jacobian_b, self.lambda_min, self.lambda_max, _DLS_MANIPULABILITY_EPSILON,
-        )
-        self.controller.cfg.ik_params["lambda_val"] = adaptive_lambda
-
+        # Reverted to the OLD script's (run_quest_bimanual_teleop.py) exact IK behavior per
+        # explicit live feedback ("the inverse kinematic is cooked... make it identical to the
+        # old one") -- fixed lambda_val (no adaptive/manipulability-based damping), and snap
+        # directly to the DLS solution every frame (no output smoothing). dt is still accepted
+        # (kept for call-site/signature compatibility) but no longer used for anything.
         self.controller.set_command(torch.cat([target_pos_b, target_quat_b], dim=1))
         joint_pos = robot.data.joint_pos[:, self.arm_ids]
         joint_pos_des = self.controller.compute(tip_pos_b, tip_quat_b, jacobian_b, joint_pos)
         self.last_joint_pos_des = joint_pos_des
 
-        # Critically-damped smoothing (see _smooth_damp) instead of a hard clamp -- per live
-        # request, after researching how professional VR teleop systems (ALOHA/GELLO-style
-        # analyses) achieve smooth motion: a hard clamp produces bang-bang motion (full speed
-        # until the limit, then an instant plateau), which reads as jerky and is a plausible
-        # contributor to the joint-jitter previously seen in recorded demos. _JOINT_VELOCITY_MAX_RAD_S
-        # (100deg/s) is still the enforced speed ceiling, just applied smoothly now.
-        if self.smoothed_pos is None:
-            self.smoothed_pos = joint_pos.clone()
-            self.smoothed_vel = torch.zeros_like(joint_pos)
-        self.smoothed_pos, self.smoothed_vel = _smooth_damp(
-            self.smoothed_pos, self.smoothed_vel, joint_pos_des,
-            _SMOOTH_TIME_S, abs(_JOINT_VELOCITY_MAX_RAD_S), dt,
-        )
-        robot.set_joint_position_target(self.smoothed_pos, joint_ids=self.arm_ids)
+        robot.set_joint_position_target(joint_pos_des, joint_ids=self.arm_ids)
         robot.write_joint_state_to_sim(
-            self.smoothed_pos,
-            torch.zeros_like(self.smoothed_pos),
+            joint_pos_des,
+            torch.zeros_like(joint_pos_des),
             joint_ids=self.arm_ids,
         )
         return tip_pos_b, tip_quat_b
@@ -1254,6 +1337,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
 
     scene.update(sim_dt)
     apply_joint_limits(robot)
+    _apply_friction_material("/World/envs/env_0/Box", _BOX_STATIC_FRICTION, _BOX_DYNAMIC_FRICTION)
+    for _finger_link in (*LEFT_FINGER_TIP_BODIES, *RIGHT_FINGER_TIP_BODIES):
+        _apply_friction_material(
+            f"/World/envs/env_0/Robot/{_finger_link}",
+            _GRIPPER_STATIC_FRICTION, _GRIPPER_DYNAMIC_FRICTION,
+        )
 
     _root_pose_w_diag = robot.data.root_state_w[0, :7].tolist()
     print(f"[Quest][diag] robot root world pose (pos xyz, quat wxyz)={_root_pose_w_diag}", flush=True)
@@ -1521,6 +1610,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         # right when a fresh, clean home anchor is what's needed most.
         left_arm.pos_filter.reset()
         right_arm.pos_filter.reset()
+        left_arm.quat_filter.reset()
+        right_arm.quat_filter.reset()
         print("[Quest] Recalibrating — hold wrists in a comfortable pose.", flush=True)
 
     def _reset_scene() -> None:
@@ -1585,6 +1676,17 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     _fps_window_start_t = time.monotonic()
     _fps_window_frames = 0
     _fps_window_capture_ms = 0.0
+    # DEBUG: real-time-factor check, added investigating a live-reported "IK feels laggier"
+    # report. Confirmed live: NOT caused by box friction (identical RTF with that fully
+    # disabled, since reverted) or physics device (--device cpu barely helped either) -- this is
+    # a pre-existing, render-bound characteristic of the whole sim (RTF ~0.14-0.18 regardless),
+    # not something any of tonight's changes introduced. Kept here in case it's useful later.
+    _rtf_window_start_t = time.monotonic()
+    _rtf_window_sim_s = 0.0
+    _rtf_window_step_ms = 0.0
+    _rtf_window_steps = 0
+    _rtf_window_step_min_ms = float("inf")
+    _rtf_window_step_max_ms = 0.0
     while simulation_app.is_running():
         msg = receiver.poll()
 
@@ -1613,13 +1715,16 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             right_tracked = _is_tracked(right_xyz_q, right_quat)
             head_tracked = _is_tracked(head_xyz_q, head_quat)
 
-            # Filter raw tracking noise out of wrist position BEFORE homing/displacement use it
-            # (see _OneEuroFilter) -- only while actually tracked, so the untracked-sentinel
-            # (0,0,0) never gets fed into the filter's state.
+            # Filter raw tracking noise out of wrist position/orientation BEFORE homing/
+            # displacement use them (see _OneEuroFilter / _OneEuroQuatFilter) -- only while
+            # actually tracked, so the untracked-sentinel (0,0,0 / identity) never gets fed into
+            # either filter's state.
             if left_tracked:
                 left_xyz_q = left_arm.pos_filter.filter(left_xyz_q, sim_dt)
+                left_quat = left_arm.quat_filter.filter(left_quat, sim_dt)
             if right_tracked:
                 right_xyz_q = right_arm.pos_filter.filter(right_xyz_q, sim_dt)
+                right_quat = right_arm.quat_filter.filter(right_quat, sim_dt)
 
             root_quat_w = robot.data.root_state_w[:, 3:7]
             root_pose_w = robot.data.root_state_w[:, 0:7]
@@ -1841,8 +1946,31 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         robot.set_joint_velocity_target(torch.zeros(1, len(right_gripper_ids), device=device), joint_ids=right_gripper_ids)
 
         scene.write_data_to_sim()
+        _step_t0 = time.monotonic()
         sim.step()
+        _step_ms = (time.monotonic() - _step_t0) * 1000.0
+        _rtf_window_step_ms += _step_ms
+        _rtf_window_step_min_ms = min(_rtf_window_step_min_ms, _step_ms)
+        _rtf_window_step_max_ms = max(_rtf_window_step_max_ms, _step_ms)
+        _rtf_window_sim_s += sim_dt
+        _rtf_window_steps += 1
         scene.update(sim_dt)
+
+        _rtf_elapsed = time.monotonic() - _rtf_window_start_t
+        if _rtf_elapsed >= 2.0:
+            _rtf = _rtf_window_sim_s / max(_rtf_elapsed, 1e-6)
+            print(f"[Quest][rtfdiag] real-time factor={_rtf:.2f} (1.0=real-time, <1.0=running "
+                  f"behind) | avg sim.step() wall time: {_rtf_window_step_ms / max(_rtf_window_steps, 1):.2f}ms "
+                  f"(min={_rtf_window_step_min_ms:.2f}ms max={_rtf_window_step_max_ms:.2f}ms) -- "
+                  f"bimodal fast/slow (min << max) would confirm render_interval-driven periodic "
+                  f"render cost; uniformly high min~=max would mean something else is slow every step.",
+                  flush=True)
+            _rtf_window_start_t = time.monotonic()
+            _rtf_window_step_min_ms = float("inf")
+            _rtf_window_step_max_ms = 0.0
+            _rtf_window_sim_s = 0.0
+            _rtf_window_step_ms = 0.0
+            _rtf_window_steps = 0
 
         # ── Recording (L-suffixed/link6l arm only -- the one ego_cam/
         # wrist_cam are mounted for) ─────────────────────────────────────────
