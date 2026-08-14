@@ -1,6 +1,0 @@
-/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/src/main/cpp/CMakeLists.txt
-/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/third_party/OpenXR-SDK/CMakeLists.txt
-/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/third_party/OpenXR-SDK/include/CMakeLists.txt
-/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/third_party/OpenXR-SDK/include/openxr/CMakeLists.txt
-/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/third_party/OpenXR-SDK/src/CMakeLists.txt
-/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/third_party/OpenXR-SDK/src/loader/CMakeLists.txt

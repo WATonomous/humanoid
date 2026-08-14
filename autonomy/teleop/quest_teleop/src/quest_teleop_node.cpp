@@ -10,11 +10,8 @@ QuestTeleopNode::QuestTeleopNode() : Node("quest_teleop_node") {
 
   wss_server_ = std::make_unique<WssServer>(
       9090, "/certs", [this](const std::string& json_text) { handle_quest_message(json_text); });
-  ws_server_ = std::make_unique<WsServer>(
-      9091, [this](const std::string& json_text) { handle_quest_message(json_text); });
 
   wss_server_->start();
-  ws_server_->start();
 
   RCLCPP_INFO(get_logger(), "quest_teleop_node started");
 }
@@ -22,9 +19,6 @@ QuestTeleopNode::QuestTeleopNode() : Node("quest_teleop_node") {
 QuestTeleopNode::~QuestTeleopNode() {
   if (wss_server_) {
     wss_server_->stop();
-  }
-  if (ws_server_) {
-    ws_server_->stop();
   }
 }
 

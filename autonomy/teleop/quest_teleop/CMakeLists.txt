@@ -17,7 +17,6 @@ find_package(common_msgs REQUIRED)
 add_executable(quest_teleop_node
   src/quest_teleop_node.cpp
   src/wss_server.cpp
-  src/ws_server.cpp
   src/quest_message_parser.cpp
 )
 

@@ -1,1 +1,0 @@
-/home/rwahib/wato/humanoid/autonomy/teleop/quest_openxr_app/app/build/intermediates/cxx/Debug/3s611c6u/obj/arm64-v8a
