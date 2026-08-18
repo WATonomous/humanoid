@@ -20,4 +20,5 @@ export PYTHONPATH="${SCRIPT_DIR}:${SCRIPT_DIR}/../Teleop/keyboard_based_teleoper
 exec "${ISAAC_LAB}/isaaclab.sh" -p \
   "${SCRIPT_DIR}/run_quest_armv2_teleop.py" \
   --device cpu \
+  --enable_cameras \
   "$@"

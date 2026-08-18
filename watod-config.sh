@@ -16,7 +16,7 @@
 ##   - simulation_isaac     :   Isaac Lab (SO101 IL, HumanoidRL, Quest teleop)
 ##   - simulation_mj        :   MuJoCo / mjlab (mjlabs service)
 
-ACTIVE_MODULES="interfacing"
+ACTIVE_MODULES="simulation_isaac"
 
 ################################# MODE OF OPERATION #################################
 ## Possible modes of operation when running watod.
