@@ -148,9 +148,12 @@ def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     }
 
     rewards = {
-        # face_contact latches the has-hit flag; keep it first
+        # face_contact latches the has-hit flag; keep it first.
+        # weight 100 = effective 2.0/hit after dt scaling: run 3 (j2h0aizn)
+        # showed exploration finding hits at weight 10 (effective 0.2, only
+        # ~2x the per-episode approach stream) without reinforcing them
         "face_contact": RewardTermCfg(
-            func=mdp.face_contact, weight=10.0,
+            func=mdp.face_contact, weight=100.0,
             params={"sensor_name": "face_hit"}),
         # std 0.8 ~ the median face->p* distance at the ready pose (0.69 m);
         # run 1 (a1vagllq) plateaued with std 0.4: near-zero gradient at that

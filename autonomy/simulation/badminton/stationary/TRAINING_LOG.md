@@ -43,6 +43,21 @@ Hypothesis: exploration collapse, not shaping, is now the binding
 constraint. Success: mean_std holds >= 0.2 through iter 500 while approach
 stays >= 0.1, and face_contact climbs past 0.001.
 
+### result (cut at iter ~549)
+
+std holds at ~0.25 (criterion met; entropy 0.02 is right). contact doubled
+to ~0.15% of episodes and return_flight fires occasionally — exploration
+now finds hits — but approach is pinned at the same 0.108 as run 2 and
+contact growth is negligible. A hit pays only 0.2 effective vs 0.108 for
+an episode of hovering: discovery without reinforcement.
+
+## run 4 — probe, face_contact weight 10 -> 100, 1000 iters
+
+Hypothesis: with exploration alive, the binding constraint is the sparse
+bonus scale. Effective 2.0/hit should make discovered hits dominate the
+gradient. Success: face_contact episode reward > 0.02 (1% hit rate) and
+visibly compounding by iter 1000.
+
 ## known next levers (in order, do not stack blindly)
 
 1. face_contact effective bonus is only 0.2 per hit after dt scaling —
