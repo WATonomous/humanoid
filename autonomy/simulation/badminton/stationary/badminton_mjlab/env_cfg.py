@@ -161,6 +161,14 @@ def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         "approach": RewardTermCfg(
             func=mdp.approach_intercept, weight=1.0,
             params={"std": 0.8, "asset_cfg": FACE_SITE}),
+        # two-scale shaping: sigma 0.8 pulls from anywhere in the workspace
+        # but is flat over the last 30 cm; runs 3-4 showed the policy parks
+        # ~outside that band and only hits by luck (~0.1%), regardless of the
+        # contact bonus scale. p* lies on the flight path, so precision
+        # parking at p* converts directly into contacts.
+        "approach_fine": RewardTermCfg(
+            func=mdp.approach_intercept, weight=5.0,
+            params={"std": 0.15, "asset_cfg": FACE_SITE}),
         "return_flight": RewardTermCfg(
             func=mdp.return_flight, weight=2.0, params={}),
         "action_rate": RewardTermCfg(func=rew_mdp.action_rate_l2, weight=-0.01),

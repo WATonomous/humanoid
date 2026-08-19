@@ -58,6 +58,28 @@ bonus scale. Effective 2.0/hit should make discovered hits dominate the
 gradient. Success: face_contact episode reward > 0.02 (1% hit rate) and
 visibly compounding by iter 1000.
 
+### result (cut at iter ~503)
+
+Hypothesis refuted: hit rate unchanged (~0.1%) at 10x the bonus — the
+sparse scale was never the constraint. Side effect: with approach
+saturated and no task gradient, entropy 0.02 wins the tug-of-war — std
+climbed 0.49 -> 0.60, action_rate penalty grew, mean reward drifted down.
+Three probes now end at the same "hover near p*" behavior: the lever
+family (reward magnitudes) is not the bottleneck.
+
+Actual constraint: gradient gap over the last 30 cm. exp(-d^2/0.8^2) is
+flat near d=0, so nothing differentiates hovering 30 cm off from parking
+on the flight path; only luck crosses the gap. p* lies ON the trajectory,
+so precise parking is itself sufficient to produce contact.
+
+## run 5 — probe: fine approach kernel + entropy 0.01, 1000 iters
+
+Changes: (1) approach_fine term, same approach_intercept func, sigma 0.15,
+weight 5 — steep slope over the last 30 cm; (2) entropy 0.02 -> 0.01
+(0.005 collapsed, 0.02 overshoots; fine kernel now supplies an opposing
+gradient). Success: approach_fine climbing by iter 300, face_contact
+> 0.02 by iter 1000, std in 0.15-0.35.
+
 ## known next levers (in order, do not stack blindly)
 
 1. face_contact effective bonus is only 0.2 per hit after dt scaling —
