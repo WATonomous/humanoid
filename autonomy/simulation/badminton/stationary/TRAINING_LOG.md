@@ -29,6 +29,20 @@ d = 0.7 (max of d/dd exp(-d^2/s^2) over s is s = d).
 Success criteria: approach >= 0.3 by iter 300 and rising; mean_std >= 0.15
 at iter 500; face_contact > 0.005 by iter 1000.
 
+### result (cut at iter 260)
+
+approach 0.025 -> 0.108 immediately (gradient hypothesis confirmed) but
+flat from iter ~64; std collapsed again 0.44 -> 0.084; contact up 5x to
+~0.00015 (0.08% of episodes) but flat. New finding: the concave exp kernel
+itself rewards shrinking the action noise at a fixed pose (Jensen), so the
+approach term finances the std collapse and entropy 0.005 cannot outbid it.
+
+## run 3 — probe, entropy_coef 0.005 -> 0.02 (keeps std 0.8), 1000 iters
+
+Hypothesis: exploration collapse, not shaping, is now the binding
+constraint. Success: mean_std holds >= 0.2 through iter 500 while approach
+stays >= 0.1, and face_contact climbs past 0.001.
+
 ## known next levers (in order, do not stack blindly)
 
 1. face_contact effective bonus is only 0.2 per hit after dt scaling —

@@ -34,7 +34,10 @@ def make_teacher_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
         critic=RslRlModelCfg(hidden_dims=HIDDEN, obs_normalization=True),
         algorithm=RslRlPpoAlgorithmCfg(
             learning_rate=3e-4,
-            entropy_coef=0.005,
+            # 0.005 let the exploration std collapse before contact was found
+            # (runs 1-2): the concave exp approach kernel pays for shrinking
+            # noise at a fixed pose, so entropy must outbid it
+            entropy_coef=0.02,
             num_learning_epochs=5,
             num_mini_batches=4),
     )
