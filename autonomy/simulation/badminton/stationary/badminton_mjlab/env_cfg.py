@@ -152,9 +152,12 @@ def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         "face_contact": RewardTermCfg(
             func=mdp.face_contact, weight=10.0,
             params={"sensor_name": "face_hit"}),
+        # std 0.8 ~ the median face->p* distance at the ready pose (0.69 m);
+        # run 1 (a1vagllq) plateaued with std 0.4: near-zero gradient at that
+        # distance, policy held still, exploration std collapsed
         "approach": RewardTermCfg(
             func=mdp.approach_intercept, weight=1.0,
-            params={"std": 0.4, "asset_cfg": FACE_SITE}),
+            params={"std": 0.8, "asset_cfg": FACE_SITE}),
         "return_flight": RewardTermCfg(
             func=mdp.return_flight, weight=2.0, params={}),
         "action_rate": RewardTermCfg(func=rew_mdp.action_rate_l2, weight=-0.01),

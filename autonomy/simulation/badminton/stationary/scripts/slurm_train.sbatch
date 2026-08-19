@@ -34,4 +34,4 @@ uv sync --extra train
 # Smoke-run scale: 1024 envs fits the shared-GPU VRAM floor; raise
 # num-envs (README uses 4096) once this completes on a full GPU.
 uv run scripts/train_rl.py Mjlab-Badminton-Receive-Teacher \
-    --env.scene.num-envs "${NUM_ENVS:-1024}"
+    --env.scene.num-envs "${NUM_ENVS:-1024}" ${EXTRA_ARGS:-}
