@@ -14,11 +14,17 @@ Hotkeys (viewer window):
   b      toggle collision primitives (group 3)
   c      cycle camera preset (side-on at net / top-down / track shuttle / track racket)
   m      toggle contact point + force rendering
+  e      toggle the EKF overlay (estimated shuttle + predicted trajectory)
   x      x-ray nudge mode help (prints geom nudge keys)
 
 Overlays: reference RK4 trajectory (ghost polyline), predicted intercept p̂*
 (sphere), W point cloud if launcher artifacts exist, landing target, pre-hit
-pose marker. Status and last-episode metrics print to the terminal.
+pose marker, and the perception EKF's live estimate (orange): a sphere at
+p_hat plus the trajectory prior rolled out from the EKF state, re-fed one
+noisy measurement per 50 Hz tick — early in the flight it visibly jumps,
+then converges. The EKF assumes ballistic drag flight, so after a bounce
+or hit its prediction is meaningless. Status and last-episode metrics print
+to the terminal.
 """
 
 import argparse
@@ -47,8 +53,13 @@ try:
     from baseline import fsm as fsm_mod
 except Exception:
     fsm_mod = None
+try:
+    import perception as perception_mod
+except Exception:
+    perception_mod = None
 
 GHOST_RGBA = np.array([0.4, 0.7, 1.0, 0.5])
+EKF_RGBA = np.array([1.0, 0.6, 0.1, 0.9])
 PRED_RGBA = np.array([1.0, 0.2, 0.2, 0.8])
 W_RGBA = np.array([0.3, 0.9, 0.4, 0.12])
 PREHIT_RGBA = np.array([0.9, 0.9, 0.1, 0.8])
@@ -68,6 +79,11 @@ class SimLab:
         self.controller = fsm_mod.Controller(self.sim) if fsm_mod else None
         self.prehit_marker = None
         self.pred_point = None
+        self.perc = (perception_mod.PerceptionSim(self.sim.params)
+                     if perception_mod else None)
+        self.show_ekf = True
+        self.ekf_traj = None
+        self._substeps_since_tick = 0
 
     def _load_w_cloud(self):
         path = os.path.join(os.path.dirname(mjsim.SCENE_PATH), "workspace_W.npz")
@@ -96,9 +112,31 @@ class SimLab:
         if self.controller:
             self.controller.reset()
         self.episode = (p0, v0, traj)
+        if self.perc:
+            self.perc.reset()
+        self.ekf_traj = None
+        self._substeps_since_tick = 0
         self.metrics = {"min_dist": np.inf, "contact": False,
                         "contact_speed": 0.0, "landing": None}
         print(f"episode: launch p0={np.round(p0, 2)} |v0|={np.linalg.norm(v0):.1f}")
+
+    def tick_perception(self):
+        """Feed the EKF one noisy measurement per control tick (50 Hz) and
+        cache its rolled-out trajectory prior for the overlay."""
+        if self.perc is None or self.episode is None:
+            return
+        per = max(1, int(round(1.0 / (self.sim.params["control"]["hz"]
+                                      * self.sim.model.opt.timestep))))
+        self._substeps_since_tick += 1
+        if self._substeps_since_tick < per:
+            return
+        self._substeps_since_tick = 0
+        self.perc.tick(self.sim.shuttle_pos, per * self.sim.model.opt.timestep)
+        ekf = self.perc.ekf
+        pts = perception_mod.traj_features(
+            ekf.p_hat, ekf.v_hat, self.perc.k, self.perc.n_traj,
+            self.perc.traj_dt, self.perc.sub_dt, self.perc.g)
+        self.ekf_traj = np.vstack([ekf.p_hat[None, :], pts])
 
     def update_metrics(self):
         sim = self.sim
@@ -155,6 +193,9 @@ class SimLab:
         elif c in ("m", "M"):
             self.show_contacts = not self.show_contacts
             self.apply_vis_flags()
+        elif c in ("e", "E"):
+            self.show_ekf = not self.show_ekf
+            print(f"EKF overlay {'on' if self.show_ekf else 'off'}")
 
     def nudge_dampratio(self, delta):
         m = self.sim.model
@@ -236,6 +277,11 @@ class SimLab:
         if self.w_cloud is not None:
             for pt in self.w_cloud:
                 add_sphere(pt, 0.01, W_RGBA)
+        if self.show_ekf and self.ekf_traj is not None:
+            add_sphere(self.ekf_traj[0], 0.02, EKF_RGBA)
+            for i in range(len(self.ekf_traj) - 1):
+                add_segment(self.ekf_traj[i], self.ekf_traj[i + 1], EKF_RGBA,
+                            width=0.003)
         if self.pred_point is not None:
             add_sphere(self.pred_point, 0.03, PRED_RGBA)
         if self.prehit_marker is not None:
@@ -264,6 +310,7 @@ class SimLab:
                                                      sim.shuttle_vel, sim.params)
                         self.pred_point = pred.p_star if pred.ok else None
                     sim.step()
+                    self.tick_perception()
                     self.update_metrics()
                 self.draw_overlays()
                 viewer.sync()
