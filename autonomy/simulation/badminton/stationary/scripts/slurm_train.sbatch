@@ -33,5 +33,11 @@ uv sync --extra train
 
 # Smoke-run scale: 1024 envs fits the shared-GPU VRAM floor; raise
 # num-envs (README uses 4096) once this completes on a full GPU.
+# Run training as a child and forward scancel's SIGTERM as SIGINT: python
+# turns that into KeyboardInterrupt, wandb syncs and closes the run instead
+# of showing it crashed. SLURM's KillWait (~30 s) bounds the flush time.
 uv run scripts/train_rl.py Mjlab-Badminton-Receive-Teacher \
-    --env.scene.num-envs "${NUM_ENVS:-1024}" ${EXTRA_ARGS:-}
+    --env.scene.num-envs "${NUM_ENVS:-1024}" ${EXTRA_ARGS:-} &
+TRAIN_PID=$!
+trap 'kill -INT "$TRAIN_PID"' TERM INT
+wait "$TRAIN_PID" || wait "$TRAIN_PID"
