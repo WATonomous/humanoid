@@ -1,0 +1,205 @@
+"""ManagerBasedRlEnvCfg for the badminton receive task.
+
+Physics matches the CPU gates: 1 ms timestep, 50 Hz control (decimation 20),
+contacts only through the four calibrated explicit pairs, shuttle drag and
+cork orientation applied per substep by BadmintonAction.
+
+Observation groups:
+  student  proprioception + EKF-tracked shuttle and noisy trajectory prior
+  teacher  proprioception + true shuttle state, true trajectory prior, and
+           the privileged intercept target (p*, time-to-t*)
+
+The teacher PPO phase trains on "teacher"; distillation maps "teacher" ->
+"student" with the same action space.
+"""
+
+from __future__ import annotations
+
+from mjlab.entity import EntityCfg, EntityArticulationInfoCfg
+from mjlab.actuator import XmlActuatorCfg
+from mjlab.envs import ManagerBasedRlEnvCfg
+from mjlab.envs.mdp import observations as obs_mdp
+from mjlab.envs.mdp import rewards as rew_mdp
+from mjlab.envs.mdp import terminations as term_mdp
+from mjlab.envs.mdp import events as event_mdp
+from mjlab.managers.event_manager import EventTermCfg
+from mjlab.managers.observation_manager import (ObservationGroupCfg,
+                                                ObservationTermCfg)
+from mjlab.managers.reward_manager import RewardTermCfg
+from mjlab.managers.scene_entity_config import SceneEntityCfg
+from mjlab.managers.termination_manager import TerminationTermCfg
+from mjlab.scene import SceneCfg
+from mjlab.sensor import ContactMatch, ContactSensorCfg
+from mjlab.sim import MujocoCfg, SimulationCfg
+from mjlab.utils.noise import UniformNoiseCfg as Unoise
+from mjlab.viewer import ViewerConfig
+
+import aero
+from badminton_mjlab import assets, mdp
+from badminton_mjlab.perception_command import PerceptionCommandCfg
+from badminton_mjlab.shuttle_action import BadmintonActionCfg
+
+DECIMATION = 20          # 1 ms physics, 50 Hz control — same as the CPU env
+EPISODE_LENGTH_S = 3.0
+
+FACE_SITE = SceneEntityCfg("robot", site_names=("face_center",))
+
+
+def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    params = aero.load_params()
+    base_pos, base_rot = assets.arm_base_pose(params)
+
+    robot = EntityCfg(
+        spec_fn=assets.robot_spec,
+        init_state=EntityCfg.InitialStateCfg(
+            pos=base_pos, rot=base_rot,
+            joint_pos=dict(assets.READY_JOINT_POS)),
+        articulation=EntityArticulationInfoCfg(
+            actuators=(XmlActuatorCfg(target_names_expr=("arm_joint.*",)),)),
+    )
+    shuttle = EntityCfg(
+        spec_fn=assets.shuttle_spec,
+        # parked out of play until the reset event launches an episode
+        init_state=EntityCfg.InitialStateCfg(pos=(0.0, 5.0, 0.1)),
+    )
+
+    sensors = (
+        ContactSensorCfg(
+            name="face_hit",
+            primary=ContactMatch(mode="geom", pattern="shuttle_cork",
+                                 entity="shuttle"),
+            secondary=ContactMatch(mode="geom", pattern="racket_face",
+                                   entity="robot"),
+            fields=("found", "force"),
+            reduce="netforce",
+            history_length=DECIMATION,
+        ),
+        ContactSensorCfg(
+            name="shuttle_floor",
+            primary=ContactMatch(mode="geom",
+                                 pattern=("shuttle_col", "shuttle_cork"),
+                                 entity="shuttle"),
+            secondary=ContactMatch(mode="geom", pattern="court/floor"),
+            fields=("found",),
+            reduce="netforce",
+        ),
+        ContactSensorCfg(
+            name="shuttle_net",
+            primary=ContactMatch(mode="geom", pattern="shuttle_col",
+                                 entity="shuttle"),
+            secondary=ContactMatch(mode="geom", pattern="court/net"),
+            fields=("found",),
+            reduce="netforce",
+        ),
+    )
+
+    proprio = {
+        "joint_pos": ObservationTermCfg(
+            func=obs_mdp.joint_pos_rel,
+            noise=Unoise(n_min=-0.01, n_max=0.01)),
+        "joint_vel": ObservationTermCfg(
+            func=obs_mdp.joint_vel_rel,
+            noise=Unoise(n_min=-0.5, n_max=0.5)),
+        "face_state": ObservationTermCfg(
+            func=mdp.face_state, params={"asset_cfg": FACE_SITE}),
+        "actions": ObservationTermCfg(func=obs_mdp.last_action),
+    }
+    student_terms = {
+        **proprio,
+        "shuttle": ObservationTermCfg(
+            func=mdp.student_perception, params={"command_name": "perception"}),
+    }
+    teacher_terms = {
+        **proprio,
+        "shuttle": ObservationTermCfg(
+            func=mdp.teacher_perception, params={"command_name": "perception"}),
+        "intercept": ObservationTermCfg(func=mdp.intercept_target),
+    }
+    observations = {
+        # student proprioception is corrupted (sim encoders are exact);
+        # its shuttle features carry EKF noise already
+        "student": ObservationGroupCfg(student_terms, enable_corruption=True),
+        "teacher": ObservationGroupCfg(teacher_terms, enable_corruption=False),
+    }
+
+    actions = {
+        "joint_pos": BadmintonActionCfg(
+            entity_name="robot",
+            shuttle_entity_name="shuttle",
+            actuator_names=(".*",),
+            scale=1.0,
+            use_default_offset=True,
+            clip={f"arm_joint{i + 1}": tuple(r)
+                  for i, r in enumerate(params["arm"]["joint_range"])},
+        ),
+    }
+
+    commands = {"perception": PerceptionCommandCfg(entity_name="shuttle")}
+
+    events = {
+        "reset_arm": EventTermCfg(
+            func=event_mdp.reset_joints_by_offset,
+            mode="reset",
+            params={"position_range": (0.0, 0.0),
+                    "velocity_range": (0.0, 0.0),
+                    "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
+        "launch_shuttle": EventTermCfg(
+            func=mdp.reset_badminton_episode, mode="reset", params={}),
+    }
+
+    rewards = {
+        # face_contact latches the has-hit flag; keep it first
+        "face_contact": RewardTermCfg(
+            func=mdp.face_contact, weight=10.0,
+            params={"sensor_name": "face_hit"}),
+        "approach": RewardTermCfg(
+            func=mdp.approach_intercept, weight=1.0,
+            params={"std": 0.4, "asset_cfg": FACE_SITE}),
+        "return_flight": RewardTermCfg(
+            func=mdp.return_flight, weight=2.0, params={}),
+        "action_rate": RewardTermCfg(func=rew_mdp.action_rate_l2, weight=-0.01),
+        "joint_limits": RewardTermCfg(
+            func=rew_mdp.joint_pos_limits, weight=-5.0,
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
+        "joint_vel": RewardTermCfg(
+            func=rew_mdp.joint_vel_l2, weight=-1e-4,
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
+    }
+
+    terminations = {
+        "time_out": TerminationTermCfg(func=term_mdp.time_out, time_out=True),
+        "grounded": TerminationTermCfg(
+            func=mdp.shuttle_grounded, params={"sensor_name": "shuttle_floor"}),
+        "net": TerminationTermCfg(
+            func=mdp.shuttle_net, params={"sensor_name": "shuttle_net"}),
+    }
+
+    cfg = ManagerBasedRlEnvCfg(
+        scene=SceneCfg(
+            num_envs=1024,
+            env_spacing=1.0,
+            entities={"robot": robot, "shuttle": shuttle},
+            sensors=sensors,
+            spec_fn=assets.court_fn,
+        ),
+        observations=observations,
+        actions=actions,
+        commands=commands,
+        events=events,
+        rewards=rewards,
+        terminations=terminations,
+        viewer=ViewerConfig(
+            origin_type=ViewerConfig.OriginType.ASSET_BODY,
+            entity_name="robot", body_name="arm_base_link",
+            distance=3.5, elevation=-15.0, azimuth=180.0),
+        sim=SimulationCfg(
+            nconmax=16,
+            njmax=64,
+            mujoco=MujocoCfg(timestep=params["integrator"]["dt"]),
+        ),
+        decimation=DECIMATION,
+        episode_length_s=EPISODE_LENGTH_S,
+    )
+    if play:
+        cfg.scene.num_envs = 16
+    return cfg

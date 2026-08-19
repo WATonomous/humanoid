@@ -1,0 +1,137 @@
+"""Arm position action + shuttle custom physics, applied every substep.
+
+mjlab's sanctioned per-substep hook is ActionTerm.apply_actions, so the term
+that writes the arm targets also owns the two shuttle physics pieces the CPU
+sim applies around mj_step (mjsim.Sim.step):
+
+  drag     F = -m k |v_est| v_est with the half-step velocity estimate
+           v_est = v + dt/2 (g - k|v|v), written to xfrc_applied
+  orient   kinematic cork-first alignment: angular qvel zeroed, body +z
+           rotated toward the velocity with first-order lag orient_tau
+
+The orientation moves the cork collision sphere, so it is part of the
+dynamics, not a visual. Ordering note: apply_actions runs before mj_step,
+so the orientation update acts on the *previous* substep's post-step state —
+the same phase the CPU sim's post-step hook sees.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+import torch
+
+from mjlab.envs.mdp.actions import JointPositionAction, JointPositionActionCfg
+from mjlab.utils.lab_api.math import quat_mul
+
+import aero
+
+if TYPE_CHECKING:
+    from mjlab.envs import ManagerBasedRlEnv
+
+
+def quat_z_axis(q: torch.Tensor) -> torch.Tensor:
+    """World z-axis of the body frame for quats (N, 4), wxyz."""
+    w, x, y, z = q.unbind(-1)
+    return torch.stack(
+        [2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)],
+        dim=-1)
+
+
+def quat_z2vec(v_hat: torch.Tensor) -> torch.Tensor:
+    """Quat rotating +z onto unit vectors v_hat (N, 3). Torch port of
+    mju_quatZ2Vec, antiparallel case handled with the x-axis."""
+    z = torch.tensor([0.0, 0.0, 1.0], dtype=v_hat.dtype, device=v_hat.device)
+    z = z.expand_as(v_hat)
+    cross = torch.cross(z, v_hat, dim=-1)
+    s = cross.norm(dim=-1)
+    c = v_hat[..., 2].clamp(-1.0, 1.0)
+    angle = torch.atan2(s, c)
+    axis = cross / s.clamp_min(1e-12).unsqueeze(-1)
+    anti = s < 1e-8
+    x_axis = torch.zeros_like(v_hat)
+    x_axis[..., 0] = 1.0
+    axis = torch.where(anti.unsqueeze(-1), x_axis, axis)
+    half = 0.5 * angle
+    return torch.cat([torch.cos(half).unsqueeze(-1),
+                      axis * torch.sin(half).unsqueeze(-1)], dim=-1)
+
+
+def axis_angle_quat(axis: torch.Tensor, angle: torch.Tensor) -> torch.Tensor:
+    half = 0.5 * angle
+    return torch.cat([torch.cos(half).unsqueeze(-1),
+                      axis * torch.sin(half).unsqueeze(-1)], dim=-1)
+
+
+class BadmintonAction(JointPositionAction):
+    cfg: "BadmintonActionCfg"
+
+    def __init__(self, cfg: "BadmintonActionCfg", env: "ManagerBasedRlEnv"):
+        super().__init__(cfg=cfg, env=env)
+        p = aero.load_params()
+        self._k = p["shuttle"]["k"]
+        self._mass = p["shuttle"]["mass"]
+        self._g = p["gravity"]
+        dt = env.physics_dt
+        self._dt = dt
+        self._orient_frac = 1.0 - float(
+            torch.exp(torch.tensor(-dt / p["shuttle"]["orient_tau"])))
+        self._shuttle = env.scene[cfg.shuttle_entity_name]
+        idx = self._shuttle.data.indexing
+        self._q_adr = idx.free_joint_q_adr
+        self._v_adr = idx.free_joint_v_adr
+        self._g_vec = torch.tensor([0.0, 0.0, -self._g], device=self.device)
+
+    def apply_actions(self) -> None:
+        super().apply_actions()
+        data = self._shuttle.data.data
+        qpos = data.qpos
+        qvel = data.qvel
+
+        v = qvel[:, self._v_adr[:3]]
+        # drag at the half-step velocity estimate (see mjsim.Sim.apply_drag)
+        a = self._g_vec - self._k * v.norm(dim=-1, keepdim=True) * v
+        v_est = v + 0.5 * self._dt * a
+        force = -self._mass * self._k * v_est.norm(dim=-1, keepdim=True) * v_est
+        self._shuttle.write_external_wrench_to_sim(
+            forces=force.unsqueeze(1), torques=torch.zeros_like(force).unsqueeze(1),
+            body_ids=[0])
+
+        # kinematic cork-first orientation lag
+        qvel[:, self._v_adr[3:6]] = 0.0
+        speed = v.norm(dim=-1)
+        active = speed > 0.5
+        if not bool(active.any()):
+            return
+        quat = qpos[:, self._q_adr[3:7]]
+        z_world = quat_z_axis(quat)
+        v_hat = v / speed.clamp_min(1e-9).unsqueeze(-1)
+        cross = torch.cross(z_world, v_hat, dim=-1)
+        s = cross.norm(dim=-1)
+        c = (z_world * v_hat).sum(dim=-1).clamp(-1.0, 1.0)
+        angle = torch.atan2(s, c)
+        x_axis = torch.zeros_like(v)
+        x_axis[..., 0] = 1.0
+        y_axis = torch.zeros_like(v)
+        y_axis[..., 1] = 1.0
+        anti_x = torch.cross(z_world, x_axis, dim=-1)
+        anti_y = torch.cross(z_world, y_axis, dim=-1)
+        anti = torch.where((anti_x.norm(dim=-1, keepdim=True) < 1e-8),
+                           anti_y, anti_x)
+        anti = anti / anti.norm(dim=-1, keepdim=True).clamp_min(1e-12)
+        axis = torch.where((s < 1e-8).unsqueeze(-1),
+                           anti, cross / s.clamp_min(1e-12).unsqueeze(-1))
+        dq = axis_angle_quat(axis, self._orient_frac * angle)
+        new_q = quat_mul(dq, quat)
+        new_q = new_q / new_q.norm(dim=-1, keepdim=True)
+        apply = active & (angle > 1e-6)
+        qpos[:, self._q_adr[3:7]] = torch.where(apply.unsqueeze(-1), new_q, quat)
+
+
+@dataclass(kw_only=True)
+class BadmintonActionCfg(JointPositionActionCfg):
+    shuttle_entity_name: str = "shuttle"
+
+    def build(self, env: "ManagerBasedRlEnv") -> BadmintonAction:
+        return BadmintonAction(self, env)
