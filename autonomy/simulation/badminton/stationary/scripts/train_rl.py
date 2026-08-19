@@ -6,6 +6,7 @@ off to mjlab's train CLI (tyro; task id is the first positional argument).
 """
 
 import os
+import signal
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -13,5 +14,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import badminton_mjlab  # noqa: F401  (registers the tasks)
 from mjlab.scripts.train import main
 
+
+def _sigterm(signum, frame):
+    # scancel delivers SIGTERM to every process in the job; turn it into
+    # KeyboardInterrupt so wandb syncs and closes the run instead of
+    # showing it crashed
+    raise KeyboardInterrupt
+
+
 if __name__ == "__main__":
+    signal.signal(signal.SIGTERM, _sigterm)
     main()
