@@ -11,7 +11,9 @@
 #
 #SBATCH --job-name=badminton-rl
 #SBATCH --partition=compute
-#SBATCH --gres=gpu:1,tmpdisk:20480
+# rtx_4090 pinned: the cluster's gtx_1080 (sm_61) predates the cu128 torch
+# wheels ("no kernel image is available", job 593623)
+#SBATCH --gres=gpu:rtx_4090:1,tmpdisk:20480
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
 #SBATCH --time=08:00:00
