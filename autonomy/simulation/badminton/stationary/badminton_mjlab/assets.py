@@ -14,7 +14,6 @@ build_scene.py reruns flow through unchanged.
 
 from __future__ import annotations
 
-import math
 import os
 
 import mujoco
@@ -106,18 +105,6 @@ def court_fn(spec: mujoco.MjSpec) -> None:
     pair(floor, cork, list(c["floor_solref"]))
     pair(net, skirt, list(c["net_solref"]))
     pair(cork, face, list(c["face_solref"]), list(c["face_solimp"]))
-
-
-def arm_base_pose(params: dict) -> tuple[tuple, tuple]:
-    """(pos, quat) of the arm base in the world, from params.
-
-    mjlab overwrites a fixed-base entity's root body pos/quat with
-    InitialStateCfg.pos/rot, so the XML placement must be restated there.
-    """
-    a = params["arm"]
-    half = math.radians(a["mount_yaw_deg"]) / 2.0
-    return ((a["base_x"], a["base_y"], a["mount_height"]),
-            (math.cos(half), 0.0, 0.0, math.sin(half)))
 
 
 # Ready pose = the scene keyframe's arm joints (see scripts/build_scene.py).

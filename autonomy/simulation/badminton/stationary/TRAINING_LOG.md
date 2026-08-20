@@ -101,6 +101,31 @@ Note: test_mjlab_task::test_cork_orientation_tracks_velocity failed once
 in 3 full-suite runs (passes alone and on retry) — flaky threshold under
 CPU Warp nondeterminism, unrelated to this change.
 
+### result (cut at ~345): ROOT CAUSE FOUND — arm was mounted 1.2 m in the air
+
+The new metrics: min face->p* distance ~0.90 m flat, d@t* ~0.92 — worse
+than the static ready-pose distance (0.69 m), impossible for a moving arm.
+Zero-action rollouts in the Warp env showed the face at reset at
+(1.15, -1.41, 2.42) instead of (0.59, -1.44, 1.22): the scene XML places
+arm_base_link AND env_cfg restated the same pose via InitialStateCfg,
+which mjlab COMPOSES with the XML placement (the assets.arm_base_pose
+comment claiming it overwrites was wrong). Every prior run trained with
+the racket hanging ~1.2 m above the court; the shuttle still passed
+through p* (verified <= 5 cm), so hits were only possible on the rare
+high-trajectory tails. This explains all five reward-probe plateaus.
+
+Fix: InitialStateCfg carries only joint_pos; the XML placement is the
+single source. Verified: face at reset matches the CPU env to 3 mm; gate
+tests pass.
+
+## run 7 — corrected world, run-5 reward config, 2000 iters
+
+Same rewards as runs 5-6 (sigma 0.8 + fine 0.15/5.0, entropy 0.01,
+contact 100). All prior reward conclusions were fitted to the broken
+world, but the sigma-0.8 analysis was derived from the CPU geometry,
+which is now the true geometry. Success: min_dist visibly dropping,
+face_contact > 0.02 within the first 1000 iters.
+
 ## known next levers (in order, do not stack blindly)
 
 1. face_contact effective bonus is only 0.2 per hit after dt scaling —

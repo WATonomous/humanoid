@@ -47,12 +47,13 @@ FACE_SITE = SceneEntityCfg("robot", site_names=("face_center",))
 
 def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params = aero.load_params()
-    base_pos, base_rot = assets.arm_base_pose(params)
 
+    # The scene XML already places arm_base_link (pos + mount yaw); passing
+    # the same pose through InitialStateCfg COMPOSES with it (measured: face
+    # 1.2 m too high, run 6 rhithgnl) rather than overwriting.
     robot = EntityCfg(
         spec_fn=assets.robot_spec,
         init_state=EntityCfg.InitialStateCfg(
-            pos=base_pos, rot=base_rot,
             joint_pos=dict(assets.READY_JOINT_POS)),
         articulation=EntityArticulationInfoCfg(
             actuators=(XmlActuatorCfg(target_names_expr=("arm_joint.*",)),)),
