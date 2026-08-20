@@ -36,6 +36,7 @@ from mjlab.viewer import ViewerConfig
 
 import aero
 from badminton_mjlab import assets, mdp
+from badminton_mjlab.feasibility import FeasibilityCommandCfg
 from badminton_mjlab.perception_command import PerceptionCommandCfg
 from badminton_mjlab.shuttle_action import BadmintonActionCfg
 
@@ -135,7 +136,12 @@ def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         ),
     }
 
-    commands = {"perception": PerceptionCommandCfg(entity_name="shuttle")}
+    commands = {
+        "perception": PerceptionCommandCfg(entity_name="shuttle"),
+        # logs Metrics/feasibility/* (peak joint vel / torque, rated-torque
+        # duty cycle) so every run carries its own sim2real feasibility data
+        "feasibility": FeasibilityCommandCfg(),
+    }
 
     events = {
         "reset_arm": EventTermCfg(

@@ -74,6 +74,9 @@ arm:
   # weights, per-joint step caps and small wrist damping, swing tracking
   # degrades vs the earlier CubeMars-class guesses (78% -> ~61% contact).
   torque_limits: [53.0, 53.0, 22.0, 22.0, 22.0, 0.73]
+  # datasheet rated (continuous) torques, same motor mapping; used by the
+  # training feasibility metrics to flag time spent above sustainable load
+  torque_rated: [18.0, 18.0, 9.0, 9.0, 9.0, 0.25]
 
 racket:
   face_size: [0.12, 0.15, 0.012]  # m, full extents of the collision box
