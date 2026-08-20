@@ -24,4 +24,10 @@ def _sigterm(signum, frame):
 
 if __name__ == "__main__":
     signal.signal(signal.SIGTERM, _sigterm)
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        # mark the run finished (not killed) and sync before exiting
+        import wandb
+        if wandb.run is not None:
+            wandb.finish()
