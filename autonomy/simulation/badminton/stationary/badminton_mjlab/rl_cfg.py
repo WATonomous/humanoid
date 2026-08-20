@@ -34,12 +34,12 @@ def make_teacher_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
         critic=RslRlModelCfg(hidden_dims=HIDDEN, obs_normalization=True),
         algorithm=RslRlPpoAlgorithmCfg(
             learning_rate=3e-4,
-            # 0.005 collapsed the exploration std before contact was found
-            # (runs 1-2); 0.02 overshot once approach saturated — std climbed
-            # 0.49 -> 0.60 and noise penalties dragged mean reward down
-            # (run 4). 0.01 with the fine approach kernel providing a live
-            # opposing gradient.
-            entropy_coef=0.01,
+            # The early-run collapses at 0.005 (runs 1-2) were caused by the
+            # broken arm mount (TRAINING_LOG run 6), not the coefficient: with
+            # no reachable reward, entropy was the only pressure. On the fixed
+            # world 0.01 overshot late-run — std drifted 0.42 -> 0.85 after
+            # the kernels saturated and precision (d@t*) paid for it (run 7).
+            entropy_coef=0.005,
             num_learning_epochs=5,
             num_mini_batches=4),
     )

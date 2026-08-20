@@ -126,6 +126,24 @@ world, but the sigma-0.8 analysis was derived from the CPU geometry,
 which is now the true geometry. Success: min_dist visibly dropping,
 face_contact > 0.02 within the first 1000 iters.
 
+### result (ran the full 2000): first working policy
+
+Contact 0.627 (~31% hit rate) stable from iter ~300; min face->p* dist
+2 cm (parked on the flight path); return_flight 0.15 and saturating.
+Entropy 0.01 drifted std 0.42 -> 0.85 after saturation — the classic
+constant-entropy-pressure vs saturated-concave-reward equilibrium —
+tripling action_rate cost and holding d@t* at 0.14 (best was 0.066 at
+std 0.42). Reward structure works on the corrected world.
+
+## run 8 — first full run: entropy 0.005, 3000 iters, from scratch
+
+Fresh start rather than resume: run 7's checkpoint is anchored to
+high-noise behavior, and the recipe needs a from-scratch convergence
+proof. Rationale for 0.005: the old collapses at 0.005 were the broken
+world's fault, not the coefficient's. Success: contact > 1.0 (50%+ hit
+rate) approaching the scripted baseline's 71%, d@t* back under 0.08,
+return_flight climbing past 0.2.
+
 ## known next levers (in order, do not stack blindly)
 
 1. face_contact effective bonus is only 0.2 per hit after dt scaling —
