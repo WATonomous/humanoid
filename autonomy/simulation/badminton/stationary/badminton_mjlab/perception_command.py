@@ -61,6 +61,12 @@ class PerceptionCommand(CommandTerm):
         dim = 6 + 3 * self._n_traj
         self.student_features = torch.zeros(n, dim, device=dev)
         self.teacher_features = torch.zeros(n, dim, device=dev)
+        # ground-truth task geometry (logged via metrics): per-episode min
+        # face->p* distance and the distance at the tick nearest t*
+        self._face_cfg = None
+        self._min_dist = torch.full((n,), float("inf"), device=dev)
+        self._dist_at_tstar = torch.zeros(n, device=dev)
+        self._tstar_seen = torch.zeros(n, dtype=torch.bool, device=dev)
 
     @property
     def command(self) -> torch.Tensor:
@@ -81,6 +87,9 @@ class PerceptionCommand(CommandTerm):
         self._x[env_ids] = x
         self._P[env_ids] = P
         self._just_reset[env_ids] = True
+        self._min_dist[env_ids] = float("inf")
+        self._dist_at_tstar[env_ids] = 0.0
+        self._tstar_seen[env_ids] = False
 
     def _update_command(self, env_ids: torch.Tensor | None) -> None:
         p_true, v_true = self._true_state()
@@ -109,6 +118,29 @@ class PerceptionCommand(CommandTerm):
         p_true, v_true = self._true_state()
         self.metrics["ekf_pos_err"] = (self._x[:, :3] - p_true).norm(dim=-1)
         self.metrics["ekf_vel_err"] = (self._x[:, 3:] - v_true).norm(dim=-1)
+
+        # lazy: mdp imports this module, so import it only at call time
+        from badminton_mjlab import mdp
+        store = getattr(self._env, "_badminton", None)
+        if store is None:
+            return
+        if self._face_cfg is None:
+            from mjlab.managers.scene_entity_config import SceneEntityCfg
+            cfg = SceneEntityCfg("robot", site_names=("face_center",))
+            cfg.resolve(self._env.scene)
+            self._face_cfg = cfg
+        face, _ = mdp._face_pose(self._env, self._face_cfg)
+        dist = (face - store["p_star"]).norm(dim=-1)
+        self._min_dist = torch.minimum(self._min_dist, dist)
+        t_now = self._env.episode_length_buf.float() * self._env.step_dt
+        at_tstar = (t_now >= store["t_star"]) & ~self._tstar_seen
+        self._dist_at_tstar[at_tstar] = dist[at_tstar]
+        self._tstar_seen |= at_tstar
+        # logged at episode reset (last assigned value), so these read as
+        # per-episode min / at-t* distances
+        self.metrics["face_pstar_min_dist"] = torch.where(
+            torch.isinf(self._min_dist), dist, self._min_dist)
+        self.metrics["face_pstar_dist_at_tstar"] = self._dist_at_tstar
 
 
 @dataclass(kw_only=True)

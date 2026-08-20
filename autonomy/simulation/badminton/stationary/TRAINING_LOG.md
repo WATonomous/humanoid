@@ -80,6 +80,27 @@ weight 5 — steep slope over the last 30 cm; (2) entropy 0.02 -> 0.01
 gradient). Success: approach_fine climbing by iter 300, face_contact
 > 0.02 by iter 1000, std in 0.15-0.35.
 
+### result (ran the full 1000)
+
+Best probe yet but under the bar: contact 0.0006 -> ~0.003 (0.13% hits,
+5x run 4) with growth stalling after ~iter 500; approach_fine touched
+(0.010 vs ~5.3 if parked at p*); coarse approach pinned at the familiar
+0.106; std healthy ~0.41. Reading: still lucky-swing hits, not parking.
+Five reward-side probes now hit versions of the same wall — stop
+inferring geometry from reward values and measure it.
+
+## run 6 — probe: same config as run 5 + ground-truth metrics, 2000 iters
+
+No reward changes. PerceptionCommand now logs
+Metrics/perception/face_pstar_min_dist (per-episode min face->p*
+distance) and face_pstar_dist_at_tstar. Two questions: (1) what is the
+policy's actual closest approach — 10 cm (parking, contact geometry is
+the blocker) or 40+ cm (not parking, shaping still the blocker)? (2)
+does run 5's contact growth compound given 2x runway?
+Note: test_mjlab_task::test_cork_orientation_tracks_velocity failed once
+in 3 full-suite runs (passes alone and on retry) — flaky threshold under
+CPU Warp nondeterminism, unrelated to this change.
+
 ## known next levers (in order, do not stack blindly)
 
 1. face_contact effective bonus is only 0.2 per hit after dt scaling —
