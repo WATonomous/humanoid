@@ -1,9 +1,17 @@
 # Isaac Lab Mimic pick-and-place dataset (`scaled_big.hdf5`)
 
 State-only IL dataset for the **wato_bimanual_arm (left arm)** pick-and-place task:
-20 cuRobo-planned seed demos (`record_mimic_source_demos.py`) → grasp-subtask
+20 seed demos (originally cuRobo-planned via the now-removed
+`record_mimic_source_demos.py` — see `pick_place_gen/README.md`) → grasp-subtask
 annotation (`annotate_demos.py`) → scaled to 530 by **Isaac Lab Mimic**
 (`generate_dataset.py`). It's the *input* to training — no policy has been trained.
+
+The cuRobo-based seed-demo generator has been archived (Docker module,
+`orchestrator.py`, `curobo_expert.py`, etc. removed). Regenerating or
+extending this dataset needs a new seed-demo source (e.g. VR teleop) feeding
+the same Isaac Lab native recorder wiring `record_mimic_source_demos.py` used
+— the "Regenerating / extending" steps below for stages 2–3 (`annotate_demos.py`,
+`generate_dataset.py`) are otherwise unaffected and still stock IsaacLab Mimic.
 
 | | |
 |---|---|
@@ -97,9 +105,10 @@ export PYTHONPATH=$(pwd)
 export PYTHONUNBUFFERED=1        # Isaac Sim buffers stdout; without this you see no progress
 MIMIC=/workspace/isaaclab/scripts/imitation_learning/isaaclab_mimic
 
-# 1) cuRobo seed demos (~5 min for 20; table mode = no --task_params)
-$ISAACLAB/isaaclab.sh -p ../../pick_place_gen/record_mimic_source_demos.py --headless \
-    --num_episodes 20 --seed 0 --output_file datasets/source.hdf5
+# 1) seed demos -- ARCHIVED: this used to run the cuRobo-based
+#    record_mimic_source_demos.py (now removed). Producing datasets/source.hdf5
+#    needs a replacement seed-demo source (e.g. VR teleop) before stages 2-3
+#    below can run.
 
 # 2) annotate the grasp subtask (~3 min)
 $ISAACLAB/isaaclab.sh -p ../../pick_place_gen/run_isaaclab_mimic_script.py $MIMIC/annotate_demos.py \
