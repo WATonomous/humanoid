@@ -1,6 +1,6 @@
 kinematics:
   add_object_link: false
-  asset_root_path: /workspace/humanoid/autonomy/simulation/Humanoid_Wato/wato_bimanual_arm/urdf
+  asset_root_path: /workspace/humanoid/autonomy/simulation/Humanoid_Wato/pioneer_bimanual_arm/urdf
   base_link: base_link
   collision_link_names: &id001
   - base_link
@@ -1408,6 +1408,6 @@ kinematics:
     - attached_object
   tool_frames:
   - link6l
-  urdf_path: /workspace/humanoid/autonomy/simulation/Humanoid_Wato/wato_bimanual_arm/urdf/bimanual_arm_curobo.urdf
+  urdf_path: /workspace/humanoid/autonomy/simulation/Humanoid_Wato/pioneer_bimanual_arm/urdf/pioneer_bimanual_arm.urdf
   use_external_assets: false
   use_global_cumul: true

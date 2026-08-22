@@ -20,4 +20,7 @@ autonomy/teleop/quest_teleop_server/certs/*
 datasets/
 outputs/
 
+autonomy/simulation/Humanoid_Wato/HumanoidRL/logs/
+autonomy/simulation/Humanoid_Wato/HumanoidRL/boxing/
+
 modules/docker-compose.perception_override.yaml
