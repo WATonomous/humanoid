@@ -155,8 +155,18 @@ jobs:
   confirm-build-and-unittest-complete:
     name: Confirm Build and Unit Tests Completed
     needs: build-and-unittest
+    if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Ending
+      - name: Check build-and-unittest result
         run: |
-          echo "::notice:: All builds and unit tests completed!"
+          # build-and-unittest is matrix-driven off the changed-modules detection.
+          # A PR touching only GPU/non-CI modules (simulation, embedded) produces an
+          # empty matrix, so build-and-unittest reports "skipped" rather than
+          # "success" -- that's a valid outcome, not a failure. Only a real
+          # "failure" result should fail this gate.
+          if [[ "${{ needs.build-and-unittest.result }}" == "failure" ]]; then
+            echo "::error:: Build and unit tests failed"
+            exit 1
+          fi
+          echo "::notice:: All builds and unit tests completed (result: ${{ needs.build-and-unittest.result }})!"
