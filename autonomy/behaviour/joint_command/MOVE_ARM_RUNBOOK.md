@@ -2,7 +2,7 @@
 
 Drive the real arm through the `joint_command` safety layer: it seeds from live feedback
 (no startup slam), then velocity-limits + smooths every command. Read-only visualization
-is separate (`wato_bimanual_arm/live_arm_mjviser.py`).
+is separate (`pioneer_bimanual_arm/live_arm_mjviser.py`).
 
 > ⚠️ Moves real motors. Arm clear, hand on the E-stop. Test config has the **position
 > clamp DISABLED** and velocity 40°/s — re-enable clamps once `hardware_mapping.yaml`

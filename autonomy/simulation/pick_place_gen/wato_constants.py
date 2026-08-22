@@ -11,8 +11,8 @@ import os
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 SIM_DIR = os.path.join(REPO_ROOT, "autonomy", "simulation")
-BIMANUAL_ROOT = os.path.join(SIM_DIR, "Humanoid_Wato", "wato_bimanual_arm")
-URDF_PATH = os.path.join(BIMANUAL_ROOT, "urdf", "bimanual_arm.urdf")
+BIMANUAL_ROOT = os.path.join(SIM_DIR, "Humanoid_Wato", "pioneer_bimanual_arm")
+URDF_PATH = os.path.join(BIMANUAL_ROOT, "urdf", "pioneer_bimanual_arm.urdf")
 # Patched copy (real joint limits) written next to the original so its
 # `../meshes/...` references still resolve.
 CUROBO_URDF_PATH = os.path.join(BIMANUAL_ROOT, "urdf", "bimanual_arm_curobo.urdf")

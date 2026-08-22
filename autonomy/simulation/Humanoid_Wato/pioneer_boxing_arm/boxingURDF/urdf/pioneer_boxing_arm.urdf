@@ -1,0 +1,627 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="boxingURDF">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="0.0211873264431581 -0.000578679189188015 -0.535897425866049"
+        rpy="0 0 0" />
+      <mass
+        value="9.70005004664541" />
+      <inertia
+        ixx="0.494157879660142"
+        ixy="1.61145486953875E-07"
+        ixz="-2.73741600536941E-06"
+        iyy="0.484477804733274"
+        iyz="4.10251525787601E-07"
+        izz="0.0374833293769537" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="link1">
+    <inertial>
+      <origin
+        xyz="0.00639176807882896 -0.0729037479824685 -0.000182560348840344"
+        rpy="0 0 0" />
+      <mass
+        value="0.946680841893099" />
+      <inertia
+        ixx="0.00227765385399196"
+        ixy="0.000169821841109933"
+        ixz="2.49771803243319E-08"
+        iyy="0.00147449768490373"
+        iyz="-1.68751643685385E-07"
+        izz="0.00187280030458172" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint1"
+    type="revolute">
+    <origin
+      xyz="0.0215734774382594 -0.163325 0.060481929205022"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="link1" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-2.303835"
+      upper="1.780236"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="link2">
+    <inertial>
+      <origin
+        xyz="0.0226409320729833 -4.8300392940348E-05 -0.0456182257026434"
+        rpy="0 0 0" />
+      <mass
+        value="0.524797756215336" />
+      <inertia
+        ixx="0.00137005098441945"
+        ixy="2.52458785552483E-06"
+        ixz="0.000262439335266743"
+        iyy="0.00125797775087099"
+        iyz="-2.57493544325746E-07"
+        izz="0.000889484099676718" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint2"
+    type="revolute">
+    <origin
+      xyz="-0.0428200564481259 -0.116 -0.000180788468191695"
+      rpy="0 0 0" />
+    <parent
+      link="link1" />
+    <child
+      link="link2" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="-1.570796"
+      upper="0.349066"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="link3">
+    <inertial>
+      <origin
+        xyz="-0.005983570214833 0.000141304684249388 -0.0990878669466497"
+        rpy="0 0 0" />
+      <mass
+        value="0.617876373651381" />
+      <inertia
+        ixx="0.00251173913727183"
+        ixy="-2.34051699880102E-06"
+        ixz="-2.58426065969808E-05"
+        iyy="0.00288736194247939"
+        iyz="-4.40908708035194E-05"
+        izz="0.000536706633614641" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint3"
+    type="revolute">
+    <origin
+      xyz="0.0359999999999998 0 -0.1162999991972"
+      rpy="0 0 0" />
+    <parent
+      link="link2" />
+    <child
+      link="link3" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-1.396263"
+      upper="3.726278"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="link4">
+    <inertial>
+      <origin
+        xyz="0.000589780866340229 -0.0270042608962768 -0.0534086548301951"
+        rpy="0 0 0" />
+      <mass
+        value="0.236099727990152" />
+      <inertia
+        ixx="0.000374896268749318"
+        ixy="2.01149413314114E-06"
+        ixz="4.67080005222885E-06"
+        iyy="0.000236745756975194"
+        iyz="-7.16659840503466E-07"
+        izz="0.00033186949306191" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link4.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link4.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint4"
+    type="revolute">
+    <origin
+      xyz="0 0.0252499991971972 -0.1846"
+      rpy="0 0 0" />
+    <parent
+      link="link3" />
+    <child
+      link="link4" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-2.312561"
+      upper="1.745329"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="link5">
+    <inertial>
+      <origin
+        xyz="-0.00116161107905586 -6.76878805146441E-05 -0.0713160016983483"
+        rpy="0 0 0" />
+      <mass
+        value="0.260193841211252" />
+      <inertia
+        ixx="0.000776554866617905"
+        ixy="-1.09800020718996E-07"
+        ixz="-3.48289892223938E-05"
+        iyy="0.00071135095635345"
+        iyz="5.84637911807951E-07"
+        izz="0.000207422334507752" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link5.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link5.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint5"
+    type="revolute">
+    <origin
+      xyz="0 -0.0274999999999999 -0.1074999991972"
+      rpy="0 0 0" />
+    <parent
+      link="link4" />
+    <child
+      link="link5" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-4.328417"
+      upper="1.315978"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="link1L">
+    <inertial>
+      <origin
+        xyz="0.0063922799173801 0.0729035564223833 -0.000181503970779096"
+        rpy="0 0 0" />
+      <mass
+        value="0.946692068071668" />
+      <inertia
+        ixx="0.00227767540037511"
+        ixy="-0.000169830389832245"
+        ixz="-2.51533412314356E-08"
+        iyy="0.00147451036127731"
+        iyz="1.68081499163996E-07"
+        izz="0.00187281914191161" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link1L.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link1L.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint1L"
+    type="revolute">
+    <origin
+      xyz="0.0215734774382595 0.163325 0.060481929205022"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="link1L" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-2.303835"
+      upper="1.780236"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="link2l">
+    <inertial>
+      <origin
+        xyz="-0.011359261495819 4.8238602768147E-05 -0.0456181165667715"
+        rpy="0 0 0" />
+      <mass
+        value="0.524798988398382" />
+      <inertia
+        ixx="0.0013700517207607"
+        ixy="-2.52083730252911E-06"
+        ixz="0.000262436488548803"
+        iyy="0.00125796246592663"
+        iyz="2.44904922319661E-07"
+        izz="0.000889474018929076" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link2l.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link2l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint2l"
+    type="revolute">
+    <origin
+      xyz="-0.00882005644812602 0.116 -0.000180788468191695"
+      rpy="0 0 0" />
+    <parent
+      link="link1L" />
+    <child
+      link="link2l" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="-0.349066"
+      upper="1.570796"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="link3l">
+    <inertial>
+      <origin
+        xyz="-0.0059833228002548 -0.000141528692258197 -0.0980884094934427"
+        rpy="0 0 0" />
+      <mass
+        value="0.617868521774117" />
+      <inertia
+        ixx="0.00251173239491134"
+        ixy="2.3413597485336E-06"
+        ixz="-2.58450095814269E-05"
+        iyy="0.00288735331619627"
+        iyz="4.40890218624611E-05"
+        izz="0.00053670375517804" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link3l.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link3l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint3l"
+    type="revolute">
+    <origin
+      xyz="0.00200000000000037 0 -0.117299999197201"
+      rpy="0 0 0" />
+    <parent
+      link="link2l" />
+    <child
+      link="link3l" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-3.726278"
+      upper="1.396263"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="link4l">
+    <inertial>
+      <origin
+        xyz="0.000589678856968162 0.0270042999845513 -0.0534086986094746"
+        rpy="0 0 0" />
+      <mass
+        value="0.236099596183991" />
+      <inertia
+        ixx="0.000374896178399616"
+        ixy="-2.01083261967758E-06"
+        ixz="4.67089648036617E-06"
+        iyy="0.000236745167545952"
+        iyz="7.16455690670873E-07"
+        izz="0.000331869395417313" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link4l.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link4l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint4l"
+    type="revolute">
+    <origin
+      xyz="0 -0.0252499991972027 -0.183599999999999"
+      rpy="0 0 0" />
+    <parent
+      link="link3l" />
+    <child
+      link="link4l" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-1.745329"
+      upper="2.312561"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="link5l">
+    <inertial>
+      <origin
+        xyz="-0.00242526475601328 9.22355478022441E-05 -0.00957277466788142"
+        rpy="0 0 0" />
+      <mass
+        value="0.260192598192354" />
+      <inertia
+        ixx="0.000776552473650282"
+        ixy="1.12212189008526E-07"
+        ixz="-3.48288772748489E-05"
+        iyy="0.000711354366302318"
+        iyz="-5.8519363421275E-07"
+        izz="0.000207426469120314" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link5l.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://boxingURDF/meshes/link5l.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="joint5l"
+    type="revolute">
+    <origin
+      xyz="0.00126373662642698 0.0274750000000006 -0.169243101839288"
+      rpy="0 0 0" />
+    <parent
+      link="link4l" />
+    <child
+      link="link5l" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-1.315978"
+      upper="4.328417"
+      effort="0"
+      velocity="0" />
+  </joint>
+</robot>

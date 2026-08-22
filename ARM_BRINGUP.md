@@ -17,7 +17,7 @@ before commanding anything.
 
 ```bash
 ./watod -t mjlabs
-python3 autonomy/simulation/Humanoid_Wato/wato_bimanual_arm/live_arm_mjviser.py \
+python3 autonomy/simulation/Humanoid_Wato/pioneer_bimanual_arm/live_arm_mjviser.py \
   --arm-side left --urdf-side right
 # open http://localhost:8080
 ```
