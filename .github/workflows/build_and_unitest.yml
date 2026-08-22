@@ -60,7 +60,7 @@ jobs:
       matrix: ${{ fromJSON(needs.setup-environment.outputs.docker_matrix) }}
 
     concurrency:
-      group: ${{ matrix.service }}-${{ github.workflow }}-${{ github.ref }}
+      group: ${{ matrix.module }}-${{ matrix.service }}-${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
 
     steps:
