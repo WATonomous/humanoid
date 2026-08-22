@@ -60,7 +60,7 @@ jobs:
       matrix: ${{ fromJSON(needs.setup-environment.outputs.docker_matrix) }}
 
     concurrency:
-      group: ${{ matrix.service }}-${{ github.workflow }}-${{ github.ref }}
+      group: ${{ matrix.module }}-${{ matrix.service }}-${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
 
     steps:
@@ -154,19 +154,33 @@ jobs:
   
   confirm-build-and-unittest-complete:
     name: Confirm Build and Unit Tests Completed
-    needs: build-and-unittest
+    needs: [setup-environment, build-and-unittest]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Check build-and-unittest result
+        env:
+          DOCKER_MATRIX: ${{ needs.setup-environment.outputs.docker_matrix }}
+          BUILD_RESULT: ${{ needs.build-and-unittest.result }}
         run: |
-          # build-and-unittest is matrix-driven off the changed-modules detection.
-          # A PR touching only GPU/non-CI modules (simulation, embedded) produces an
-          # empty matrix, so build-and-unittest reports "skipped" rather than
-          # "success" -- that's a valid outcome, not a failure. Only a real
-          # "failure" result should fail this gate.
-          if [[ "${{ needs.build-and-unittest.result }}" == "failure" ]]; then
-            echo "::error:: Build and unit tests failed"
+          # build-and-unittest's matrix comes from changed-module detection, which
+          # skips GPU/non-CI modules (simulation, embedded). A PR that only touches
+          # those produces an empty matrix, so build-and-unittest never runs -- and
+          # GitHub reports needs.<job>.result as "failure" for a zero-entry matrix
+          # job, not "skipped". So we check the matrix itself instead of trusting
+          # that result: an empty matrix means there was nothing to build/test here,
+          # which is a valid pass, not a failure.
+          matrix_count=$(echo "$DOCKER_MATRIX" | jq '.include | length')
+          echo "::notice:: docker matrix had $matrix_count entries, build-and-unittest result was $BUILD_RESULT"
+
+          if [[ "$matrix_count" -eq 0 ]]; then
+            echo "::notice:: No modules required building/testing for this diff -- treating as passed."
+            exit 0
+          fi
+
+          if [[ "$BUILD_RESULT" != "success" ]]; then
+            echo "::error:: Build and unit tests failed (result: $BUILD_RESULT)"
             exit 1
           fi
-          echo "::notice:: All builds and unit tests completed (result: ${{ needs.build-and-unittest.result }})!"
+
+          echo "::notice:: All builds and unit tests completed!"
