@@ -1,7 +1,9 @@
 """GPU-buffered async LeRobot dataset recorder for Isaac Sim teleop."""
 from __future__ import annotations
 
+import json
 import queue
+import shutil
 import subprocess
 import threading
 import time
@@ -230,6 +232,33 @@ class SimLeRobotRecorder:
 
     _NUM_CPU_SLOTS = 2
 
+    def _is_empty_dataset_shell(self) -> bool:
+        """True if dataset_root is a created-but-never-written dataset.
+
+        LeRobotDataset.create() writes meta/info.json immediately, but the metadata a
+        reader actually needs (tasks, episodes, stats) plus data/ and videos/ only appear
+        once the first episode is saved. Any session that ends before save_episode() --
+        a crash, a Ctrl-C, or an operator who simply never pressed the save key -- leaves
+        behind a root that LeRobotDataset() cannot open, permanently dead-ending every
+        later run against that path. Such a shell holds no recorded frames, so recreating
+        it loses nothing; a root with real episodes in it is never touched.
+        """
+        root = self.dataset_root
+        if not any(root.iterdir()):
+            return True  # bare directory (mkdir -p, empty checkout) -- nothing to lose
+        for produced in ("data", "videos", "images"):
+            sub = root / produced
+            if sub.is_dir() and any(sub.rglob("*")):
+                return False
+        info_path = root / "meta" / "info.json"
+        if not info_path.is_file():
+            return False  # not a layout this recorder created; leave it for the operator
+        try:
+            info = json.loads(info_path.read_text())
+        except (OSError, ValueError):
+            return False
+        return int(info.get("total_episodes", 0)) == 0
+
     def init_dataset(self) -> None:
         """Create or re-open the LeRobot dataset on disk."""
         from lerobot.datasets.lerobot_dataset import LeRobotDataset
@@ -239,14 +268,25 @@ class SimLeRobotRecorder:
             self._allocate_cpu_slots()
         root = self.dataset_root
         if root.exists():
-            try:
-                self.dataset = LeRobotDataset(self.repo_id, root=root)
-                print(f"[INFO]: Opened existing dataset at {root}")
-                return
-            except Exception:
-                raise ValueError(
-                    f"[ERROR]: Dataset folder exists but cannot be opened: {root}"
+            if self._is_empty_dataset_shell():
+                print(
+                    f"[INFO]: Discarding empty dataset shell at {root} -- an earlier run "
+                    "created it but saved no episodes. Recreating."
                 )
+                shutil.rmtree(root)
+            else:
+                try:
+                    self.dataset = LeRobotDataset(self.repo_id, root=root)
+                    print(f"[INFO]: Opened existing dataset at {root}")
+                    return
+                except Exception as exc:
+                    raise ValueError(
+                        f"[ERROR]: Dataset folder exists and holds recorded episodes, but "
+                        f"cannot be opened: {root}\n"
+                        f"  Cause: {type(exc).__name__}: {exc}\n"
+                        "  Move it aside or pass --dataset_root elsewhere; it is NOT deleted "
+                        "automatically because it contains data."
+                    ) from exc
 
         self.dataset = LeRobotDataset.create(
             self.repo_id,

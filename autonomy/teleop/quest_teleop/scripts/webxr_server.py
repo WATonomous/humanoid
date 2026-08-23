@@ -22,6 +22,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         # Serves files in the static directory over HTTPS.
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
 
+    def log_message(self, format, *args):
+        # index.html polls pov_left/right.png, wrist_cam.png, contact_force_hud.png, and
+        # marker_uv.json back-to-back with no fixed interval -- the default access log (one line
+        # per GET) floods the console at dozens of lines/sec and buries the sim's own
+        # [Quest][...] diagnostic prints. Silenced; flip to a plain `print` here if the raw
+        # request log is ever needed again.
+        pass
+
 
 if __name__ == "__main__":
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)  # Change HTTP to HTTPS.

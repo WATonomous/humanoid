@@ -24,3 +24,14 @@ autonomy/simulation/Humanoid_Wato/HumanoidRL/logs/
 autonomy/simulation/Humanoid_Wato/HumanoidRL/boxing/
 
 modules/docker-compose.perception_override.yaml
+
+# Runtime teleop frame artifacts -- rewritten every render cycle by
+# run_quest_armv2_teleop.py and served to the headset by webxr_server.py.
+# Never source: they made every teleop run show up as a dirty tree and once
+# blocked a `git stash pop`. index.html tolerates them being absent
+# (`if (!res.ok) return;`), so a fresh clone needs no placeholders.
+autonomy/teleop/quest_teleop/static/pov_left.*
+autonomy/teleop/quest_teleop/static/pov_right.*
+autonomy/teleop/quest_teleop/static/wrist_cam.*
+autonomy/teleop/quest_teleop/static/contact_force_hud.*
+autonomy/teleop/quest_teleop/static/marker_uv.json

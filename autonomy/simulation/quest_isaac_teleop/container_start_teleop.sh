@@ -63,11 +63,8 @@ cd "${WORKSPACE}/autonomy/simulation/quest_isaac_teleop"
 if [ -x ./run_quest_armv2_teleop.sh ]; then
     LAUNCH_SCRIPT="./run_quest_armv2_teleop.sh"
     LAUNCH_LABEL="armWithStand / wato_arm_v2"
-elif [ -x ./run_quest_bimanual_teleop.sh ]; then
-    LAUNCH_SCRIPT="./run_quest_bimanual_teleop.sh"
-    LAUNCH_LABEL="bimanual_arm"
 else
-    echo "[teleop] ERROR: neither run_quest_armv2_teleop.sh nor run_quest_bimanual_teleop.sh"
+    echo "[teleop] ERROR: run_quest_armv2_teleop.sh"
     echo "[teleop]        found in $(pwd) on this branch. Nothing to launch."
     exit 1
 fi

@@ -235,7 +235,7 @@
       // POV quad: stereo camera feed, drawn HUD-locked (eye-space only, no
       // view matrix) so it's always visible regardless of head orientation.
       // Two textures (left/right eye), each refreshed from its own static
-      // file (/pov_left.png, /pov_right.png) that run_quest_bimanual_teleop.py
+      // file (/pov_left.jpg, /pov_right.jpg) that run_quest_bimanual_teleop.py
       // overwrites ~10x/sec by capturing two fixed, IPD-separated Kit
       // viewports -- real stereo depth, not a flat mono image.
       // webxr_server.py serves both as plain static files, no server changes.
@@ -263,9 +263,11 @@
             precision mediump float;
             varying vec2 vTexCoord;
             uniform sampler2D uTexture;
+            uniform float uOpacity;
 
             void main() {
-              gl_FragColor = texture2D(uTexture, vTexCoord);
+              vec4 texel = texture2D(uTexture, vTexCoord);
+              gl_FragColor = vec4(texel.rgb, texel.a * uOpacity);
             }
           `
         );
@@ -290,7 +292,8 @@
           texCoordBuffer: texBuffer,
           uProjection: gl.getUniformLocation(program, "uProjection"),
           uQuadZ: gl.getUniformLocation(program, "uQuadZ"),
-          uTexture: gl.getUniformLocation(program, "uTexture")
+          uTexture: gl.getUniformLocation(program, "uTexture"),
+          uOpacity: gl.getUniformLocation(program, "uOpacity")
         };
       }
 
@@ -308,7 +311,10 @@
         return texture;
       }
 
-      function drawPovQuad(gl, renderer, projectionMatrix, texture, quadZ = -1.5) {
+      // opacity: 1.0 = fully opaque (the main POV quads); lower values blend the quad over
+      // whatever is already drawn behind it, used by the wrist-cam picture-in-picture so it
+      // doesn't block the operator's view of the environment.
+      function drawPovQuad(gl, renderer, projectionMatrix, texture, quadZ = -1.5, opacity = 1.0) {
         gl.useProgram(renderer.program);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, renderer.posBuffer);
@@ -325,10 +331,15 @@
 
         gl.uniformMatrix4fv(renderer.uProjection, false, projectionMatrix);
         gl.uniform1f(renderer.uQuadZ, quadZ);
+        gl.uniform1f(renderer.uOpacity, opacity);
 
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        // Translucent quads must not write depth, or they'd occlude the main POV quad behind
+        // them and blend against empty background instead of the scene.
+        gl.depthMask(opacity >= 1.0);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.depthMask(true);
         gl.disable(gl.BLEND);
       }
 
@@ -432,7 +443,10 @@
           // up from its center (0.75,-0.61) to 0.9x0.63 rather than from a corner, so it grows
           // evenly instead of pushing further off in one direction. Slightly exceeds the main
           // quad's approximate -0.825/1.1 bounds now (minor, not a hard clip boundary).
-          const wristHudRenderer = createQuadRenderer(gl, 0.30, -0.93, 1.20, -0.30);
+          // Bumped 50% larger per live feedback (was 0.30,-0.93,1.20,-0.30 -- 0.90x0.63),
+          // scaled up from the bottom-right corner (1.20,-0.93) so that corner stays anchored
+          // in place and the quad grows up/left instead of shifting off-screen.
+          const wristHudRenderer = createQuadRenderer(gl, -0.15, -0.93, 1.20, 0.015);
           const leftEyeTexture = createEyeTexture(gl);
           const rightEyeTexture = createEyeTexture(gl);
           const wristCamTexture = createEyeTexture(gl);
@@ -468,20 +482,29 @@
               // Same as refreshPovTexture -- transient failure, next tick retries.
             }
           }
-          // No fixed poll interval (was setInterval(..., 33), a hard 30fps cap independent of
-          // the sim's own render/capture rate) -- per explicit live request to remove the cap.
-          // Instead, immediately re-fetch as soon as the previous round-trip finishes, so the
-          // only limit on poll rate is how fast the network/backend actually responds, not an
-          // artificial fixed delay.
+          // Re-fetch as soon as the previous round-trip finishes, plus a small floor delay.
+          // An earlier version had a hard setInterval(..., 200) that capped the headset at 5fps
+          // regardless of how fast the backend produced frames; that cap was rightly removed.
+          // But a completely unpaced loop spins as fast as the link allows and mostly
+          // re-downloads a frame the sim hasn't regenerated yet (the backend writes new POV
+          // frames at only ~5-6fps -- see the [Quest][fps] print), so those redundant fetches
+          // just occupy the tunnel and delay the next genuinely-new frame. POV_POLL_FLOOR_MS
+          // sits well above the backend's real rate, so it never becomes the bottleneck.
+          const POV_POLL_FLOOR_MS = 25;
           let povPollActive = true;
           async function povPollLoop() {
             while (povPollActive) {
+              const cycleStart = performance.now();
               await Promise.all([
-                refreshPovTexture("/pov_left.png", (bmp) => { pendingLeftBitmap = bmp; }),
-                refreshPovTexture("/pov_right.png", (bmp) => { pendingRightBitmap = bmp; }),
-                refreshPovTexture("/wrist_cam.png", (bmp) => { pendingWristBitmap = bmp; }),
+                refreshPovTexture("/pov_left.jpg", (bmp) => { pendingLeftBitmap = bmp; }),
+                refreshPovTexture("/pov_right.jpg", (bmp) => { pendingRightBitmap = bmp; }),
+                refreshPovTexture("/wrist_cam.jpg", (bmp) => { pendingWristBitmap = bmp; }),
                 refreshMarkerUV(),
               ]);
+              const remaining = POV_POLL_FLOOR_MS - (performance.now() - cycleStart);
+              if (remaining > 0) {
+                await new Promise((resolve) => setTimeout(resolve, remaining));
+              }
             }
           }
           povPollLoop();
@@ -560,7 +583,7 @@
                 // Small wrist_cam picture-in-picture, drawn slightly closer than the main POV
                 // quad (-1.45 vs -1.5) so it reliably renders on top with depth testing enabled,
                 // instead of z-fighting/flickering against the main quad at the same depth.
-                drawPovQuad(gl, wristHudRenderer, view.projectionMatrix, wristCamTexture, -1.45);
+                drawPovQuad(gl, wristHudRenderer, view.projectionMatrix, wristCamTexture, -1.45, 0.5);
 
                 drawHandPoints(
                   gl,

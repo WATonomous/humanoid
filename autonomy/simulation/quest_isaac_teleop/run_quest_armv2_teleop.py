@@ -1,79 +1,55 @@
-"""Quest armWithStand (wato_arm_v2) teleoperation — runs inside the
-simulation_isaac container.
+"""Quest VR -> Isaac Sim teleoperation for the wato_arm_v2 arm (armWithStand.usd).
 
-This is run_quest_bimanual_teleop.py with the config import repointed at
-armWithStand_v2_cfg.ARM_V2_CFG (armWithStand.usd) instead of
-bimanual_arm_cfg.BIMANUAL_ARM_CFG (bimanual_arm.usd). Camera setup: kept
-bimanual's dynamic head-tracked stereo RSD455 pair (real depth via a 63mm
-IPD baseline, not a mirrored monocular feed) for the teleop headset display,
-per explicit request -- data-collection cameras (ego_cam/wrist_cam baked
-into armWithStand.usd's sensor layer) are a SEPARATE concern, not routed to
-the headset here.
+Runs inside the simulation_isaac container. Both arms are driven by Quest hand tracking:
+the left Quest wrist drives the left arm, the right drives the right, and pinching
+thumb+index closes that arm's gripper.
 
-_HEAD_VIEWPOINT_HOME_POS/QUAT below are RESET to bimanual's original values
-(see the constant's own comment) -- multiple independent attempts at an
-armWithStand-specific head pose were each visibly wrong when tested live,
-so this resets to a known baseline for direct user observation/feedback
-instead of another guess.
+Pipeline
+--------
+    Quest browser (WebXR) --WSS--> quest_teleop_node --/quest_teleop--> this script
+    this script --DLS IK--> Isaac Sim --JPEG--> webxr_server --HTTP poll--> headset
 
-See run_quest_bimanual_teleop.py's own module docstring below for the full
-IK/coordinate-mapping explanation, all of which applies unchanged here.
+Control
+-------
+IK: isaaclab DifferentialIKController, ik_method="dls", one instance per arm so neither
+arm's homing state leaks into the other's. Each arm tracks its gripper's FINGERTIP-TIP
+midpoint (not the wrist link); orientation comes from the wrist link. lambda_val 0.2
+(0.35 right) -- at the DLS default of 0.01, a 0.1m commanded step pushed the Jacobian
+condition number past 4000 and some axes diverged instead of converging.
 
-Both arms are controlled via Quest hand tracking. Hand pose data arrives via
-ROS 2 /quest_teleop topic published by quest_teleop_node (also in this
-container). The left Quest wrist drives the left arm, the right Quest wrist
-drives the right arm. Pinching thumb + index closes the corresponding
-gripper.
+Coordinate mapping: WebXR is Y-up (X=right, Y=up, -Z=forward); the robot base is Z-up and
+yawed 180deg. Both hand POSITION and wrist ORIENTATION are mapped CAMERA-RELATIVE (see
+_QUEST_TO_CAM_LOCAL / _CAM_LOCAL_*), not through a fixed world rotation, so "push away
+from you" follows the camera's actual boresight.
 
-IK solver: isaaclab.controllers.DifferentialIKController (ik_method="dls",
-damped least squares), tracking each gripper's fingertip-tip-center frame —
-the same controller/target used by
-Task_space_controller/robot_arm_controllers/task_space_test.py, just fed
-from the Quest wrists instead of a draggable cube.
+Naming: the "L"-suffixed URDF chain is physically the RIGHT arm (the CAD naming is
+backwards). armWithStand_v2_cfg fixed that upstream; the import block below re-aliases it
+so every local left_*/right_* here keeps meaning "the arm driven by the LEFT/RIGHT Quest
+wrist" and still points at the same physical chain it always did.
 
-Each arm is fingertip-tip referenced (LEFT_/RIGHT_FINGER_TIP_BODIES in
-bimanual_arm_cfg.py: midpoint of each gripper's two finger distal tips), not
-the raw wrist link — see compute_gripper_tip_pose_b / compute_tip_ik_jacobian
-there. RIGHT_FINGER_DISTAL_TIP_LOCAL was measured directly from the link7/
-link8 STL vertex data (mesh outward-X extreme, Y/Z bounding-box center) using
-the same method as the pre-existing LEFT_FINGER_DISTAL_TIP_LOCAL constants —
-link7/link8 are NOT a simple mirror of link7l/link8l (separate STL files,
-swapped X-extent — see bimanual_arm_cfg.py for the measurement).
+Cameras
+-------
+    eye pair (RSD455)  stereo headset view, attached at runtime -> pov_left/right.jpg
+    wrist_cam          headset HUD overlay + recording
+    ego_cam            recording only; left out of the scene entirely without --record
 
-Orientation of each tip frame is defined as its own wrist link's orientation
-(see compute_gripper_tip_pose_w); only the tracked *position* is offset to
-each fingertip midpoint instead of the wrist origin.
+Performance
+-----------
+See main() for the measured cost model and the fps/RTF tuning table. Three knobs:
+_POV_CAPTURE_EVERY_N_STEPS (render cadence), _PHYSICS_DT, _PACE_TO_REALTIME.
 
-lambda_val=0.2 (both arms) was tuned live on the left arm: at the DLS
-default (0.01), a ~0.1m commanded tip displacement pushed the Jacobian
-condition number from ~60 to 4000+ and some axes moved AWAY from target
-instead of converging. 0.2 keeps the condition number bounded (~100) and
-converges to a stable ~0.05m residual instead. Not yet validated on the
-right arm specifically (mechanically mirrors the left, so 0.2 is a
-reasonable starting point) — retune per-arm live if needed.
-
-Coordinate mapping
-------------------
-WebXR uses a Y-up frame (X-right, Y-up, -Z-forward). The robot base is in
-a Z-up world frame and is rotated 180° about Z, so the mapping is applied in
-two stages (see _QUEST_TO_WORLD and the per-arm delta computation below).
+Keys (Isaac Sim window focused): R recalibrate, T reset scene, S save episode,
+D discard episode (S/D only with --record).
 
 Usage
 -----
-Inside the simulation_isaac container:
-    ISAAC_LAB=/workspace/isaaclab \\
-    PYTHONPATH=/workspace/humanoid/autonomy/simulation/quest_isaac_teleop:$PYTHONPATH \\
-    /workspace/isaaclab/isaaclab.sh -p \\
-        /workspace/humanoid/autonomy/simulation/quest_isaac_teleop/run_quest_armv2_teleop.py \\
-        --device cpu
-
-Or via the helper script:
-    ./run_quest_armv2_teleop.sh
+    ./run_quest_armv2_teleop.sh [--record] [--publish-real-left-arm]
 """
 
 import argparse
 import json
 import math
+import os
 import signal
 import sys
 import threading
@@ -135,7 +111,7 @@ import carb  # noqa: E402
 import omni.appwindow  # noqa: E402
 import omni.kit.app  # noqa: E402
 import omni.usd  # noqa: E402
-from pxr import Gf, PhysxSchema, Usd, UsdGeom, UsdPhysics, UsdShade  # noqa: E402
+from pxr import Gf, Usd, UsdGeom  # noqa: E402
 
 import isaaclab.sim as sim_utils  # noqa: E402
 from isaaclab.assets import AssetBaseCfg, RigidObjectCfg  # noqa: E402
@@ -143,7 +119,7 @@ from isaaclab.controllers import DifferentialIKController, DifferentialIKControl
 from isaaclab.managers import SceneEntityCfg  # noqa: E402
 from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg  # noqa: E402
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg  # noqa: E402
-from isaaclab.sensors import CameraCfg  # noqa: E402
+from isaaclab.sensors import Camera, CameraCfg  # noqa: E402
 from isaaclab.utils import configclass  # noqa: E402
 from isaaclab.utils.math import (  # noqa: E402
     quat_apply,
@@ -194,52 +170,22 @@ _RIGHT_GRIPPER_JOINTS = ["joint7", "joint8"]
 _RIGHT_GRIPPER_OPEN = {"joint7": 0.0, "joint8": 0.0}
 _RIGHT_GRIPPER_CLOSED = {"joint7": -0.05, "joint8": 0.05}
 
-# RETIRED for orientation (still referenced by name in old comments/history) -- WebXR (Y-up:
-# X-right, Y-up, -Z-forward) -> simulation world frame (Z-up), as a FIXED world-frame rotation.
-# This was proven wrong for hand POSITION (see below: raw X drove forward/back instead of left/
-# right) and fixed there by switching to a camera-relative basis -- but that same fix was never
-# applied to wrist ORIENTATION, which kept using this exact matrix (see git history / the old
-# dq_left_world computation). That's the near-certain root cause of "can't orient the gripper to
-# match the cube" -- a live-reported symptom entirely consistent with rotating your wrist about
-# what feels like a natural axis (e.g. rolling your forearm) mapping to some unrelated, unintuitive
-# world axis instead of the camera/gripper's own corresponding axis. Superseded by
-# _QUEST_TO_CAM_LOCAL below, which applies the SAME camera-relative philosophy already verified
-# correct for position.
+# RETIRED. Fixed WebXR->world rotation, superseded by _QUEST_TO_CAM_LOCAL for both position and
+# orientation. Kept only because quest_to_world_quat is still constructed from it below.
 _QUEST_TO_WORLD = torch.tensor(
     [[-1.0, 0.0, 0.0],
      [0.0, 0.0, 1.0],
      [0.0, 1.0, 0.0]],
     dtype=torch.float32,
 )
-# Hand POSITION deltas are mapped camera-relative instead (see
-# _CAM_LOCAL_FORWARD/UP/RIGHT and their use in the main loop below) --
-# verified via synthetic single-axis ros2 topic pub tests (isolate raw
-# x/y/z, read the [axisdbg] world_delta) that the straight fixed-world-frame
-# mapping (formerly also used for orientation, see _QUEST_TO_WORLD's comment above) puts raw X
-# into the world forward/back row and raw Z into the lateral row -- i.e. physically moving
-# your hand right/left drove the arm forward/back and vice versa. Rather
-# than patch that swap with more sign flips, position deltas are now built
-# directly from verified WebXR semantics (X=right, Y=up, -Z=forward) applied
-# in the camera's own basis, then rotated into world by the camera's fixed
-# mount tilt -- so "push away from you, into the view" tracks the camera's
-# actual boresight (partially world -Z at this ~60deg downward tilt) instead
-# of raw world +X. Flip an entry here only if a live headset test shows a
-# genuine handedness/chirality issue, not for tilt -- tilt is now handled by
-# the camera-relative basis itself.
-# Same idea, now also applied to wrist ORIENTATION (see _QUEST_TO_WORLD's comment above for why
-# the old approach was wrong): maps a rotation expressed in WebXR's local device frame (X=right,
-# Y=up, -Z=forward -- SAME convention as _CAM_LOCAL_FORWARD/UP/RIGHT's physical meaning, just
-# expressed in the operator's controller/hand frame instead of the camera mount's local frame)
-# into the camera MOUNT's own local frame, via the natural ergonomic correspondence: quest
-# forward (-Z) -> camera forward (_CAM_LOCAL_FORWARD, local +X); quest up (+Y) -> camera up
-# (_CAM_LOCAL_UP, local +Z); quest right (+X) -> camera right (_CAM_LOCAL_RIGHT, local -Y).
-# Row i = camera-local axis i's coefficients on (quest_x, quest_y, quest_z):
-#   cam_local_X (forward) = -quest_z
-#   cam_local_Y (left; camera "right" is -Y per _CAM_LOCAL_RIGHT)  = -quest_x
-#   cam_local_Z (up)      =  quest_y
-# The resulting camera-local delta is then rotated into world by camera_tilt_quat (the camera
-# mount's actual current world orientation) -- the SAME two-stage camera-relative-then-tilted
-# construction already verified for position, just for a rotation instead of a translation.
+# Maps a WebXR-local rotation (X=right, Y=up, -Z=forward) into the camera MOUNT's local frame
+# by the ergonomic correspondence quest-forward->cam-forward, quest-up->cam-up,
+# quest-right->cam-right. Row i = cam-local axis i in terms of (quest_x, quest_y, quest_z):
+#   X (forward) = -quest_z    Y (left) = -quest_x    Z (up) = quest_y
+# The result is then rotated into world by camera_tilt_quat. Both POSITION and ORIENTATION use
+# this two-stage camera-relative construction; a fixed world rotation was tried first and put
+# raw X into the world forward/back row (moving your hand sideways drove the arm forward).
+# Flip an entry only for a genuine handedness issue -- tilt is already handled by the basis.
 _QUEST_TO_CAM_LOCAL = torch.tensor(
     [[0.0, 0.0, -1.0],
      [-1.0, 0.0, 0.0],
@@ -252,60 +198,35 @@ _CAM_LOCAL_FORWARD = torch.tensor([1.0, 0.0, 0.0])  # rsd455 local +X = boresigh
 _CAM_LOCAL_UP = torch.tensor([0.0, 0.0, 1.0])  # rsd455 local +Z = up
 _CAM_LOCAL_RIGHT = torch.tensor([0.0, -1.0, 0.0])  # matches _EYE_LOCAL_RIGHT below
 
-_GAIN_FAR = 1.0  # reverted to match run_quest_bimanual_teleop.py's original 1:1 tracking precision
-# (was bumped to 2.0 for more reach per live feedback, but that made the target markers feel
-# less precisely tied to real hand movement compared to Allen/Wilson's original -- reverted)
+_GAIN_FAR = 1.0  # 1:1 hand->EE. 2.0 was tried for more reach; it made tracking feel imprecise.
 _GAIN_RAMP_START_M = 0.15
 _GAIN_RAMP_END_M = 0.35
 
-# Was 0.28, bumped to 0.35, then to 0.5 per live feedback. Shoulder-to-wrist
-# chain length in the home config (joint1L..joint6l origins,
-# armWithStand.urdf) is ~0.61m, and shoulder-to-fingertip is roughly
-# ~0.70-0.75m (link-length-sum estimate, not a verified FK sweep) -- 0.5m
-# stays under that ceiling but is a much bigger fraction of it than before,
-# so watch for the right arm's DLS conditioning degrading near the new
-# limit (see _DLS_LAMBDA_RIGHT) -- retune live if it locks up.
+# Shoulder-to-fingertip is ~0.70-0.75m (link-length estimate), so 0.5m stays under the
+# kinematic ceiling but close enough that DLS conditioning degrades near it -- see
+# _DLS_LAMBDA_RIGHT. Lower it if the right arm locks up mid-reach.
 _MAX_REACH_M = 0.5
 
-# Home/rest IK target X offset. Keep at 0 -- the arm should run at its
-# natural rest position; fix camera/framing issues on the camera/enclosure
-# side, not by dragging the arm's target away from where it actually rests.
+# Keep X at 0 -- fix framing on the camera/enclosure side, not by dragging the arm's target
+# off its natural rest pose. Z: base_link sits at the TOP of the stand and the arm hangs down,
+# so the rest tip started ~0.145m BELOW the table top; +0.2 lifts it clear of the surface.
 _HOME_TIP_X_OFFSET = 0.0
-# Base-frame +Z = up (rest tip Z is negative, e.g. ~-0.666, since base_link
-# sits at the TOP of the stand and the arm hangs down from it). Rest tip was
-# sitting ~0.145m BELOW the table top (table top ~0.679m world Z, rest tip
-# ~0.534m world Z) -- +0.2 lifts the starting pose to comfortably clear the
-# table surface ("slightly above the table"), per explicit request.
 _HOME_TIP_Z_OFFSET = 0.2
 
-# Real-hardware bridge timing (see --publish-real-left-arm). Mirrors
-# Task_space_controller/robot_arm_controllers/task_space_real.py's
-# PUBLISH_PERIOD/PUBLISH_START_DELAY exactly -- same joint_command_node on
-# the other end, which applies NO velocity/delta rate-limiting to the very
-# first ArmPose message it receives after startup. An un-delayed first
-# publish could snap the real arm hard from wherever it physically is to the
-# sim's current target. The delay exists so a human can manually position
-# the real arm near the sim pose first -- don't shorten it.
+# Real-hardware bridge timing (--publish-real-left-arm), mirroring task_space_real.py.
+# SAFETY: joint_command_node applies NO rate limiting to the FIRST ArmPose it receives, so an
+# un-delayed publish can snap the real arm hard from wherever it physically is. The delay
+# exists so a human can position the real arm near the sim pose first -- do not shorten it.
 _REAL_ARM_PUBLISH_PERIOD_S = 0.02  # 20ms = 50Hz, matches joint_command_node's control_rate_hz
 _REAL_ARM_PUBLISH_START_DELAY_S = 5.0
 
-# Both reset to identity (bimanual_arm's non-identity _WRIST_ORIENT_OFFSET_RIGHT
-# was empirically tuned against ITS OWN joint6l axis -- armWithStand's joint6l
-# rotates about a different local axis (Y here vs X in bimanual, confirmed by
-# diffing both URDFs' <joint><axis> tags), so that offset does not transfer.
-# If wrist rotation feels like it's driving the EE the wrong way, retune this
-# live per the README's "Wrist orientation alignment" section, same procedure
-# used to derive bimanual's original values.
+# Per-arm rotation offset conjugated onto the wrist orientation delta; identity = no
+# correction. bimanual's non-identity value does NOT transfer (armWithStand's joint6l rotates
+# about Y, bimanual's about X). Retune per the README's "Wrist orientation alignment" section
+# if rotation drives the EE wrong -- but a "rotates the opposite way" feel is a chirality
+# issue needing a sign flip on the raw quaternion, not a rotation offset here.
 _WRIST_ORIENT_OFFSET_LEFT = torch.tensor([1.0, 0.0, 0.0, 0.0])
 _WRIST_ORIENT_OFFSET_RIGHT = torch.tensor([1.0, 0.0, 0.0, 0.0])
-# Per-arm rotation-offset conjugation applied to the wrist orientation delta.
-# Identity = no correction. If rotating your wrist drives the EE the wrong
-# way, retune per the README's "Wrist orientation alignment" table -- but if
-# a fixed-angle offset doesn't fix a "rotate one way, EE goes the opposite
-# way" feel, it's likely a chirality/mirror issue (WebXR can report
-# left/right hand joints in mirrored local conventions), which needs a sign
-# flip on the raw wrist quaternion components instead, not a rotation offset
-# here.
 
 _THUMB_TIP_IDX = 4
 _INDEX_TIP_IDX = 9
@@ -313,77 +234,35 @@ _PINCH_CLOSE_M = 0.035  # was 0.030, nudged up per live feedback (easier to trig
 _PINCH_OPEN_M = 0.050
 
 _DLS_LAMBDA = 0.2
-# Right arm gets extra damping (not a smaller _MAX_REACH_M): near full
-# extension its Jacobian conditioning is worse than the left arm's (the two
-# arms' default joint poses were measured independently, not mirrored), and
-# it would freeze mid-reach with target_err stuck near the clamp. Heavier
-# damping keeps the full reach distance but makes the solver more
-# conservative exactly where conditioning gets bad. Retune live if it's
-# sluggish well before full extension, or still locks up at the extreme.
+# Right arm needs extra damping (not a smaller reach): its conditioning near full extension is
+# worse than the left's, and it would freeze mid-reach with target_err stuck at the clamp.
 _DLS_LAMBDA_RIGHT = 0.35
-# _DLS_LAMBDA/_DLS_LAMBDA_RIGHT above are now MINIMUM (floor) damping values, not fixed --
-# per DLS/singularity-avoidance literature (Chiaverini et al.), a constant lambda either damps
-# too little right at a singularity (this is a plausible root cause of the joint-jitter flagged
-# earlier and never fully explained -- single-frame jumps ~9x over the velocity clamp) or damps
-# too much everywhere else (unnecessary tracking-accuracy/responsiveness loss). _DLS_LAMBDA_RIGHT
-# being manually raised above was already a static, hand-tuned approximation of exactly what
-# adaptive damping does automatically for the region where conditioning is worst -- this
-# generalizes that fix to ramp up smoothly and automatically as manipulability drops, instead of
-# a flat value everywhere. lambda_max is the ceiling applied only very close to a singularity;
-# _DLS_MANIPULABILITY_EPSILON is the manipulability threshold below which damping starts ramping
-# up at all (at/above it, lambda stays at the existing floor value, unchanged from before).
-# UNVERIFIED live -- unlike this session's other changes, this one has real risk if
-# mistuned (too-low epsilon = damping never kicks in when it should; too-high lambda_max =
-# solver gets sluggish/inaccurate even in comfortable poses). A [Quest][ikdiag] print is added
-# below specifically to sanity-check live what manipulability/lambda values actually occur
-# during normal use, since no live data on this arm's own conditioning was available to tune
-# epsilon against beforehand.
+# Ceiling + threshold for Chiaverini adaptive damping (_adaptive_dls_lambda): lambda ramps from
+# the floor above toward lambda_max as manipulability drops below epsilon.
+# CURRENTLY INACTIVE -- solve_and_apply was reverted to fixed lambda on live feedback that
+# adaptive damping made the IK feel wrong. Kept wired up for a retry; the [Quest][ikdiag] print
+# exists to gather the manipulability data needed to tune epsilon properly first.
 _DLS_LAMBDA_MAX = 0.6
 _DLS_LAMBDA_MAX_RIGHT = 0.9
 _DLS_MANIPULABILITY_EPSILON = 0.01
 
-# Joint-space output smoothing -- mirrors joint_command_core.cpp's actual
-# ACTIVE default on the interfacing-fixes branch: plain velocity clamp +
-# delta clamp (clampStep), NOT the trapezoidal ramp (enable_trapezoidal_limit
-# defaults to false there -- untested on hardware, so not imitated here
-# either) and NOT a low-pass filter (removed entirely on that branch --
-# see commit 6fe705a5 -- it silently discounts steady-state speed).
-# Values start from safety_limits.yaml's `global` block (velocity_max: 20
-# deg/s, delta_max: 2.4 deg), converted to radians -- velocity_max bumped to
-# 40deg/s per live feedback (20 was hardware's conservative bench-testing
-# speed and visibly lagged behind the target during fast VR hand motion; not
-# read from the yaml automatically, see this constant's own definition).
-# delta_max left at the original 2.4deg. The real config also has tighter
-# PER-JOINT overrides (shoulder/elbow/wrist), not applied here --
-# armWithStand_v2_cfg.py's joint grouping (2-DOF shoulder/3-DOF elbow)
-# doesn't match hardware_mapping.yaml's ArmPose split (3-DOF shoulder/2-DOF
-# elbow, already flagged elsewhere as unverified), so mapping per-joint
-# values onto this file's joint order isn't trustworthy yet -- the uniform
-# global value is applied to all 6 joints instead.
-_JOINT_VELOCITY_MAX_RAD_S = 1.7453292519943295  # 100 deg/s -- still the enforced speed ceiling, now applied via _smooth_damp instead of a hard clamp (see solve_and_apply)
-_JOINT_DELTA_MAX_RAD = 0.2617993877991494  # 15 deg per control step -- UNUSED, kept for reference (superseded by _smooth_damp)
-# "Time to close ~90% of the gap to target" for the critically-damped smoothing filter (see
-# _smooth_damp) -- smaller = snappier/more responsive, larger = smoother but laggier. 0.08s
-# chosen as a starting point: tight enough to stay responsive for precise grasping, loose enough
-# to meaningfully round off the bang-bang motion the previous hard clamp produced. Retune live if
-# it feels sluggish (lower it) or still jerky (raise it).
-_SMOOTH_TIME_S = 0.08
+# Joint-space output smoothing, modelled on joint_command_core.cpp's active default (velocity +
+# delta clamp; NOT its trapezoidal ramp or low-pass, both inactive on hardware). safety_limits
+# .yaml's per-joint overrides are deliberately NOT applied -- armWithStand_v2_cfg's joint
+# grouping (2-DOF shoulder/3-DOF elbow) does not match hardware_mapping.yaml's ArmPose split.
+# All three are UNUSED as of the revert to unsmoothed IK output; kept for a retry.
+_JOINT_VELOCITY_MAX_RAD_S = 1.7453292519943295  # 100 deg/s speed ceiling
+_JOINT_DELTA_MAX_RAD = 0.2617993877991494  # 15 deg/step
+_SMOOTH_TIME_S = 0.08  # _smooth_damp: time to close ~90% of the gap. Lower = snappier.
 
 _ENCLOSURE_MATERIAL = sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0), emissive_color=(1.0, 1.0, 1.0))
-# Back wall shifted to clear the mount/stand structural bar. Front boundary
-# extended to 0.75m so the enclosure actually contains the arms' full reach
-# (rest EE X~0.42-0.43 + _MAX_REACH_M=0.28 = ~0.71m) instead of the arms
-# sticking out past it.
+# Back wall clears the mount/stand bar; front reaches 0.75m so the enclosure actually contains
+# the arms' full reach instead of them poking through it.
 _ENCLOSURE_BACK_X = -0.45
-_ENCLOSURE_FRONT_X = 0.75  # open front (arm reach direction) -- extended to actually contain the arms, see above
+_ENCLOSURE_FRONT_X = 0.75  # open front, arm reach direction
 _ENCLOSURE_Y_MIN = -0.9
 _ENCLOSURE_Y_MAX = 1.0
-# armWithStand's stand is ~1.1997m tall below the robot's own origin (vs.
-# bimanual's much shorter stand, which is what the original 0.9m height was
-# sized for). After lifting the robot so the stand's base rests on the table
-# (see _ARM_TABLE_LIFT_Z below), the arm's highest point sits at
-# ~1.1997 + 0.257 = 1.457m above the table. 1.8m leaves ~0.34m of headroom
-# for reach motion.
+# The stand puts the arm's highest point ~1.457m above the table; 1.8m leaves ~0.34m headroom.
 _ENCLOSURE_TOP_Z = 1.8
 _ENCLOSURE_Y_CTR = (_ENCLOSURE_Y_MIN + _ENCLOSURE_Y_MAX) / 2
 _ENCLOSURE_Y_SPAN = _ENCLOSURE_Y_MAX - _ENCLOSURE_Y_MIN
@@ -391,29 +270,19 @@ _ENCLOSURE_X_SPAN = _ENCLOSURE_FRONT_X - _ENCLOSURE_BACK_X
 _ENCLOSURE_X_CTR = (_ENCLOSURE_BACK_X + _ENCLOSURE_FRONT_X) / 2
 
 
-# Real table asset (converted from the user's Table.STEP CAD file -- see
-# Table/table.usd). Source units are inches (metersPerUnit=0.0254 on the
-# converted USD), hence the scale correction below. Its default prim's
-# origin sits at the table-TOP surface (bbox top face at local Z=0, verified
-# via direct USD query), same convention the old flat cuboid table used, so
-# no Z offset is needed here -- just place it so the top surface is at
-# world Z=0. Real-world size: ~1.39m (X) x 0.75m (Y) x 0.62m tall.
+# Table converted from Table.STEP. Source units are inches, hence the scale. Its origin sits at
+# the table-TOP surface, so no Z offset is needed. Real size ~1.39 x 0.75 x 0.62m.
 _TABLE_USD_PATH = str(
     _SIM_DIR / "Humanoid_Wato" / "Table" / "table.usd"
 )
 _TABLE_SCALE = (0.0254, 0.0254, 0.0254)
-# Table pose -- user GUI-verified transform: Translate=(0.84149, -0.13977,
-# -0.0), Orient XYZ=(90, 90, 0) degrees (quat computed via the same
-# Rx*Ry*Rz USD rotateXYZ convention used for wrist_cam elsewhere in this
-# file) -- the STEP conversion's native axes don't come out Z-up-front by
-# default, hence the rotation.
-_TABLE_POS = (0.69, 0.00612, 0.33)  # raised 10, 15, 20cm, lowered 10, 5cm, raised 3cm, per live feedback
+# GUI-verified pose. The rotation is needed because the STEP conversion's native axes do not
+# come out Z-up-front (Orient XYZ = 90, 90, 0 deg in USD rotateXYZ convention).
+_TABLE_POS = (0.69, 0.00612, 0.33)
 _TABLE_ROT = (0.5000000000000001, 0.5, 0.5, 0.49999999999999994)  # wxyz
 
-# Box (to grasp) and container (to place it in). Box now placed INSIDE the
-# container (same X/Y/Z as the container's own origin -- both assets have
-# their local origin at a bottom corner, so this rests the box flush on the
-# container's floor) per live feedback, rather than off to the side.
+# Box (to grasp) and container (to place it in). Both assets have their local origin at a
+# bottom corner, so matching X/Y/Z rests the box flush on the container floor.
 _BOX_USD_PATH = str(
     _SIM_DIR / "Humanoid_Wato" / "UsdModelAssets" / "block.usd"
 )  # 5.08cm cube -- box.usd (25x25x3cm flat pad) is too flat/wide for this gripper to grasp
@@ -424,143 +293,114 @@ _CONTAINER_POS = (0.3, -0.07041, 0.70917)  # +33cm net with the table
 _CONTAINER_ROT = (0.7071067811865476, 0.0, 0.0, 0.7071067811865475)  # wxyz
 _BOX_POS = (0.2, 0.2, 0.70917)  # moved 0.1m closer in X, per live feedback (was 0.3)
 
-# Stereo camera pair (real depth via two eye textures, not a flat
-# single-camera POV): two RealSense D455s mounted on base_link, fixed at
-# _HEAD_VIEWPOINT_HOME_POS/QUAT (head tracking is currently disabled --
-# head_pose is still read from QuestHandPose.msg but unused for positioning).
-#
-# rsd455's local axes: +X = lens boresight (forward), +Z = up. That makes
-# local -Y "right" (forward x up = X x Z = -Y) -- IPD offset is applied
-# along that axis, rotated by the viewpoint's current orientation.
+# Stereo pair: two RealSense D455s on base_link giving real depth via two eye textures (not a
+# mirrored monocular feed), fixed at _HEAD_VIEWPOINT_HOME_POS/QUAT. Head tracking is off --
+# head_pose is still received but unused for positioning; see _HEAD_TRACKING_LIVE.
+# rsd455 local axes: +X = boresight, +Z = up, so -Y = right (the IPD offset axis).
 _RSD455_USD_URL = (
     "https://omniverse-content-production.s3-us-west-2.amazonaws.com/"
     "Assets/Isaac/5.1/Isaac/Sensors/Intel/RealSense/rsd455.usd"
 )
-# Forward-facing head cam per explicit request: aiming precisely at the
-# rest-pose fingertips (previous version) forced a ~92deg near-vertical
-# pitch, because the zero-pose hands droop well below shoulder height --
-# that's not what a head cam should track anyway, since during actual
-# teleop the hands move wherever the user directs them, not the idle rest
-# spot. This is a clean, level, mild ~25deg downward glance facing +X (the
-# confirmed "front" direction from earlier live testing: the ego_cam-matched
-# orientation was reported facing left, a 90deg turn right landed on +X).
-# Built directly from forward/up vectors (not by composing incremental
-# rotations, which likely introduced unintended roll in an earlier attempt)
-# -- verified the up vector has zero roll component. Orientation confirmed
-# correct live; position then nudged 5mm along the gaze direction
-# (head_pos + 0.005*forward) since the camera mount stand itself was
-# blocking the bottom of frame at the original position.
-# Reverted per live feedback ("the other side of the table" viewpoint wasn't working) -- back to
-# the original near-side view. The far-side/180deg-yaw attempt is preserved here, commented, in
-# case it's worth revisiting: pos=(0.5094397380234622, 0.04, 0.23809789390566405),
-# quat=(0.0, -0.42261826174069944, 0.0, 0.9063077870366499) (old pitch quat + 180deg yaw about Z,
-# position mirrored across the box/container's X=0.3).
-_HEAD_VIEWPOINT_HOME_POS = (0.0905602619765378, 0.04, 0.23809789390566405)  # translate xyz, relative to base_link -- nudged along the gaze direction (5,10,20,20,10,20,15,5,+10mm) and left (20,20mm) per live feedback
-_HEAD_VIEWPOINT_HOME_QUAT = (0.9063077870366499, 0.0, 0.42261826174069944, 0.0)  # ~50deg downward pitch, facing +X, no roll (was ~40deg, tilted 10deg more/downward per live feedback)
+# Head cam pose, relative to base_link: a level downward glance facing +X (the confirmed
+# "front"). Built from forward/up vectors rather than composed rotations, which introduced roll
+# in an earlier attempt. Aiming it at the rest-pose fingertips instead was tried and is wrong --
+# it forces a ~92deg near-vertical pitch, since the zero-pose hands droop below shoulder height.
+# A far-side (180deg yaw) viewpoint was also tried and rejected.
+_HEAD_VIEWPOINT_HOME_POS = (0.0905602619765378, 0.04, 0.23809789390566405)
+_HEAD_VIEWPOINT_HOME_QUAT = (0.9063077870366499, 0.0, 0.42261826174069944, 0.0)  # ~50deg pitch, no roll
 _EYE_LOCAL_RIGHT = torch.tensor([0.0, -1.0, 0.0])
 _EYE_IPD_M = 0.063
 _EYE_LOCAL_FORWARD = torch.tensor([1.0, 0.0, 0.0])
-# ego_cam is pinned to the left eye's exact pose (see the per-frame
-# _set_mount_pose call below) but nudged forward by this much along the
-# gaze direction -- exact co-location put its lens inside the RSD455
-# payload's own visible housing mesh, blacking out half the frame. Retune
-# live if the housing is still in view or the vantage drifts too far from
-# the actual left-eye position.
-_EGO_CAM_FORWARD_OFFSET_M = 0.25  # nudged back slightly from 0.3 per live feedback, now that the
-# real bug (clippingRange) is fixed and this value is no longer chasing a phantom position issue.
-# User identified the actual fix live: a straight +Z (base-frame, not gaze-relative) offset --
-# the forward-offset direction alone wasn't enough because the camera needed to clear something
-# above/below it, not in front of it.
+# ego_cam is pinned to the left eye's pose but nudged clear of the RSD455 housing mesh, which
+# otherwise blacks out half the frame: forward along the gaze, plus a straight base-frame +Z
+# (the forward offset alone was not enough -- it needed to clear geometry above it, not ahead).
+_EGO_CAM_FORWARD_OFFSET_M = 0.25
 _EGO_CAM_UP_OFFSET_M = 0.1
-# Debug-only: when True, skips the per-frame _set_mount_pose call on ego_cam
-# so a manual GUI drag/rotate sticks instead of being overwritten every
-# frame -- set back to False once done manually probing for a good pose,
-# since with this on ego_cam no longer follows the head viewpoint at all.
-_EGO_CAM_FREE_MOVE_DEBUG = False  # real bug found (clippingRange), no longer needed
-# ego_cam is a bare USD Camera prim (standard convention: looks down local
-# -Z, up +Y), NOT the rsd455 payload (local +X=forward, +Z=up, -Y=right,
-# established earlier this session). head_orient_b/_HEAD_VIEWPOINT_HOME_QUAT
-# are calibrated for the rsd455 convention, so applying them to ego_cam
-# directly points it the wrong way even though the quaternion *value* is
-# identical to the left eye's. This is the basis-change rotation (USD-camera
-# local axes -> rsd455 local axes) that corrects for it -- verified
-# numerically: maps (0,0,-1)->(1,0,0), (0,1,0)->(0,0,1), (1,0,0)->(0,-1,0).
-# Compose as quat_mul(head_orient_b, this), NOT the other way around.
+# When True, ego_cam is never repositioned, so a manual GUI drag sticks. Probing aid only.
+_EGO_CAM_FREE_MOVE_DEBUG = False
+
+# Head tracking is not live -- head_viewpoint_pos_b/quat_b are set once at startup and never
+# mutated (see run_simulator). With this False the camera mounts are positioned once before the
+# sim loop instead of re-authored every physics step; flip to True the moment the head pose is
+# actually driven from the Quest, and per-step tracking resumes with no other change.
+_HEAD_TRACKING_LIVE = False
+# ego_cam is a bare USD Camera prim (looks down local -Z, up +Y), NOT an rsd455 payload
+# (+X forward, +Z up, -Y right). _HEAD_VIEWPOINT_HOME_QUAT is calibrated for the rsd455
+# convention, so it aims ego_cam wrong despite being the identical quaternion value. This is the
+# basis change between them -- compose as quat_mul(head_orient_b, this), not the reverse.
 _EGO_CAM_CONVENTION_FIX_QUAT = (-0.5, -0.5, 0.5, 0.5)
-# Extra downward pitch applied to ego_cam ONLY, on top of the left-eye-
-# matching baseline (left eye POV keeps its own orientation, untouched).
-# Composed as the OUTERMOST rotation (quat_mul(this, head_orient_b *
-# convention_fix)) -- verified numerically before first applying: baseline
-# pitch is exactly 50deg (matches _HEAD_VIEWPOINT_HOME_QUAT), same
-# base-frame-Y-axis convention (positive sin term = downward). Net +20deg
-# from baseline (70deg total pitch) -- went 50->60->70 across two rounds,
-# corrected back down to 60 per live feedback ("wrong to orient it down"),
-# then +10 more per live feedback (back up to 70).
+# Extra +20deg downward pitch on ego_cam only (70deg total); the eye views keep their own
+# orientation. Applied as the OUTERMOST rotation: quat_mul(this, head_orient * convention_fix).
 _EGO_CAM_EXTRA_TILT_QUAT = (0.984807753012208, 0.0, 0.17364817766693033, 0.0)
 # Sub-path to the actual renderable Camera prim inside the rsd455 payload --
 # same as the SO101 vial task's camera_external_D455 (task_env_cfg.py).
 _RSD455_CAMERA_SUBPATH = "rsd455/RSD455/Camera_OmniVision_OV9782_Right"
-# Widen the RSD455's baked-in FOV (~90.5deg horizontal by default, measured
-# live: focalLength=1.93 at horizontalAperture=3.896) to ~120deg -- the head
-# is too close to the arm to see its full range of motion by moving the
-# camera further back (the stand/mount geometry blocks the view first), so
-# widen the lens instead. focalLength solved from the standard
-# fov = 2*atan(aperture / (2*focalLength)) relation, aperture unchanged.
+# Widen the RSD455's baked-in ~90.5deg FOV to ~120deg. The head is too close to the arm to see
+# its full range by pulling the camera back (stand geometry blocks the view first), so widen the
+# lens instead. Solved from fov = 2*atan(aperture / (2*focalLength)), aperture unchanged.
 _RSD455_WIDENED_FOCAL_LENGTH = 1.1246782979523935  # ~120deg horizontal FOV
 
+# Rubber-on-plastic-ish grip friction, applied to both the box and the gripper fingers so the
+# effective coefficient is the same whichever way PhysX combines the two materials.
 _BOX_STATIC_FRICTION = 1.5
 _BOX_DYNAMIC_FRICTION = 1.2
-# Applied to the gripper fingers too, not just the box -- friction_combine_mode="max" on the box
-# alone SHOULD make PhysX use the higher of the two materials regardless of what the finger
-# material is, but that depends on trusting PhysX's combine-mode priority resolution between two
-# different materials exactly as documented. Setting high friction on both sides directly is more
-# robust: the effective friction is high no matter which material's combine rule actually wins.
 _GRIPPER_STATIC_FRICTION = 1.5
 _GRIPPER_DYNAMIC_FRICTION = 1.2
 
 
-def _apply_friction_material(
-    prim_path: str, static_friction: float, dynamic_friction: float, material_name: str = "GripMaterial",
+def _set_rigid_body_friction(
+    asset, static_friction: float, dynamic_friction: float, body_names: tuple[str, ...] | None = None,
 ) -> None:
-    """Binds a high-friction PhysX rigid-body material to a prim's collision geometry, applied
-    directly via USD API at runtime (UsdFileCfg doesn't accept physics_material as a constructor
-    kwarg the way CuboidCfg does -- confirmed live, and the gripper fingers are part of the
-    robot's own USD asset, not a separate spawn config at all). Originally added for the box,
-    which was relying on PhysX's own default (0.5/0.5 friction) and kept dropping after being
-    picked up, per live feedback; now also applied to the gripper finger links themselves (see
-    _GRIPPER_STATIC_FRICTION's comment for why). friction_combine_mode="max" (not PhysX's default
-    "average") means the effective friction between any two of these materials is the HIGHER one,
-    not diluted."""
-    stage = omni.usd.get_context().get_stage()
-    material_path = f"{prim_path}/{material_name}"
-    material = UsdShade.Material.Define(stage, material_path)
-    material_prim = material.GetPrim()
+    """Set static/dynamic friction on PhysX's material buffer via root_physx_view.
 
-    usd_physics_material_api = UsdPhysics.MaterialAPI.Apply(material_prim)
-    usd_physics_material_api.CreateStaticFrictionAttr().Set(static_friction)
-    usd_physics_material_api.CreateDynamicFrictionAttr().Set(dynamic_friction)
-    usd_physics_material_api.CreateRestitutionAttr().Set(0.0)
+    MUST go through get/set_material_properties(). root_physx_view fills its material buffer at
+    cook time (sim.reset()) and never re-reads USD afterwards, so binding a UsdShade.Material at
+    runtime silently does nothing -- that cost weeks of "friction has no effect" debugging. Same
+    mechanism isaaclab.envs.mdp.events.randomize_rigid_body_material uses.
 
-    physx_material_api = PhysxSchema.PhysxMaterialAPI.Apply(material_prim)
-    physx_material_api.CreateFrictionCombineModeAttr().Set("max")
+    body_names=None writes every shape (fine for the single-body box); naming links restricts the
+    write so the rest of the articulation keeps its own material."""
+    view = asset.root_physx_view
+    materials = view.get_material_properties()  # (num_instances, max_shapes, 3)
+    env_ids = torch.arange(materials.shape[0])
+    touched_shapes = 0
 
-    target_prim = stage.GetPrimAtPath(prim_path)
-    if not target_prim.IsValid():
-        print(f"[Quest] WARNING: could not apply friction -- {prim_path} not valid", flush=True)
-        return
-    UsdShade.MaterialBindingAPI.Apply(target_prim).Bind(
-        material, bindingStrength=UsdShade.Tokens.strongerThanDescendants, materialPurpose="physics",
-    )
-    print(f"[Quest] Applied grip-friction material to {prim_path} "
-          f"(static={static_friction}, dynamic={dynamic_friction}, combine=max)", flush=True)
+    if body_names is None:
+        materials[:, :, 0] = static_friction
+        materials[:, :, 1] = dynamic_friction
+        touched_shapes = materials.shape[1]
+    else:
+        # The shapes dimension is flattened across ALL bodies in link_paths order, and
+        # Articulation exposes no per-body shape-range lookup, so each body's slice has to be
+        # found by summing shape counts. Same workaround randomize_rigid_body_material uses.
+        shape_start = 0
+        for link_path in view.link_paths[0]:
+            link_view = asset._physics_sim_view.create_rigid_body_view(link_path)  # noqa: SLF001
+            num_shapes = link_view.max_shapes
+            if link_path.split("/")[-1] in body_names:
+                materials[:, shape_start:shape_start + num_shapes, 0] = static_friction
+                materials[:, shape_start:shape_start + num_shapes, 1] = dynamic_friction
+                touched_shapes += num_shapes
+            shape_start += num_shapes
+
+    view.set_material_properties(materials, env_ids)
+
+    # Read back rather than trust the write -- the old USD path failed silently for weeks.
+    # Zero matched shapes means body_names does not match link_paths naming.
+    readback = view.get_material_properties()
+    print(f"[Quest][friction] {asset.cfg.prim_path}: wrote {touched_shapes}/{materials.shape[1]} shapes "
+          f"-> static={static_friction}, dynamic={dynamic_friction} | "
+          f"PhysX now reports static={readback[0, :, 0].tolist()} dynamic={readback[0, :, 1].tolist()}", flush=True)
+    if touched_shapes == 0:
+        print(f"[Quest][friction] WARNING: matched NO shapes for {body_names}. "
+              f"Actual link_paths: {[p.split('/')[-1] for p in view.link_paths[0]]}", flush=True)
 
 
 def _widen_camera_fov(camera_prim_path: str, focal_length: float) -> None:
-    """Override a (possibly not-yet-loaded) Camera prim's focalLength. The
-    rsd455 payload can take a few frames to compose after AddPayload(), so
-    this retries for a short while rather than assuming the prim is already
-    valid -- setting the attribute before the payload loads would silently
-    no-op (or fail) instead of taking effect."""
+    """Override a Camera prim's focalLength, waiting for it to load first.
+
+    The rsd455 payload takes a few frames to compose after AddPayload(); writing before it loads
+    silently no-ops rather than failing, hence the retry loop."""
     stage = omni.usd.get_context().get_stage()
     app = omni.kit.app.get_app_interface()
     for _ in range(100):
@@ -574,12 +414,9 @@ def _widen_camera_fov(camera_prim_path: str, focal_length: float) -> None:
 
 
 def _read_camera_fov(camera_prim_path: str) -> tuple[float, float, float] | None:
-    """Read a (possibly not-yet-loaded) Camera prim's focalLength/
-    horizontal/verticalAperture -- same load-wait pattern as
-    _widen_camera_fov, but reading instead of writing. Used to copy the
-    RSD455's real, native (unwidened) FOV onto ego_cam so recorded frames
-    match what an actual D455 would see -- read this BEFORE
-    _widen_camera_fov changes the value for the teleop display."""
+    """Read a Camera prim's focalLength/apertures; same load-wait as _widen_camera_fov.
+
+    Call BEFORE _widen_camera_fov, to capture the RSD455's native FOV before it is overwritten."""
     stage = omni.usd.get_context().get_stage()
     app = omni.kit.app.get_app_interface()
     for _ in range(100):
@@ -597,9 +434,8 @@ def _read_camera_fov(camera_prim_path: str) -> tuple[float, float, float] | None
 
 
 def _set_camera_fov(camera_prim_path: str, focal_length: float, h_aperture: float, v_aperture: float) -> None:
-    """Set a Camera prim's focalLength/horizontal/verticalAperture directly
-    (prim is assumed already valid/loaded -- ego_cam is baked into the USD,
-    not a late-composing payload like rsd455)."""
+    """Set a Camera prim's focalLength/apertures. No load-wait -- ego_cam is baked into the USD,
+    unlike the late-composing rsd455 payload."""
     stage = omni.usd.get_context().get_stage()
     cam = UsdGeom.Camera(stage.GetPrimAtPath(camera_prim_path))
     cam.GetFocalLengthAttr().Set(focal_length)
@@ -608,17 +444,14 @@ def _set_camera_fov(camera_prim_path: str, focal_length: float, h_aperture: floa
 
 
 def _project_world_point_to_uv(camera_prim: Usd.Prim, world_xyz: tuple) -> tuple[float, float, bool]:
-    """Projects a world-space point into the given USD Camera prim's normalized image UV (0..1,
-    top-left origin -- matching how the captured PNG's rows are addressed), using the camera's
-    REAL resolved focalLength/aperture/world-transform (UsdGeom.Camera.GetCamera() composes the
-    full prim hierarchy, including the rsd455 payload's internal camera-to-mount offset -- no
-    need to know that offset here). This is the same camera capture_viewport_to_file renders
-    pov_left.png/pov_right.png from, so a point projected this way lands at the same pixel it
-    appears at in the image, unlike drawing at the viewer's own raw WebXR hand-tracking position
-    (which is a different coordinate space entirely -- see live feedback: "the blue ball is not
-    at the same position it usually is... it should be like before").
-    Returns (u, v, visible); visible is False when the point is behind the camera or outside its
-    frustum, in which case the caller should skip drawing rather than trust u/v."""
+    """World point -> that camera's normalized image UV (0..1, top-left origin).
+
+    Uses the camera's REAL resolved transform: GetCamera() composes the full prim hierarchy,
+    including the rsd455 payload's internal camera-to-mount offset, so a projected point lands on
+    the pixel it actually occupies in pov_*.jpg. Drawing at the browser's own WebXR hand position
+    instead is a different coordinate space, and put the marker at the operator's physical wrist.
+
+    Returns (u, v, visible); skip drawing when visible is False (behind camera / outside frustum)."""
     cam = UsdGeom.Camera(camera_prim).GetCamera(Usd.TimeCode.Default())
     view = cam.frustum.ComputeViewMatrix()
     proj = cam.frustum.ComputeProjectionMatrix()
@@ -634,10 +467,9 @@ def _project_world_point_to_uv(camera_prim: Usd.Prim, world_xyz: tuple) -> tuple
 
 
 def _attach_rsd455_camera(parent_prim_path: str, mount_name: str, translate: tuple, orient_wxyz: tuple) -> str:
-    """Attach an rsd455 payload as a `mount_name` child Xform of any prim.
-    Returns the mount prim path. Safe to call _set_mount_pose(..., create=
-    False) on the returned path repeatedly afterward -- see that function's
-    docstring for why create=True is only used once, here."""
+    """Attach an rsd455 payload as a `mount_name` child Xform. Returns the mount prim path.
+
+    create=True is used only here; see _set_mount_pose for why it must not be repeated."""
     mount_path = f"{parent_prim_path}/{mount_name}"
     _set_mount_pose(mount_path, translate, orient_wxyz, create=True)
     stage = omni.usd.get_context().get_stage()
@@ -647,15 +479,11 @@ def _attach_rsd455_camera(parent_prim_path: str, mount_name: str, translate: tup
 
 
 def _set_mount_pose(mount_path: str, translate: tuple, orient_wxyz: tuple, create: bool = False) -> None:
-    """Set (or create) a camera mount Xform's translate/orient. Called every
-    frame for the stereo eye mounts to follow head tracking.
+    """Set (or create) a camera mount Xform's translate/orient.
 
-    NOTE: AddTranslateOp()/AddOrientOp() are NOT idempotent in this USD
-    version -- calling them again on a prim that already has that op raises
-    'xformOp already exists in xformOpOrder' (confirmed live, this used to
-    assume otherwise and crashed on the second frame). So ops are added ONCE
-    at create=True, and every subsequent call fetches the existing ops via
-    GetOrderedXformOps() and .Set()s them directly instead."""
+    AddTranslateOp()/AddOrientOp() are NOT idempotent in this USD version -- re-adding raises
+    'xformOp already exists in xformOpOrder'. So ops are added once at create=True; later calls
+    fetch the existing ops and .Set() them."""
     stage = omni.usd.get_context().get_stage()
     if create:
         prim = UsdGeom.Xform.Define(stage, mount_path)
@@ -675,66 +503,124 @@ def _set_mount_pose(mount_path: str, translate: tuple, orient_wxyz: tuple, creat
     orient_op.Set(Gf.Quatd(w, Gf.Vec3d(x, y, z)))
 
 
-def _open_pov_viewport(camera_prim_path: str, window_name: str, width: int = 480, height: int = 360):
-    """Best-effort: open a Kit viewport window locked to a camera prim, for a
-    live POV feed on the host monitor AND the source for the periodic
-    capture_viewport_to_file calls that feed the Quest browser (see
-    _POV_FRAME_PATH_LEFT/RIGHT in run_simulator). Returns the viewport_api or
-    None if the viewport extension isn't available in this Kit experience --
-    a missing viewport degrades the feed, it doesn't crash teleop.
+def _open_pov_camera(camera_prim_path: str, label: str, width: int = 480, height: int = 360):
+    """Wrap an existing camera prim as a standalone Camera sensor, read via .data.output["rgb"].
 
-    Default resolution lowered from 640x480 (per live feedback: recording
-    still felt slow on this GPU) -- these viewport windows are NOT what
-    recording reads (that's the separate ego_cam/wrist_cam CameraCfg sensor
-    tensors, at their own fixed resolution), so shrinking them only affects
-    the headset's own eye-texture visual fidelity and the host-side preview
-    windows, never recorded data quality."""
+    REPLACES a Kit ViewportWindow + capture_viewport_to_file approach that cost 41-68ms per pair
+    and silently ignored the requested width/height (viewport window size, render-texture size
+    and file-capture resolution are three different properties). CameraCfg width/height are
+    always honoured. Capture dropped to ~5ms.
+
+    Caller must .update(dt) before each read -- this is not a scene entity, so scene.update()
+    never ticks it (the eye mounts are created at runtime, after scene construction).
+
+    The _initialize_callback call is not optional: SensorBase allocates its internal state only
+    in _initialize_impl(), invoked solely by a timeline PLAY-event callback. Sensors built before
+    sim.reset() get that for free; this one cannot, since its prim does not exist until
+    _attach_rsd455_camera runs. Firing the callback directly does what the missed event would."""
     try:
-        from omni.kit.viewport.utility import create_viewport_window
-
-        viewport_window = create_viewport_window(window_name, width=width, height=height)
-        viewport_window.viewport_api.camera_path = camera_prim_path
-        return viewport_window.viewport_api
+        camera = Camera(CameraCfg(
+            prim_path=camera_prim_path, spawn=None, height=height, width=width,
+            update_period=0.0, data_types=["rgb"],
+        ))
+        camera._initialize_callback(None)  # noqa: SLF001 -- see docstring
+        print(f"[Quest] {label} camera ready at {width}x{height} ({camera_prim_path})", flush=True)
+        return camera
     except Exception as exc:  # noqa: BLE001 -- best-effort convenience feature
-        print(f"[Quest] Could not open POV viewport '{window_name}': {exc}", flush=True)
+        print(f"[Quest] Could not create POV camera '{label}': {exc}", flush=True)
         return None
 
 
-# Frames the eye viewports get captured to, for the Quest browser to fetch as
-# payload.head_pose-tracked stereo textures (see index.html's
-# leftEyeTexture/rightEyeTexture). Live in the WebXR static dir
-# (autonomy/teleop/quest_teleop/static/) so webxr_server.py's existing
-# SimpleHTTPRequestHandler serves them as plain static files -- no server
-# code changes needed. Captured every _POV_CAPTURE_EVERY_N_STEPS sim steps,
-# aligned with render_interval below (see main()'s SimulationCfg) so every
-# capture lands on an actually-rendered frame instead of re-capturing a
-# stale buffer -- capturing more often than the app renders wastes I/O for
-# no new pixels. At 100Hz physics / render_interval=3 that's ~33Hz -- raised
-# back from render_interval=5 (~20Hz) once the REAL headset-fps bottleneck
-# was found and fixed: index.html's browser-side POV poll interval was
-# hardcoded to 200ms (5fps), a hard cap totally independent of this backend
-# rate -- laptop-side render was already fine, the headset specifically was
-# never going to see more than 5fps no matter how fast the sim rendered.
-# The camera mounts themselves are repositioned every physics step
-# regardless (cheap USD attribute writes) so head tracking stays responsive
-# even between rendered frames.
+def _save_frame_atomic(frame, file_path, quality: int = 80) -> None:
+    """Encode an HxWx3 uint8 array to file_path via a temp file + atomic rename.
+
+    Three details, each of which caused a real failure:
+      - rename: writing straight to the served path lets a poll fetch a half-written file.
+        os.replace is atomic, so a reader sees the old frame or the new one, never a torn one.
+      - explicit format=: PIL infers the encoder from the extension and cannot map ".tmp".
+      - PID in the temp name: two live sim instances otherwise race on one path, and the loser
+        dies on a missing temp file.
+    Nothing propagates -- a filesystem error must degrade the preview, never kill teleop."""
+    from PIL import Image
+
+    file_path = Path(file_path)
+    tmp_path = file_path.with_name(f"{file_path.name}.{os.getpid()}.tmp")
+    fmt = "JPEG" if file_path.suffix.lower() in (".jpg", ".jpeg") else "PNG"
+    try:
+        Image.fromarray(frame).save(str(tmp_path), format=fmt, quality=quality)
+        os.replace(tmp_path, file_path)
+    except Exception as exc:  # noqa: BLE001 -- see docstring: never kill teleop over a frame
+        print(f"[Quest] WARNING: could not write {file_path.name}: {exc}", flush=True)
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def _camera_rgb_frame(camera):
+    """HxWx3 uint8 RGB from a Camera sensor's output tensor, alpha dropped if present."""
+    frame = camera.data.output["rgb"][0].detach().cpu().numpy()
+    if frame.shape[-1] > 3:
+        frame = frame[..., :3]
+    return frame.astype("uint8")
+
+
+def _write_pov_jpeg(camera, file_path) -> None:
+    """Write a standalone Camera's current RGB frame to file_path as an atomically-replaced
+    JPEG -- same tensor-read approach as _write_wrist_cam_hud_frame, for the two eye cameras."""
+    _save_frame_atomic(_camera_rgb_frame(camera), file_path)
+
+
+# Eye frames for the headset. They live in the WebXR static dir so webxr_server.py's stock
+# SimpleHTTPRequestHandler serves them with no server changes. Written every
+# _POV_CAPTURE_EVERY_N_STEPS steps -- the same constant that gates `render=`, so a capture
+# always lands on freshly-rendered pixels. Sim-time render rate is 1/(n*dt); the headset sees
+# that scaled by RTF, which is why the fps diagnostic prints both.
 _POV_STATIC_DIR = _SIM_DIR.parent / "teleop" / "quest_teleop" / "static"
-_POV_FRAME_PATH_LEFT = _POV_STATIC_DIR / "pov_left.png"
-_POV_FRAME_PATH_RIGHT = _POV_STATIC_DIR / "pov_right.png"
-_POV_CAPTURE_EVERY_N_STEPS = 3
-# Small wrist_cam HUD overlay in the headset, per live feedback. Written directly from the
-# existing wrist_cam CameraCfg SENSOR tensor (the same one recording reads) rather than
-# capture_viewport_to_file + a dedicated viewport window -- that window was deliberately removed
-# earlier for render performance (see the removed _open_pov_viewport("Wrist Cam Preview") call),
-# so this avoids re-adding that cost while still getting the image into the headset.
-_WRIST_CAM_FRAME_PATH = _POV_STATIC_DIR / "wrist_cam.png"
-# IK-target marker screen position, per eye, projected through the REAL eye cameras (see
-# _project_world_point_to_uv) -- polled by index.html alongside pov_left.png/pov_right.png so it
-# can draw the marker at the position it actually appears in the rendered image, instead of at
-# the browser's own raw WebXR hand-tracking position (a different coordinate space -- that's what
-# made the client-side marker appear at the physical wrist instead of "in front of, teleoped by"
-# the operator per live feedback). Written with a temp-file-then-rename so the browser never
-# reads a half-written JSON file.
+_POV_FRAME_PATH_LEFT = _POV_STATIC_DIR / "pov_left.jpg"
+_POV_FRAME_PATH_RIGHT = _POV_STATIC_DIR / "pov_right.jpg"
+# THE render/capture cadence -- single source of truth. main()'s SimulationCfg reads this, and
+# so does the `render=` gate in run_simulator's loop, so there is nothing to keep in sync by hand.
+# Raising it trades frame rate for real-time factor: fps = 1/(n*_PHYSICS_DT) once RTF hits 1.0,
+# while each extra physics step is far cheaper than the render it defers. See main() for the
+# measured cost model and the fps/RTF table.
+_POV_CAPTURE_EVERY_N_STEPS = 5
+_PHYSICS_DT = 0.02  # seconds of simulated time per physics step (50Hz)
+# Feeds Kit's rendering_dt (= _PHYSICS_DT * this). This is NOT the render gate -- the gate is
+# _POV_CAPTURE_EVERY_N_STEPS, applied via sim.step(render=...) in run_simulator.
+#
+# Do NOT "tidy" this by setting it equal to the gate. It was tried: raising it 2 -> 5 to match a
+# gate of 5 took each render from ~36ms to ~97ms and dropped RTF from ~1.0 to ~0.7. rendering_dt
+# is a shading input -- RTX uses it for temporal accumulation and the motion-blur shutter -- so a
+# longer frame delta costs real GPU time. It only needs to stay small; it does not need to
+# describe the true interval between rendered frames for a preview feed.
+_KIT_RENDERING_INTERVAL = 2
+
+# Wall-clock pacer. Without it the sim advances as fast as it computes, so whenever there is
+# spare headroom RTF drifts above 1.0 and the arm moves FASTER than the operator's hand. Worse,
+# it oscillates around 1.0 as load varies, and a fluctuating time distortion is harder to
+# compensate for than a constant one. With this on, RTF is capped at 1.0 and surplus headroom
+# becomes slack instead of speed-up. It can never make the sim slower than it already is -- with
+# no headroom it sleeps zero and the loop behaves exactly as before.
+_PACE_TO_REALTIME = True
+
+# Deficit the pacer will carry, in render cycles. Work here is bursty by construction -- the
+# render step costs ~40ms against a 20ms budget while the other steps cost ~3ms -- so the pacer
+# MUST carry that deficit across the cycle and repay it on the cheap steps. A pacer that reset
+# its deadline on every overrun would sleep on the cheap steps, never recover the render
+# overrun, and end up SLOWER than no pacer at all. Debt past this bound is written off instead
+# of sprinted away: after a real stall, catching up would mean a burst of RTF >> 1.0, which is
+# exactly what this exists to prevent.
+_PACER_MAX_DEBT_CYCLES = 1.0
+# [Quest][axisdbg]: two prints per physics step while a hand moves (~200 stdout writes/sec
+# through the docker pipe -- costs real loop time). On only when re-deriving the axis mapping.
+_SHOW_AXIS_DEBUG = False
+# wrist_cam HUD overlay, written from the existing sensor tensor (the one recording reads)
+# rather than a second viewport window, which would re-add render cost that was removed.
+_WRIST_CAM_FRAME_PATH = _POV_STATIC_DIR / "wrist_cam.jpg"
+# Per-eye IK-target marker screen position, projected through the REAL eye cameras so the
+# browser draws it where it actually appears in the image. Using the browser's own WebXR hand
+# position instead put the marker at the operator's physical wrist. Temp-file-then-renamed.
 _MARKER_UV_PATH = _POV_STATIC_DIR / "marker_uv.json"
 
 
@@ -755,37 +641,36 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
         prim_path="/World/Light",
         spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75)),
     )
-    # armWithStand's stand is much taller than bimanual's -- its bottom sits
-    # ~1.1997m below the robot's own origin (base_link). The surface the
-    # robot should rest on is the TABLE's top (z=0, see the "table" asset
-    # below: pos.z=-_TABLE_THICKNESS/2, thickness=_TABLE_THICKNESS -> spans
-    # -0.05 to 0), NOT the separate collision-safety ground plane far below
-    # at z=-1.05 -- lifting to match the ground plane (an earlier mistake)
-    # left the stand still buried under the table. Lift by
-    # (table_top_z - stand_bottom_z) = 0 - (-1.1997) = 1.1997m, same value
-    # used for the arm_usd/armWithStand.usd scene's table-rest fix.
+    # The stand's bottom sits 1.1997m below base_link, so lift by that to rest it on the TABLE
+    # top (z=0) -- not on the collision-safety ground plane far below at z=-1.05, which leaves
+    # the stand buried under the table.
     robot = ARM_V2_CFG.replace(
         prim_path="{ENV_REGEX_NS}/Robot",
         init_state=ARM_V2_CFG.init_state.replace(pos=(0.0, 0.0, 1.1997)),
+        # Self-collisions OFF (ARM_V2_CFG defaults them on). THIS IS WHAT MAKES GRASPING WORK.
+        # armWithStand is a CAD export, so each finger's collider is a convex hull that fills the
+        # concave gripping face and bulges into the jaw gap. With self-collisions on, the two
+        # hulls push against each other and hold the jaw wider than the box -- only one finger
+        # ever touches it, so friction was irrelevant at every value from 0.5 to 220.
+        # Re-enable only once the finger colliders are replaced with proper primitives.
+        spawn=ARM_V2_CFG.spawn.replace(
+            articulation_props=ARM_V2_CFG.spawn.articulation_props.replace(
+                enabled_self_collisions=False,
+            ),
+        ),
     )
 
-    # Data-collection cameras -- NOT the teleop headset display (that's the
-    # separate RSD455 stereo pair attached at runtime below). These wrap the
-    # Camera prims already baked into armWithStand.usd's sensor layer
-    # (spawn=None -- point at the existing prim, don't create a new one) so
-    # recording code can read scene["ego_cam"]/scene["wrist_cam"].data.output
-    # ["rgb"] each frame. wrist_cam is on link6l, the "right" arm's wrist
-    # per this file's naming (RIGHT_EE_BODY in armWithStand_v2_cfg.py).
+    # Data-collection cameras, NOT the headset display (that's the RSD455 pair attached at
+    # runtime). spawn=None points at prims already baked into armWithStand.usd's sensor layer.
+    # wrist_cam is on link6l -- the "right" arm's wrist in this file's naming.
     ego_cam = CameraCfg(
         prim_path="{ENV_REGEX_NS}/Robot/base_link/ego_cam",
         spawn=None,
         height=480,
         width=640,
-        update_period=0.0,  # render_interval=3 (SimulationCfg) already throttles the app's overall
-        # render rate to ~33Hz -- an ADDITIONAL per-camera update_period on top of that was redundant
-        # and, per live feedback, caused ego_cam's feed to render a stale/frozen scene state (table
-        # showing its old orientation) while the live main viewport was correct -- reverted to 0.0
-        # (render every time the app renders, i.e. effectively ~33Hz via render_interval alone).
+        update_period=0.0,  # Refresh whenever the app renders; the `render=` gate already
+        # throttles that. A per-camera update_period on top froze this feed on a stale scene.
+        # NB the throttling is that gate, NOT SimulationCfg.render_interval -- see main().
         data_types=["rgb"],
     )
     wrist_cam = CameraCfg(
@@ -793,11 +678,9 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
         spawn=None,
         height=480,
         width=640,
-        update_period=0.0,  # render_interval=3 (SimulationCfg) already throttles the app's overall
-        # render rate to ~33Hz -- an ADDITIONAL per-camera update_period on top of that was redundant
-        # and, per live feedback, caused ego_cam's feed to render a stale/frozen scene state (table
-        # showing its old orientation) while the live main viewport was correct -- reverted to 0.0
-        # (render every time the app renders, i.e. effectively ~33Hz via render_interval alone).
+        update_period=0.0,  # Refresh whenever the app renders; the `render=` gate already
+        # throttles that. A per-camera update_period on top froze this feed on a stale scene.
+        # NB the throttling is that gate, NOT SimulationCfg.render_interval -- see main().
         data_types=["rgb"],
     )
 
@@ -972,13 +855,11 @@ def _clamp_step(target: torch.Tensor, previous: torch.Tensor, delta_max) -> torc
 def _adaptive_dls_lambda(
     jacobian: torch.Tensor, lambda_min: float, lambda_max: float, epsilon: float,
 ) -> tuple[float, float]:
-    """Chiaverini adaptive damping for DLS IK -- see _DLS_LAMBDA_MAX's comment for why. Uses the
-    SAME jacobian_b already computed in solve_and_apply, no extra IK-relevant computation.
-    manipulability = sqrt(det(J J^T)) -- the standard scalar measure of how far the current pose
-    is from a kinematic singularity (0 = exactly singular, larger = better-conditioned).
-    Continuous ramp (not a hard threshold switch) from lambda_min at/above epsilon to lambda_max
-    as manipulability -> 0, so damping changes smoothly frame-to-frame rather than jumping.
-    Returns (lambda_val, manipulability)."""
+    """Chiaverini adaptive damping for DLS IK. CURRENTLY UNCALLED -- see _DLS_LAMBDA_MAX.
+
+    manipulability = sqrt(det(J J^T)), the standard distance-from-singularity measure (0 =
+    singular). Ramps lambda continuously from lambda_min at/above epsilon toward lambda_max as
+    manipulability -> 0, so damping never jumps frame-to-frame. Returns (lambda, manipulability)."""
     jjt = jacobian @ jacobian.transpose(-2, -1)
     manipulability = torch.sqrt(torch.clamp(torch.linalg.det(jjt), min=0.0)).item()
     if manipulability >= epsilon:
@@ -989,18 +870,12 @@ def _adaptive_dls_lambda(
 
 
 class _OneEuroFilter:
-    """Adaptive low-pass filter for noisy human-input tracking data (Casiez, Roussel, Vogel,
-    "1 Euro Filter", CHI 2012) -- standard technique for exactly this problem in production VR/AR
-    systems (Kinect, VR controller hand tracking, etc.): smooths heavily when the signal is
-    nearly still (kills tracking jitter) but relaxes to almost no smoothing during fast motion
-    (adds ~no lag to real, deliberate movement) -- something a fixed-cutoff low-pass can't do,
-    since it has to pick one fixed tradeoff between jitter and lag.
+    """1 Euro Filter (Casiez et al., CHI 2012) on the RAW Quest wrist POSITION, before it
+    drives the IK target.
 
-    This filters the RAW Quest wrist position BEFORE it drives the IK target, complementing
-    _smooth_damp (which smooths the resulting joint COMMANDS after the IK solve). The two
-    address different noise sources -- tracking-hardware jitter vs. actuator/solve smoothness --
-    and using both together is standard practice, not redundant.
-    """
+    Smooths heavily when nearly still (kills tracking jitter) and relaxes during fast motion
+    (adds ~no lag to deliberate movement) -- a fixed-cutoff low-pass must pick one tradeoff.
+    Separate concern from _smooth_damp, which smooths joint COMMANDS after the solve."""
 
     def __init__(self, min_cutoff: float = 1.0, beta: float = 0.5, d_cutoff: float = 1.0):
         self.min_cutoff = min_cutoff  # Hz -- baseline smoothing strength when nearly still
@@ -1039,16 +914,11 @@ class _OneEuroFilter:
 
 
 class _OneEuroQuatFilter:
-    """SLERP-based One Euro filter for the raw Quest wrist ORIENTATION, addressing a gap
-    _OneEuroFilter never covered: that class only filters wrist POSITION -- raw wrist quaternion
-    jitter was going straight into the IK target every frame completely unfiltered, live-reported
-    as "wrist rotation isn't smooth at all." Same adaptive philosophy as _OneEuroFilter (heavy
-    smoothing when angular velocity is low, relaxes during fast rotation so deliberate motion
-    doesn't lag), but using quat_slerp instead of linear blending -- a naive per-component
-    low-pass on quaternion components would need renormalizing afterward and doesn't respect the
-    unit-quaternion manifold's geometry the way SLERP does. Confirmed as the standard technique
-    for exactly this problem: VR teleop systems (e.g. BEAVR) use complementary filtering +
-    quaternion SLERP blending for hand-orientation jitter specifically."""
+    """Same as _OneEuroFilter but for wrist ORIENTATION, blending via quat_slerp.
+
+    Orientation was unfiltered for a long time while position was not, which is what "wrist
+    rotation isn't smooth at all" turned out to be. SLERP rather than a per-component low-pass,
+    which would need renormalising and ignores the unit-quaternion manifold."""
 
     def __init__(self, min_cutoff: float = 1.0, beta: float = 0.5, d_cutoff: float = 1.0):
         self.min_cutoff = min_cutoff  # Hz -- baseline smoothing strength when nearly still
@@ -1092,18 +962,12 @@ def _smooth_damp(
     current: torch.Tensor, current_vel: torch.Tensor, target: torch.Tensor,
     smooth_time: float, max_speed: float, dt: float,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Critically-damped spring smoothing (the same algorithm as Unity's Mathf.SmoothDamp,
-    originally from Game Programming Gems 4's "Critically Damped Ease-In/Ease-Out Smoothing") --
-    replaces the hard position/velocity _clamp_step with a continuous, physically-motivated
-    filter. A hard clamp produces a bang-bang motion profile: full speed right up to the limit,
-    then an instantaneous plateau -- exactly the kind of jerky motion professional VR teleop
-    write-ups (ALOHA/GELLO-style analyses) flag as avoidable. This tracks both position AND
-    velocity state so deceleration happens smoothly as the target is approached, rather than
-    slamming into a rate ceiling every frame. max_speed is still enforced (same safety role
-    _JOINT_VELOCITY_MAX_RAD_S always had), just as a smooth cap via this filter instead of a
-    hard clamp.
-    Returns (new_position, new_velocity) -- caller is responsible for carrying new_velocity
-    into the next call (see _ArmDlsController.smoothed_vel)."""
+    """Critically-damped spring smoothing (Unity's Mathf.SmoothDamp; Game Programming Gems 4).
+
+    Tracks position AND velocity so deceleration eases in as the target is approached, instead of
+    the bang-bang profile a hard rate clamp produces. max_speed is still enforced, just smoothly.
+    Returns (new_position, new_velocity); the caller must carry the velocity into the next call.
+    Currently used only for the grippers -- the arm joints were reverted to unsmoothed IK."""
     smooth_time = max(1e-4, smooth_time)
     omega = 2.0 / smooth_time
 
@@ -1150,12 +1014,11 @@ def _ee_pose_in_base(robot, body_id: int):
 
 
 class _ArmDlsController:
-    """Bundles a DifferentialIKController with the per-arm state needed to
-    drive it from Quest wrist data: entity/jacobian indices, fingertip
-    geometry, homing state, and the current target. One instance per arm —
-    kept separate (rather than sharing one controller with num_envs=2) so
-    neither arm's homing/recalibration state can leak into the other's.
-    """
+    """A DifferentialIKController plus the per-arm state to drive it from Quest wrist data:
+    entity/jacobian indices, fingertip geometry, homing state, current target.
+
+    One instance per arm rather than one controller with num_envs=2, so neither arm's
+    homing/recalibration state can leak into the other's."""
 
     def __init__(self, scene, robot, device, arm_joint_names, ee_body, finger_tip_bodies, finger_distal_local,
                  lambda_val=_DLS_LAMBDA, lambda_max=_DLS_LAMBDA_MAX):
@@ -1174,9 +1037,7 @@ class _ArmDlsController:
         )
         self.controller = DifferentialIKController(cfg, num_envs=scene.num_envs, device=device)
         self.controller.reset(env_ids=torch.arange(scene.num_envs, device=device))
-        # lambda_val above is now the MINIMUM (floor) damping -- see _adaptive_dls_lambda, called
-        # each solve_and_apply to raise self.controller.cfg.ik_params["lambda_val"] toward
-        # lambda_max as manipulability drops near a singularity.
+        # Floor/ceiling for adaptive damping. Inert while _adaptive_dls_lambda is uncalled.
         self.lambda_min = lambda_val
         self.lambda_max = lambda_max
         self.last_manipulability: float | None = None
@@ -1186,25 +1047,16 @@ class _ArmDlsController:
         self.home_tip_pos_b: torch.Tensor | None = None
         self.home_tip_quat_b: torch.Tensor | None = None
         self.wrist_orient_offset: torch.Tensor | None = None
-        # Latest DLS solution in arm_joint_names order, radians -- read by the
-        # optional real-hardware bridge (see --publish-real-left-arm) to build
-        # ArmPose messages. Deliberately the RAW (pre-ramp) solution, not the
-        # trapezoidal-smoothed one applied to the sim robot below -- the real
-        # arm runs its own independent smoothing in joint_command_core.cpp,
-        # so double-smoothing here would just add extra bridge latency.
+        # Latest DLS solution (radians), read by the real-hardware bridge. Deliberately the RAW
+        # solution -- the real arm smooths independently in joint_command_core.cpp, so smoothing
+        # here too would only add bridge latency.
         self.last_joint_pos_des: torch.Tensor | None = None
-        # Smoothing state (see _smooth_damp) -- None until the first solve_and_apply call,
-        # which seeds smoothed_pos from the robot's actual current joint pose and
-        # smoothed_vel to zero.
+        # _smooth_damp state. Unused since the revert to unsmoothed IK output; kept for a retry.
         self.smoothed_pos: torch.Tensor | None = None
         self.smoothed_vel: torch.Tensor | None = None
-        # Filters the RAW Quest wrist position before it's used for homing/displacement -- see
-        # _OneEuroFilter's docstring for why this is separate from smoothed_pos/smoothed_vel
-        # above (input-tracking-jitter filtering vs. output-joint-command smoothing).
+        # Input-side jitter filters on the RAW Quest wrist pose, applied before homing and
+        # displacement. Distinct from the output smoothing above.
         self.pos_filter = _OneEuroFilter()
-        # Same idea, for wrist ORIENTATION -- see _OneEuroQuatFilter's docstring. This was the
-        # missing piece behind the live-reported "wrist rotation isn't smooth at all": position
-        # had input-side filtering, orientation never did.
         self.quat_filter = _OneEuroQuatFilter()
 
     def tip_pose_b(self, robot, root_pose_w):
@@ -1220,11 +1072,9 @@ class _ArmDlsController:
         jacobian_w = robot.root_physx_view.get_jacobians()[:, self.ee_jacobi_idx, :, self.arm_ids]
         jacobian_b = compute_tip_ik_jacobian(robot, jacobian_w, wrist_pos_b, tip_pos_b)
 
-        # Reverted to the OLD script's (run_quest_bimanual_teleop.py) exact IK behavior per
-        # explicit live feedback ("the inverse kinematic is cooked... make it identical to the
-        # old one") -- fixed lambda_val (no adaptive/manipulability-based damping), and snap
-        # directly to the DLS solution every frame (no output smoothing). dt is still accepted
-        # (kept for call-site/signature compatibility) but no longer used for anything.
+        # Fixed lambda and no output smoothing, matching run_quest_bimanual_teleop.py exactly --
+        # adaptive damping and _smooth_damp were both tried here and made the IK feel wrong.
+        # dt is unused, kept for signature compatibility.
         self.controller.set_command(torch.cat([target_pos_b, target_quat_b], dim=1))
         joint_pos = robot.data.joint_pos[:, self.arm_ids]
         joint_pos_des = self.controller.compute(tip_pos_b, tip_quat_b, jacobian_b, joint_pos)
@@ -1261,27 +1111,14 @@ def _init_recorder(device: str):
         else Path((cfg.get("record") or {}).get("root", "datasets/record_wato_arm_v2_push_box"))
     )
     cameras = {name: {"height": spec["height"], "width": spec["width"]} for name, spec in enabled_images(cfg).items()}
-    # Always "cpu" here, regardless of the physics device -- SimLeRobotRecorder allocates a
-    # buffer_capacity_s circular buffer of full-res RGB frames per camera on whatever device
-    # it's given (multiple GB for 2 cameras), and _capture_record_images already converts frames
-    # to CPU numpy before handing them to the recorder anyway. Passing the GPU physics device
-    # (--device cuda) through here caused a hard CUDA OutOfMemoryError crash live -- the recorder's
-    # buffer allocation competed with Isaac Sim's own rendering/physics GPU memory on a 7.5GB GPU
-    # and lost, killing the whole process silently in the background (this is what showed up as
-    # "teleop just did not work" -- the process had already died).
+    # device="cpu" ALWAYS, whatever the physics device. The recorder allocates a multi-GB
+    # circular frame buffer on whatever device it is handed; passing "cuda" made it compete with
+    # Isaac Sim's own GPU memory on a 7.5GB card and killed the process silently mid-run.
     #
-    # buffer_capacity_s explicitly set to 30 (was defaulting to 120) -- root-caused as the actual
-    # source of the "headset fps is ass" + host RAM/swap-thrashing problem (which had already twice
-    # caused this exact process to hang entirely): with 2 cameras at 640x480 and the recorder's
-    # _NUM_CPU_SLOTS=2 pinned-memory pool (see sim_recorder.py's _allocate_cpu_slots), the buffer
-    # alone is (1 main + 2 pinned slots) x 120s x 30fps x 640x480x3 bytes x 2 cameras ~= 20GB RSS,
-    # on a 30GB host -- confirmed live: idle RSS with no recording is a flat 7.3GB (sampled over
-    # 90s, no growth), but climbs to ~24-27GB once recording starts, matching this calculation.
-    # Actual recorded episodes here run ~15-20s (S/D are meant for FAST short demos) -- 30s is
-    # generous headroom over that while cutting the buffer to ~1/4 size (~5GB). If an episode ever
-    # runs past 30s, push_frame_to_buffer degrades safely (prints "[WARN]: Buffer full, skipping"
-    # and drops further frames) rather than crashing -- raise this back up only if demos genuinely
-    # need to run longer than ~25s.
+    # buffer_capacity_s=30, down from the 120 default. At 2 cameras x 640x480 x 30fps with the
+    # recorder's 2 pinned CPU slots, 120s is ~20GB RSS on a 30GB host -- measured climbing from
+    # 7.3GB idle to 24-27GB once recording started, and it hung the process twice. Episodes run
+    # 15-20s, so 30s is generous. Overrunning it drops frames with a warning, it does not crash.
     recorder = SimLeRobotRecorder(
         task_name=args_cli.task_description,
         repo_id=str(cfg.get("repo_id", "humanoid/wato_arm_v2_push_box")),
@@ -1295,10 +1132,7 @@ def _init_recorder(device: str):
     )
     recorder.init_dataset()
     print(f"[RECORD] Writing to {dataset_root}", flush=True)
-    # NOT humanoid_il's default S=start/N=save/D=discard keys -- this script auto-starts
-    # recording on VR connect and rebinds S/D itself (see run_simulator's _on_keyboard_event) to
-    # save/discard-and-continue instead. The "Press S..." message printed later reflects the
-    # actual bindings; this generic init message intentionally doesn't restate stale ones here.
+    # Key bindings differ from humanoid_il's defaults -- see run_simulator's _on_keyboard_event.
     return recorder, cfg
 
 
@@ -1316,15 +1150,10 @@ def _capture_record_images(scene: InteractiveScene) -> dict:
 
 
 def _write_wrist_cam_hud_frame(scene: InteractiveScene) -> None:
-    """Write wrist_cam's current sensor frame to _WRIST_CAM_FRAME_PATH for the headset HUD
-    overlay -- reads the same CameraCfg sensor tensor recording uses, no extra viewport render."""
-    from PIL import Image
-
-    rgb = scene["wrist_cam"].data.output["rgb"]
-    frame = rgb[0].detach().cpu().numpy()
-    if frame.shape[-1] > 3:
-        frame = frame[..., :3]
-    Image.fromarray(frame.astype("uint8")).save(str(_WRIST_CAM_FRAME_PATH))
+    """wrist_cam's current frame -> the headset HUD overlay, from the same sensor tensor
+    recording uses (no extra viewport render). JPEG, not PNG: as a PNG this was ~155KB, ten times
+    the two eye JPEGs combined and the largest thing the headset polled."""
+    _save_frame_atomic(_camera_rgb_frame(scene["wrist_cam"]), _WRIST_CAM_FRAME_PATH)
 
 
 # ── main simulation loop ──────────────────────────────────────────────────────
@@ -1337,12 +1166,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
 
     scene.update(sim_dt)
     apply_joint_limits(robot)
-    _apply_friction_material("/World/envs/env_0/Box", _BOX_STATIC_FRICTION, _BOX_DYNAMIC_FRICTION)
-    for _finger_link in (*LEFT_FINGER_TIP_BODIES, *RIGHT_FINGER_TIP_BODIES):
-        _apply_friction_material(
-            f"/World/envs/env_0/Robot/{_finger_link}",
-            _GRIPPER_STATIC_FRICTION, _GRIPPER_DYNAMIC_FRICTION,
-        )
+    _set_rigid_body_friction(scene["box"], _BOX_STATIC_FRICTION, _BOX_DYNAMIC_FRICTION)
+    _set_rigid_body_friction(
+        robot, _GRIPPER_STATIC_FRICTION, _GRIPPER_DYNAMIC_FRICTION,
+        body_names=(*LEFT_FINGER_TIP_BODIES, *RIGHT_FINGER_TIP_BODIES),
+    )
 
     _root_pose_w_diag = robot.data.root_state_w[0, :7].tolist()
     print(f"[Quest][diag] robot root world pose (pos xyz, quat wxyz)={_root_pose_w_diag}", flush=True)
@@ -1359,42 +1187,30 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         _base_link_prim_path, "right_eye_camera_mount", _HEAD_VIEWPOINT_HOME_POS, _HEAD_VIEWPOINT_HOME_QUAT
     )
     print(f"[Quest] Stereo head-tracked RealSense D455 pair attached: {left_eye_mount}, {right_eye_mount}", flush=True)
-    # Read the RSD455's real, native (unwidened) FOV BEFORE _widen_camera_fov
-    # changes it for the teleop display below -- this is what actually gets
-    # copied onto ego_cam, so recorded frames match a real D455's true FOV.
+    # Read the native FOV BEFORE widening it for the headset display.
     _rsd455_native_fov = _read_camera_fov(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}")
     _widen_camera_fov(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}", _RSD455_WIDENED_FOCAL_LENGTH)
     _widen_camera_fov(f"{right_eye_mount}/{_RSD455_CAMERA_SUBPATH}", _RSD455_WIDENED_FOCAL_LENGTH)
-    left_eye_viewport_api = _open_pov_viewport(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}", "Left Eye POV")
-    right_eye_viewport_api = _open_pov_viewport(f"{right_eye_mount}/{_RSD455_CAMERA_SUBPATH}", "Right Eye POV")
-    # Cached once here (not re-fetched every frame) for _project_world_point_to_uv -- valid
-    # because _widen_camera_fov above already blocked until these prims finished loading.
+    left_eye_camera = _open_pov_camera(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}", "Left Eye POV")
+    right_eye_camera = _open_pov_camera(f"{right_eye_mount}/{_RSD455_CAMERA_SUBPATH}", "Right Eye POV")
+    # Cached for _project_world_point_to_uv; valid because _widen_camera_fov already blocked
+    # until these prims finished loading.
     _stage_for_cams = omni.usd.get_context().get_stage()
     _left_eye_cam_prim = _stage_for_cams.GetPrimAtPath(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}")
     _right_eye_cam_prim = _stage_for_cams.GetPrimAtPath(f"{right_eye_mount}/{_RSD455_CAMERA_SUBPATH}")
-    # Data-collection camera (ego_cam) -- separate from the teleop headset
-    # display above. Preview window only, for visually checking framing;
-    # not used by recording (that reads scene["ego_cam"] directly).
+    # ego_cam gets the RSD455's aperture but the WIDENED focal length -- native FOV is too
+    # zoomed in to be usable. Extra Kit preview windows for ego_cam/wrist_cam were removed here:
+    # they render on every app tick regardless of the render gate, and cost real time.
     _ego_cam_prim_path = f"{_base_link_prim_path}/ego_cam"
     if _rsd455_native_fov is not None:
-        # Widened again (matches the headset eye views' _RSD455_WIDENED_FOCAL_LENGTH, ~120deg)
-        # per final live feedback -- native FOV felt too zoomed in for actual use even with the
-        # clippingRange bug fixed.
         _ego_cam_fov = (_RSD455_WIDENED_FOCAL_LENGTH, _rsd455_native_fov[1], _rsd455_native_fov[2])
         _set_camera_fov(_ego_cam_prim_path, *_ego_cam_fov)
         print(f"[Quest] ego_cam FOV set to WIDENED RSD455 (not native) "
               f"(focalLength/hAperture/vAperture)={_ego_cam_fov}", flush=True)
-    # TEMP DIAGNOSTIC: commented out to test whether these 2 extra viewport windows (pure
-    # operator convenience -- recording reads scene["ego_cam"]/["wrist_cam"] sensor tensors
-    # directly, not these windows) are a meaningful chunk of the measured ~200ms/render cost,
-    # independent of render_interval (which is an IsaacLab/physics-step concept -- these are
-    # separate Kit UI windows that may render on every app tick regardless of that setting).
-    # _open_pov_viewport(_ego_cam_prim_path, "Ego Cam Preview")
-    # _open_pov_viewport("/World/envs/env_0/Robot/link6l/wrist_cam", "Wrist Cam Preview")
-    if left_eye_viewport_api is not None and right_eye_viewport_api is not None:
+    if left_eye_camera is not None and right_eye_camera is not None:
         _POV_STATIC_DIR.mkdir(parents=True, exist_ok=True)
         print(f"[Quest] Stereo POV feed will be captured to {_POV_FRAME_PATH_LEFT} / {_POV_FRAME_PATH_RIGHT} "
-              f"(served by webxr_server.py's static handler at /pov_left.png, /pov_right.png)", flush=True)
+              f"(served by webxr_server.py's static handler at /pov_left.jpg, /pov_right.jpg)", flush=True)
 
     left_arm_names = [resolve_joint_name(robot, n) for n in LEFT_ARM_JOINTS]
     right_arm_names = [resolve_joint_name(robot, n) for n in _RIGHT_ARM_JOINTS]
@@ -1415,11 +1231,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     quest_to_cam_local_quat = quat_from_matrix(quest_to_cam_local.unsqueeze(0))
     axis_sign_left = _AXIS_SIGN_LEFT.to(device)
     axis_sign_right = _AXIS_SIGN_RIGHT.to(device)
-    # Camera-relative basis vectors (world frame), built by rotating the
-    # rsd455's local forward/up/right axes by the camera's fixed mount tilt
-    # (_HEAD_VIEWPOINT_HOME_QUAT). Hand position deltas are composed directly
-    # along these instead of fixed world axes -- see _AXIS_SIGN_LEFT/RIGHT's
-    # comment above for why.
+    # Camera-relative basis in world frame: the rsd455's local axes rotated by the mount tilt.
+    # Hand position deltas are composed along these, not along fixed world axes.
     camera_tilt_quat = torch.tensor([_HEAD_VIEWPOINT_HOME_QUAT], dtype=torch.float32, device=device)
     cam_fwd_world = quat_apply(camera_tilt_quat, _CAM_LOCAL_FORWARD.to(device).unsqueeze(0)).squeeze(0)
     cam_up_world = quat_apply(camera_tilt_quat, _CAM_LOCAL_UP.to(device).unsqueeze(0)).squeeze(0)
@@ -1434,12 +1247,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     left_g_closed = torch.tensor([[GRIPPER_CLOSED["joint7l"], GRIPPER_CLOSED["joint8l"]]], device=device)
     right_g_open = torch.tensor([[_RIGHT_GRIPPER_OPEN["joint7"], _RIGHT_GRIPPER_OPEN["joint8"]]], device=device)
     right_g_closed = torch.tensor([[_RIGHT_GRIPPER_CLOSED["joint7"], _RIGHT_GRIPPER_CLOSED["joint8"]]], device=device)
-    # Smooths the gripper's open/closed target the same way _smooth_damp now smooths the arm
-    # joints, per live feedback + industry-practice research -- the pinch-threshold open/closed
-    # DECISION stays binary (a legitimate, common approach per that research), but without this
-    # the resulting joint TARGET was applied via a raw set_joint_position_target snap, an
-    # instant jump every time the pinch crossed the threshold -- a visible discontinuity in
-    # recorded demos inconsistent with how smoothly the arm itself now moves.
+    # The open/closed DECISION stays binary at the pinch threshold, but the resulting joint
+    # TARGET is smoothed -- snapping it produced a visible discontinuity in recorded demos.
     left_gripper_smoothed = left_g_open.clone()
     left_gripper_vel = torch.zeros_like(left_g_open)
     right_gripper_smoothed = right_g_open.clone()
@@ -1467,10 +1276,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     receiver = QuestRosReceiver()
     threading.Thread(target=rclpy.spin, args=(receiver,), daemon=True).start()
 
-    # Real-hardware bridge (left arm only, see --publish-real-left-arm help
-    # text and the module-level REAL_ARM_PUBLISH_* constants for the safety
-    # rationale). Publisher is created on the SAME node/spin-thread as the
-    # Quest receiver above rather than a second rclpy context.
+    # Real-hardware bridge, left arm only. Publishes on the SAME node/spin-thread as the Quest
+    # receiver, not a second rclpy context. See --publish-real-left-arm for the safety rationale.
     real_left_arm_pub = None
     real_left_arm_elapsed_s = 0.0
     real_left_arm_since_publish_s = 0.0
@@ -1506,40 +1313,46 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     ego_cam_convention_fix_quat = torch.tensor([_EGO_CAM_CONVENTION_FIX_QUAT], dtype=torch.float32, device=device)
     ego_cam_extra_tilt_quat = torch.tensor([_EGO_CAM_EXTRA_TILT_QUAT], dtype=torch.float32, device=device)
 
+    def _sync_camera_mounts() -> None:
+        """Aim the stereo eye mounts (and ego_cam) at the current head viewpoint.
+
+        NOT cheap: three USD transform authorings, each firing change notifications through Kit's
+        render graph. Running it per physics step cost ~20ms/step while writing identical values,
+        since the head viewpoint is static. Called once at startup; _HEAD_TRACKING_LIVE restores
+        per-step tracking when head pose is actually driven."""
+        right_offset_b = quat_apply(head_viewpoint_quat_b, eye_local_right.unsqueeze(0)) * (_EYE_IPD_M / 2)
+        left_eye_pos_b = (head_viewpoint_pos_b - right_offset_b)[0].tolist()
+        right_eye_pos_b = (head_viewpoint_pos_b + right_offset_b)[0].tolist()
+        head_orient_b = head_viewpoint_quat_b[0].tolist()
+        _set_mount_pose(left_eye_mount, tuple(left_eye_pos_b), tuple(head_orient_b))
+        _set_mount_pose(right_eye_mount, tuple(right_eye_pos_b), tuple(head_orient_b))
+        # ego_cam pinned to the left eye's pose so recorded frames match what the operator saw,
+        # nudged clear of the RSD455 housing mesh. Skipped without --record: main() leaves the
+        # sensor out of the scene entirely then.
+        if _EGO_CAM_FREE_MOVE_DEBUG or not args_cli.record:
+            return
+        forward_offset_b = quat_apply(head_viewpoint_quat_b, eye_local_forward.unsqueeze(0)) * _EGO_CAM_FORWARD_OFFSET_M
+        ego_cam_pos_b = (head_viewpoint_pos_b - right_offset_b + forward_offset_b)[0].tolist()
+        ego_cam_pos_b[2] += _EGO_CAM_UP_OFFSET_M  # straight base-frame +Z, per live feedback
+        ego_cam_orient_b = quat_mul(
+            ego_cam_extra_tilt_quat, quat_mul(head_viewpoint_quat_b, ego_cam_convention_fix_quat)
+        )[0].tolist()
+        _set_mount_pose(_ego_cam_prim_path, tuple(ego_cam_pos_b), tuple(ego_cam_orient_b))
+
+    _sync_camera_mounts()
+
     left_closed = False
     right_closed = False
 
     recorder, record_cfg = _init_recorder(device)
     if recorder is not None:
-        # NOT recorder.start_keyboard() -- that attaches humanoid_il's shared pynput-based
-        # S=start/N=save/D=discard listener (used by other teleop scripts too, so its bindings
-        # aren't ours to repurpose). S/D are handled below instead, through the SAME carb.input
-        # listener already driving R/T, with different semantics: since recording auto-starts on
-        # VR connect and runs continuously, S/D call save_episode()/cancel_recording() directly
-        # (both safe to call standalone, no flags dependency) to commit/discard the current
-        # buffer and immediately keep recording the next one -- no separate "resume" step needed,
-        # for fast back-to-back demos. EpisodeFlags is still needed (tick() no-ops if
-        # self._flags is None) but constructed directly instead of via start_keyboard().
+        # NOT recorder.start_keyboard() -- that attaches humanoid_il's shared pynput listener,
+        # whose bindings other teleop scripts rely on. S/D are handled through the same
+        # carb.input listener as R/T instead, calling save_episode()/cancel_recording() directly
+        # so recording continues straight into the next demo. EpisodeFlags is still needed
+        # (tick() no-ops without it) but is constructed directly.
         from humanoid_il.episode_keys import EpisodeFlags
         recorder._flags = EpisodeFlags(start=False)
-        # SimLeRobotRecorder saves episodes ASYNCHRONOUSLY on a background thread --
-        # pressing 'N' only enqueues the save, it doesn't complete it immediately. A hard
-        # kill (SIGKILL, e.g. `pkill -9`) of this process terminates that thread mid-flight
-        # and silently loses the episode, even though it looked saved. This handler makes
-        # SIGTERM (a normal `kill`/`pkill` without -9) finalize the recorder first --
-        # `finalize()` blocks until the save queue is actually drained -- before exiting.
-        # SIGKILL still can't be caught (that's an OS-level guarantee), so this only helps
-        # if whatever stops the process sends SIGTERM, not SIGKILL.
-        def _graceful_shutdown_on_signal(signum, _frame):
-            print(f"[RECORD] Caught signal {signum} -- finalizing recorder before exit "
-                  f"(do not force-kill, this can take a few seconds to drain the save queue)...",
-                  flush=True)
-            recorder.finalize()
-            print(f"[RECORD] Finalized. Saved under {recorder.dataset_root}", flush=True)
-            sys.exit(0)
-
-        signal.signal(signal.SIGTERM, _graceful_shutdown_on_signal)
-        signal.signal(signal.SIGINT, _graceful_shutdown_on_signal)
 
     def _sphere_cfg(color, radius, opacity=1.0):
         return sim_utils.SphereCfg(
@@ -1556,12 +1369,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         markers={"sphere": _sphere_cfg((1.0, 0.3, 0.1), 0.025, opacity=0.3)},  # was 0.05, halved per live feedback
     ))
     if args_cli.record:
-        # VisualizationMarkers creates its sphere instance(s) at init time regardless of whether
-        # .visualize() is ever called (defaults to position (0,0,0), NOT hidden) -- skipping the
-        # per-frame .visualize() call below is NOT enough on its own to guarantee it's not
-        # rendered. USD "visibility" (unlike the cameraVisibility collection that turned out to
-        # not be honored by this RTX renderer at all) IS a standard, always-respected attribute --
-        # force both markers fully invisible here as the actual guarantee.
+        # VisualizationMarkers instantiates its spheres at init regardless of whether
+        # .visualize() is called, at (0,0,0) and NOT hidden -- so skipping .visualize() is not
+        # enough. USD visibility IS always respected (unlike cameraVisibility, below), so force
+        # it here as the actual guarantee that markers stay out of recorded frames.
         _stage_for_markers = omni.usd.get_context().get_stage()
         for _mp in ("/Visuals/left_ik_target", "/Visuals/right_ik_target"):
             _mprim = _stage_for_markers.GetPrimAtPath(_mp)
@@ -1570,16 +1381,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         print("[Quest] --record is active: IK target markers made invisible (guaranteed, not "
               "just unpositioned) to keep them out of recorded frames.", flush=True)
 
-    # Hide BOTH IK target markers (blue=left, red=right -- "the balls") from wrist_cam's
-    # RECORDED render specifically -- root cause finally found: CameraCfg sensors (used for
-    # recording) are built on omni.replicator.core render products (rep.create.render_product),
-    # a completely separate pipeline from Kit's interactive Hydra viewports. Per the USD Render
-    # spec, the "cameraVisibility" collection belongs on the RenderProduct prim itself (under
-    # /Render/..., created dynamically by Replicator), NOT on the camera prim -- applying it to
-    # the camera prim (the previous two attempts) silently did nothing because renderers only
-    # look for this collection on actual RenderProduct prims. Fixed by applying it to
-    # scene["wrist_cam"].render_product_paths instead. purpose=guide on the markers is kept too
-    # (harmless, doesn't hurt) but is NOT what's doing the real work here.
+    # Try to hide the IK target markers from wrist_cam's recorded render. cameraVisibility
+    # belongs on the RenderProduct prim, not the camera prim (CameraCfg sensors are Replicator
+    # render products, a separate pipeline from Kit's Hydra viewports) -- applying it to the
+    # camera prim silently does nothing. Even applied correctly this RTX version appears not to
+    # honour it, which is why the args_cli.record block above force-hides the markers instead.
     _stage = omni.usd.get_context().get_stage()
     for _marker_path in ("/Visuals/left_ik_target", "/Visuals/right_ik_target"):
         _marker_prim = _stage.GetPrimAtPath(_marker_path)
@@ -1676,29 +1482,46 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     _fps_window_start_t = time.monotonic()
     _fps_window_frames = 0
     _fps_window_capture_ms = 0.0
-    # DEBUG: real-time-factor check, added investigating a live-reported "IK feels laggier"
-    # report. Confirmed live: NOT caused by box friction (identical RTF with that fully
-    # disabled, since reverted) or physics device (--device cpu barely helped either) -- this is
-    # a pre-existing, render-bound characteristic of the whole sim (RTF ~0.14-0.18 regardless),
-    # not something any of tonight's changes introduced. Kept here in case it's useful later.
+    # Real-time-factor + pacer accounting. See main() for the cost model these feed.
+    _pace_deadline = time.monotonic()
+    _pace_max_debt_s = _PACER_MAX_DEBT_CYCLES * _POV_CAPTURE_EVERY_N_STEPS * sim_dt
+    _rtf_window_sleep_ms = 0.0
     _rtf_window_start_t = time.monotonic()
     _rtf_window_sim_s = 0.0
     _rtf_window_step_ms = 0.0
     _rtf_window_steps = 0
     _rtf_window_step_min_ms = float("inf")
     _rtf_window_step_max_ms = 0.0
-    while simulation_app.is_running():
+    # Ctrl-C / SIGTERM REQUEST a shutdown rather than exiting in the handler, so the single
+    # cleanup path below the loop always runs. That matters because recorder.finalize() blocks
+    # until the async save queue drains -- episodes save on a background thread, so exiting from
+    # inside the handler silently loses one that looked saved. A second signal hard-exits, so a
+    # hung finalize can never trap the operator.
+    _shutdown_requested = False
+
+    def _request_shutdown(signum, _frame):
+        nonlocal _shutdown_requested
+        if _shutdown_requested:
+            print("[Quest] Second signal -- exiting immediately (in-flight saves may be lost).",
+                  flush=True)
+            os._exit(1)
+        _shutdown_requested = True
+        _draining = " draining the recorder save queue," if recorder is not None else ""
+        print(f"[Quest] Caught signal {signum} -- shutting down cleanly:{_draining} "
+              "closing Isaac Sim. Do not force-kill; this can take a few seconds.", flush=True)
+
+    signal.signal(signal.SIGINT, _request_shutdown)
+    signal.signal(signal.SIGTERM, _request_shutdown)
+
+    while simulation_app.is_running() and not _shutdown_requested:
         msg = receiver.poll()
 
         if msg is not None:
             if not _vr_connected:
                 _vr_connected = True
                 print("[Quest] VR connected (first /quest_teleop message received).", flush=True)
-                # Auto-start recording (if --record) the moment the headset connects to
-                # localhost, rather than waiting for hand tracking or a manual 'S' keypress
-                # on the host keyboard -- recorder.tick() still checks flags.start every
-                # frame, so this just flips it on early. Keyboard N (save)/D (discard)/Esc
-                # (stop) still work normally afterward.
+                # Auto-arm recording on headset connect rather than waiting for a keypress.
+                # Buffering only -- S still has to be pressed to commit an episode to disk.
                 if recorder is not None and recorder._flags is not None and not recorder._flags.start:
                     recorder._flags.start = True
                     print("[RECORD] VR connected -- recording started automatically.", flush=True)
@@ -1715,10 +1538,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             right_tracked = _is_tracked(right_xyz_q, right_quat)
             head_tracked = _is_tracked(head_xyz_q, head_quat)
 
-            # Filter raw tracking noise out of wrist position/orientation BEFORE homing/
-            # displacement use them (see _OneEuroFilter / _OneEuroQuatFilter) -- only while
-            # actually tracked, so the untracked-sentinel (0,0,0 / identity) never gets fed into
-            # either filter's state.
+            # Filter tracking noise before homing/displacement use it. Only while tracked, so
+            # the untracked sentinel (0,0,0 / identity) never enters either filter's state.
             if left_tracked:
                 left_xyz_q = left_arm.pos_filter.filter(left_xyz_q, sim_dt)
                 left_quat = left_arm.quat_filter.filter(left_quat, sim_dt)
@@ -1735,9 +1556,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             if left_arm.quest_home_xyz is None and left_tracked:
                 left_arm.quest_home_xyz = left_xyz_q.clone()
                 left_arm.quest_home_quat = left_quat.clone()
-                # Anchor to the fixed launch-time rest tip pose, not wherever
-                # the tip currently sits -- avoids baking in IK lag / making
-                # recalibration a no-op.
+                # Anchor to the launch-time rest pose, not the current tip -- anchoring to the
+                # current tip bakes in IK lag and makes recalibration a no-op.
                 left_arm.home_tip_pos_b = init_tip_pos_b_l.clone()
                 left_arm.home_tip_quat_b = init_tip_quat_b_l.clone()
                 target_pos_b_left = left_arm.home_tip_pos_b.clone()
@@ -1769,19 +1589,15 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 target_pos_b_left_dbg = (
                     left_arm.home_tip_pos_b + quat_apply_inverse(root_quat_w, left_delta_w.unsqueeze(0))
                 )
-                if left_disp_raw.norm().item() > 0.05:
+                if _SHOW_AXIS_DEBUG and left_disp_raw.norm().item() > 0.05:
                     print(f"[Quest][axisdbg] L quest_disp(x,y,z)={left_disp_raw.tolist()}  "
                           f"world_delta={left_delta_w.tolist()}  "
                           f"base_delta_from_home={(target_pos_b_left_dbg - left_arm.home_tip_pos_b)[0].tolist()}",
                           flush=True)
                 target_pos_b_left = target_pos_b_left_dbg
-                # Quest-local -> camera-local (fixed ergonomic mapping, _QUEST_TO_CAM_LOCAL) ->
-                # world (via the camera's ACTUAL current tilt, camera_tilt_quat) -- same
-                # camera-relative philosophy as the position mapping above, replacing the old
-                # fixed-world-frame quest_to_world_quat conjugation (see _QUEST_TO_WORLD's
-                # comment for why that was wrong). wrist_orient_offset remains available as a
-                # small residual fine-tune knob (identity until/unless live testing shows one is
-                # still needed).
+                # Quest-local -> camera-local (_QUEST_TO_CAM_LOCAL) -> world (camera_tilt_quat),
+                # matching the position mapping above. wrist_orient_offset is a residual
+                # fine-tune knob, identity unless live testing shows one is needed.
                 dq_left = quat_mul(left_quat.unsqueeze(0), quat_inv(left_arm.quest_home_quat.unsqueeze(0)))
                 dq_left_camlocal = quat_mul(quat_mul(quest_to_cam_local_quat, dq_left), quat_inv(quest_to_cam_local_quat))
                 dq_left_world = quat_mul(quat_mul(camera_tilt_quat, dq_left_camlocal), quat_inv(camera_tilt_quat))
@@ -1805,14 +1621,13 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 target_pos_b_right_dbg = (
                     right_arm.home_tip_pos_b + quat_apply_inverse(root_quat_w, right_delta_w.unsqueeze(0))
                 )
-                if right_disp_raw.norm().item() > 0.05:
+                if _SHOW_AXIS_DEBUG and right_disp_raw.norm().item() > 0.05:
                     print(f"[Quest][axisdbg] R quest_disp(x,y,z)={right_disp_raw.tolist()}  "
                           f"world_delta={right_delta_w.tolist()}  "
                           f"base_delta_from_home={(target_pos_b_right_dbg - right_arm.home_tip_pos_b)[0].tolist()}",
                           flush=True)
                 target_pos_b_right = target_pos_b_right_dbg
-                # See the left-arm block above for why this now goes through
-                # quest_to_cam_local_quat + camera_tilt_quat instead of quest_to_world_quat.
+                # See the left-arm block above.
                 dq_right = quat_mul(right_quat.unsqueeze(0), quat_inv(right_arm.quest_home_quat.unsqueeze(0)))
                 dq_right_camlocal = quat_mul(quat_mul(quest_to_cam_local_quat, dq_right), quat_inv(quest_to_cam_local_quat))
                 dq_right_world = quat_mul(quat_mul(camera_tilt_quat, dq_right_camlocal), quat_inv(camera_tilt_quat))
@@ -1821,11 +1636,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 dq_right_base = quat_mul(quat_mul(quat_inv(root_quat_w), dq_right_world), root_quat_w)
                 target_quat_b_right = quat_mul(dq_right_base, right_arm.home_tip_quat_b)
 
-            # Stereo viewpoint is fully fixed -- no head tracking.
-            # head_viewpoint_pos_b/quat_b stay at their home values for the
-            # whole run; head_home_xyz/quat/head_tracked above are unused for
-            # positioning (only feed _is_tracked). Head-tracked position and
-            # rotate-only variants are both in git history if wanted again.
+            # Stereo viewpoint is fixed: head_viewpoint_pos_b/quat_b never change, and
+            # head_home_xyz/quat/head_tracked feed only _is_tracked. Head-tracked and
+            # rotate-only variants are in git history.
 
             diag_frame += 1
             if diag_frame % 100 == 0:
@@ -1835,12 +1648,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 if right_arm.quest_home_xyz is not None and right_tracked:
                     err_r = (target_pos_b_right - tip_pos_b_r).norm().item()
                     print(f"[Quest][diag] R(tip) gain={right_gain.item():.2f} target_err={err_r:.3f}m", flush=True)
-                # Sanity-check for _adaptive_dls_lambda (new, unverified live) -- confirms what
-                # manipulability values actually occur during normal use, since _DLS_MANIPULABILITY_EPSILON
-                # was picked without live data on this arm's own conditioning. If lambda_used never
-                # moves off lambda_min during normal reach, epsilon is set too low (damping never
-                # kicks in); if it's frequently near lambda_max even in comfortable poses, epsilon
-                # is set too high (over-damping, sluggish tracking).
+                # Data for tuning _DLS_MANIPULABILITY_EPSILON, should adaptive damping be
+                # retried: lambda pinned at lambda_min means epsilon is too low, lambda near
+                # lambda_max in comfortable poses means it is too high. Silent while
+                # _adaptive_dls_lambda is uncalled, since last_manipulability stays None.
                 if left_arm.last_manipulability is not None:
                     print(f"[Quest][ikdiag] L manipulability={left_arm.last_manipulability:.4f} "
                           f"lambda_used={left_arm.controller.cfg.ik_params['lambda_val']:.3f} "
@@ -1850,18 +1661,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                           f"lambda_used={right_arm.controller.cfg.ik_params['lambda_val']:.3f} "
                           f"(min={right_arm.lambda_min} max={right_arm.lambda_max})", flush=True)
 
-            # USD VisualizationMarkers are only ever .visualize()'d (made non-degenerate) when NOT
-            # recording, per explicit live feedback -- TWO separate attempts at excluding these
-            # markers from wrist_cam's render specifically (Hydra-viewport cameraVisibility on the
-            # camera prim, then the USD-spec-correct RenderProduct-level cameraVisibility) both
-            # silently failed to actually hide them (confirmed visually both times) -- this RTX
-            # renderer version apparently doesn't honor that collection at all, on any prim.
-            # Rather than keep guessing at render-pipeline tricks, this guarantees zero risk of
-            # contaminating recorded training data: no markers exist in the scene at all while
-            # recording, so there's nothing to leak into ego_cam/wrist_cam regardless of any
-            # camera-exclusion mechanism working or not. (World-space target positions for the
-            # browser-side marker's screen-space projection are computed unconditionally, every
-            # frame, further below -- not tied to this recording gate.)
+            # Markers are only positioned when NOT recording. Two attempts at excluding them
+            # from wrist_cam's render via cameraVisibility both failed silently (this RTX version
+            # ignores the collection), so keeping them out of the scene entirely is the only
+            # reliable guarantee against contaminating training data. The browser-side marker's
+            # world positions are computed unconditionally below, independent of this gate.
             if not args_cli.record:
                 _rp = robot.data.root_state_w[:, :3]
                 if left_arm.quest_home_xyz is not None:
@@ -1888,10 +1692,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         tip_pos_b_r_now, tip_quat_b_r_now = right_arm.solve_and_apply(robot, device, target_pos_b_right, target_quat_b_right, sim_dt)
 
         # ── Real-hardware bridge (left arm only) ─────────────────────────────────
-        # Same held-off-then-throttled pattern as task_space_real.py: elapsed
-        # time only starts accumulating toward the publish period AFTER the
-        # startup delay has fully passed, so it can't build up a backlog
-        # during the hold and burst-publish once the delay ends.
+        # The publish period only starts accumulating AFTER the startup delay, so the hold
+        # cannot build a backlog and burst-publish the moment it ends.
         if real_left_arm_pub is not None:
             real_left_arm_elapsed_s += sim_dt
             if real_left_arm_elapsed_s >= _REAL_ARM_PUBLISH_START_DELAY_S:
@@ -1909,12 +1711,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             err_r = (target_pos_b_right - tip_pos_b_r_now).norm().item()
             print(f"[Quest][diag] home-offset convergence: L target_err={err_l:.3f}m tip={tip_pos_b_l_now[0].tolist()} "
                   f"R target_err={err_r:.3f}m tip={tip_pos_b_r_now[0].tolist()}", flush=True)
-            # Wrist-orientation calibration diagnostic: commanded delta (target_quat_b vs
-            # home_tip_quat_b) vs the ACTUALLY achieved delta (tip_quat_b_now vs
-            # home_tip_quat_b), both as axis-angle. If wrist_orient_offset is correctly tuned,
-            # these two axes should match closely (angle can lag during fast motion, axis should
-            # not). Used for offline calibration via synthetic /quest_teleop messages -- not
-            # needed for normal teleop use.
+            # Wrist-orientation calibration: commanded vs achieved delta. With
+            # wrist_orient_offset tuned correctly the AXES should match closely; the angle may
+            # lag during fast motion. For offline calibration, not normal use.
             if left_arm.home_tip_quat_b is not None:
                 cmd_dq_l = quat_mul(target_quat_b_left, quat_inv(left_arm.home_tip_quat_b))
                 ach_dq_l = quat_mul(tip_quat_b_l_now, quat_inv(left_arm.home_tip_quat_b))
@@ -1927,11 +1726,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                       f"achieved_delta(wxyz)={ach_dq_r[0].tolist()}", flush=True)
 
         # ── Gripper targets ────────────────────────────────────────────────────
-        # Smoothed via _smooth_damp (same filter as the arm joints) instead of a raw snap to
-        # the binary open/closed target -- see left_gripper_smoothed's comment above for why.
-        # smooth_time=0.05s (faster than the arms' 0.08s -- grasp timing still needs to feel
-        # snappy) and max_speed generously large relative to the ~0.05-unit gripper range, so
-        # smooth_time is what shapes the motion, not the speed cap.
+        # smooth_time=0.05s keeps grasp timing snappy; max_speed is large relative to the
+        # ~0.05-unit gripper range, so smooth_time shapes the motion, not the speed cap.
         left_gripper_target = left_g_closed if left_closed else left_g_open
         right_gripper_target = right_g_closed if right_closed else right_g_open
         left_gripper_smoothed, left_gripper_vel = _smooth_damp(
@@ -1946,8 +1742,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         robot.set_joint_velocity_target(torch.zeros(1, len(right_gripper_ids), device=device), joint_ids=right_gripper_ids)
 
         scene.write_data_to_sim()
+        # Gate rendering explicitly -- SimulationCfg(render_interval=...) does NOT do it here.
+        # Isaac Lab consumes render_interval in exactly two places: it sets Kit's rendering_dt
+        # (= dt * render_interval), and it gates rendering inside the ENV classes
+        # (ManagerBasedEnv._sim_step_counter % render_interval, manager_based_env.py:488).
+        # This is a standalone script with no env, so that gate never ran and bare sim.step()
+        # -- whose `render` arg defaults to True -- rendered every single physics step.
+        #
+        # Phase: pov_capture_frame is incremented AFTER this call, so the step that must render
+        # is the one whose post-increment value trips the capture gate below. Same modulus, same
+        # counter, so captures always land on freshly-rendered pixels.
+        _render_this_step = (pov_capture_frame + 1) % _POV_CAPTURE_EVERY_N_STEPS == 0
         _step_t0 = time.monotonic()
-        sim.step()
+        sim.step(render=_render_this_step)
         _step_ms = (time.monotonic() - _step_t0) * 1000.0
         _rtf_window_step_ms += _step_ms
         _rtf_window_step_min_ms = min(_rtf_window_step_min_ms, _step_ms)
@@ -1959,11 +1766,15 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         _rtf_elapsed = time.monotonic() - _rtf_window_start_t
         if _rtf_elapsed >= 2.0:
             _rtf = _rtf_window_sim_s / max(_rtf_elapsed, 1e-6)
+            _pace_state = "ON" if _PACE_TO_REALTIME else "OFF"
+            _pace_pct = _rtf_window_sleep_ms / max(_rtf_elapsed * 1000.0, 1e-9) * 100.0
             print(f"[Quest][rtfdiag] real-time factor={_rtf:.2f} (1.0=real-time, <1.0=running "
-                  f"behind) | avg sim.step() wall time: {_rtf_window_step_ms / max(_rtf_window_steps, 1):.2f}ms "
+                  f"behind, pacer {_pace_state}, slept {_pace_pct:.0f}% of wall time) "
+                  f"| avg sim.step() wall time: {_rtf_window_step_ms / max(_rtf_window_steps, 1):.2f}ms "
                   f"(min={_rtf_window_step_min_ms:.2f}ms max={_rtf_window_step_max_ms:.2f}ms) -- "
-                  f"bimodal fast/slow (min << max) would confirm render_interval-driven periodic "
-                  f"render cost; uniformly high min~=max would mean something else is slow every step.",
+                  f"bimodal fast/slow (min << max) is EXPECTED now that rendering is gated -- "
+                  f"min is a physics-only step, max includes the render. min~=max would mean the "
+                  f"gate is not taking effect and Kit is still rendering every step.",
                   flush=True)
             _rtf_window_start_t = time.monotonic()
             _rtf_window_step_min_ms = float("inf")
@@ -1971,6 +1782,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             _rtf_window_sim_s = 0.0
             _rtf_window_step_ms = 0.0
             _rtf_window_steps = 0
+            _rtf_window_sleep_ms = 0.0
 
         # ── Recording (L-suffixed/link6l arm only -- the one ego_cam/
         # wrist_cam are mounted for) ─────────────────────────────────────────
@@ -1982,54 +1794,37 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             action = torch.cat([left_arm.last_joint_pos_des, gripper_target[:, :1]], dim=1)[0]
             measured_gripper = robot.data.joint_pos[:, left_gripper_ids[:1]]
             state = torch.cat([robot.data.joint_pos[:, left_arm.arm_ids], measured_gripper], dim=1)[0]
-            # _capture_record_images does two 640x480 GPU->CPU copies -- lazily evaluated (see
-            # SimLeRobotRecorder.tick's images_fn param) so it only actually runs on frames the
-            # recorder is really about to push, instead of unconditionally every 100Hz physics
-            # step. Doing it every step tanked the sim's real-time factor (all the motion-clamp
-            # math runs on fixed SIMULATED time, so the arm still moved correctly per sim-second,
-            # but far less sim-time elapsed per second of the operator's real hand movement --
-            # this is what live feedback described as the arm "barely moving" once --record was on).
+            # Passed as a callable, not a dict: two 640x480 GPU->CPU copies that must only run
+            # on frames the recorder actually pushes. Doing them every step tanked RTF, which
+            # presented as the arm "barely moving" whenever --record was on.
             recorder.tick(action, state, lambda: _capture_record_images(scene))
 
-        # Stereo eye mounts follow the current head viewpoint (a no-op right
-        # now since it's fixed -- see above -- but cheap, and ready if head
-        # tracking comes back). IPD offset applied along the viewpoint's
-        # current "right" axis, rotated into base frame.
-        right_offset_b = quat_apply(head_viewpoint_quat_b, eye_local_right.unsqueeze(0)) * (_EYE_IPD_M / 2)
-        left_eye_pos_b = (head_viewpoint_pos_b - right_offset_b)[0].tolist()
-        right_eye_pos_b = (head_viewpoint_pos_b + right_offset_b)[0].tolist()
-        head_orient_b = head_viewpoint_quat_b[0].tolist()
-        _set_mount_pose(left_eye_mount, tuple(left_eye_pos_b), tuple(head_orient_b))
-        _set_mount_pose(right_eye_mount, tuple(right_eye_pos_b), tuple(head_orient_b))
-        # ego_cam (data-collection camera) pinned to the left eye's pose so
-        # recorded frames match what the operator saw, but nudged forward
-        # along the gaze direction -- exact co-location put its lens inside
-        # the RSD455 housing mesh (see _EGO_CAM_FORWARD_OFFSET_M above).
-        forward_offset_b = quat_apply(head_viewpoint_quat_b, eye_local_forward.unsqueeze(0)) * _EGO_CAM_FORWARD_OFFSET_M
-        ego_cam_pos_b = (head_viewpoint_pos_b - right_offset_b + forward_offset_b)[0].tolist()
-        ego_cam_pos_b[2] += _EGO_CAM_UP_OFFSET_M  # straight base-frame +Z, per live feedback
-        ego_cam_orient_b = quat_mul(
-            ego_cam_extra_tilt_quat, quat_mul(head_viewpoint_quat_b, ego_cam_convention_fix_quat)
-        )[0].tolist()
-        if not _EGO_CAM_FREE_MOVE_DEBUG:
-            _set_mount_pose(_ego_cam_prim_path, tuple(ego_cam_pos_b), tuple(ego_cam_orient_b))
+        # Mounts are static while _HEAD_TRACKING_LIVE is False -- positioned once before the
+        # loop by _sync_camera_mounts (see there for why this is not a cheap no-op).
+        if _HEAD_TRACKING_LIVE:
+            _sync_camera_mounts()
 
         pov_capture_frame += 1
-        if (left_eye_viewport_api is not None and right_eye_viewport_api is not None
+        if (left_eye_camera is not None and right_eye_camera is not None
                 and pov_capture_frame % _POV_CAPTURE_EVERY_N_STEPS == 0):
-            from omni.kit.viewport.utility import capture_viewport_to_file
-
             _capture_t0 = time.monotonic()
-            capture_viewport_to_file(left_eye_viewport_api, str(_POV_FRAME_PATH_LEFT))
-            capture_viewport_to_file(right_eye_viewport_api, str(_POV_FRAME_PATH_RIGHT))
-            _write_wrist_cam_hud_frame(scene)
+            # dt here only feeds the sensor's own update-period bookkeeping -- these are not
+            # scene entities, so scene.update() never ticks them.
+            #
+            # Guarded because this is a best-effort preview: unguarded frame writes killed the
+            # whole sim twice, and both times it presented as "the grasp broke", because the arm
+            # simply stopped being driven.
+            try:
+                left_eye_camera.update(dt=sim_dt * _POV_CAPTURE_EVERY_N_STEPS)
+                right_eye_camera.update(dt=sim_dt * _POV_CAPTURE_EVERY_N_STEPS)
+                _write_pov_jpeg(left_eye_camera, _POV_FRAME_PATH_LEFT)
+                _write_pov_jpeg(right_eye_camera, _POV_FRAME_PATH_RIGHT)
+                _write_wrist_cam_hud_frame(scene)
+            except Exception as _pov_exc:  # noqa: BLE001 -- see comment above
+                print(f"[Quest] WARNING: POV capture failed this cycle: {_pov_exc}", flush=True)
 
-            # Marker screen position: project each arm's CURRENT IK target (world-space, updated
-            # every frame above regardless of --record) through both real eye cameras, so the
-            # browser can draw the marker at the pixel it actually occupies in pov_left.png/
-            # pov_right.png -- not at the operator's own raw hand-tracking position, which is a
-            # different coordinate space and was why the client-side marker appeared at the
-            # physical wrist instead of "in front of, teleoped by" the operator.
+            # Project each arm's current IK target through both eye cameras so the browser draws
+            # the marker on the pixel it actually occupies. See _project_world_point_to_uv.
             _rp_now = robot.data.root_state_w[:, :3]
             _target_world_left = (_rp_now + quat_apply(root_quat_w, target_pos_b_left))[0].tolist()
             _target_world_right = (_rp_now + quat_apply(root_quat_w, target_pos_b_right))[0].tolist()
@@ -2037,61 +1832,103 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             _ru_l, _rv_l, _rvis_l = _project_world_point_to_uv(_right_eye_cam_prim, _target_world_left)
             _lu_r, _lv_r, _lvis_r = _project_world_point_to_uv(_left_eye_cam_prim, _target_world_right)
             _ru_r, _rv_r, _rvis_r = _project_world_point_to_uv(_right_eye_cam_prim, _target_world_right)
-            _marker_uv_tmp = _MARKER_UV_PATH.with_suffix(".json.tmp")
-            _marker_uv_tmp.write_text(json.dumps({
-                "left_eye": {
-                    "left_arm": {"u": _lu_l, "v": _lv_l, "visible": _lvis_l and left_arm.quest_home_xyz is not None},
-                    "right_arm": {"u": _lu_r, "v": _lv_r, "visible": _lvis_r and right_arm.quest_home_xyz is not None},
-                },
-                "right_eye": {
-                    "left_arm": {"u": _ru_l, "v": _rv_l, "visible": _rvis_l and left_arm.quest_home_xyz is not None},
-                    "right_arm": {"u": _ru_r, "v": _rv_r, "visible": _rvis_r and right_arm.quest_home_xyz is not None},
-                },
-            }))
-            _marker_uv_tmp.replace(_MARKER_UV_PATH)
+            # PID-unique temp name + guarded, for the same reasons as _save_frame_atomic.
+            _marker_uv_tmp = _MARKER_UV_PATH.with_name(f"{_MARKER_UV_PATH.name}.{os.getpid()}.tmp")
+            try:
+                _marker_uv_tmp.write_text(json.dumps({
+                    "left_eye": {
+                        "left_arm": {"u": _lu_l, "v": _lv_l, "visible": _lvis_l and left_arm.quest_home_xyz is not None},
+                        "right_arm": {"u": _lu_r, "v": _lv_r, "visible": _lvis_r and right_arm.quest_home_xyz is not None},
+                    },
+                    "right_eye": {
+                        "left_arm": {"u": _ru_l, "v": _rv_l, "visible": _rvis_l and left_arm.quest_home_xyz is not None},
+                        "right_arm": {"u": _ru_r, "v": _rv_r, "visible": _rvis_r and right_arm.quest_home_xyz is not None},
+                    },
+                }))
+                _marker_uv_tmp.replace(_MARKER_UV_PATH)
+            except OSError as _uv_exc:
+                print(f"[Quest] WARNING: could not write marker_uv.json: {_uv_exc}", flush=True)
             _capture_dt_ms = (time.monotonic() - _capture_t0) * 1000.0
-            # Real measured capture rate (wall-clock, not the theoretical render_interval
-            # target) -- this is what the headset actually receives per second -- PLUS how much
-            # of that cycle time is specifically the capture_viewport_to_file call (GPU readback
-            # + PNG encode + disk write) vs. the rest of the loop (physics step + render +
-            # everything else), so it's possible to tell whether capture itself is the
-            # bottleneck or just general render/physics cost. Printed every ~2s.
+            # Measured (not theoretical) capture rate, split into the capture itself vs the
+            # rest of the cycle, so it is clear which one is the bottleneck. Printed every ~2s.
             _fps_window_frames += 1
             _fps_window_capture_ms += _capture_dt_ms
             _fps_elapsed = time.monotonic() - _fps_window_start_t
             if _fps_elapsed >= 2.0:
                 _avg_capture_ms = _fps_window_capture_ms / max(_fps_window_frames, 1)
                 _avg_cycle_ms = (_fps_elapsed / max(_fps_window_frames, 1)) * 1000.0
+                # Derived, never hardcoded -- these are read while sweeping
+                # _POV_CAPTURE_EVERY_N_STEPS, so a literal would misreport the run being tuned.
+                _sim_time_hz = 1.0 / max(_POV_CAPTURE_EVERY_N_STEPS * sim_dt, 1e-9)
                 print(f"[Quest][fps] measured POV capture rate: {_fps_window_frames / _fps_elapsed:.1f} fps "
-                      f"(target ~33fps at render_interval=3) | avg capture_viewport_to_file time: "
-                      f"{_avg_capture_ms:.1f}ms | avg full cycle (render_interval steps) time: {_avg_cycle_ms:.1f}ms",
-                      flush=True)
+                      f"(sim-time target ~{_sim_time_hz:.0f}Hz at dt={sim_dt * 1000:.0f}ms, render every "
+                      f"{_POV_CAPTURE_EVERY_N_STEPS} steps) | avg POV capture (update+jpeg) time: "
+                      f"{_avg_capture_ms:.1f}ms | avg full cycle ({_POV_CAPTURE_EVERY_N_STEPS} steps) time: "
+                      f"{_avg_cycle_ms:.1f}ms", flush=True)
                 _fps_window_start_t = time.monotonic()
                 _fps_window_frames = 0
                 _fps_window_capture_ms = 0.0
 
+        # ── wall-clock pacer: hold RTF <= 1.0 ────────────────────────────────
+        # Last in the loop so it absorbs the whole iteration. The deadline accumulates sim_dt and
+        # is deliberately NOT reset on overrun -- that is what lets cheap physics-only steps
+        # repay the render step. time.sleep releases the GIL, so the rclpy spin thread and the
+        # recorder's writer thread keep running through it.
+        if _PACE_TO_REALTIME:
+            _pace_deadline += sim_dt
+            _pace_slack = _pace_deadline - time.monotonic()
+            if _pace_slack > 0.0:
+                time.sleep(_pace_slack)
+                _rtf_window_sleep_ms += _pace_slack * 1000.0
+            elif _pace_slack < -_pace_max_debt_s:
+                _pace_deadline = time.monotonic() - _pace_max_debt_s  # write off, never sprint
+
     if recorder is not None:
+        # finalize() drains episodes already committed with S; it never saves the live buffer.
+        # Exiting is not an implicit save, so the message says exactly what was written.
         recorder.finalize()
-        print(f"[RECORD] Saved under {recorder.dataset_root}", flush=True)
+        _pending_frames = getattr(recorder, "_current_frame", 0)  # noqa: SLF001
+        print(f"[RECORD] {recorder.num_recorded_episodes} episode(s) written to "
+              f"{recorder.dataset_root}", flush=True)
+        if _pending_frames:
+            print(f"[RECORD] {_pending_frames} un-committed frame(s) discarded -- only S "
+                  "saves an episode, exiting never does.", flush=True)
 
 
 def main() -> None:
-    # render_interval=3: physics still steps at the full 100Hz (dt=0.01) for
-    # accurate IK/control response, render (4 camera-ish sources at 640x480
-    # viewport res, now 480x360 -- see _open_pov_viewport) happens every 3rd
-    # step, ~33Hz. Raised back from render_interval=5 (~20Hz) once the real
-    # headset-fps bottleneck (index.html's hardcoded 200ms/5fps poll
-    # interval) was found and fixed -- laptop-side perf was already fine.
-    # _POV_CAPTURE_EVERY_N_STEPS above is aligned to this so capture always
-    # lands on a freshly-rendered frame.
-    sim_cfg = sim_utils.SimulationCfg(dt=0.01, render_interval=3, device=args_cli.device)
+    # PERFORMANCE MODEL. Measured wall-clock, live:
+    #     render        ~35.5ms   once per cycle    <- the bottleneck (643k visual triangles)
+    #     physics step   ~4.8ms   every step
+    #     loop work      ~8.2ms   every step (IK, ROS poll, gripper smoothing, scene.update)
+    #     POV capture      ~5ms   once per cycle
+    #     => cycle(n) = 35.5 + n*13 + 5,  fps = RTF/(n*dt),  RTF = n*dt/cycle
+    #
+    #     n=2  15.0fps  RTF 0.60      n=4  10.8fps  RTF 0.87
+    #     n=3  12.6fps  RTF 0.76      n=5   9.5fps  RTF 0.95
+    #
+    # Raising n trades frame rate for RTF, favourably, because physics-only steps are cheap
+    # while the render is fixed. RTF is felt latency (how fast the arm moves in wall-clock);
+    # fps is only video smoothness. Which to prefer is a subjective call in the headset.
+    # _PACE_TO_REALTIME caps RTF at 1.0 so surplus headroom never becomes speed-up.
+    #
+    # render_interval below does NOT gate rendering. Isaac Lab applies it only as Kit's
+    # rendering_dt; the gate lives in the ENV classes, which this standalone script does not
+    # use, so bare sim.step() rendered EVERY physics step until the explicit `render=` argument
+    # in run_simulator was added. See _KIT_RENDERING_INTERVAL for why the two must stay separate.
+    #
+    # dt was 0.01. Halving steps per simulated second is the main RTF lever, since per-step cost
+    # does not halve with dt. Larger dt means coarser contact resolution and the grasp is already
+    # marginal (holds on GPU PhysX, slips on CPU -- see run_quest_armv2_teleop.sh), so if the box
+    # starts slipping, put dt back first. Everything else in the loop derives from
+    # sim.get_physics_dt(); only _POV_CAPTURE_EVERY_N_STEPS and the `% 100` diagnostic prints
+    # are step-counted.
+    sim_cfg = sim_utils.SimulationCfg(dt=_PHYSICS_DT, render_interval=_KIT_RENDERING_INTERVAL,
+                                      device=args_cli.device)
     sim = sim_utils.SimulationContext(sim_cfg)
     sim.set_camera_view([2.5, 2.5, 2.0], [0.0, 0.0, 0.8])
 
-    # Trim RTX real-time render cost -- reflections/AO aren't needed for a
-    # functional data-collection view and are real per-frame cost on this
-    # GPU. Best-effort: wrong/missing setting paths across Kit versions
-    # shouldn't break teleop, just leave the feature at its default.
+    # Trim RTX cost -- reflections/AO are real per-frame GPU time and buy nothing here.
+    # Best-effort: an unknown setting path across Kit versions must not break teleop.
     _settings = carb.settings.get_settings()
     for _rtx_setting, _value in (
         ("/rtx/reflections/enabled", False),
@@ -2103,13 +1940,44 @@ def main() -> None:
         except Exception as exc:  # noqa: BLE001 -- best-effort, see docstring above
             print(f"[Quest] Could not set {_rtx_setting}: {exc}", flush=True)
 
-    scene = InteractiveScene(ArmV2SceneCfg(num_envs=1, env_spacing=2.0))
+    scene_cfg = ArmV2SceneCfg(num_envs=1, env_spacing=2.0)
+    if not args_cli.record:
+        # ego_cam only feeds recording. Dropping it removes a whole RenderProduct from every
+        # render tick and costs the operator nothing. None is InteractiveScene's skip value.
+        scene_cfg.ego_cam = None
+        print("[Quest] ego_cam disabled (no --record): one fewer camera rendered per frame.", flush=True)
+    scene = InteractiveScene(scene_cfg)
     sim.reset()
     print("[Quest] Simulation ready (lightbox enclosure walls added).")
-    run_simulator(sim, scene)
-    rclpy.shutdown()
+    try:
+        run_simulator(sim, scene)
+    finally:
+        # recorder.finalize() has already returned, so everything committed is durably on disk
+        # and nothing here can lose data. The only remaining job is to not hang.
+        #
+        # Each step prints BEFORE it runs, so a stall names the call that blocked. Keep the
+        # prints: a stalled Kit/ROS call holds the GIL, so no in-process watchdog can report it.
+        print("[Quest] Teardown 1/2: rclpy.shutdown()", flush=True)
+        try:
+            # rclpy installs its own SIGINT handler at rclpy.init(), so on Ctrl-C the context is
+            # usually already down ("[rclcpp]: signal_handler" in the log) and calling shutdown()
+            # again is an error rather than a no-op.
+            if rclpy.ok():
+                rclpy.shutdown()
+        except Exception as exc:  # noqa: BLE001 -- teardown must never raise past this point
+            print(f"[Quest]   skipped: {exc}", flush=True)
+
+        # sim.stop() and simulation_app.close() are BOTH deliberately skipped: each was tried
+        # and each blocked forever. sim.stop() fires timeline STOP callbacks that tear down
+        # sensors -- including the eye Cameras _open_pov_camera hand-initialises -- against
+        # still-live RenderProducts; close() blocks for the same reason. Nothing is lost:
+        # everything durable is already written, and the rest is memory the kernel reclaims.
+        # os._exit also skips interpreter teardown, since Kit's atexit hooks are part of the
+        # hang. A watchdog cannot rescue either call (blocked C code holds the GIL), so not
+        # calling them is the only fix. Re-add one only with proof that it returns.
+        print("[Quest] Teardown 2/2: exiting.", flush=True)
+        os._exit(0)
 
 
 if __name__ == "__main__":
     main()
-    simulation_app.close()
