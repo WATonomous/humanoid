@@ -76,7 +76,7 @@ jobs:
                 || parseDueDate(issue.body);
               if (!dueDate) continue;
 
-              const daysLeft = daysBetween(dueDate, today) * -1; // positive = days remaining, negative = overdue
+              const daysLeft = daysBetween(dueDate, today); // positive = days remaining, negative = overdue
               const isReminderDay = REMINDER_DAYS_BEFORE.includes(daysLeft);
               const isOverdue = daysLeft < 0;
               if (!isReminderDay && !isOverdue) continue;
