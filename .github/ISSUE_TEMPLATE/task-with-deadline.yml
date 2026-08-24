@@ -1,0 +1,25 @@
+name: Task (with deadline)
+description: Create a task/issue that has an assignee and a due date. The due-date reminder bot will ping the assignee(s) as the deadline approaches.
+title: "[Task]: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill in the fields below, then assign this issue to the person(s) responsible using the "Assignees" panel on the right.
+        A scheduled bot will comment to remind assignees at 3 days before, 1 day before, and every day the issue is overdue.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What needs to be done?
+    validations:
+      required: true
+  - type: input
+    id: due-date
+    attributes:
+      label: Due date
+      description: Format must be YYYY-MM-DD (e.g. 2026-09-01).
+      placeholder: "YYYY-MM-DD"
+    validations:
+      required: true
