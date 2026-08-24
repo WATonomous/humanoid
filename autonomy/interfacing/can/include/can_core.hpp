@@ -11,7 +11,7 @@ struct CanMessage {
   CanMessage(int id, int size) : id(id), data(size, 0), dlc(size) {}
 
   uint32_t id;
-  std::vector<uint8_t> data;    // up to 8 bytes, or 64 if is_fd
+  std::vector<uint8_t> data; // up to 8 bytes, or 64 if is_fd
   uint8_t dlc;
   bool is_extended_id = false;
   bool is_remote_frame = false;
@@ -22,10 +22,10 @@ struct CanMessage {
 
 struct CanConfig {
   std::string interface_name;
-  std::string device_path;     // SLCAN serial device (e.g., "/dev/ttyACM0")
-  std::string bustype;         // "socketcan" or "slcan"
-  uint32_t bitrate;            // arbitration-phase bps
-  uint32_t data_bitrate;       // CAN-FD data-phase bps -- not yet wired into interface setup
+  std::string device_path; // SLCAN serial device (e.g., "/dev/ttyACM0")
+  std::string bustype;     // "socketcan" or "slcan"
+  uint32_t bitrate;        // arbitration-phase bps
+  uint32_t data_bitrate;   // CAN-FD data-phase bps -- not yet wired into interface setup
   uint32_t receive_timeout_ms;
   // Not supported with bustype="slcan" (SLCAN can't carry FD frames -- setupSlcan() refuses).
   // Unvalidated on real hardware; see real-hardware-safety skill before testing on the arm.

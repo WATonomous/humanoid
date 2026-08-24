@@ -98,8 +98,8 @@ bool CanCore::sendMessage(const CanMessage& message) {
       return false;
     }
 
-    fd_frame.len =
-        static_cast<__u8>(std::min<size_t>(message.data.size(), static_cast<size_t>(CANFD_MAX_DLEN)));
+    fd_frame.len = static_cast<__u8>(
+        std::min<size_t>(message.data.size(), static_cast<size_t>(CANFD_MAX_DLEN)));
     if (message.fd_bitrate_switch) {
       fd_frame.flags |= CANFD_BRS;
     }
@@ -185,7 +185,7 @@ bool CanCore::receiveMessage(CanMessage& message) {
     message.is_extended_id = (frame.fd.can_id & CAN_EFF_FLAG) ? true : false;
     message.is_remote_frame = false; // CAN-FD has no RTR concept
     message.id = message.is_extended_id ? (frame.fd.can_id & CAN_EFF_MASK)
-                                         : (frame.fd.can_id & CAN_SFF_MASK);
+                                        : (frame.fd.can_id & CAN_SFF_MASK);
     message.dlc = frame.fd.len;
     message.data.resize(frame.fd.len);
     std::memcpy(message.data.data(), frame.fd.data, frame.fd.len);
@@ -194,7 +194,7 @@ bool CanCore::receiveMessage(CanMessage& message) {
     message.is_extended_id = (frame.cc.can_id & CAN_EFF_FLAG) ? true : false;
     message.is_remote_frame = (frame.cc.can_id & CAN_RTR_FLAG) ? true : false;
     message.id = message.is_extended_id ? (frame.cc.can_id & CAN_EFF_MASK)
-                                         : (frame.cc.can_id & CAN_SFF_MASK);
+                                        : (frame.cc.can_id & CAN_SFF_MASK);
     message.dlc = frame.cc.can_dlc;
     if (!message.is_remote_frame) {
       message.data.resize(frame.cc.can_dlc);
