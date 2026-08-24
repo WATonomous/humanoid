@@ -6,7 +6,15 @@ can_node:
     device_path: "/dev/canable"        # Serial device path for SLCAN
     bustype: "slcan"                   # Bus type to create a CAN interface: "socketcan" or "slcan"
     bitrate: 1000000                   # CAN bitrate in bps (125000, 250000, 500000, 1000000)
-    
+
+    # CAN-FD (opt-in, defaults OFF -- preserves today's classic-CAN/SLCAN behavior exactly).
+    # NOT SUPPORTED with bustype="slcan" -- requires a CAN-FD-capable adapter/driver exposed
+    # as a native SocketCAN interface (bustype="socketcan"). UNVALIDATED ON REAL HARDWARE as
+    # of this change; bench-test with real motors before enabling in any control loop --
+    # see the real-hardware-safety skill / can/README.md before flipping this on the real arm.
+    enable_can_fd: false               # Set true only on socketcan + FD-capable adapter
+    data_bitrate: 5000000              # CAN-FD data-phase bitrate in bps, if enable_can_fd
+
     # Communication Settings
     publish_rate_hz: 50                # Rate for checking incoming CAN messages
     receive_timeout_ms: 10000          # Timeout for receiving CAN messages
