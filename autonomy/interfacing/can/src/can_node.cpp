@@ -37,9 +37,6 @@ CanNode::CanNode() : Node("can_node"), can_core(this->get_logger()) {
   this->declare_parameter("bitrate", 500000);
   this->declare_parameter("receive_poll_interval_ms", 10);
   this->declare_parameter("receive_timeout_ms", 10000);
-  // CAN-FD: opt-in, defaults preserve today's classic-CAN/SLCAN behavior exactly.
-  // UNVALIDATED ON REAL HARDWARE -- do not set enable_can_fd=true against the real arm
-  // without bench-testing on a CAN-FD-capable adapter first (see real-hardware-safety skill).
   this->declare_parameter("enable_can_fd", false);
   this->declare_parameter("data_bitrate", 5000000);
 

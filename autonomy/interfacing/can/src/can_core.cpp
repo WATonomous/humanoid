@@ -85,8 +85,6 @@ bool CanCore::sendMessage(const CanMessage& message) {
   }
 
   if (message.is_fd) {
-    // CAN-FD frame -- up to 64 data bytes. canfd_frame::len is a plain byte count (0-64),
-    // not the classic wire-DLC code, so no conversion is needed here.
     struct canfd_frame fd_frame;
     std::memset(&fd_frame, 0, sizeof(fd_frame));
 
@@ -94,8 +92,7 @@ bool CanCore::sendMessage(const CanMessage& message) {
     if (message.is_extended_id) {
       fd_frame.can_id |= CAN_EFF_FLAG;
     }
-    // CAN-FD has no remote-frame concept (CANFD_RTR is not a thing); a request to send an
-    // RTR frame while is_fd is set is a caller error we surface rather than silently drop.
+    // CAN-FD has no RTR concept.
     if (message.is_remote_frame) {
       RCLCPP_ERROR(logger_, "CAN-FD does not support remote frames (RTR); rejecting message.");
       return false;
@@ -158,10 +155,7 @@ bool CanCore::receiveMessage(CanMessage& message) {
     return false;
   }
 
-  // A CAN-FD-enabled socket can receive either a classic can_frame (CAN_MTU bytes) or a
-  // canfd_frame (CANFD_MTU bytes) on the same fd -- read the larger buffer and use the
-  // returned byte count to tell which one actually arrived. On a socket that was never
-  // opted into CAN_RAW_FD_FRAMES, only classic frames (CAN_MTU) can ever show up here.
+  // Frame type (classic vs FD) is determined below by the byte count read() returns.
   union {
     struct can_frame cc;
     struct canfd_frame fd;
@@ -261,9 +255,7 @@ bool CanCore::setupSocketCan() {
     return false;
   }
 
-  // Opt the socket into CAN-FD frames BEFORE bind(), per Linux's SocketCAN FD documentation.
-  // Without this, canfd_frame writes/reads on this socket fail even if the underlying
-  // interface itself is FD-capable and the bus is running an FD-capable adapter.
+  // Must be set before bind() for CAN_RAW_FD_FRAMES to take effect.
   if (config_.enable_fd) {
     int enable_canfd = 1;
     if (setsockopt(socket_fd_, SOL_CAN_RAW, CAN_RAW_FD_FRAMES, &enable_canfd,
@@ -301,11 +293,9 @@ bool CanCore::setupSocketCan() {
 
 bool CanCore::setupSlcan() {
   if (config_.enable_fd) {
-    RCLCPP_ERROR(logger_,
-                 "enable_fd=true is not supported with bustype=slcan. The Lawicel SLCAN "
-                 "protocol this repo's setup_can.sh speaks cannot carry CAN-FD frames -- FD "
-                 "requires a native SocketCAN-FD-capable adapter/driver (e.g. gs_usb / "
-                 "candleLight firmware) with bustype=socketcan instead. Refusing to initialize.");
+    RCLCPP_ERROR(logger_, "enable_fd=true is not supported with bustype=slcan (SLCAN can't "
+                          "carry CAN-FD frames). Use bustype=socketcan with an FD-capable "
+                          "adapter instead.");
     return false;
   }
 
