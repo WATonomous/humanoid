@@ -58,7 +58,22 @@ jobs:
                 : (issue.assignee ? [issue.assignee] : []);
               if (assignees.length === 0) continue;
 
-              const dueDate = parseDueDate(issue.body);
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner,
+                repo,
+                issue_number: issue.number,
+                per_page: 100,
+              });
+
+              // Due date can live in the issue body (set via the issue template) or in a
+              // dedicated "due-date field" comment (backfilled onto pre-existing issues, or
+              // added/edited later by anyone). The comment field wins if both are present,
+              // since it's the easiest place to update after the fact.
+              const fieldComments = comments
+                .filter(c => c.body && c.body.includes('<!-- due-date-field -->'))
+                .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+              const dueDate = (fieldComments.length ? parseDueDate(fieldComments[0].body) : null)
+                || parseDueDate(issue.body);
               if (!dueDate) continue;
 
               const daysLeft = daysBetween(dueDate, today) * -1; // positive = days remaining, negative = overdue
@@ -71,12 +86,6 @@ jobs:
                 ? `<!-- deadline-reminder:${dueDateStr}:overdue:${today.toISOString().slice(0, 10)} -->`
                 : `<!-- deadline-reminder:${dueDateStr}:${daysLeft}d -->`;
 
-              const comments = await github.paginate(github.rest.issues.listComments, {
-                owner,
-                repo,
-                issue_number: issue.number,
-                per_page: 100,
-              });
               const alreadySent = comments.some(c => c.body && c.body.includes(marker));
               if (alreadySent) continue;
 

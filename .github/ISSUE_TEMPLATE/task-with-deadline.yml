@@ -19,7 +19,7 @@ body:
     id: due-date
     attributes:
       label: Due date
-      description: Format must be YYYY-MM-DD (e.g. 2026-09-01).
+      description: Optional. Format must be YYYY-MM-DD (e.g. 2026-09-01). Leave blank if there's no deadline yet.
       placeholder: "YYYY-MM-DD"
     validations:
-      required: true
+      required: false
