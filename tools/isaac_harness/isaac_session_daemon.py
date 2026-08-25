@@ -83,7 +83,7 @@ sim = SimulationContext(sim_cfg)
 sim.set_camera_view([2.0, 2.0, 2.0], [0.0, 0.0, 0.0])
 
 cfg_ground = sim_utils.GroundPlaneCfg()
-cfg_ground.func("/World/defaultGroundPlane", cfg_ground, translation=(0.0, 0.0, 0.0))
+cfg_ground.func("/World/defaultGroundPlane", cfg_ground, translation=(0.0, 0.0, -1.2))
 cfg_light = sim_utils.DomeLightCfg(intensity=2500.0, color=(0.9, 0.9, 0.9))
 cfg_light.func("/World/Light", cfg_light)
 
