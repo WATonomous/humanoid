@@ -120,17 +120,36 @@ of a screenshot + eyeball judgment call when the question is that concrete.
   PhysX correction impulse (observed: a vial spawned at table-top+0.05 tipped over and
   flew within 5 physics steps; +0.02 extra clearance fixed it). Spawn slightly above
   resting height and let physics settle, don't spawn exactly at it.
-- **`set_pose` changes are silently wiped by the next `spawn_*` call.** Every spawn
-  ends with `sim.reset()`, which re-applies every tracked Articulation's *original
-  spawn-time* pose — discarding any `set_pose` change made since, with no error at
-  all. This burned real time: rotated a cabinet with `set_pose`, took two screenshots
-  that both looked "unchanged," and it wasn't obvious why until isolating it with a
-  throwaway spawn + immediate `query()` re-check. **Bake the pose you actually want
-  into the `pos`/`rot` args of the `spawn_usd`/`spawn_primitive` call itself, and do
-  all spawning before any `set_pose` calls** — don't spawn-then-set_pose-then-spawn-more.
-  If you do need to verify a `set_pose` took effect, `query()` immediately after the
-  call, not after a screenshot that itself might trigger another spawn/reset first
-  (see #209).
+- **`set_pose` on a kinematic object (`spawn_primitive --static`) used to crash the
+  whole process** — a genuine PhysX/CUDA "illegal memory access" abort (core dump),
+  not a Python exception, from calling `write_root_pose_to_sim()` on a kinematic body
+  (it isn't driven through that tensor-write path). **Fixed**: `set_pose` now writes a
+  kinematic object's new pose directly to its USD prim transform instead of through
+  PhysX, and dynamic objects still use `write_root_pose_to_sim()` as before.
+  Object dynamic/kinematic-ness is tracked automatically (same flag `bbox`'s staleness
+  warning already uses) — nothing to configure when calling `set_pose`.
+- **After `set_pose` on a kinematic object, verify with `bbox()`, not `query()`.**
+  `query()` reads the PhysX tensor view, which a kinematic object's direct-USD pose
+  write never touches — it'll keep reporting the old pose even though the object
+  genuinely moved (confirmed correct via `bbox()` and a screenshot). This is the same
+  dual-source-of-truth pattern as `bbox`'s own staleness issue, just the mirror image
+  of it (USD is now the accurate source, PhysX the stale one) — check whichever
+  command actually reads from where the write went.
+- **`set_pose` changes are silently wiped by the next `spawn_*`/`remove` call — still
+  broken, no fix found yet (see #209 for what was tried and why it didn't work).**
+  Every spawn/remove ends with `sim.reset()`, which re-applies each tracked object's
+  *original spawn-time* pose (cached once, at spawn, into a
+  `data.default_root_state` tensor that `cfg.init_state` is never consulted from
+  again) — discarding any `set_pose` change made since, with no error at all. Two
+  attempted fixes both failed silently rather than crashing: mutating
+  `obj.cfg.init_state` directly (a no-op — cfg isn't re-read after spawn) and writing
+  into `data.default_root_state` directly (also didn't survive a later reset — root
+  cause not yet found). **Until this is actually fixed: bake the pose you actually
+  want into the `pos`/`rot` args of the `spawn_usd`/`spawn_primitive` call itself, and
+  do all spawning before any `set_pose` calls** — don't spawn-then-set_pose-then-
+  spawn-more. If you do need to verify a `set_pose` took effect, check immediately
+  after the call (`bbox()` for kinematic, `query()` for dynamic), not after a
+  screenshot or anything else that might trigger another spawn/reset first.
 - **After any camera repositioning, check the shot actually shows what you think it
   does before drawing a conclusion from it** — a "nothing changed" screenshot can mean
   the change didn't happen (see above) OR it can mean you're looking at the wrong side

@@ -283,6 +283,25 @@ def handle_remove(cmd: dict) -> dict:
 
 
 def handle_set_pose(cmd: dict) -> dict:
+    """Move an already-spawned object to a new pose.
+
+    Two things had to be fixed here after they cost real debugging time:
+
+    1. write_root_pose_to_sim() on a KINEMATIC object (spawn_primitive
+       --static) crashes the whole process — a real PhysX/CUDA "illegal
+       memory access" abort, not a Python exception, confirmed reproducible
+       on a fresh daemon with nothing else going on. Kinematic bodies aren't
+       driven through the normal dynamics tensor write path; move them by
+       writing the USD prim's transform directly instead.
+    2. Even for a dynamic object where write_root_pose_to_sim() *does* work,
+       the change is invisible to sim.reset() (triggered by every later
+       spawn/remove) and gets silently wiped by it — reset() reapplies each
+       object's cached `data.default_root_state` tensor, which is set once
+       from cfg.init_state at spawn time and near-permanent afterward.
+       Mutating obj.cfg.init_state (an earlier, wrong attempt at this fix)
+       does nothing — cfg isn't consulted again once default_root_state
+       exists. Write directly into that tensor's pos/rot columns instead.
+    """
     name = cmd["name"]
     if name not in objects:
         return {"ok": False, "error": f"no such object '{name}'"}
@@ -295,7 +314,31 @@ def handle_set_pose(cmd: dict) -> dict:
         cur_pos[:] = torch.tensor(pos, device=cur_pos.device)
     if rot is not None:
         cur_rot[:] = torch.tensor(rot, device=cur_rot.device)
-    obj.write_root_pose_to_sim(torch.cat([cur_pos, cur_rot], dim=-1))
+
+    if _object_is_dynamic.get(name, True):
+        obj.write_root_pose_to_sim(torch.cat([cur_pos, cur_rot], dim=-1))
+    else:
+        import omni.usd
+        from pxr import Gf, UsdGeom
+
+        stage = omni.usd.get_context().get_stage()
+        prim = stage.GetPrimAtPath(f"/World/{name}")
+        xform = UsdGeom.Xformable(prim)
+        xform.ClearXformOpOrder()
+        p = cur_pos[0].tolist()
+        q = cur_rot[0].tolist()  # (w, x, y, z)
+        xform.AddTranslateOp().Set(Gf.Vec3d(*p))
+        # ClearXformOpOrder() clears the op ORDER, not the underlying
+        # attribute — a prim spawned via CuboidCfg/etc. already has an
+        # orient xformOp authored at double precision, and AddOrientOp()'s
+        # own default precision doesn't match it, raising a Tf error.
+        # Match explicitly instead of guessing.
+        xform.AddOrientOp(precision=UsdGeom.XformOp.PrecisionDouble).Set(
+            Gf.Quatd(q[0], Gf.Vec3d(q[1], q[2], q[3]))
+        )
+
+    obj.data.default_root_state[:, 0:3] = cur_pos
+    obj.data.default_root_state[:, 3:7] = cur_rot
     return {"ok": True}
 
 
