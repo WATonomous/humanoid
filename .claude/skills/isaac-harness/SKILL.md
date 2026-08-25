@@ -120,6 +120,24 @@ of a screenshot + eyeball judgment call when the question is that concrete.
   PhysX correction impulse (observed: a vial spawned at table-top+0.05 tipped over and
   flew within 5 physics steps; +0.02 extra clearance fixed it). Spawn slightly above
   resting height and let physics settle, don't spawn exactly at it.
+- **`set_pose` changes are silently wiped by the next `spawn_*` call.** Every spawn
+  ends with `sim.reset()`, which re-applies every tracked Articulation's *original
+  spawn-time* pose — discarding any `set_pose` change made since, with no error at
+  all. This burned real time: rotated a cabinet with `set_pose`, took two screenshots
+  that both looked "unchanged," and it wasn't obvious why until isolating it with a
+  throwaway spawn + immediate `query()` re-check. **Bake the pose you actually want
+  into the `pos`/`rot` args of the `spawn_usd`/`spawn_primitive` call itself, and do
+  all spawning before any `set_pose` calls** — don't spawn-then-set_pose-then-spawn-more.
+  If you do need to verify a `set_pose` took effect, `query()` immediately after the
+  call, not after a screenshot that itself might trigger another spawn/reset first
+  (see #209).
+- **After any camera repositioning, check the shot actually shows what you think it
+  does before drawing a conclusion from it** — a "nothing changed" screenshot can mean
+  the change didn't happen (see above) OR it can mean you're looking at the wrong side
+  of the object entirely (a 180° rotation viewed from the original camera angle shows
+  the back, not "no visible change"). Confirm with `query()`/`bbox()` and, if
+  orientation is in question, a shot from more than one angle before concluding
+  anything is broken or unchanged.
 
 ## When to ask vs. proceed
 
