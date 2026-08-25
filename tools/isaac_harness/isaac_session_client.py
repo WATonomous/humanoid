@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Host-side client for isaac_session_daemon.py.
 
-The queue directory lives under the repo (tools/isaac_screenshot/.session/),
+The queue directory lives under the repo (tools/isaac_harness/.session/),
 which is bind-mounted read-write into the container at
-/workspace/humanoid/tools/isaac_screenshot/.session — so commands/responses
+/workspace/humanoid/tools/isaac_harness/.session — so commands/responses
 pass between host and daemon as plain files, no docker cp needed.
 
 Usage (each subcommand sends one command and prints the JSON response):
@@ -31,7 +31,7 @@ import time
 import uuid
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-QUEUE_DIR = os.path.join(REPO_ROOT, "tools", "isaac_screenshot", ".session")
+QUEUE_DIR = os.path.join(REPO_ROOT, "tools", "isaac_harness", ".session")
 CMDS_DIR = os.path.join(QUEUE_DIR, "cmds")
 RESP_DIR = os.path.join(QUEUE_DIR, "responses")
 
@@ -92,6 +92,12 @@ def main() -> None:
     p.add_argument("--rot", type=_floats, default=[1, 0, 0, 0])
     p.add_argument("--articulation", action="store_true")
 
+    p = sub.add_parser("spawn_bimanual_arm",
+                        help="spawn this repo's pioneer_bimanual_arm robot with its real actuator config")
+    p.add_argument("--name", required=True)
+    p.add_argument("--pos", type=_floats, default=[0, 0, 0])
+    p.add_argument("--rot", type=_floats, default=[1, 0, 0, 0])
+
     p = sub.add_parser("remove")
     p.add_argument("--name", required=True)
 
@@ -133,6 +139,8 @@ def main() -> None:
     elif args.cmd == "spawn_usd":
         cmd.update(name=args.name, usd_path=args.usd_path, pos=args.pos, rot=args.rot,
                     articulation=args.articulation)
+    elif args.cmd == "spawn_bimanual_arm":
+        cmd.update(name=args.name, pos=args.pos, rot=args.rot)
     elif args.cmd == "remove":
         cmd.update(name=args.name)
     elif args.cmd == "set_pose":
@@ -145,7 +153,7 @@ def main() -> None:
         # translate host --out path to the container-visible path under the
         # same bind-mounted repo root
         container_out = os.path.join(
-            "/workspace/humanoid/tools/isaac_screenshot/.session/shots",
+            "/workspace/humanoid/tools/isaac_harness/.session/shots",
             os.path.basename(args.out),
         )
         cmd.update(eye=args.eye, target=args.target, out_path=container_out)

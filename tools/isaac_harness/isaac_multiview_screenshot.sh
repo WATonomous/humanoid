@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Multi-view variant of isaac_screenshot.sh: launches a scene script once and
+# Multi-view variant of isaac_harness.sh: launches a scene script once and
 # captures several named camera angles from the SAME running process (no
 # relaunching between views, so physics/object placement stays identical
 # across shots — important when checking scene layout from multiple angles).
@@ -18,7 +18,7 @@
 #   --out-dir DIR        where to save screenshots (default: this script's dir);
 #                        each view saves as <out-dir>/<name>.png
 #
-# Env vars: ISAAC_CONTAINER, ISAACLAB_SH_PATH (same as isaac_screenshot.sh)
+# Env vars: ISAAC_CONTAINER, ISAACLAB_SH_PATH (same as isaac_harness.sh)
 #
 # Example:
 #   isaac_multiview_screenshot.sh /workspace/my_scene.py --views front,top,side

@@ -1,4 +1,4 @@
-# isaac_screenshot
+# isaac_harness
 
 A Claude Code harness for iterating on Isaac Sim / IsaacLab scenes remotely —
 built for driving this repo's sim dev loop from Claude Code's Remote Control
@@ -26,7 +26,7 @@ Wayland/XWayland — root-window/window capture is blocked there for security).
 ```bash
 # your script must do: print("SCENE_READY", flush=True) once the scene is set up,
 # and then keep the app alive (e.g. loop on simulation_app.is_running())
-tools/isaac_screenshot/isaac_screenshot.sh /workspace/my_scene.py --marker SCENE_READY
+tools/isaac_harness/isaac_harness.sh /workspace/my_scene.py --marker SCENE_READY
 ```
 
 Options: `--cwd DIR` (working directory inside the container, default:
@@ -58,7 +58,7 @@ capture_views(sim, simulation_app, [
 ```
 
 ```bash
-tools/isaac_screenshot/isaac_multiview_screenshot.sh /workspace/my_scene.py \
+tools/isaac_harness/isaac_multiview_screenshot.sh /workspace/my_scene.py \
   --views front,top,side --out-dir /tmp/my_views
 ```
 
@@ -73,7 +73,7 @@ capture_views_headless(sim, simulation_app, [
 ```
 
 ```bash
-tools/isaac_screenshot/isaac_headless_multiview.sh /workspace/my_scene.py \
+tools/isaac_harness/isaac_headless_multiview.sh /workspace/my_scene.py \
   --views front,top --out-dir /tmp/my_views
 ```
 
@@ -89,7 +89,7 @@ name or `isaaclab.sh` location differs from the WATonomous default
 There are two harnesses, and **both should stay available** — pick per task
 rather than assuming one is strictly better:
 
-| | `isaac_screenshot.sh` / `isaac_multiview_screenshot.sh` (GUI) | `isaac_headless_multiview.sh` (headless) |
+| | `isaac_harness.sh` / `isaac_multiview_screenshot.sh` (GUI) | `isaac_headless_multiview.sh` (headless) |
 |---|---|---|
 | How it captures | Real GUI window + `xwd` + manual PNG decode | `isaaclab.sensors.Camera` reading `.data.output["rgb"]`, saved with PIL |
 | Needs `$DISPLAY`/X11 | Yes | No |
@@ -117,18 +117,18 @@ Isaac Sim process running and takes commands over a simple file-based queue;
 a second instead of a full relaunch:
 
 ```bash
-tools/isaac_screenshot/isaac_session.sh start   # ~20-30s, once
+tools/isaac_harness/isaac_session.sh start   # ~20-30s, once
 
-python3 tools/isaac_screenshot/isaac_session_client.py spawn_primitive \
+python3 tools/isaac_harness/isaac_session_client.py spawn_primitive \
   --name Obj1 --shape cuboid --size 0.2,0.2,0.2 --pos 0,0,1.0 --color 1,0,0
-python3 tools/isaac_screenshot/isaac_session_client.py step --n 60
-python3 tools/isaac_screenshot/isaac_session_client.py query --name Obj1
-python3 tools/isaac_screenshot/isaac_session_client.py screenshot \
+python3 tools/isaac_harness/isaac_session_client.py step --n 60
+python3 tools/isaac_harness/isaac_session_client.py query --name Obj1
+python3 tools/isaac_harness/isaac_session_client.py screenshot \
   --eye 1.5,1.5,1.0 --target 0,0,0.1 --out /tmp/shot.png
-python3 tools/isaac_screenshot/isaac_session_client.py spawn_usd \
+python3 tools/isaac_harness/isaac_session_client.py spawn_usd \
   --name Robot --usd-path /workspace/.../robot.usd --articulation
 
-tools/isaac_screenshot/isaac_session.sh stop
+tools/isaac_harness/isaac_session.sh stop
 ```
 
 Command reference: `spawn_primitive`, `spawn_usd`, `remove`, `set_pose`,
@@ -143,10 +143,10 @@ confirming "is the rack actually resting on the table" or "are these two
 objects interpenetrating":
 
 ```bash
-python3 tools/isaac_screenshot/isaac_session_client.py overlap --name-a Rack --name-b Table
+python3 tools/isaac_harness/isaac_session_client.py overlap --name-a Rack --name-b Table
 # {"ok": true, "overlap": true, "bbox_a": {...}, "bbox_b": {...}}
 
-python3 tools/isaac_screenshot/isaac_session_client.py scene_tree
+python3 tools/isaac_harness/isaac_session_client.py scene_tree
 # {"ok": true, "tree": [{"path": "/World/Rack", "type": "Xform", "tracked": true}, ...]}
 ```
 
@@ -155,7 +155,7 @@ python3 tools/isaac_screenshot/isaac_session_client.py scene_tree
 `list` doesn't see, since `list` only reports objects this daemon instance
 spawned and is tracking Python-side.
 
-The queue lives at `tools/isaac_screenshot/.session/` (gitignored) under the
+The queue lives at `tools/isaac_harness/.session/` (gitignored) under the
 repo, which is bind-mounted into the container — commands and responses pass
 as plain JSON files, no `docker cp` needed for the data path itself.
 

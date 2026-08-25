@@ -12,7 +12,7 @@
 #   isaac_headless_multiview.sh <container_script_path> --views name1,name2,name3
 #                                [--cwd DIR] [--timeout SECONDS] [--out-dir DIR]
 #
-# Env vars: ISAAC_CONTAINER, ISAACLAB_SH_PATH (same as isaac_screenshot.sh)
+# Env vars: ISAAC_CONTAINER, ISAACLAB_SH_PATH (same as isaac_harness.sh)
 
 set -euo pipefail
 

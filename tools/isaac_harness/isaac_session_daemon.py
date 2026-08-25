@@ -2,7 +2,7 @@
 
 Launches Isaac Sim once (headless) and keeps it running, reading JSON
 commands from a queue directory and writing JSON responses — instead of the
-relaunch-per-shot model of isaac_screenshot.sh / isaac_multiview_screenshot.sh.
+relaunch-per-shot model of isaac_harness.sh / isaac_multiview_screenshot.sh.
 A fresh Isaac Sim launch costs ~15-40s; against an already-running session,
 each command (spawn an object, move the camera, take a screenshot, query a
 pose) costs a fraction of a second. Use this when iterating repeatedly on the
@@ -12,7 +12,7 @@ Run from inside the sim container (see isaac_session.sh for the host-side
 launcher that does this for you):
 
     cd /workspace && PYTHONUNBUFFERED=1 /workspace/isaaclab/isaaclab.sh -p \
-        tools/isaac_screenshot/isaac_session_daemon.py --queue-dir /workspace/.isaac_session
+        tools/isaac_harness/isaac_session_daemon.py --queue-dir /workspace/.isaac_session
 
 The queue directory (shared with the host via the repo's bind mount — no
 docker cp needed) has two subdirs:
@@ -198,6 +198,46 @@ def handle_spawn_usd(cmd: dict) -> dict:
         # what's baked into the asset itself, which we don't inspect here —
         # conservatively assume dynamic (i.e. bbox may go stale) unless
         # proven otherwise.
+        _object_is_dynamic[name] = True
+        sim.reset()
+    except Exception:
+        objects.pop(name, None)
+        _object_is_dynamic.pop(name, None)
+        raise
+    return {"ok": True}
+
+
+def handle_spawn_bimanual_arm(cmd: dict) -> dict:
+    """Spawn the repo's actual pioneer_bimanual_arm robot with its real,
+    pre-built actuator config (BIMANUAL_ARM_CFG from
+    Teleop/keyboard_based_teleoperation/bimanual_arm_cfg.py) — generic
+    spawn_usd --articulation builds a bare ArticulationCfg with no actuators
+    and fails outright for this robot:
+        TypeError: Missing values detected in object ArticulationCfg for
+        the following fields:
+          - actuators
+    This command exists because that's a real, common case (spawning THE
+    robot this repo cares about, not an arbitrary articulation), not a
+    generic articulation-with-actuators spawner.
+    """
+    name = cmd["name"]
+    if name in objects:
+        return {"ok": False, "error": f"name '{name}' already exists"}
+
+    import sys
+
+    teleop_dir = "/workspace/humanoid/autonomy/simulation/Teleop/keyboard_based_teleoperation"
+    if teleop_dir not in sys.path:
+        sys.path.insert(0, teleop_dir)
+    from bimanual_arm_cfg import BIMANUAL_ARM_CFG
+
+    pos = tuple(cmd.get("pos", [0, 0, 0]))
+    rot = tuple(cmd.get("rot", [1, 0, 0, 0]))
+    obj_cfg = BIMANUAL_ARM_CFG.replace(prim_path=f"/World/{name}")
+    obj_cfg.init_state.pos = pos
+    obj_cfg.init_state.rot = rot
+    try:
+        objects[name] = Articulation(cfg=obj_cfg)
         _object_is_dynamic[name] = True
         sim.reset()
     except Exception:
@@ -410,6 +450,7 @@ HANDLERS = {
     "ping": handle_ping,
     "spawn_primitive": handle_spawn_primitive,
     "spawn_usd": handle_spawn_usd,
+    "spawn_bimanual_arm": handle_spawn_bimanual_arm,
     "remove": handle_remove,
     "set_pose": handle_set_pose,
     "query": handle_query,

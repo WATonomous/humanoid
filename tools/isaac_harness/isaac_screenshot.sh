@@ -13,7 +13,7 @@
 # an interactive click and don't work headless/remotely).
 #
 # Usage:
-#   isaac_screenshot.sh <container_script_path> [--cwd DIR] [--marker TEXT]
+#   isaac_harness.sh <container_script_path> [--cwd DIR] [--marker TEXT]
 #                        [--timeout SECONDS] [--out PNG_PATH] [-- extra args]
 #
 #   <container_script_path>  path INSIDE the container to the .py script to run
@@ -32,7 +32,7 @@
 #   ISAACLAB_SH_PATH  path to isaaclab.sh inside the container (default: /workspace/isaaclab/isaaclab.sh)
 #
 # Example:
-#   isaac_screenshot.sh /workspace/my_scene.py --marker SCENE_READY
+#   isaac_harness.sh /workspace/my_scene.py --marker SCENE_READY
 #
 # Your script should keep running after printing the marker (e.g. loop on
 # `simulation_app.is_running()`) so there's something live to screenshot; this
