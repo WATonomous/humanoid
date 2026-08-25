@@ -1,7 +1,8 @@
 """
 armWithStand (wato_arm_v2) articulation config for teleoperation.
 
-Robot model: Humanoid_Wato/wato_arm_v2 (armWithStand.usd).
+Robot model: Humanoid_Wato/pioneer_bimanual_arm (pioneer_bimanual_arm.usd),
+formerly wato_arm_v2/armWithStand.usd.
 
 CORRECTION (see git history for the original claim this replaced): despite
 matching link/joint NAMES with wato_bimanual_arm, this is a DIFFERENT CAD
@@ -26,12 +27,11 @@ What this means for the values below:
     rest pose, but it's a defined, correct-by-construction one -- retune
     live via Physics Inspector once you have GUI access, same as bimanual's
     values originally were.
-  - RIGHT_/LEFT_FINGER_DISTAL_TIP_LOCAL: re-measured directly from
-    armWithStand's own link7/8/7l/8l mesh geometry (UsdGeom.BBoxCache
-    ComputeRelativeBound, object-space) along its ACTUAL prismatic travel
-    axis for joint7/8 (Y here, vs X in bimanual) -- see the "outward-Y
-    extreme, X/Z bbox-center" values below. Bimanual's X-based numbers are
-    wrong for this asset's joint7/8 axis.
+  - RIGHT_/LEFT_FINGER_DISTAL_TIP_LOCAL: measured from this asset's own
+    link7/8/7l/8l mesh geometry in object space, along its ACTUAL prismatic
+    travel axis for joint7/8 (Y here, vs X in bimanual) -- "outward-Y
+    extreme, X/Z bbox-center". Bimanual's X-based numbers are wrong for this
+    asset's axis.
   - JOINT_POS_LIMITS / actuator gains / GRIPPER_OPEN-CLOSED: UNCHANGED from
     bimanual_arm_cfg.py, i.e. still not independently verified. The
     revolute ±2π placeholder is universal (not orientation-dependent) so
@@ -82,59 +82,67 @@ In sim we:
 """
 import math
 import os
+import sys
 
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
+from isaaclab.sensors import CameraCfg
 
 _THIS_DIR = os.path.abspath(os.path.dirname(__file__))
-_ARM_V2_ROOT = os.path.abspath(os.path.join(_THIS_DIR, "..", "..", "Humanoid_Wato", "wato_arm_v2"))
-_ARM_USD_PATH = os.path.join(_ARM_V2_ROOT, "urdf", "armWithStand", "armWithStand.usd")
+# pioneer_bimanual_arm is the current export of this arm, superseding wato_arm_v2/armWithStand.
+# Same joint/link names and topology, but the mesh and joint origins moved.
+_ARM_V2_ROOT = os.path.abspath(os.path.join(_THIS_DIR, "..", "..", "Humanoid_Wato", "pioneer_bimanual_arm"))
+_ARM_USD_PATH = os.path.join(_ARM_V2_ROOT, "usd", "pioneer_bimanual_arm.usd")
+
+if _ARM_V2_ROOT not in sys.path:
+    sys.path.insert(0, _ARM_V2_ROOT)
+from urdf_joint_limits import JOINT_POS_LIMITS  # noqa: E402  (needs the path insert above)
 
 
 def _deg(degrees: float) -> float:
     return degrees * math.pi / 180.0
 
 
-# --- Joint limits from Physics Inspector ------------------------------------
-_REVOLUTE_LIMIT = (-2 * math.pi, 2 * math.pi)
-_JOINT7_LIMIT = (-0.05, 0.0)
-_JOINT8_LIMIT = (0.0, 0.05)
+# --- Joint limits -----------------------------------------------------------
+# JOINT_POS_LIMITS is imported above from pioneer_bimanual_arm/urdf_joint_limits.py, which
+# parses urdf/pioneer_bimanual_arm.urdf. The URDF is the ground truth: edit it and every
+# consumer of this module picks the change up, no re-conversion needed. It is re-exported
+# here so existing `from armWithStand_v2_cfg import JOINT_POS_LIMITS` call sites keep working.
+#
+# This replaced a hardcoded +/-2pi placeholder (+/-360 deg per revolute joint, i.e. no limit
+# at all) that was carried over from bimanual_arm_cfg.py and never verified. Because
+# apply_joint_limits() and patch_joint_pos_limits_on_prim() below write this table over the
+# spawned USD prims, that placeholder was actively DESTROYING the real limits the asset
+# shipped with -- every revolute joint ran unbounded at runtime.
 
-JOINT_POS_LIMITS = {
-    "joint1": _REVOLUTE_LIMIT,
-    "joint2": _REVOLUTE_LIMIT,
-    "joint3": _REVOLUTE_LIMIT,
-    "joint4": _REVOLUTE_LIMIT,
-    "joint5": _REVOLUTE_LIMIT,
-    "joint6": _REVOLUTE_LIMIT,
-    "joint7": _JOINT7_LIMIT,
-    "joint8": _JOINT8_LIMIT,
-    "joint1L": _REVOLUTE_LIMIT,
-    "joint2l": _REVOLUTE_LIMIT,
-    "joint3l": _REVOLUTE_LIMIT,
-    "joint4l": _REVOLUTE_LIMIT,
-    "joint5l": _REVOLUTE_LIMIT,
-    "joint6l": _REVOLUTE_LIMIT,
-    "joint7l": _JOINT7_LIMIT,
-    "joint8l": _JOINT8_LIMIT,
-}
-
-# --- Default poses: URDF zero. Tried two alternatives live and both were
-# rejected: (1) IK-solved "reach forward and up" target didn't converge
-# cleanly (stuck ~0.2m error, joint angles past a full rotation); (2)
-# directly reusing bimanual's tuned degree values looked plausibly bent in
-# a narrow test crop but was confirmed wrong ("not naturally forward") once
-# actually viewed live -- expected, since armWithStand's joint axes differ
-# per-joint from bimanual's (see module docstring), so bimanual's angles
-# don't correspond to the same physical configuration here. Back to zero
-# as the known, correct-by-construction baseline. Retune live via Physics
-# Inspector for a real ergonomic pose if wanted.
+# --- Default (spawn) pose: URDF zero, EXCEPT the elbows.
+#
+# This is Isaac Lab's InitialStateCfg, a runtime spawn state -- it does NOT change the URDF's
+# zero pose, and q=0 still means exactly what the asset says it means.
+#
+# At URDF zero both arms hang straight down with the elbow fully extended, which is the elbow
+# EXTENSION SINGULARITY: measured there, cond(J) = 2560 and manipulability sqrt(det(J J^T)) =
+# 2.0e-06, and the least-controllable translation direction is almost exactly +Z -- the very
+# direction run_quest_armv2_teleop.py's _HOME_TIP_Z_OFFSET then commands the fingertip along.
+# Moving the tip 1 m along +Z from there costs 282 rad of joint motion, so the first IK step is
+# enormous and ill-conditioned: it dumps motion into the shoulder (the "shoulder hike") and
+# picks an elbow bend direction essentially at random, because at joint4/joint4l = 0 both signs
+# give identical first-order +Z motion. Nothing restores it afterwards -- solve_and_apply()
+# teleports via write_joint_state_to_sim, so there is no gravity and no dynamics.
+#
+# Flexing the elbows fixes both problems at once: manipulability rises to 2.1e-02 (10,000x) and
+# the arm starts unambiguously in the flexion branch. Signs are opposite because the two elbows
+# have opposite axis vectors (joint4 is (0,-1,0), joint4l is (0,1,0)); both put the forearm
+# FORWARD toward +X, the direction the robot faces. Verified at these values: fingertip reaches
+# base-frame (0.407, +/-0.289, -0.241), the elbow stays at z=-0.241 (well below the shoulder at
+# +0.0605, i.e. it hangs low), and the lowest point of the arm is -0.290 against a table top at
+# -0.513. Both are inside the URDF limits of [-132.5 deg, +100 deg].
 _DEFAULT_JOINT_POS = {
     "joint1": 0.0,
     "joint2": 0.0,
     "joint3": 0.0,
-    "joint4": 0.0,
+    "joint4": _deg(90.0),
     "joint5": 0.0,
     "joint6": 0.0,
     "joint7": 0.0,
@@ -143,7 +151,7 @@ _DEFAULT_JOINT_POS = {
     "joint1L": 0.0,
     "joint2l": 0.0,
     "joint3l": 0.0,
-    "joint4l": 0.0,
+    "joint4l": _deg(-90.0),
     "joint5l": 0.0,
     "joint6l": 0.0,
     "joint7l": 0.0,
@@ -158,20 +166,22 @@ RIGHT_EE_BODY = "link6l"
 LEFT_EE_BODY = "link6"
 RIGHT_FINGER_TIP_BODIES = ("link7l", "link8l")
 LEFT_FINGER_TIP_BODIES = ("link7", "link8")
-# Distal mesh points in each finger link's OWN object-space frame, measured
-# via UsdGeom.BBoxCache.ComputeRelativeBound(link_prim, link_prim) against
-# armWithStand's actual mesh geometry -- NOT bimanual's numbers (that asset's
-# joint7/8 prismatic axis is X; this asset's is Y, see module docstring).
-# Each finger's own outward-Y extreme (larger-magnitude Y bbox bound), X/Z
-# bbox-center, same "outward extreme along the travel axis" methodology
-# bimanual_arm_cfg.py used for its own (X-axis) fingers.
+# Distal mesh point of each finger, in that link's OWN object-space frame: the outward-Y extreme
+# (larger-magnitude Y bbox bound) with X/Z at the bbox centre, measured via
+# UsdGeom.BBoxCache.ComputeRelativeBound against this asset's mesh. Same "outward extreme along
+# the travel axis" methodology bimanual_arm_cfg.py used, but along Y -- bimanual's joint7/8 axis
+# is X, so its numbers are wrong here (see module docstring).
+#
+# LINK-LOCAL, so they do not survive a re-export that moves the link origins; re-measure the same
+# way if the arm asset changes. Sanity check: composed with the joint7/8 origins these give a
+# 0.1625m open fingertip gap on both grippers, matching the empirically measured 0.161m below.
 RIGHT_FINGER_DISTAL_TIP_LOCAL = {
-    "link7l": (0.0, 0.0296, -0.0398),
-    "link8l": (0.0, -0.0296, -0.0398),
+    "link7l": (0.0, 0.151416, -0.045369),
+    "link8l": (0.0, -0.114416, -0.039825),
 }
 LEFT_FINGER_DISTAL_TIP_LOCAL = {
-    "link7": (0.0, -0.0296, -0.0398),
-    "link8": (0.0, 0.0296, -0.0398),
+    "link7": (0.0, -0.151416, -0.045369),
+    "link8": (0.0, 0.114416, -0.039825),
 }
 
 # Gripper finger targets (joint7l: [-0.05, 0], joint8l: [0, 0.05]).
@@ -192,6 +202,94 @@ _GRIPPER_STIFFNESS = 400.0
 _GRIPPER_DAMPING = 40.0
 _GRIPPER_EFFORT_LIMIT = 30.0  # N (sim linear-force cap; tune empirically)
 _GRIPPER_VELOCITY_LIMIT = 0.2  # m/s
+
+
+# ── data-collection cameras ───────────────────────────────────────────────────
+# ego_cam (on base_link) and wrist_cam (on link6l) are the cameras recording reads. They are
+# defined HERE, not in the teleop scripts, because run_quest_armv2_teleop.py,
+# keyboard_teleop_armv2.py and keyboard_teleop_armv2_lightbox.py all need the same two cameras
+# and previously each carried its own copy.
+#
+# They are SPAWNED rather than read from the robot asset. The old armWithStand.usd baked camera
+# prims into its sensor layer and the scripts pointed at them with spawn=None; the
+# pioneer_bimanual_arm export has no cameras at all, which broke every one of those call sites at
+# once. Defining them in code means a future re-export cannot silently drop them.
+
+# focal_length 18 is ~60deg horizontal; lower it to widen. run_quest_armv2_teleop.py overwrites
+# ego_cam's at runtime to match the headset's widened RSD455 FOV.
+DATA_CAM_LENS = sim_utils.PinholeCameraCfg(
+    focal_length=7.336, horizontal_aperture=20.955, vertical_aperture=15.2908,
+    clipping_range=(0.01, 100.0),
+)
+
+# ego_cam pose, relative to base_link. Only an initial value in the Quest teleop script, which
+# re-aims ego_cam at the operator's head viewpoint at startup when --record is passed.
+EGO_CAM_POS = (0.047450090928410314, -0.008096717438775313, 0.21180604954921534)
+EGO_CAM_ROT = (0.8660254037844387, 0.49999999999999983, 0.0, 0.0)
+
+# wrist_cam aiming. The two angles are independent: roll spins the image, pitch aims the camera.
+WRIST_CAM_ROLL_DEG = 270.0   # rotates the image counter-clockwise; 90 / 180 / 270
+WRIST_CAM_PITCH_DEG = 30.0   # angles the camera down toward the gripper
+
+# wrist_cam mount point, relative to link6l's origin. Relative to the gripper:
+#     +X moves the camera UP        +Y moves it LEFT        -Z moves it FORWARD
+# (those follow from the roll/pitch above -- recompute them if you change either angle.)
+# The camera sits inside the wrist housing, so large moves can bury it in the mesh. The Quest
+# teleop script has a _SHOW_WRIST_CAM_MARKER flag that draws a sphere here to make it visible.
+WRIST_CAM_POS = (0.06168, 0.053, -0.06995)
+
+
+def _quat_mul_wxyz(a: tuple, b: tuple) -> tuple:
+    """Hamilton product of two (w, x, y, z) quaternions as plain tuples.
+
+    isaaclab.utils.math.quat_mul wants torch tensors; these are module constants."""
+    w1, x1, y1, z1 = a
+    w2, x2, y2, z2 = b
+    return (
+        w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+        w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+        w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+        w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+    )
+
+
+# Pitch must be composed OUTSIDE the roll. The other order rolls the pitch axis too, so changing
+# the roll would silently change which way the camera tilts.
+WRIST_CAM_ROT = _quat_mul_wxyz(
+    (math.cos(math.radians(WRIST_CAM_PITCH_DEG) / 2.0), 0.0,
+     math.sin(math.radians(WRIST_CAM_PITCH_DEG) / 2.0), 0.0),
+    (math.cos(math.radians(WRIST_CAM_ROLL_DEG) / 2.0), 0.0, 0.0,
+     math.sin(math.radians(WRIST_CAM_ROLL_DEG) / 2.0)),
+)
+
+
+def make_ego_cam_cfg() -> CameraCfg:
+    """Fresh CameraCfg for ego_cam. Requires launching with --enable_cameras.
+
+    A new instance per call, not a shared constant: InteractiveScene rewrites prim_path in place
+    when it resolves {ENV_REGEX_NS}."""
+    return CameraCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/base_link/ego_cam",
+        spawn=DATA_CAM_LENS,
+        offset=CameraCfg.OffsetCfg(pos=EGO_CAM_POS, rot=EGO_CAM_ROT, convention="opengl"),
+        height=480, width=640,
+        # Refresh whenever the app renders. An additional per-camera update_period on top of
+        # that froze this feed on a stale scene state.
+        update_period=0.0,
+        data_types=["rgb"],
+    )
+
+
+def make_wrist_cam_cfg() -> CameraCfg:
+    """Fresh CameraCfg for wrist_cam -- see make_ego_cam_cfg for why it is a factory."""
+    return CameraCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/link6l/wrist_cam",
+        spawn=DATA_CAM_LENS,
+        offset=CameraCfg.OffsetCfg(pos=WRIST_CAM_POS, rot=WRIST_CAM_ROT, convention="opengl"),
+        height=480, width=640,
+        update_period=0.0,
+        data_types=["rgb"],
+    )
 
 
 def _joint_limit_key(name: str) -> str | None:

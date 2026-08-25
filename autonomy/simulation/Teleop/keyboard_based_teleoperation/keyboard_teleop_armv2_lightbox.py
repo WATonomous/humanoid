@@ -42,7 +42,6 @@ from isaaclab.controllers import DifferentialIKController, DifferentialIKControl
 from isaaclab.devices import Se3Keyboard, Se3KeyboardCfg
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
-from isaaclab.sensors import CameraCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.math import quat_apply, subtract_frame_transforms
 
@@ -50,6 +49,8 @@ from armWithStand_v2_cfg import (
     ARM_V2_CFG,
     GRIPPER_CLOSED,
     GRIPPER_OPEN,
+    make_ego_cam_cfg,
+    make_wrist_cam_cfg,
     LEFT_ARM_JOINTS,
     RIGHT_ARM_JOINTS,
     RIGHT_EE_BODY,
@@ -110,17 +111,10 @@ class ArmV2LightboxSceneCfg(InteractiveSceneCfg):
         init_state=ARM_V2_CFG.init_state.replace(pos=(0.0, 0.0, 1.1997)),
     )
 
-    # Data-collection cameras (kept in sync with run_quest_armv2_teleop.py) --
-    # wrap the Camera prims already baked into armWithStand.usd's sensor
-    # layer (spawn=None). Requires launching with --enable_cameras.
-    ego_cam = CameraCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/base_link/ego_cam",
-        spawn=None, height=480, width=640, update_period=0.0, data_types=["rgb"],
-    )
-    wrist_cam = CameraCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/link6l/wrist_cam",
-        spawn=None, height=480, width=640, update_period=0.0, data_types=["rgb"],
-    )
+    # Data-collection cameras. Defined in armWithStand_v2_cfg.py and shared with the other
+    # teleop scripts -- adjust camera position and aim there. Requires --enable_cameras.
+    ego_cam = make_ego_cam_cfg()
+    wrist_cam = make_wrist_cam_cfg()
 
     enclosure_back: AssetBaseCfg = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/EnclosureBack",

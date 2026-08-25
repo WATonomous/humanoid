@@ -8,38 +8,27 @@ against bimanual_arm_cfg at runtime, where both are importable.
 """
 import math
 import os
+import sys
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 SIM_DIR = os.path.join(REPO_ROOT, "autonomy", "simulation")
 BIMANUAL_ROOT = os.path.join(SIM_DIR, "Humanoid_Wato", "pioneer_bimanual_arm")
 URDF_PATH = os.path.join(BIMANUAL_ROOT, "urdf", "pioneer_bimanual_arm.urdf")
+
+if BIMANUAL_ROOT not in sys.path:
+    sys.path.insert(0, BIMANUAL_ROOT)
+# Standard-library only, so this module stays importable outside Isaac Sim (see docstring).
+from urdf_joint_limits import JOINT_POS_LIMITS  # noqa: E402  (needs the path insert above)
 # Patched copy (real joint limits) written next to the original so its
 # `../meshes/...` references still resolve.
 CUROBO_URDF_PATH = os.path.join(BIMANUAL_ROOT, "urdf", "bimanual_arm_curobo.urdf")
 CUROBO_ROBOT_YML = os.path.join(os.path.dirname(__file__), "curobo_cfg", "wato_bimanual_left.yml")
 
-_REVOLUTE_LIMIT = (-2 * math.pi, 2 * math.pi)
-_JOINT7_LIMIT = (-0.05, 0.0)
-_JOINT8_LIMIT = (0.0, 0.05)
-
-JOINT_POS_LIMITS = {
-    "joint1": _REVOLUTE_LIMIT,
-    "joint2": _REVOLUTE_LIMIT,
-    "joint3": _REVOLUTE_LIMIT,
-    "joint4": _REVOLUTE_LIMIT,
-    "joint5": _REVOLUTE_LIMIT,
-    "joint6": _REVOLUTE_LIMIT,
-    "joint7": _JOINT7_LIMIT,
-    "joint8": _JOINT8_LIMIT,
-    "joint1L": _REVOLUTE_LIMIT,
-    "joint2l": _REVOLUTE_LIMIT,
-    "joint3l": _REVOLUTE_LIMIT,
-    "joint4l": _REVOLUTE_LIMIT,
-    "joint5l": _REVOLUTE_LIMIT,
-    "joint6l": _REVOLUTE_LIMIT,
-    "joint7l": _JOINT7_LIMIT,
-    "joint8l": _JOINT8_LIMIT,
-}
+# JOINT_POS_LIMITS is imported above from pioneer_bimanual_arm/urdf_joint_limits.py, which
+# parses URDF_PATH -- the ground truth for this asset's limits, replacing a hardcoded +/-2pi
+# placeholder. Note build_wato_robot_cfg.write_patched_urdf() writes this table into
+# CUROBO_URDF_PATH; now that the values come from the URDF itself, that step just carries the
+# real limits through to cuRobo instead of overriding them.
 
 
 def _deg(degrees: float) -> float:

@@ -1,4 +1,4 @@
-"""Quest VR -> Isaac Sim teleoperation for the wato_arm_v2 arm (armWithStand.usd).
+"""Quest VR -> Isaac Sim teleoperation for the wato_arm_v2 arm (pioneer_bimanual_arm.usd).
 
 Runs inside the simulation_isaac container. Both arms are driven by Quest hand tracking:
 the left Quest wrist drives the left arm, the right drives the right, and pinching
@@ -54,6 +54,7 @@ import signal
 import sys
 import threading
 import time
+import traceback
 from pathlib import Path
 
 from isaaclab.app import AppLauncher
@@ -143,6 +144,9 @@ from armWithStand_v2_cfg import (  # noqa: E402
     ARM_V2_CFG,
     GRIPPER_CLOSED,
     GRIPPER_OPEN,
+    WRIST_CAM_POS,
+    make_ego_cam_cfg,
+    make_wrist_cam_cfg,
     RIGHT_ARM_JOINTS as LEFT_ARM_JOINTS,
     RIGHT_EE_BODY as LEFT_EE_BODY,
     RIGHT_FINGER_TIP_BODIES as LEFT_FINGER_TIP_BODIES,
@@ -208,10 +212,22 @@ _GAIN_RAMP_END_M = 0.35
 _MAX_REACH_M = 0.5
 
 # Keep X at 0 -- fix framing on the camera/enclosure side, not by dragging the arm's target
-# off its natural rest pose. Z: base_link sits at the TOP of the stand and the arm hangs down,
-# so the rest tip started ~0.145m BELOW the table top; +0.2 lifts it clear of the surface.
+# off its natural rest pose.
+#
+# Z was +0.2 and is now 0. It existed because the OLD all-zeros spawn pose left both arms
+# hanging straight down with the rest tip ~0.145m BELOW the table top, so the target had to be
+# lifted clear of the surface. armWithStand_v2_cfg now spawns with the elbows flexed, which puts
+# the rest tip at base-frame z=-0.241 -- already 0.27m above the table top at -0.513 -- so the
+# lift is redundant.
+#
+# Leaving it at +0.2 was also a measured performance problem: it stacked on top of the raised
+# rest pose and put both hands at z=-0.041, i.e. 0.490m from the eye cameras and 31.6deg off
+# their boresight, versus 0.719m and 49.7deg (near the frame edge) before. That is ~2.15x the
+# solid angle of detailed arm mesh in frame for all three cameras, and it cost ~4ms of JPEG
+# encode and ~11ms of render per cycle -- POV capture went 5.5ms -> 9.4ms and the full cycle
+# 99ms -> 131ms. At 0.0 the hands sit 0.626m out at 24.3deg, ~0.61x that solid angle.
 _HOME_TIP_X_OFFSET = 0.0
-_HOME_TIP_Z_OFFSET = 0.2
+_HOME_TIP_Z_OFFSET = 0.0
 
 # Real-hardware bridge timing (--publish-real-left-arm), mirroring task_space_real.py.
 # SAFETY: joint_command_node applies NO rate limiting to the FIRST ArmPose it receives, so an
@@ -233,10 +249,41 @@ _INDEX_TIP_IDX = 9
 _PINCH_CLOSE_M = 0.035  # was 0.030, nudged up per live feedback (easier to trigger close)
 _PINCH_OPEN_M = 0.050
 
-_DLS_LAMBDA = 0.2
-# Right arm needs extra damping (not a smaller reach): its conditioning near full extension is
-# worse than the left's, and it would freeze mid-reach with target_err stuck at the clamp.
-_DLS_LAMBDA_RIGHT = 0.35
+# Lowered from 0.2/0.35. Both values were raised to survive the arm's conditioning near FULL
+# EXTENSION -- which was a property of the old all-zeros spawn pose (cond(J) = 2560,
+# manipulability 2.0e-06). armWithStand_v2_cfg now spawns with the elbows flexed to +/-90 deg,
+# where manipulability is 2.1e-02, so that justification is gone. The ratio between the two arms
+# is preserved rather than unified, since only the left chain was re-measured.
+#
+# Damping is also what was leaking wrist rotation into the shoulder (see _IK_JOINT_COST): at
+# lambda=0.2 a pure forearm twist came out 34.7% shoulder, at 0.1 it is 17.8%, and the exact
+# undamped solution is 0.4%. Averaged over four poses spanning the workspace, dropping to 0.1
+# and weighting the shoulder improves BOTH shoulder leakage and translation tracking versus the
+# old lambda=0.2 unweighted setup. Raise these back toward 0.2/0.35 if the arm feels jittery
+# near singular configurations.
+_DLS_LAMBDA = 0.1
+_DLS_LAMBDA_RIGHT = 0.175
+
+# Per-joint cost for the weighted DLS solve (see _WeightedDlsIKController). Higher = the solver
+# avoids moving that joint. Only RATIOS matter, not absolute size.
+#
+# The shoulder is expensive so that a hand rotation is absorbed by the forearm roll (joint5/5l)
+# and the wrist (joint6/6l) instead of swinging the whole arm. The shoulder stays free enough to
+# do the work only it can do -- translating the tip, which needs its lever arm -- because at
+# weight 5 it still supplies ~50% of the joint motion for a pure translation, while its share of
+# a pure wrist twist drops from 34.7% to 11.4%. Pushing the weight to 25 gets the twist share to
+# 4.2% but measurably slows translation tracking, which reads as a laggy arm.
+#
+# Elbow, forearm roll and wrist are all left at 1.0: the elbow must stay cheap or reaching
+# suffers, and the forearm/wrist are exactly the joints we want the rotation to land in.
+_IK_SHOULDER_COST = 5.0
+_IK_JOINT_COST = {
+    "joint1": _IK_SHOULDER_COST, "joint2": _IK_SHOULDER_COST, "joint3": _IK_SHOULDER_COST,
+    "joint1L": _IK_SHOULDER_COST, "joint2l": _IK_SHOULDER_COST, "joint3l": _IK_SHOULDER_COST,
+    "joint4": 1.0, "joint4l": 1.0,      # elbow flexion
+    "joint5": 1.0, "joint5l": 1.0,      # forearm pronation/supination
+    "joint6": 1.0, "joint6l": 1.0,      # wrist flexion
+}
 # Ceiling + threshold for Chiaverini adaptive damping (_adaptive_dls_lambda): lambda ramps from
 # the floor above toward lambda_max as manipulability drops below epsilon.
 # CURRENTLY INACTIVE -- solve_and_apply was reverted to fixed lambda on live feedback that
@@ -495,12 +542,32 @@ def _set_mount_pose(mount_path: str, translate: tuple, orient_wxyz: tuple, creat
         prim = stage.GetPrimAtPath(mount_path)
         xformable = UsdGeom.Xformable(prim)
         ops = xformable.GetOrderedXformOps()
-        translate_op = next(op for op in ops if op.GetOpType() == UsdGeom.XformOp.TypeTranslate)
-        orient_op = next(op for op in ops if op.GetOpType() == UsdGeom.XformOp.TypeOrient)
+        translate_op = next((op for op in ops if op.GetOpType() == UsdGeom.XformOp.TypeTranslate), None)
+        orient_op = next((op for op in ops if op.GetOpType() == UsdGeom.XformOp.TypeOrient), None)
+        if translate_op is None or orient_op is None:
+            # ego_cam is spawner-created, and a spawned prim is not guaranteed to carry both
+            # named ops. Rebuild once; later calls take the fast path above.
+            xformable.ClearXformOpOrder()
+            translate_op = xformable.AddTranslateOp(precision=UsdGeom.XformOp.PrecisionDouble)
+            orient_op = xformable.AddOrientOp(precision=UsdGeom.XformOp.PrecisionDouble)
 
     translate_op.Set(Gf.Vec3d(*translate))
     w, x, y, z = orient_wxyz
     orient_op.Set(Gf.Quatd(w, Gf.Vec3d(x, y, z)))
+
+
+def _spawn_wrist_cam_marker(prim_path: str, pos: tuple, radius: float = 0.01) -> None:
+    """Draw a plain USD sphere at pos, parented to prim_path's parent.
+
+    Must be created here rather than as a scene AssetBaseCfg: prims nested inside the robot spawn
+    too early that way, before its referenced USD layer has composed."""
+    stage = omni.usd.get_context().get_stage()
+    sphere = UsdGeom.Sphere.Define(stage, prim_path)
+    sphere.GetRadiusAttr().Set(radius)
+    sphere.GetDisplayColorAttr().Set([Gf.Vec3f(0.0, 1.0, 0.0)])
+    xformable = UsdGeom.Xformable(sphere.GetPrim())
+    xformable.ClearXformOpOrder()
+    xformable.AddTranslateOp(precision=UsdGeom.XformOp.PrecisionDouble).Set(Gf.Vec3d(*pos))
 
 
 def _open_pov_camera(camera_prim_path: str, label: str, width: int = 480, height: int = 360):
@@ -623,6 +690,11 @@ _WRIST_CAM_FRAME_PATH = _POV_STATIC_DIR / "wrist_cam.jpg"
 # position instead put the marker at the operator's physical wrist. Temp-file-then-renamed.
 _MARKER_UV_PATH = _POV_STATIC_DIR / "marker_uv.json"
 
+# Draws a 2cm green sphere at armWithStand_v2_cfg.WRIST_CAM_POS so the camera's mount point is
+# visible in the viewport while tuning it. Visual only -- no collision or physics. Turn it off
+# before recording: it sits inside link6l and can appear in ego_cam/wrist_cam frames.
+_SHOW_WRIST_CAM_MARKER = False
+
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -661,28 +733,11 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
     )
 
     # Data-collection cameras, NOT the headset display (that's the RSD455 pair attached at
-    # runtime). spawn=None points at prims already baked into armWithStand.usd's sensor layer.
-    # wrist_cam is on link6l -- the "right" arm's wrist in this file's naming.
-    ego_cam = CameraCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/base_link/ego_cam",
-        spawn=None,
-        height=480,
-        width=640,
-        update_period=0.0,  # Refresh whenever the app renders; the `render=` gate already
-        # throttles that. A per-camera update_period on top froze this feed on a stale scene.
-        # NB the throttling is that gate, NOT SimulationCfg.render_interval -- see main().
-        data_types=["rgb"],
-    )
-    wrist_cam = CameraCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/link6l/wrist_cam",
-        spawn=None,
-        height=480,
-        width=640,
-        update_period=0.0,  # Refresh whenever the app renders; the `render=` gate already
-        # throttles that. A per-camera update_period on top froze this feed on a stale scene.
-        # NB the throttling is that gate, NOT SimulationCfg.render_interval -- see main().
-        data_types=["rgb"],
-    )
+    # runtime). wrist_cam is on link6l -- the "right" arm's wrist in this file's naming.
+    # Both are defined in armWithStand_v2_cfg.py (DATA_CAM_LENS, EGO_CAM_*, WRIST_CAM_*), shared
+    # with the keyboard teleop scripts -- adjust camera position and aim there, not here.
+    ego_cam = make_ego_cam_cfg()
+    wrist_cam = make_wrist_cam_cfg()
 
     enclosure_back: AssetBaseCfg = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/EnclosureBack",
@@ -1013,6 +1068,60 @@ def _ee_pose_in_base(robot, body_id: int):
     )
 
 
+class _WeightedDlsIKController(DifferentialIKController):
+    """DifferentialIKController whose DLS solve charges a per-joint cost.
+
+    Isaac Lab's "dls" branch solves dq = J^T (J J^T + lambda^2 I)^-1 e, which minimises the
+    UNWEIGHTED norm ||dq||. That norm prices one degree of shoulder rotation exactly like one
+    degree of forearm roll, so the damping term happily spreads motion across whichever joints
+    shrink ||dq|| fastest. Measured on this arm, a pure forearm-axis twist of the fingertip came
+    out 34.7% shoulder / 71% forearm at lambda=0.2, even though the exact undamped solution is
+    0.4% shoulder / 94% forearm -- i.e. the arm swung from the shoulder purely as an artifact of
+    the damping, not because the kinematics needed it.
+
+    Weighting fixes that. With W = diag(cost):
+
+        dq = W^-1 J^T (J W^-1 J^T + lambda^2 I)^-1 e
+
+    minimises ||dq||_W instead, so an expensive joint moves only when a cheap one cannot do the
+    job. This is the standard weighted-DLS formulation; KDL exposes the same knob as
+    ChainIkSolverVel_wdls.setWeightJS.
+
+    Note it does NOT trade task accuracy for posture: as lambda -> 0 with a square non-singular
+    J, W^-1 J^T (J W^-1 J^T)^-1 collapses to J^-1 regardless of W. Weighting only reshapes how
+    the DAMPING distributes motion -- which is precisely the part that was leaking.
+    """
+
+    def __init__(self, cfg, num_envs, device, joint_costs):
+        super().__init__(cfg, num_envs, device)
+        # (n,) -- broadcasts over the env batch and over the task rows below.
+        self._joint_cost_inv = 1.0 / torch.as_tensor(joint_costs, dtype=torch.float32, device=device)
+
+    def _compute_delta_joint_pos(self, delta_pose: torch.Tensor, jacobian: torch.Tensor) -> torch.Tensor:
+        if self.cfg.ik_method != "dls":
+            return super()._compute_delta_joint_pos(delta_pose, jacobian)
+
+        lambda_val = self.cfg.ik_params["lambda_val"]
+        w_inv = self._joint_cost_inv
+        jacobian_T = jacobian.transpose(1, 2)
+        # Scaling J's columns by w_inv IS J @ W^-1, without materialising the diagonal.
+        lhs = (jacobian * w_inv) @ jacobian_T
+        lhs = lhs + (lambda_val**2) * torch.eye(jacobian.shape[1], device=self._device)
+        # solve_ex(check_errors=False), NOT solve() or the base class's inverse(). All three are
+        # numerically identical here (measured: 0.0 difference vs solve), but both of the others
+        # inspect a singularity `info` flag on the host, and reading it forces a CUDA
+        # synchronisation. Measured with GPU work already queued -- which is the real situation,
+        # since the render is in flight -- that sync blocks the host for ~4.1-4.2ms per call
+        # against 0.067ms here, i.e. 63x, and it happens twice per physics step. It stalls CPU
+        # work (JPEG encode, ROS polling) behind the render instead of overlapping with it.
+        #
+        # Skipping the check is safe by construction, not by luck: lhs = J W^-1 J^T + lambda^2 I
+        # is symmetric positive definite for any lambda > 0 (J W^-1 J^T is PSD because W^-1 is
+        # positive diagonal), with minimum eigenvalue >= lambda^2. It cannot be singular.
+        y, _ = torch.linalg.solve_ex(lhs, delta_pose.unsqueeze(-1), check_errors=False)
+        return (w_inv.unsqueeze(-1) * (jacobian_T @ y)).squeeze(-1)
+
+
 class _ArmDlsController:
     """A DifferentialIKController plus the per-arm state to drive it from Quest wrist data:
     entity/jacobian indices, fingertip geometry, homing state, current target.
@@ -1035,7 +1144,15 @@ class _ArmDlsController:
             command_type="pose", use_relative_mode=False, ik_method="dls",
             ik_params={"lambda_val": lambda_val},
         )
-        self.controller = DifferentialIKController(cfg, num_envs=scene.num_envs, device=device)
+        # SceneEntityCfg resolves with preserve_order=False, so arm_ids comes back in
+        # ARTICULATION order, not the order of arm_joint_names. The Jacobian columns follow
+        # arm_ids, so the cost vector has to be built from the resolved names or the weights
+        # land on the wrong joints.
+        self.arm_joint_names = [robot.data.joint_names[i] for i in self.arm_ids]
+        joint_costs = [_IK_JOINT_COST.get(name, 1.0) for name in self.arm_joint_names]
+        self.controller = _WeightedDlsIKController(
+            cfg, num_envs=scene.num_envs, device=device, joint_costs=joint_costs,
+        )
         self.controller.reset(env_ids=torch.arange(scene.num_envs, device=device))
         # Floor/ceiling for adaptive damping. Inert while _adaptive_dls_lambda is uncalled.
         self.lambda_min = lambda_val
@@ -1187,6 +1304,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         _base_link_prim_path, "right_eye_camera_mount", _HEAD_VIEWPOINT_HOME_POS, _HEAD_VIEWPOINT_HOME_QUAT
     )
     print(f"[Quest] Stereo head-tracked RealSense D455 pair attached: {left_eye_mount}, {right_eye_mount}", flush=True)
+    if _SHOW_WRIST_CAM_MARKER:
+        _spawn_wrist_cam_marker("/World/envs/env_0/Robot/link6l/wrist_cam_marker", WRIST_CAM_POS)
+        print(f"[Quest] wrist_cam calibration marker ON (2cm green sphere at {WRIST_CAM_POS} "
+              "on link6l) -- set _SHOW_WRIST_CAM_MARKER=False to hide.", flush=True)
     # Read the native FOV BEFORE widening it for the headset display.
     _rsd455_native_fov = _read_camera_fov(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}")
     _widen_camera_fov(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}", _RSD455_WIDENED_FOCAL_LENGTH)
@@ -1201,8 +1322,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     # ego_cam gets the RSD455's aperture but the WIDENED focal length -- native FOV is too
     # zoomed in to be usable. Extra Kit preview windows for ego_cam/wrist_cam were removed here:
     # they render on every app tick regardless of the render gate, and cost real time.
+    #
+    # args_cli.record is the same flag main() uses to decide whether ego_cam exists -- without
+    # it there is no prim to write to. Keep the two conditions identical.
     _ego_cam_prim_path = f"{_base_link_prim_path}/ego_cam"
-    if _rsd455_native_fov is not None:
+    if args_cli.record and _rsd455_native_fov is not None:
         _ego_cam_fov = (_RSD455_WIDENED_FOCAL_LENGTH, _rsd455_native_fov[1], _rsd455_native_fov[2])
         _set_camera_fov(_ego_cam_prim_path, *_ego_cam_fov)
         print(f"[Quest] ego_cam FOV set to WIDENED RSD455 (not native) "
@@ -1949,8 +2073,15 @@ def main() -> None:
     scene = InteractiveScene(scene_cfg)
     sim.reset()
     print("[Quest] Simulation ready (lightbox enclosure walls added).")
+    exit_code = 0
     try:
         run_simulator(sim, scene)
+    except Exception:
+        # os._exit below terminates without unwinding, so Python never prints this itself and
+        # a crash would look exactly like a clean shutdown. Print it, and exit non-zero.
+        traceback.print_exc()
+        sys.stderr.flush()
+        exit_code = 1
     finally:
         # recorder.finalize() has already returned, so everything committed is durably on disk
         # and nothing here can lose data. The only remaining job is to not hang.
@@ -1975,8 +2106,8 @@ def main() -> None:
         # os._exit also skips interpreter teardown, since Kit's atexit hooks are part of the
         # hang. A watchdog cannot rescue either call (blocked C code holds the GIL), so not
         # calling them is the only fix. Re-add one only with proof that it returns.
-        print("[Quest] Teardown 2/2: exiting.", flush=True)
-        os._exit(0)
+        print(f"[Quest] Teardown 2/2: exiting (status {exit_code}).", flush=True)
+        os._exit(exit_code)
 
 
 if __name__ == "__main__":

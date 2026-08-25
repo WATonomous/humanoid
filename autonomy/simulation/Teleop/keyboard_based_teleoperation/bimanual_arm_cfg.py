@@ -39,6 +39,7 @@ In sim we:
 """
 import math
 import os
+import sys
 
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
@@ -48,34 +49,20 @@ _THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 _BIMANUAL_ROOT = os.path.abspath(os.path.join(_THIS_DIR, "..", "..", "Humanoid_Wato", "pioneer_bimanual_arm"))
 _ARM_USD_PATH = os.path.join(_BIMANUAL_ROOT, "usd", "pioneer_bimanual_arm.usd")
 
+if _BIMANUAL_ROOT not in sys.path:
+    sys.path.insert(0, _BIMANUAL_ROOT)
+from urdf_joint_limits import JOINT_POS_LIMITS  # noqa: E402  (needs the path insert above)
+
 
 def _deg(degrees: float) -> float:
     return degrees * math.pi / 180.0
 
 
-# --- Joint limits from Physics Inspector ------------------------------------
-_REVOLUTE_LIMIT = (-2 * math.pi, 2 * math.pi)
-_JOINT7_LIMIT = (-0.05, 0.0)
-_JOINT8_LIMIT = (0.0, 0.05)
-
-JOINT_POS_LIMITS = {
-    "joint1": _REVOLUTE_LIMIT,
-    "joint2": _REVOLUTE_LIMIT,
-    "joint3": _REVOLUTE_LIMIT,
-    "joint4": _REVOLUTE_LIMIT,
-    "joint5": _REVOLUTE_LIMIT,
-    "joint6": _REVOLUTE_LIMIT,
-    "joint7": _JOINT7_LIMIT,
-    "joint8": _JOINT8_LIMIT,
-    "joint1L": _REVOLUTE_LIMIT,
-    "joint2l": _REVOLUTE_LIMIT,
-    "joint3l": _REVOLUTE_LIMIT,
-    "joint4l": _REVOLUTE_LIMIT,
-    "joint5l": _REVOLUTE_LIMIT,
-    "joint6l": _REVOLUTE_LIMIT,
-    "joint7l": _JOINT7_LIMIT,
-    "joint8l": _JOINT8_LIMIT,
-}
+# --- Joint limits -----------------------------------------------------------
+# JOINT_POS_LIMITS is imported above from pioneer_bimanual_arm/urdf_joint_limits.py, which
+# parses urdf/pioneer_bimanual_arm.urdf -- the ground truth for this asset's limits. It is
+# re-exported here so existing `from bimanual_arm_cfg import JOINT_POS_LIMITS` call sites
+# keep working. This replaced a hardcoded +/-2pi placeholder that was never verified.
 
 # --- Default poses from Physics Inspector (revolute: deg -> rad) ------------
 _DEFAULT_JOINT_POS = {
