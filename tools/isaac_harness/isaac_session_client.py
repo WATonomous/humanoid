@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Host-side client for isaac_session_daemon.py.
 
-The queue directory lives under the repo (tools/isaac_screenshot/.session/),
+The queue directory lives under the repo (tools/isaac_harness/.session/),
 which is bind-mounted read-write into the container at
-/workspace/humanoid/tools/isaac_screenshot/.session — so commands/responses
+/workspace/humanoid/tools/isaac_harness/.session — so commands/responses
 pass between host and daemon as plain files, no docker cp needed.
 
 Usage (each subcommand sends one command and prints the JSON response):
@@ -31,7 +31,7 @@ import time
 import uuid
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-QUEUE_DIR = os.path.join(REPO_ROOT, "tools", "isaac_screenshot", ".session")
+QUEUE_DIR = os.path.join(REPO_ROOT, "tools", "isaac_harness", ".session")
 CMDS_DIR = os.path.join(QUEUE_DIR, "cmds")
 RESP_DIR = os.path.join(QUEUE_DIR, "responses")
 
@@ -145,7 +145,7 @@ def main() -> None:
         # translate host --out path to the container-visible path under the
         # same bind-mounted repo root
         container_out = os.path.join(
-            "/workspace/humanoid/tools/isaac_screenshot/.session/shots",
+            "/workspace/humanoid/tools/isaac_harness/.session/shots",
             os.path.basename(args.out),
         )
         cmd.update(eye=args.eye, target=args.target, out_path=container_out)

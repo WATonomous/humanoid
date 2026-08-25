@@ -2,7 +2,7 @@
 # Start/stop the persistent Isaac Sim session daemon (isaac_session_daemon.py).
 # Once running, drive it with isaac_session_client.py — each command costs a
 # fraction of a second against the warm session, instead of the ~15-40s a
-# fresh Isaac Sim launch costs with the one-shot isaac_screenshot.sh scripts.
+# fresh Isaac Sim launch costs with the one-shot isaac_harness.sh scripts.
 # Use this when iterating repeatedly on the same scene; use the one-shot
 # scripts for a single check.
 #
@@ -11,7 +11,7 @@
 #   isaac_session.sh stop
 #   isaac_session.sh status
 #
-# Env vars: ISAAC_CONTAINER, ISAACLAB_SH_PATH (same as isaac_screenshot.sh)
+# Env vars: ISAAC_CONTAINER, ISAACLAB_SH_PATH (same as isaac_harness.sh)
 
 set -euo pipefail
 
@@ -19,7 +19,7 @@ CONTAINER="${ISAAC_CONTAINER:-watod_hy-simulation_isaac_dev-1}"
 ISAACLAB_SH="${ISAACLAB_SH_PATH:-/workspace/isaaclab/isaaclab.sh}"
 TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 QUEUE_DIR_HOST="$TOOLS_DIR/.session"
-QUEUE_DIR_CONTAINER="/workspace/humanoid/tools/isaac_screenshot/.session"
+QUEUE_DIR_CONTAINER="/workspace/humanoid/tools/isaac_harness/.session"
 LOG_PATH="$QUEUE_DIR_HOST/daemon.log"
 LOG_PATH_CONTAINER="$QUEUE_DIR_CONTAINER/daemon.log"
 
@@ -44,7 +44,7 @@ case "$ACTION" in
 
     echo "[session] starting daemon (log=$LOG_PATH)"
     docker exec -d "$CONTAINER" bash -c \
-      "cd /workspace/humanoid && PYTHONUNBUFFERED=1 '$ISAACLAB_SH' -p tools/isaac_screenshot/isaac_session_daemon.py --queue-dir '$QUEUE_DIR_CONTAINER' > '$LOG_PATH_CONTAINER' 2>&1"
+      "cd /workspace/humanoid && PYTHONUNBUFFERED=1 '$ISAACLAB_SH' -p tools/isaac_harness/isaac_session_daemon.py --queue-dir '$QUEUE_DIR_CONTAINER' > '$LOG_PATH_CONTAINER' 2>&1"
 
     echo "[session] waiting for DAEMON_READY (timeout ${TIMEOUT}s)"
     ELAPSED=0

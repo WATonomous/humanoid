@@ -2,7 +2,7 @@
 
 Launches Isaac Sim once (headless) and keeps it running, reading JSON
 commands from a queue directory and writing JSON responses — instead of the
-relaunch-per-shot model of isaac_screenshot.sh / isaac_multiview_screenshot.sh.
+relaunch-per-shot model of isaac_harness.sh / isaac_multiview_screenshot.sh.
 A fresh Isaac Sim launch costs ~15-40s; against an already-running session,
 each command (spawn an object, move the camera, take a screenshot, query a
 pose) costs a fraction of a second. Use this when iterating repeatedly on the
@@ -12,7 +12,7 @@ Run from inside the sim container (see isaac_session.sh for the host-side
 launcher that does this for you):
 
     cd /workspace && PYTHONUNBUFFERED=1 /workspace/isaaclab/isaaclab.sh -p \
-        tools/isaac_screenshot/isaac_session_daemon.py --queue-dir /workspace/.isaac_session
+        tools/isaac_harness/isaac_session_daemon.py --queue-dir /workspace/.isaac_session
 
 The queue directory (shared with the host via the repo's bind mount — no
 docker cp needed) has two subdirs:
