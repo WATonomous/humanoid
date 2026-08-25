@@ -91,6 +91,7 @@ sim.reset()
 
 # name -> RigidObject | Articulation
 objects: dict = {}
+_object_is_dynamic: dict = {}  # name -> bool, for the bbox staleness warning
 
 _PRIMITIVE_SPAWNERS = {
     "cuboid": sim_utils.CuboidCfg,
@@ -160,12 +161,14 @@ def handle_spawn_primitive(cmd: dict) -> dict:
     )
     try:
         objects[name] = RigidObject(cfg=obj_cfg)
+        _object_is_dynamic[name] = dynamic
         sim.reset()
     except Exception:
         # don't leave a half-initialized object in the registry — a broken
         # entry there crashes every later command that touches it (query,
         # step, distance, ...) with an unrelated-looking AttributeError.
         objects.pop(name, None)
+        _object_is_dynamic.pop(name, None)
         raise
     return {"ok": True}
 
@@ -191,9 +194,15 @@ def handle_spawn_usd(cmd: dict) -> dict:
                 init_state=RigidObjectCfg.InitialStateCfg(pos=pos, rot=rot),
             )
             objects[name] = RigidObject(cfg=obj_cfg)
+        # Whether a USD-file rigid body is actually kinematic depends on
+        # what's baked into the asset itself, which we don't inspect here —
+        # conservatively assume dynamic (i.e. bbox may go stale) unless
+        # proven otherwise.
+        _object_is_dynamic[name] = True
         sim.reset()
     except Exception:
         objects.pop(name, None)
+        _object_is_dynamic.pop(name, None)
         raise
     return {"ok": True}
 
@@ -207,6 +216,7 @@ def handle_remove(cmd: dict) -> dict:
     stage = omni.usd.get_context().get_stage()
     stage.RemovePrim(f"/World/{name}")
     del objects[name]
+    _object_is_dynamic.pop(name, None)
     sim.reset()
     return {"ok": True}
 
@@ -254,6 +264,22 @@ def _prim_path_for(name: str) -> str:
 
 
 def handle_bbox(cmd: dict) -> dict:
+    """World-space AABB of a prim via raw USD (UsdGeom.BBoxCache).
+
+    KNOWN LIMITATION: for a dynamic (non-kinematic) tracked object that has
+    moved under physics since spawn, this can return a STALE, spawn-time
+    bounding box. Physics for RigidObject/Articulation runs on a tensor/
+    Fabric layer that does not reliably sync back to the USD stage's xform
+    attributes every step, so a raw-USD bbox read can lag behind reality —
+    confirmed by comparing against query()'s tensor-sourced pose, which
+    stayed correct while this drifted. An attempted fix (reconstruct the
+    world bbox from a cached local bbox + the live tracked pose) produced
+    numbers that didn't match query() either and was reverted rather than
+    ship something subtly wrong — needs a real fix, not a guess.
+    For a moving tracked object, treat query()'s pos/rot as authoritative
+    and use bbox mainly for STATIC prims (ground, table, anything kinematic
+    or not yet stepped) until this is properly fixed.
+    """
     from pxr import UsdGeom
 
     import omni.usd
@@ -267,7 +293,12 @@ def handle_bbox(cmd: dict) -> dict:
     bbox_cache = UsdGeom.BBoxCache(0, [UsdGeom.Tokens.default_], useExtentsHint=True)
     bbox = bbox_cache.ComputeWorldBound(prim)
     rng = bbox.ComputeAlignedRange()
-    return {"ok": True, "min": list(rng.GetMin()), "max": list(rng.GetMax())}
+    result = {"ok": True, "min": list(rng.GetMin()), "max": list(rng.GetMax())}
+    if _object_is_dynamic.get(name):
+        result["warning"] = (
+            "bbox may be stale for a moved dynamic object — see query() for the authoritative live pose"
+        )
+    return result
 
 
 def handle_overlap(cmd: dict) -> dict:
