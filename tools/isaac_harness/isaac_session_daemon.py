@@ -69,6 +69,7 @@ simulation_app = app_launcher.app
 import torch
 
 import isaaclab.sim as sim_utils
+from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets import Articulation, ArticulationCfg, RigidObject, RigidObjectCfg
 from isaaclab.sensors import Camera, CameraCfg
 from isaaclab.sim import SimulationContext
@@ -181,10 +182,30 @@ def handle_spawn_usd(cmd: dict) -> dict:
     rot = tuple(cmd.get("rot", [1, 0, 0, 0]))
     try:
         if cmd.get("articulation", False):
+            # ArticulationCfg requires actuators for every DOF or it refuses
+            # to validate at all (TypeError: Missing values detected...).
+            # This repo's own robot has a real actuator config to use instead
+            # (spawn_bimanual_arm) — for an arbitrary articulated asset (a
+            # cabinet's doors, a generic prop) there's no such config to
+            # reach for, so fall back to a permissive default: every joint
+            # gets a plain ImplicitActuatorCfg with light damping and enough
+            # effort to hold position, matching how IsaacLab's own official
+            # cabinet examples (e.g. Isaac-Open-Drawer-Franka) actuate this
+            # exact asset's joints. Good enough to make the object exist and
+            # be interactable/steppable; not tuned for any specific task.
+            actuators = {
+                "default": ImplicitActuatorCfg(
+                    joint_names_expr=[".*"],
+                    stiffness=cmd.get("actuator_stiffness", 10.0),
+                    damping=cmd.get("actuator_damping", 1.0),
+                    effort_limit_sim=cmd.get("actuator_effort_limit", 100.0),
+                ),
+            }
             obj_cfg = ArticulationCfg(
                 prim_path=f"/World/{name}",
                 spawn=sim_utils.UsdFileCfg(usd_path=cmd["usd_path"]),
                 init_state=ArticulationCfg.InitialStateCfg(pos=pos, rot=rot),
+                actuators=actuators,
             )
             objects[name] = Articulation(cfg=obj_cfg)
         else:
@@ -287,6 +308,27 @@ def handle_query(cmd: dict) -> dict:
         "ok": True,
         "pos": obj.data.root_pos_w[0].tolist(),
         "rot": obj.data.root_quat_w[0].tolist(),
+    }
+
+
+def handle_joint_state(cmd: dict) -> dict:
+    """Per-joint state for an articulated object — query()/bbox() only report
+    a single root-body world pose, which says nothing about a cabinet door's
+    open/closed angle or any other articulated object's actual configuration.
+    Only meaningful for Articulation objects (spawn_bimanual_arm, or
+    spawn_usd --articulation); RigidObject has no joints.
+    """
+    name = cmd["name"]
+    if name not in objects:
+        return {"ok": False, "error": f"no such object '{name}'"}
+    obj = objects[name]
+    if not hasattr(obj, "joint_names"):
+        return {"ok": False, "error": f"'{name}' is not an articulation (no joints)"}
+    return {
+        "ok": True,
+        "joint_names": obj.joint_names,
+        "joint_pos": obj.data.joint_pos[0].tolist(),
+        "joint_vel": obj.data.joint_vel[0].tolist(),
     }
 
 
@@ -454,6 +496,7 @@ HANDLERS = {
     "remove": handle_remove,
     "set_pose": handle_set_pose,
     "query": handle_query,
+    "joint_state": handle_joint_state,
     "list": handle_list,
     "step": handle_step,
     "screenshot": handle_screenshot,

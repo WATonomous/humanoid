@@ -109,6 +109,9 @@ def main() -> None:
     p = sub.add_parser("query")
     p.add_argument("--name", required=True)
 
+    p = sub.add_parser("joint_state", help="per-joint positions/velocities for an articulated object")
+    p.add_argument("--name", required=True)
+
     p = sub.add_parser("step")
     p.add_argument("--n", type=int, default=1)
 
@@ -146,6 +149,8 @@ def main() -> None:
     elif args.cmd == "set_pose":
         cmd.update(name=args.name, pos=args.pos, rot=args.rot)
     elif args.cmd == "query":
+        cmd.update(name=args.name)
+    elif args.cmd == "joint_state":
         cmd.update(name=args.name)
     elif args.cmd == "step":
         cmd.update(n=args.n)
