@@ -21,6 +21,8 @@ Wayland/XWayland — root-window/window capture is blocked there for security).
 
 ## Usage
 
+### Single screenshot, GUI mode
+
 ```bash
 # your script must do: print("SCENE_READY", flush=True) once the scene is set up,
 # and then keep the app alive (e.g. loop on simulation_app.is_running())
@@ -32,16 +34,78 @@ dirname of the script — matters for scripts with package-relative imports),
 `--marker TEXT` (default `SCENE_READY`), `--timeout SECONDS` (default 180),
 `--out PNG_PATH` (default `./last_screenshot.png`).
 
-Override `ISAAC_CONTAINER` / `ISAACLAB_SH_PATH` env vars if your container
-name or `isaaclab.sh` location differs from the WATonomous default
-(`watod_hy-simulation_isaac_dev-1`, `/workspace/isaaclab/isaaclab.sh`).
-
 The harness does not stop your script afterward — when you're done iterating,
 stop it yourself with a graceful signal (see Gotchas below):
 
 ```bash
 docker exec watod_hy-simulation_isaac_dev-1 bash -c 'kill -SIGINT <pid>'
 ```
+
+### Multiple views in one launch, GUI mode
+
+One view is rarely enough to judge object placement — this captures several
+named camera angles from the *same* running process (no relaunching between
+views, so physics/object placement is identical across shots):
+
+```python
+# in your scene script, after building the scene and sim.reset():
+from multiview_capture import capture_views
+capture_views(sim, simulation_app, [
+    ("front", (1.5, -1.6, 1.4), (0.6, -0.2, 0.1)),
+    ("top",   (0.6, -0.2, 2.2), (0.6, -0.2, 0.0)),
+    ("side",  (0.6, -2.0, 0.6), (0.6, -0.2, 0.1)),
+])
+```
+
+```bash
+tools/isaac_screenshot/isaac_multiview_screenshot.sh /workspace/my_scene.py \
+  --views front,top,side --out-dir /tmp/my_views
+```
+
+### Multiple views, headless mode (faster, no `$DISPLAY` needed)
+
+```python
+from multiview_capture import capture_views_headless
+capture_views_headless(sim, simulation_app, [
+    ("front", (1.5, -1.6, 1.4), (0.6, -0.2, 0.1)),
+    ("top",   (0.6, -0.2, 2.2), (0.6, -0.2, 0.0)),
+])
+```
+
+```bash
+tools/isaac_screenshot/isaac_headless_multiview.sh /workspace/my_scene.py \
+  --views front,top --out-dir /tmp/my_views
+```
+
+See "Two modes" below for when to reach for which.
+
+All three drivers accept `--cwd DIR` / `--timeout SECONDS` / an output path
+option, and `ISAAC_CONTAINER` / `ISAACLAB_SH_PATH` env vars if your container
+name or `isaaclab.sh` location differs from the WATonomous default
+(`watod_hy-simulation_isaac_dev-1`, `/workspace/isaaclab/isaaclab.sh`).
+
+## Two modes: GUI (xwd) vs headless (Camera sensor)
+
+There are two harnesses, and **both should stay available** — pick per task
+rather than assuming one is strictly better:
+
+| | `isaac_screenshot.sh` / `isaac_multiview_screenshot.sh` (GUI) | `isaac_headless_multiview.sh` (headless) |
+|---|---|---|
+| How it captures | Real GUI window + `xwd` + manual PNG decode | `isaaclab.sensors.Camera` reading `.data.output["rgb"]`, saved with PIL |
+| Needs `$DISPLAY`/X11 | Yes | No |
+| Measured time (3-view capture, this repo's `simulation_isaac_dev` container, warm shader cache) | ~42s | ~37s (~12% faster) |
+| Output | Exactly what's on screen, including any UI you left open | Clean render, no UI chrome — usually the better default for "just show me the scene" |
+| When to prefer it | Debugging something UI-specific, or confirming what a human would actually see live on the desktop | Everything else — faster, no display dependency, more reliable for repeated iteration |
+
+The GUI path took real debugging to get to a *working* headless path: naively
+calling `omni.kit.viewport.utility.capture_viewport_to_file()` in headless
+mode silently no-ops — `get_active_viewport()` needs an actual GUI viewport
+that doesn't exist headless even with `--enable_cameras`. Route through an
+IsaacLab `Camera` sensor instead (same mechanism `pick_place_bimanual`'s task
+cameras already use).
+
+**If Claude is driving this and it's not obvious which mode fits, it should
+ask which one you want** rather than silently picking one.
 
 ## Gotchas this harness handles for you
 
