@@ -91,6 +91,9 @@ def main() -> None:
     p.add_argument("--pos", type=_floats, default=[0, 0, 0])
     p.add_argument("--rot", type=_floats, default=[1, 0, 0, 0])
     p.add_argument("--articulation", action="store_true")
+    p.add_argument("--apply-physics", action="store_true",
+                    help="apply RigidBodyAPI/collision/mass to a bare-mesh asset with no physics baked in (e.g. YCB props) — leave off for assets that already have their own, like the vial/rack")
+    p.add_argument("--mass", type=float, default=0.2)
 
     p = sub.add_parser("spawn_bimanual_arm",
                         help="spawn this repo's pioneer_bimanual_arm robot with its real actuator config")
@@ -107,6 +110,9 @@ def main() -> None:
     p.add_argument("--rot", type=_floats, default=None)
 
     p = sub.add_parser("query")
+    p.add_argument("--name", required=True)
+
+    p = sub.add_parser("joint_state", help="per-joint positions/velocities for an articulated object")
     p.add_argument("--name", required=True)
 
     p = sub.add_parser("step")
@@ -138,7 +144,7 @@ def main() -> None:
                     color=args.color, mass=args.mass, dynamic=not args.static)
     elif args.cmd == "spawn_usd":
         cmd.update(name=args.name, usd_path=args.usd_path, pos=args.pos, rot=args.rot,
-                    articulation=args.articulation)
+                    articulation=args.articulation, apply_physics=args.apply_physics, mass=args.mass)
     elif args.cmd == "spawn_bimanual_arm":
         cmd.update(name=args.name, pos=args.pos, rot=args.rot)
     elif args.cmd == "remove":
@@ -146,6 +152,8 @@ def main() -> None:
     elif args.cmd == "set_pose":
         cmd.update(name=args.name, pos=args.pos, rot=args.rot)
     elif args.cmd == "query":
+        cmd.update(name=args.name)
+    elif args.cmd == "joint_state":
         cmd.update(name=args.name)
     elif args.cmd == "step":
         cmd.update(n=args.n)

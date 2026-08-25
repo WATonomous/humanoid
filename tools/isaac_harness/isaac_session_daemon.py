@@ -69,6 +69,7 @@ simulation_app = app_launcher.app
 import torch
 
 import isaaclab.sim as sim_utils
+from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets import Articulation, ArticulationCfg, RigidObject, RigidObjectCfg
 from isaaclab.sensors import Camera, CameraCfg
 from isaaclab.sim import SimulationContext
@@ -83,7 +84,7 @@ sim = SimulationContext(sim_cfg)
 sim.set_camera_view([2.0, 2.0, 2.0], [0.0, 0.0, 0.0])
 
 cfg_ground = sim_utils.GroundPlaneCfg()
-cfg_ground.func("/World/defaultGroundPlane", cfg_ground, translation=(0.0, 0.0, 0.0))
+cfg_ground.func("/World/defaultGroundPlane", cfg_ground, translation=(0.0, 0.0, -1.2))
 cfg_light = sim_utils.DomeLightCfg(intensity=2500.0, color=(0.9, 0.9, 0.9))
 cfg_light.func("/World/Light", cfg_light)
 
@@ -181,16 +182,53 @@ def handle_spawn_usd(cmd: dict) -> dict:
     rot = tuple(cmd.get("rot", [1, 0, 0, 0]))
     try:
         if cmd.get("articulation", False):
+            # ArticulationCfg requires actuators for every DOF or it refuses
+            # to validate at all (TypeError: Missing values detected...).
+            # This repo's own robot has a real actuator config to use instead
+            # (spawn_bimanual_arm) — for an arbitrary articulated asset (a
+            # cabinet's doors, a generic prop) there's no such config to
+            # reach for, so fall back to a permissive default: every joint
+            # gets a plain ImplicitActuatorCfg with light damping and enough
+            # effort to hold position, matching how IsaacLab's own official
+            # cabinet examples (e.g. Isaac-Open-Drawer-Franka) actuate this
+            # exact asset's joints. Good enough to make the object exist and
+            # be interactable/steppable; not tuned for any specific task.
+            actuators = {
+                "default": ImplicitActuatorCfg(
+                    joint_names_expr=[".*"],
+                    stiffness=cmd.get("actuator_stiffness", 10.0),
+                    damping=cmd.get("actuator_damping", 1.0),
+                    effort_limit_sim=cmd.get("actuator_effort_limit", 100.0),
+                ),
+            }
             obj_cfg = ArticulationCfg(
                 prim_path=f"/World/{name}",
                 spawn=sim_utils.UsdFileCfg(usd_path=cmd["usd_path"]),
                 init_state=ArticulationCfg.InitialStateCfg(pos=pos, rot=rot),
+                actuators=actuators,
             )
             objects[name] = Articulation(cfg=obj_cfg)
         else:
+            # Not every USD asset ships with physics baked in — the vial/rack
+            # assets do (RigidBodyAPI already applied, with their own tuned
+            # mass/etc — don't stomp on that), but a bare prop like a YCB
+            # mesh doesn't, and fails the same way spawn_primitive did before
+            # it got rigid_props: "Failed to find a rigid body... Please
+            # ensure the prim has 'USD RigidBodyAPI' applied." Opt-in via
+            # apply_physics rather than unconditional, so this doesn't
+            # override an already-rigged asset's own physics setup.
+            usd_kwargs = {"usd_path": cmd["usd_path"]}
+            if cmd.get("apply_physics", False):
+                usd_kwargs["rigid_props"] = sim_utils.RigidBodyPropertiesCfg(
+                    disable_gravity=False,
+                    solver_position_iteration_count=16,
+                    solver_velocity_iteration_count=1,
+                )
+                usd_kwargs["mass_props"] = sim_utils.MassPropertiesCfg(mass=cmd.get("mass", 0.2))
+                usd_kwargs["collision_props"] = sim_utils.CollisionPropertiesCfg()
             obj_cfg = RigidObjectCfg(
                 prim_path=f"/World/{name}",
-                spawn=sim_utils.UsdFileCfg(usd_path=cmd["usd_path"]),
+                spawn=sim_utils.UsdFileCfg(**usd_kwargs),
                 init_state=RigidObjectCfg.InitialStateCfg(pos=pos, rot=rot),
             )
             objects[name] = RigidObject(cfg=obj_cfg)
@@ -262,6 +300,25 @@ def handle_remove(cmd: dict) -> dict:
 
 
 def handle_set_pose(cmd: dict) -> dict:
+    """Move an already-spawned object to a new pose.
+
+    Two things had to be fixed here after they cost real debugging time:
+
+    1. write_root_pose_to_sim() on a KINEMATIC object (spawn_primitive
+       --static) crashes the whole process — a real PhysX/CUDA "illegal
+       memory access" abort, not a Python exception, confirmed reproducible
+       on a fresh daemon with nothing else going on. Kinematic bodies aren't
+       driven through the normal dynamics tensor write path; move them by
+       writing the USD prim's transform directly instead.
+    2. Even for a dynamic object where write_root_pose_to_sim() *does* work,
+       the change is invisible to sim.reset() (triggered by every later
+       spawn/remove) and gets silently wiped by it — reset() reapplies each
+       object's cached `data.default_root_state` tensor, which is set once
+       from cfg.init_state at spawn time and near-permanent afterward.
+       Mutating obj.cfg.init_state (an earlier, wrong attempt at this fix)
+       does nothing — cfg isn't consulted again once default_root_state
+       exists. Write directly into that tensor's pos/rot columns instead.
+    """
     name = cmd["name"]
     if name not in objects:
         return {"ok": False, "error": f"no such object '{name}'"}
@@ -274,7 +331,31 @@ def handle_set_pose(cmd: dict) -> dict:
         cur_pos[:] = torch.tensor(pos, device=cur_pos.device)
     if rot is not None:
         cur_rot[:] = torch.tensor(rot, device=cur_rot.device)
-    obj.write_root_pose_to_sim(torch.cat([cur_pos, cur_rot], dim=-1))
+
+    if _object_is_dynamic.get(name, True):
+        obj.write_root_pose_to_sim(torch.cat([cur_pos, cur_rot], dim=-1))
+    else:
+        import omni.usd
+        from pxr import Gf, UsdGeom
+
+        stage = omni.usd.get_context().get_stage()
+        prim = stage.GetPrimAtPath(f"/World/{name}")
+        xform = UsdGeom.Xformable(prim)
+        xform.ClearXformOpOrder()
+        p = cur_pos[0].tolist()
+        q = cur_rot[0].tolist()  # (w, x, y, z)
+        xform.AddTranslateOp().Set(Gf.Vec3d(*p))
+        # ClearXformOpOrder() clears the op ORDER, not the underlying
+        # attribute — a prim spawned via CuboidCfg/etc. already has an
+        # orient xformOp authored at double precision, and AddOrientOp()'s
+        # own default precision doesn't match it, raising a Tf error.
+        # Match explicitly instead of guessing.
+        xform.AddOrientOp(precision=UsdGeom.XformOp.PrecisionDouble).Set(
+            Gf.Quatd(q[0], Gf.Vec3d(q[1], q[2], q[3]))
+        )
+
+    obj.data.default_root_state[:, 0:3] = cur_pos
+    obj.data.default_root_state[:, 3:7] = cur_rot
     return {"ok": True}
 
 
@@ -287,6 +368,27 @@ def handle_query(cmd: dict) -> dict:
         "ok": True,
         "pos": obj.data.root_pos_w[0].tolist(),
         "rot": obj.data.root_quat_w[0].tolist(),
+    }
+
+
+def handle_joint_state(cmd: dict) -> dict:
+    """Per-joint state for an articulated object — query()/bbox() only report
+    a single root-body world pose, which says nothing about a cabinet door's
+    open/closed angle or any other articulated object's actual configuration.
+    Only meaningful for Articulation objects (spawn_bimanual_arm, or
+    spawn_usd --articulation); RigidObject has no joints.
+    """
+    name = cmd["name"]
+    if name not in objects:
+        return {"ok": False, "error": f"no such object '{name}'"}
+    obj = objects[name]
+    if not hasattr(obj, "joint_names"):
+        return {"ok": False, "error": f"'{name}' is not an articulation (no joints)"}
+    return {
+        "ok": True,
+        "joint_names": obj.joint_names,
+        "joint_pos": obj.data.joint_pos[0].tolist(),
+        "joint_vel": obj.data.joint_vel[0].tolist(),
     }
 
 
@@ -454,6 +556,7 @@ HANDLERS = {
     "remove": handle_remove,
     "set_pose": handle_set_pose,
     "query": handle_query,
+    "joint_state": handle_joint_state,
     "list": handle_list,
     "step": handle_step,
     "screenshot": handle_screenshot,
@@ -473,6 +576,19 @@ def process_command(cmd: dict) -> dict:
         return handler(cmd)
     except Exception as exc:  # noqa: BLE001
         return {"ok": False, "error": f"{exc}\n{traceback.format_exc()}"}
+    finally:
+        # A failed asset _initialize_impl() (e.g. a spawn_usd with no
+        # RigidBodyAPI) stores its exception in this global, and
+        # SimulationContext.step()/render() re-raises it on EVERY later call
+        # until it's cleared — otherwise one failed spawn poisons every
+        # command after it with the SAME stale error, including ones
+        # touching a completely different, perfectly fine object. Confirmed:
+        # a failed CrackerBox spawn made the next command's error message
+        # still say "CrackerBox" even though it was spawning "Mustard".
+        import builtins
+
+        if getattr(builtins, "ISAACLAB_CALLBACK_EXCEPTION", None) is not None:
+            builtins.ISAACLAB_CALLBACK_EXCEPTION = None
 
 
 def write_response(cmd_id: str, response: dict) -> None:
