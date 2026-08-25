@@ -92,6 +92,12 @@ def main() -> None:
     p.add_argument("--rot", type=_floats, default=[1, 0, 0, 0])
     p.add_argument("--articulation", action="store_true")
 
+    p = sub.add_parser("spawn_bimanual_arm",
+                        help="spawn this repo's pioneer_bimanual_arm robot with its real actuator config")
+    p.add_argument("--name", required=True)
+    p.add_argument("--pos", type=_floats, default=[0, 0, 0])
+    p.add_argument("--rot", type=_floats, default=[1, 0, 0, 0])
+
     p = sub.add_parser("remove")
     p.add_argument("--name", required=True)
 
@@ -133,6 +139,8 @@ def main() -> None:
     elif args.cmd == "spawn_usd":
         cmd.update(name=args.name, usd_path=args.usd_path, pos=args.pos, rot=args.rot,
                     articulation=args.articulation)
+    elif args.cmd == "spawn_bimanual_arm":
+        cmd.update(name=args.name, pos=args.pos, rot=args.rot)
     elif args.cmd == "remove":
         cmd.update(name=args.name)
     elif args.cmd == "set_pose":
