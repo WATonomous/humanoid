@@ -107,6 +107,57 @@ cameras already use).
 **If Claude is driving this and it's not obvious which mode fits, it should
 ask which one you want** rather than silently picking one.
 
+## Persistent session (fast iteration, no relaunch per command)
+
+Every command above launches a fresh Isaac Sim process — fine for a single
+check, wasteful when iterating repeatedly on the same scene (~15-40s per
+launch even with a warm shader cache). `isaac_session_daemon.py` keeps one
+Isaac Sim process running and takes commands over a simple file-based queue;
+`isaac_session_client.py` sends them. Each command then costs a fraction of
+a second instead of a full relaunch:
+
+```bash
+tools/isaac_screenshot/isaac_session.sh start   # ~20-30s, once
+
+python3 tools/isaac_screenshot/isaac_session_client.py spawn_primitive \
+  --name Obj1 --shape cuboid --size 0.2,0.2,0.2 --pos 0,0,1.0 --color 1,0,0
+python3 tools/isaac_screenshot/isaac_session_client.py step --n 60
+python3 tools/isaac_screenshot/isaac_session_client.py query --name Obj1
+python3 tools/isaac_screenshot/isaac_session_client.py screenshot \
+  --eye 1.5,1.5,1.0 --target 0,0,0.1 --out /tmp/shot.png
+python3 tools/isaac_screenshot/isaac_session_client.py spawn_usd \
+  --name Robot --usd-path /workspace/.../robot.usd --articulation
+
+tools/isaac_screenshot/isaac_session.sh stop
+```
+
+Command reference: `spawn_primitive`, `spawn_usd`, `remove`, `set_pose`,
+`query`, `list`, `step`, `screenshot`, `ping`, `shutdown` — see
+`isaac_session_client.py --help` and each subcommand's `--help`, or the
+command-shape docstring at the top of `isaac_session_daemon.py`.
+
+The queue lives at `tools/isaac_screenshot/.session/` (gitignored) under the
+repo, which is bind-mounted into the container — commands and responses pass
+as plain JSON files, no `docker cp` needed for the data path itself.
+
+**When to use this vs. the one-shot scripts above:** the daemon for anything
+involving more than one or two round-trips (building up a scene
+incrementally, nudging positions based on a screenshot, checking several
+object placements); the one-shot scripts for a single "does this scene load
+correctly" check where paying the launch cost once is simpler than managing
+a long-lived process.
+
+One caveat found building this: `RigidObject`/`Articulation` instances
+created directly (outside the full `ManagerBasedEnv`/`InteractiveScene`
+machinery those classes are normally used through) cache their pose data and
+need an explicit `.update(dt)` call each physics step to stay in sync with
+the physics view — same pattern as the `Camera` sensor needing
+`.update(dt=0.0, force_recompute=True)` before reading `.data.output`.
+Skipping it doesn't error; `query` just silently returns stale (usually the
+spawn-time) pose forever, which looked exactly like "gravity isn't working"
+until traced back to the missing `update()` call. `isaac_session_daemon.py`'s
+`handle_step()` does this for every tracked object already.
+
 ## Gotchas this harness handles for you
 
 - **No `--experience isaacsim.exp.full.kit`.** That flag is for an unrelated
