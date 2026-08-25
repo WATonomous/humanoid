@@ -13,5 +13,3 @@ extern FDCAN_HandleTypeDef hfdcan2;
 #ifdef __cplusplus
 }
 #endif
-
-static void check_can_bus(FDCAN_HandleTypeDef* hfdcan);

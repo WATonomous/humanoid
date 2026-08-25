@@ -7,9 +7,11 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c) {
   RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   if (hi2c->Instance == I2C1) {
-    /* Select PCLK1 as I2C1 clock source */
+    /* Select HSI16 as I2C1 clock source - a fixed 16MHz clock,
+     * independent of SYSCLK/PCLK1, so I2C timing never needs to be
+     * recalculated if the main system clock configuration changes. */
     PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_I2C1;
-    PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;
+    PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
 
     HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit);
 
@@ -33,7 +35,11 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c) {
 void MX_I2C1_Init(void) {
   hi2c1.Instance = I2C1;
 
-  hi2c1.Init.Timing = 0x00300617;
+  // Computed for HSI16 (16 MHz) kernel clock, Standard Mode ~100kHz,
+  // verified against RM0440 I2C_TIMINGR formulas: PRESC=3, SCLDEL=4,
+  // SDADEL=2, SCLH=19, SCLL=19 -> t_SCLL=5.0us, t_SCLH=5.0us
+  // (both comfortably above the I2C spec Standard Mode minimums).
+  hi2c1.Init.Timing = 0x30421313;
 
   hi2c1.Init.OwnAddress1 = 0;
 
