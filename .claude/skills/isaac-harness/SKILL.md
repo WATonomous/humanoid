@@ -54,9 +54,16 @@ re-typing spawn commands from scratch.
   session** (many spawned objects, an articulation, a long command history) — this is
   confirmed, not a guess: the daemon's shutdown *logic* was code-reviewed and found
   correct, and `simulation_app.close()` was still observed pumping ~65% GPU load 3+
-  minutes after accepting the shutdown command. Don't panic-kill immediately. But also
-  don't wait unboundedly — if it's still alive after a few minutes with no sign of
-  winding down, ask the user before forcing it (see the hard rule above).
+  minutes after accepting the shutdown command.
+  **Standing exception to the SIGKILL rule above, for this specific daemon only:**
+  the user has explicitly authorized SIGKILLing `isaac_session_daemon.py` (not any
+  other Isaac Sim process) after a ~15-30s wait when graceful shutdown hangs like
+  this — no need to ask each time. It's been repeated several times and always
+  relaunches cleanly afterward. Always verify with a fresh `isaac_session.sh start`
+  that it does come back up clean; if a launch ever crashes after this, stop and go
+  back to asking before further force-kills, since that would mean the pattern
+  changed. This exception does NOT extend to one-shot scripts or GUI launches — those
+  still need per-instance authorization.
 
 ## Use `bbox`/`query`/`distance` to answer questions, not screenshots + guessing
 
