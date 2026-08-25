@@ -132,9 +132,28 @@ tools/isaac_screenshot/isaac_session.sh stop
 ```
 
 Command reference: `spawn_primitive`, `spawn_usd`, `remove`, `set_pose`,
-`query`, `list`, `step`, `screenshot`, `ping`, `shutdown` — see
-`isaac_session_client.py --help` and each subcommand's `--help`, or the
-command-shape docstring at the top of `isaac_session_daemon.py`.
+`query`, `list`, `step`, `screenshot`, `bbox`, `overlap`, `distance`,
+`scene_tree`, `ping`, `shutdown` — see `isaac_session_client.py --help` and
+each subcommand's `--help`, or the command-shape docstring at the top of
+`isaac_session_daemon.py`.
+
+`bbox` / `overlap` / `distance` / `scene_tree` exist so a scene can be
+checked programmatically instead of only by eyeballing a screenshot — e.g.
+confirming "is the rack actually resting on the table" or "are these two
+objects interpenetrating":
+
+```bash
+python3 tools/isaac_screenshot/isaac_session_client.py overlap --name-a Rack --name-b Table
+# {"ok": true, "overlap": true, "bbox_a": {...}, "bbox_b": {...}}
+
+python3 tools/isaac_screenshot/isaac_session_client.py scene_tree
+# {"ok": true, "tree": [{"path": "/World/Rack", "type": "Xform", "tracked": true}, ...]}
+```
+
+`bbox` and `scene_tree` work on any prim on the stage via raw USD (`UsdGeom.BBoxCache`
+/ `Usd.PrimRange`) — including static things like the ground plane that
+`list` doesn't see, since `list` only reports objects this daemon instance
+spawned and is tracking Python-side.
 
 The queue lives at `tools/isaac_screenshot/.session/` (gitignored) under the
 repo, which is bind-mounted into the container — commands and responses pass

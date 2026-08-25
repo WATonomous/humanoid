@@ -32,7 +32,17 @@ Command shapes (all fields besides "id" and "cmd" are command-specific):
   {"id": "...", "cmd": "step", "n": 30}
   {"id": "...", "cmd": "screenshot", "eye": [1,1,1], "target": [0,0,0],
    "out_path": "/workspace/.isaac_session/shots/foo.png"}
+  {"id": "...", "cmd": "bbox", "name": "Obj1"}
+  {"id": "...", "cmd": "overlap", "name_a": "Obj1", "name_b": "Table"}
+  {"id": "...", "cmd": "distance", "name_a": "Obj1", "name_b": "Obj2"}
+  {"id": "...", "cmd": "scene_tree"}
   {"id": "...", "cmd": "shutdown"}
+
+Structured introspection (bbox/overlap/distance/scene_tree) exists so the
+scene can be checked programmatically — "is the rack actually resting on the
+table", "are these two objects interpenetrating" — instead of only being
+checkable by eyeballing a screenshot. bbox/scene_tree work on any prim on the
+stage (raw USD), not just objects this daemon spawned and is tracking.
 
 Response shape: {"id": "...", "ok": true, ...} or {"id": "...", "ok": false, "error": "..."}
 """
@@ -129,22 +139,34 @@ def handle_spawn_primitive(cmd: dict) -> dict:
     dynamic = cmd.get("dynamic", True)
     spawn_kwargs = _shape_kwargs(shape, size)
     spawn_kwargs["visual_material"] = sim_utils.PreviewSurfaceCfg(diffuse_color=tuple(color))
-    if dynamic:
-        spawn_kwargs["rigid_props"] = sim_utils.RigidBodyPropertiesCfg(
-            disable_gravity=False,
-            solver_position_iteration_count=16,
-            solver_velocity_iteration_count=1,
-        )
-        spawn_kwargs["mass_props"] = sim_utils.MassPropertiesCfg(mass=cmd.get("mass", 0.1))
-        spawn_kwargs["collision_props"] = sim_utils.CollisionPropertiesCfg()
+    # RigidObject requires USD RigidBodyAPI on the prim regardless of whether
+    # it's meant to move — "static" means kinematic (still a rigid body, just
+    # not driven by physics forces), not "skip rigid_props entirely". Skipping
+    # rigid_props leaves no RigidBodyAPI applied and RigidObject's
+    # _initialize_impl() throws "Failed to find a rigid body".
+    spawn_kwargs["rigid_props"] = sim_utils.RigidBodyPropertiesCfg(
+        disable_gravity=not dynamic,
+        kinematic_enabled=not dynamic,
+        solver_position_iteration_count=16,
+        solver_velocity_iteration_count=1,
+    )
+    spawn_kwargs["mass_props"] = sim_utils.MassPropertiesCfg(mass=cmd.get("mass", 0.1))
+    spawn_kwargs["collision_props"] = sim_utils.CollisionPropertiesCfg()
     spawn_cfg = _PRIMITIVE_SPAWNERS[shape](**spawn_kwargs)
     obj_cfg = RigidObjectCfg(
         prim_path=f"/World/{name}",
         spawn=spawn_cfg,
         init_state=RigidObjectCfg.InitialStateCfg(pos=tuple(cmd.get("pos", [0, 0, 0]))),
     )
-    objects[name] = RigidObject(cfg=obj_cfg)
-    sim.reset()
+    try:
+        objects[name] = RigidObject(cfg=obj_cfg)
+        sim.reset()
+    except Exception:
+        # don't leave a half-initialized object in the registry — a broken
+        # entry there crashes every later command that touches it (query,
+        # step, distance, ...) with an unrelated-looking AttributeError.
+        objects.pop(name, None)
+        raise
     return {"ok": True}
 
 
@@ -154,21 +176,25 @@ def handle_spawn_usd(cmd: dict) -> dict:
         return {"ok": False, "error": f"name '{name}' already exists"}
     pos = tuple(cmd.get("pos", [0, 0, 0]))
     rot = tuple(cmd.get("rot", [1, 0, 0, 0]))
-    if cmd.get("articulation", False):
-        obj_cfg = ArticulationCfg(
-            prim_path=f"/World/{name}",
-            spawn=sim_utils.UsdFileCfg(usd_path=cmd["usd_path"]),
-            init_state=ArticulationCfg.InitialStateCfg(pos=pos, rot=rot),
-        )
-        objects[name] = Articulation(cfg=obj_cfg)
-    else:
-        obj_cfg = RigidObjectCfg(
-            prim_path=f"/World/{name}",
-            spawn=sim_utils.UsdFileCfg(usd_path=cmd["usd_path"]),
-            init_state=RigidObjectCfg.InitialStateCfg(pos=pos, rot=rot),
-        )
-        objects[name] = RigidObject(cfg=obj_cfg)
-    sim.reset()
+    try:
+        if cmd.get("articulation", False):
+            obj_cfg = ArticulationCfg(
+                prim_path=f"/World/{name}",
+                spawn=sim_utils.UsdFileCfg(usd_path=cmd["usd_path"]),
+                init_state=ArticulationCfg.InitialStateCfg(pos=pos, rot=rot),
+            )
+            objects[name] = Articulation(cfg=obj_cfg)
+        else:
+            obj_cfg = RigidObjectCfg(
+                prim_path=f"/World/{name}",
+                spawn=sim_utils.UsdFileCfg(usd_path=cmd["usd_path"]),
+                init_state=RigidObjectCfg.InitialStateCfg(pos=pos, rot=rot),
+            )
+            objects[name] = RigidObject(cfg=obj_cfg)
+        sim.reset()
+    except Exception:
+        objects.pop(name, None)
+        raise
     return {"ok": True}
 
 
@@ -216,6 +242,97 @@ def handle_query(cmd: dict) -> dict:
 
 def handle_list(cmd: dict) -> dict:
     return {"ok": True, "names": list(objects.keys())}
+
+
+def _prim_path_for(name: str) -> str:
+    """Resolve a name to a /World prim path — works for tracked objects
+    (spawned via spawn_primitive/spawn_usd) and untracked static prims
+    (ground, light, or anything spawned outside the daemon's own registry)
+    alike, since bbox uses raw USD, not the RigidObject/Articulation wrapper.
+    """
+    return f"/World/{name}"
+
+
+def handle_bbox(cmd: dict) -> dict:
+    from pxr import UsdGeom
+
+    import omni.usd
+
+    name = cmd["name"]
+    stage = omni.usd.get_context().get_stage()
+    prim = stage.GetPrimAtPath(_prim_path_for(name))
+    if not prim.IsValid():
+        return {"ok": False, "error": f"no prim at /World/{name}"}
+
+    bbox_cache = UsdGeom.BBoxCache(0, [UsdGeom.Tokens.default_], useExtentsHint=True)
+    bbox = bbox_cache.ComputeWorldBound(prim)
+    rng = bbox.ComputeAlignedRange()
+    return {"ok": True, "min": list(rng.GetMin()), "max": list(rng.GetMax())}
+
+
+def handle_overlap(cmd: dict) -> dict:
+    """AABB overlap check between two named prims — a cheap proxy for
+    'are these two things colliding/touching', not exact mesh-level
+    collision, but usually enough to answer 'is the rack actually on the
+    table' / 'are these two vials interpenetrating' without eyeballing a
+    screenshot.
+    """
+    a = handle_bbox({"name": cmd["name_a"]})
+    if not a["ok"]:
+        return a
+    b = handle_bbox({"name": cmd["name_b"]})
+    if not b["ok"]:
+        return b
+    overlap = all(a["min"][i] <= b["max"][i] and b["min"][i] <= a["max"][i] for i in range(3))
+    return {"ok": True, "overlap": overlap, "bbox_a": a, "bbox_b": b}
+
+
+def handle_distance(cmd: dict) -> dict:
+    """Center-to-center distance between two named objects. Uses tracked
+    pose data when available (cheaper, already up to date after step()),
+    falls back to bbox center for untracked/static prims.
+    """
+    def _center(name: str):
+        if name in objects:
+            return objects[name].data.root_pos_w[0].tolist()
+        bbox = handle_bbox({"name": name})
+        if not bbox["ok"]:
+            return None
+        return [(bbox["min"][i] + bbox["max"][i]) / 2 for i in range(3)]
+
+    pos_a = _center(cmd["name_a"])
+    if pos_a is None:
+        return {"ok": False, "error": f"no such prim '{cmd['name_a']}'"}
+    pos_b = _center(cmd["name_b"])
+    if pos_b is None:
+        return {"ok": False, "error": f"no such prim '{cmd['name_b']}'"}
+
+    dist = sum((pos_a[i] - pos_b[i]) ** 2 for i in range(3)) ** 0.5
+    return {"ok": True, "distance": dist, "pos_a": pos_a, "pos_b": pos_b}
+
+
+def handle_scene_tree(cmd: dict) -> dict:
+    """Full /World prim hierarchy with types — includes static prims (ground,
+    light, anything spawned outside the daemon's own tracked-object registry)
+    that `list` doesn't see, since `list` only reports objects this daemon
+    instance spawned and is tracking Python-side.
+    """
+    import omni.usd
+    from pxr import Usd
+
+    stage = omni.usd.get_context().get_stage()
+    world = stage.GetPrimAtPath("/World")
+    if not world.IsValid():
+        return {"ok": False, "error": "no /World prim on stage"}
+
+    tree = []
+    for prim in Usd.PrimRange(world):
+        tree.append({
+            "path": str(prim.GetPath()),
+            "type": prim.GetTypeName(),
+            "tracked": prim.GetPath().name in objects,
+        })
+    return {"ok": True, "tree": tree}
 
 
 def handle_step(cmd: dict) -> dict:
@@ -268,6 +385,10 @@ HANDLERS = {
     "list": handle_list,
     "step": handle_step,
     "screenshot": handle_screenshot,
+    "bbox": handle_bbox,
+    "overlap": handle_overlap,
+    "distance": handle_distance,
+    "scene_tree": handle_scene_tree,
 }
 
 

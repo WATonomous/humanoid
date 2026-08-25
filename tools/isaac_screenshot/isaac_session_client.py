@@ -111,6 +111,19 @@ def main() -> None:
     p.add_argument("--target", type=_floats, default=[0, 0, 0])
     p.add_argument("--out", required=True, help="host-side output path")
 
+    p = sub.add_parser("bbox", help="world-space axis-aligned bounding box of a prim")
+    p.add_argument("--name", required=True)
+
+    p = sub.add_parser("overlap", help="AABB overlap check between two prims")
+    p.add_argument("--name-a", required=True)
+    p.add_argument("--name-b", required=True)
+
+    p = sub.add_parser("distance", help="center-to-center distance between two prims")
+    p.add_argument("--name-a", required=True)
+    p.add_argument("--name-b", required=True)
+
+    sub.add_parser("scene_tree", help="full /World prim hierarchy with types")
+
     args = parser.parse_args()
     cmd = {"cmd": args.cmd}
 
@@ -136,6 +149,10 @@ def main() -> None:
             os.path.basename(args.out),
         )
         cmd.update(eye=args.eye, target=args.target, out_path=container_out)
+    elif args.cmd == "bbox":
+        cmd.update(name=args.name)
+    elif args.cmd in ("overlap", "distance"):
+        cmd.update(name_a=args.name_a, name_b=args.name_b)
 
     response = send_command(cmd)
 
