@@ -209,26 +209,9 @@ def handle_spawn_usd(cmd: dict) -> dict:
             )
             objects[name] = Articulation(cfg=obj_cfg)
         else:
-            # Not every USD asset ships with physics baked in — the vial/rack
-            # assets do (RigidBodyAPI already applied, with their own tuned
-            # mass/etc — don't stomp on that), but a bare prop like a YCB
-            # mesh doesn't, and fails the same way spawn_primitive did before
-            # it got rigid_props: "Failed to find a rigid body... Please
-            # ensure the prim has 'USD RigidBodyAPI' applied." Opt-in via
-            # apply_physics rather than unconditional, so this doesn't
-            # override an already-rigged asset's own physics setup.
-            usd_kwargs = {"usd_path": cmd["usd_path"]}
-            if cmd.get("apply_physics", False):
-                usd_kwargs["rigid_props"] = sim_utils.RigidBodyPropertiesCfg(
-                    disable_gravity=False,
-                    solver_position_iteration_count=16,
-                    solver_velocity_iteration_count=1,
-                )
-                usd_kwargs["mass_props"] = sim_utils.MassPropertiesCfg(mass=cmd.get("mass", 0.2))
-                usd_kwargs["collision_props"] = sim_utils.CollisionPropertiesCfg()
             obj_cfg = RigidObjectCfg(
                 prim_path=f"/World/{name}",
-                spawn=sim_utils.UsdFileCfg(**usd_kwargs),
+                spawn=sim_utils.UsdFileCfg(usd_path=cmd["usd_path"]),
                 init_state=RigidObjectCfg.InitialStateCfg(pos=pos, rot=rot),
             )
             objects[name] = RigidObject(cfg=obj_cfg)
