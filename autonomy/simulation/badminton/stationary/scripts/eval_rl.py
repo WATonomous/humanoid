@@ -52,7 +52,7 @@ def main() -> None:
 
     base_y = aero.load_params()["arm"]["base_y"]
     store = env.unwrapped._badminton
-    obs, _ = env.get_observations()
+    obs = env.get_observations()
     rows = []  # (front_dist, z, x, hit)
     with torch.no_grad():
         while len(rows) < args.episodes:
