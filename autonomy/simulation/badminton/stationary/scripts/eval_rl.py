@@ -23,6 +23,7 @@ import torch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import badminton_mjlab  # noqa: F401  (registers the tasks)
+from badminton_mjlab import mdp
 import aero
 from mjlab.envs import ManagerBasedRlEnv
 from mjlab.rl import MjlabOnPolicyRunner, RslRlVecEnvWrapper
@@ -54,7 +55,30 @@ def main() -> None:
     store = env.unwrapped._badminton
     obs = env.get_observations()
     feas = env.unwrapped.command_manager.get_term("feasibility")
-    rows = []  # (front_dist, z, x, hit)
+    uenv = env.unwrapped
+    from mjlab.managers.scene_entity_config import SceneEntityCfg
+    fcfg = SceneEntityCfg("robot", site_names=("face_center",))
+    fcfg.resolve(uenv.scene)
+    robot = uenv.scene["robot"]
+
+    def face_pose():
+        pos = robot.data.site_pos_w[:, fcfg.site_ids].squeeze(1)
+        mat = robot.data.data.site_xmat[:, robot.data.indexing.site_ids]
+        mat = mat[:, fcfg.site_ids].squeeze(1).reshape(-1, 3, 3)
+        return pos, mat
+
+    n = uenv.num_envs
+    dev = uenv.device
+    # where the shuttle meets the face plane, in the face frame (u, v):
+    # captured at the first plane crossing of the episode (hits and misses)
+    cross_uv = torch.full((n, 2), float("nan"), device=dev)
+    crossed = torch.zeros(n, dtype=torch.bool, device=dev)
+    fpos, fmat = face_pose()
+    spos, _ = mdp._shuttle_state(uenv)
+    d_prev = ((spos - fpos) * fmat[:, :, 2]).sum(-1)
+    s_prev = spos.clone()
+
+    rows = []  # (front_dist, z, x, hit, u, v)
     qv_rows, tau_rows, duty_rows = [], [], []  # per-episode, per-joint
     with torch.no_grad():
         while len(rows) < args.episodes:
@@ -63,17 +87,37 @@ def main() -> None:
             prev_qv = feas._qvel_peak.clone()
             prev_tau = feas._tau_peak.clone()
             prev_duty = (feas._over / feas._ticks.clamp_min(1.0)).clone()
+            prev_uv = cross_uv.clone()
             obs, _, dones, _ = env.step(policy(obs))
-            done_ids = dones.nonzero(as_tuple=False).squeeze(-1)
+            done = dones.bool()
+            # plane crossing this tick (linear interpolation inside the tick)
+            fpos, fmat = face_pose()
+            spos, _ = mdp._shuttle_state(uenv)
+            d_now = ((spos - fpos) * fmat[:, :, 2]).sum(-1)
+            new_cross = (~crossed) & (~done) & ((d_prev > 0) != (d_now > 0))
+            if bool(new_cross.any()):
+                t = (d_prev / (d_prev - d_now)).clamp(0.0, 1.0).unsqueeze(-1)
+                pc = s_prev + t * (spos - s_prev)
+                local = torch.einsum("nij,ni->nj", fmat, pc - fpos)
+                cross_uv[new_cross] = local[new_cross, :2]
+                crossed |= new_cross
+            d_prev, s_prev = d_now, spos.clone()
+            done_ids = done.nonzero(as_tuple=False).squeeze(-1)
             for i in done_ids.tolist():
                 p = prev_p[i].cpu().numpy()
-                rows.append((p[1] - base_y, p[2], p[0], bool(prev_hit[i])))
+                uv = prev_uv[i].cpu().numpy()
+                rows.append((p[1] - base_y, p[2], p[0], bool(prev_hit[i]),
+                             float(uv[0]), float(uv[1])))
+            cross_uv[done] = float("nan")
+            crossed[done] = False
             if len(done_ids):
                 qv_rows.append(prev_qv[done_ids].cpu().numpy())
                 tau_rows.append(prev_tau[done_ids].cpu().numpy())
                 duty_rows.append(prev_duty[done_ids].cpu().numpy())
-    r = np.array(rows[: args.episodes])
+    r = np.array(rows[: args.episodes], dtype=float)
     front, z, x, hit = r[:, 0], r[:, 1], r[:, 2], r[:, 3].astype(bool)
+    uv = r[:, 4:6]
+    print(f"plane crossings captured: {np.isfinite(uv[:, 0]).mean():.3f} of episodes")
     print(f"\nepisodes: {len(r)}   overall hit rate: {hit.mean():.3f}")
 
     def table(label, v, edges):
@@ -102,7 +146,7 @@ def main() -> None:
         print(f"  j{j + 1}    {q[0]:5.1f} / {q[1]:5.1f} / {q[2]:5.1f}"
               f"    {t[0]:5.2f} / {t[1]:5.2f} / {t[2]:5.2f} ({peak[j]:5.2f})"
               f"   {at_clamp:5.1%}        {duty[:, j].mean():5.1%} (rated {rated[j]})")
-    np.save("runs/eval_pstar_hits.npy", r)
+    np.save("runs/eval_pstar_hits.npy", r)  # cols: front,z,x,hit,u,v
     np.savez("runs/eval_feasibility.npz", qvel_peak=qv, tau_peak=tau, duty=duty)
     print("\nraw rows saved to runs/eval_pstar_hits.npy")
 
