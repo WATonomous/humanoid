@@ -170,12 +170,12 @@
   </contact>
 
   <actuator>
-    <general name="joint1" joint="arm_joint1" ctrlrange="-3.1415 3.1415" biastype="affine" gainprm="600" biasprm="0 -600 -30"/>
-    <general name="joint2" joint="arm_joint2" ctrlrange="-3.1415 3.1415" biastype="affine" gainprm="600" biasprm="0 -600 -30"/>
-    <general name="joint3" joint="arm_joint3" ctrlrange="-3.1415 3.1415" biastype="affine" gainprm="300" biasprm="0 -300 -15"/>
-    <general name="joint4" joint="arm_joint4" ctrlrange="-3.1415 3.1415" biastype="affine" gainprm="300" biasprm="0 -300 -15"/>
-    <general name="joint5" joint="arm_joint5" ctrlrange="-3.1415 3.1415" biastype="affine" gainprm="100" biasprm="0 -100 -5"/>
-    <general name="joint6" joint="arm_joint6" ctrlrange="-3.1415 3.1415" biastype="affine" gainprm="60" biasprm="0 -60 -3"/>
+    <general name="joint1" joint="arm_joint1" ctrlrange="-3.1415 3.1415" biastype="affine" gainprm="400" biasprm="0 -400 -5"/>
+    <general name="joint2" joint="arm_joint2" ctrlrange="-3.1415 3.1415" biastype="affine" gainprm="400" biasprm="0 -400 -5"/>
+    <general name="joint3" joint="arm_joint3" ctrlrange="-3.1415 3.1415" biastype="affine" gainprm="300" biasprm="0 -300 -5"/>
+    <general name="joint4" joint="arm_joint4" ctrlrange="-3.1415 3.1415" biastype="affine" gainprm="300" biasprm="0 -300 -5"/>
+    <general name="joint5" joint="arm_joint5" ctrlrange="-3.1415 3.1415" biastype="affine" gainprm="100" biasprm="0 -100 -2"/>
+    <general name="joint6" joint="arm_joint6" ctrlrange="-3.1415 3.1415" biastype="affine" gainprm="8" biasprm="0 -8 -0.3"/>
   </actuator>
 
   <keyframe>

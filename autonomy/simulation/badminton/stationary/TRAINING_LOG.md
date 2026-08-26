@@ -196,3 +196,31 @@ stays >= 0.97 (eval) while Metrics/feasibility/tau_duty_j6 falls from
 instead, the GL40 cannot do this job and the wrist upgrade in the ledger
 becomes mandatory.
 
+### result (cut at iter 573)
+
+Hit rate 88% (run 8 at the same stage: ~97%), return_flight 0.011 (6x
+lower), shoulder/elbow rated-torque duty collapsed 16%/35% -> 2%/0.2%
+and shoulder peak speed 7.6 -> 3.0 rad/s: the instantaneous per-tick
+penalty suppressed the transient swing peaks the strong joints are rated
+for. Wrist duty only fell 0.95 -> 0.67. Root cause of the wrist duty is
+NOT gravity (wrist gravity moment at READY = 0.000 Nm from the model;
+j5 carries the racket's 0.57 Nm): it is the servo. kp 60 / kv 3 on a
+0.73 Nm motor saturates at any tracking error > 0.7 deg, so the wrist is
+bang-bang by construction. Penalty formulation lesson: heat is an
+integral; a per-tick excess penalty cannot separate 20 ms peaks from
+sustained load (an I2t accumulator would).
+
+## run 10 — realistic servo gains, thermal penalty off, 1500 iters
+
+Repo evidence: hardware has no MIT gains configured (safety_limits.yaml
+mit_kp 0.0, "start kp < 10"); the CAN MIT protocol caps kp <= 500,
+kd <= 5 for AK motors (mit_profiles.yaml); the GL40 has no profile. The
+sim's kp [600,600,300,300,100,60] / kv [30,30,15,15,5,3] exceeded what
+the drives accept, i.e. the servo was the "fake motor". New gains
+kp [400,400,300,300,100,8], kv [5,5,5,5,2,0.3] (wrist = the start-low
+placeholder until the drive is tuned). scene/badminton.xml rebuilt; the
+gate-5 scripted-baseline numbers in README are now stale (same actuators)
+and need a re-run. torque_thermal removed from the reward set (function
+kept). Success: hit rate on the bank eval, wrist duty, and return quality
+under an honest wrist — whatever they are, they are the real numbers.
+

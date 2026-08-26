@@ -242,6 +242,7 @@ GPU machine, recalibrate there and record it in the ledger.
 | collision checks live in a planner-side twin model; the runtime physics still has no arm self-contacts | enable arm contact pairs if impact realism matters |
 | v2 URDF exports every joint limit as 0/0/0/0; ranges assigned human-like per joint (`arm.joint_range`; the repo's only measured ranges are conservative ~10-20 deg calibration sweeps, not mechanical stops), efforts = datasheet peaks (`arm.torque_limits`) | measured mechanical stops and motor curves |
 | joint damping [0.1 x4, 0.05, 0.02] (motor-size-scaled) / armature 0.01 added for actuation stability | identify from hardware |
+| servo gains kp [400,400,300,300,100,8] / kv [5,5,5,5,2,0.3] capped to the CAN MIT ranges (kp <= 500, kd <= 5; wrist = the "start low" placeholder, no drive gains configured on hardware yet). The earlier kp 60 / kv 3 wrist saturated the 0.73 Nm GL40 at any error > 0.7 deg. Gate-5 baseline numbers above predate this change and need a re-run | tune on the real drives, re-run the gate-5 eval |
 | gravity+inertia+damping feedforward via `qfrc_applied`, clamped to the same torque limits | robot-side model-based feedforward |
 | semi-implicit Euler + half-step drag hook (RK4 in mujoco destabilized fast contacts) | revisit if contact fidelity needs change |
 
