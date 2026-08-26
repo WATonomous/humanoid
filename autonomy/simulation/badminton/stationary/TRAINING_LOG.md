@@ -260,3 +260,21 @@ wandb/run-*/files/. Rules from this: never delete logs/ while a job is
 running; match on the log dir names, not the wandb names; W&B run files
 are the checkpoint backup.
 
+### result (ran the full 1500) — reference teacher on the honest model
+
+Training: hit 98.1-98.5%, return_flight 0.159 and rising (run 8 at 1500:
+~0.18), d@t* 0.15 (swing-through), std 0.23, elbow/shoulder duty 5-7%,
+wrist duty 0.76. Bank eval (4096 eps, deterministic): hit rate 0.995;
+body-line bin (p* 0.15-0.25 m from chest) 0.994 (run 8: 0.944) — the
+soft wrist + moderated targets removed the chest-line residual; every
+bin >= 0.974. Feasibility: peak joint speeds 4-8 rad/s (rated 25-45);
+AK motors at rated-torque duty j1 2.7%, j2 1.8% (never reaches its
+clamp), j3/j4 8.5%, j5 1.9% — transient swing peaks only. Wrist (GL40):
+duty above rated 64.6% (run 8: 95%), at its 0.73 Nm clamp in every
+episode. With every sim artifact removed (base pose, servo gains, command
+path), this is the hardware statement: a 90 g racket on a 0.45 m handle
+overloads a 0.25 Nm-rated wrist for ~2/3 of every stroke. Decision for
+the team: wrist motor upgrade, lighter/shorter racket, or accept
+intermittent duty with thermal monitoring. Checkpoint: wandb run
+a0uh1o2d, model_1499.pt. This is the teacher to distill from.
+
