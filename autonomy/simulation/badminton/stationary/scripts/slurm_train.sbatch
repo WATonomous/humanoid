@@ -12,8 +12,10 @@
 #SBATCH --job-name=badminton-rl
 #SBATCH --partition=compute
 # rtx_4090 pinned: the cluster's gtx_1080 (sm_61) predates the cu128 torch
-# wheels ("no kernel image is available", job 593623)
-#SBATCH --gres=gpu:rtx_4090:1,tmpdisk:20480
+# wheels ("no kernel image is available", job 593623). A shard (MiB of
+# VRAM) rather than the exclusive gpu:1: training uses < 1 GB, and an
+# exclusive request queues for hours behind anyone holding a shard.
+#SBATCH --gres=shard:rtx_4090:8192,tmpdisk:20480
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
 #SBATCH --time=08:00:00
