@@ -351,15 +351,46 @@ def handle_spawn_visual(cmd: dict) -> dict:
 
 
 def handle_remove(cmd: dict) -> dict:
+    """Remove a tracked object from the scene.
+
+    Root cause (found, not guessed) of the old "remove corrupts every OTHER
+    tracked Articulation's physics view" bug (ReferenceError: weakly-
+    referenced object no longer exists / Failed to get DOF velocities from
+    backend, on a completely untouched object): `del objects[name]` alone
+    does not immediately garbage-collect the removed RigidObject/
+    Articulation. `_create_buffers()` builds a `WrenchComposer(self)` for
+    each asset — a reference cycle (asset -> composer -> asset) — so
+    CPython's refcounting can't free it right away; only a cyclic-GC pass
+    would, on no particular schedule. Until that happens, the removed
+    object's PLAY/STOP timeline callbacks (subscribed in AssetBase.__init__,
+    only unsubscribed in __del__ -> _clear_callbacks()) are STILL LIVE. The
+    very next `sim.reset()` (stop() then play()) fires those callbacks
+    against a prim `stage.RemovePrim()` already deleted — `_initialize_impl()`
+    for a since-deleted prim path throws mid-callback, which is what was
+    actually corrupting shared PhysX/tensor-view state for every other
+    tracked Articulation, not anything about the reset cycle itself (plain
+    resets from ordinary spawns never showed this — only removes did).
+    Fixed by forcing a `gc.collect()` between removing the prim and
+    resetting, so the removed object's `__del__`/`_clear_callbacks()` runs
+    and unsubscribes it BEFORE the reset cycle can fire its now-orphaned
+    callbacks. An earlier, different fix attempt here
+    (`_reinitialize_tracked_objects()`, forcing every OTHER object to
+    manually reinitialize) caused a genuine CUDA crash and was reverted —
+    this fix doesn't touch other objects at all, it just stops the removed
+    one from firing.
+    """
     name = cmd["name"]
     if name not in objects:
         return {"ok": False, "error": f"no such object '{name}'"}
+    import gc
+
     import omni.usd
 
     stage = omni.usd.get_context().get_stage()
     stage.RemovePrim(f"/World/{name}")
     del objects[name]
     _object_is_dynamic.pop(name, None)
+    gc.collect()
     sim.reset()
     return {"ok": True}
 
@@ -375,14 +406,37 @@ def handle_set_pose(cmd: dict) -> dict:
        on a fresh daemon with nothing else going on. Kinematic bodies aren't
        driven through the normal dynamics tensor write path; move them by
        writing the USD prim's transform directly instead.
-    2. Even for a dynamic object where write_root_pose_to_sim() *does* work,
-       the change is invisible to sim.reset() (triggered by every later
-       spawn/remove) and gets silently wiped by it — reset() reapplies each
-       object's cached `data.default_root_state` tensor, which is set once
-       from cfg.init_state at spawn time and near-permanent afterward.
-       Mutating obj.cfg.init_state (an earlier, wrong attempt at this fix)
-       does nothing — cfg isn't consulted again once default_root_state
-       exists. Write directly into that tensor's pos/rot columns instead.
+    2. A dynamic object's write_root_pose_to_sim() change used to get
+       silently wiped by the next spawn/remove. Root cause (actually found,
+       not guessed at): sim.reset() calls stop() then play() — the STOP
+       event resets every tracked asset's `_is_initialized` flag to False
+       (asset_base.py's _invalidate_initialize_callback), so the next PLAY
+       event runs _initialize_impl() again IN FULL, including
+       _process_cfg(), which re-derives `data.default_root_state` from
+       `self.cfg.init_state` from scratch. Two earlier fix attempts both
+       missed this: writing directly into `data.default_root_state` doesn't
+       survive because that tensor gets fully REPLACED (not updated) on the
+       next reinit. A second attempt (confirmed wrong THIS TIME, not just
+       assumed): mutating `obj.cfg.init_state.pos`/`.rot` also didn't
+       survive, despite `self.cfg` being a stored, never-reassigned
+       reference on the live object (asset_base.py: `self.cfg = cfg.copy()`
+       once, in __init__) that a mutation through `objects[name].cfg`
+       genuinely does reach. The reason it still didn't survive: a real
+       (non-soft) `sim.reset()` calls PhysX `stop()` then `play()`, and on
+       PLAY, PhysX re-initializes a rigid body's pose from the USD prim's
+       *authored xformOp transform on the stage* — not from
+       `cfg.init_state`, not from `data.default_root_state`.
+       `write_root_pose_to_sim()` only writes the live physics TENSOR
+       (confirmed: `query()` reflected the new pose instantly, but a
+       `bbox()` read of the same prim right after showed the transform
+       still at its original spawn value) — it never touches the prim's
+       actual USD attributes, so PLAY reads the stale, original transform
+       every time regardless of any of the above. Fixed by writing the new
+       pose directly to the prim's xformOps (the same thing the kinematic
+       branch below was already doing) for EVERY object, dynamic or
+       kinematic — `write_root_pose_to_sim()` stays too, so a dynamic
+       object's `query()` reflects the move immediately without waiting for
+       a `step()`/reset first.
     """
     name = cmd["name"]
     if name not in objects:
@@ -399,28 +453,34 @@ def handle_set_pose(cmd: dict) -> dict:
 
     if _object_is_dynamic.get(name, True):
         obj.write_root_pose_to_sim(torch.cat([cur_pos, cur_rot], dim=-1))
-    else:
-        import omni.usd
-        from pxr import Gf, UsdGeom
 
-        stage = omni.usd.get_context().get_stage()
-        prim = stage.GetPrimAtPath(f"/World/{name}")
-        xform = UsdGeom.Xformable(prim)
-        xform.ClearXformOpOrder()
-        p = cur_pos[0].tolist()
-        q = cur_rot[0].tolist()  # (w, x, y, z)
-        xform.AddTranslateOp().Set(Gf.Vec3d(*p))
-        # ClearXformOpOrder() clears the op ORDER, not the underlying
-        # attribute — a prim spawned via CuboidCfg/etc. already has an
-        # orient xformOp authored at double precision, and AddOrientOp()'s
-        # own default precision doesn't match it, raising a Tf error.
-        # Match explicitly instead of guessing.
-        xform.AddOrientOp(precision=UsdGeom.XformOp.PrecisionDouble).Set(
-            Gf.Quatd(q[0], Gf.Vec3d(q[1], q[2], q[3]))
-        )
+    import omni.usd
+    from pxr import Gf, UsdGeom
 
+    stage = omni.usd.get_context().get_stage()
+    prim = stage.GetPrimAtPath(f"/World/{name}")
+    xform = UsdGeom.Xformable(prim)
+    xform.ClearXformOpOrder()
+    p = cur_pos[0].tolist()
+    q = cur_rot[0].tolist()  # (w, x, y, z)
+    xform.AddTranslateOp().Set(Gf.Vec3d(*p))
+    # ClearXformOpOrder() clears the op ORDER, not the underlying
+    # attribute — a prim spawned via CuboidCfg/etc. already has an
+    # orient xformOp authored at double precision, and AddOrientOp()'s
+    # own default precision doesn't match it, raising a Tf error.
+    # Match explicitly instead of guessing.
+    xform.AddOrientOp(precision=UsdGeom.XformOp.PrecisionDouble).Set(
+        Gf.Quatd(q[0], Gf.Vec3d(q[1], q[2], q[3]))
+    )
+
+    # data.default_root_state and cfg.init_state are NOT what a real
+    # sim.reset() reads on PLAY (see docstring above) — the USD prim xform
+    # written above is the actual fix. Still update these two so query()
+    # and anything reading cfg directly stay consistent before any reset.
     obj.data.default_root_state[:, 0:3] = cur_pos
     obj.data.default_root_state[:, 3:7] = cur_rot
+    obj.cfg.init_state.pos = tuple(cur_pos[0].tolist())
+    obj.cfg.init_state.rot = tuple(cur_rot[0].tolist())
     return {"ok": True}
 
 
