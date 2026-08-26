@@ -216,28 +216,47 @@ approach depth) — not just that the two boxes don't intersect.
   PhysX, and dynamic objects still use `write_root_pose_to_sim()` as before.
   Object dynamic/kinematic-ness is tracked automatically (same flag `bbox`'s staleness
   warning already uses) — nothing to configure when calling `set_pose`.
-- **After `set_pose` on a kinematic object, verify with `bbox()`, not `query()`.**
-  `query()` reads the PhysX tensor view, which a kinematic object's direct-USD pose
-  write never touches — it'll keep reporting the old pose even though the object
-  genuinely moved (confirmed correct via `bbox()` and a screenshot). This is the same
-  dual-source-of-truth pattern as `bbox`'s own staleness issue, just the mirror image
-  of it (USD is now the accurate source, PhysX the stale one) — check whichever
-  command actually reads from where the write went.
-- **`set_pose` changes are silently wiped by the next `spawn_*`/`remove` call — still
-  broken, no fix found yet (see #209 for what was tried and why it didn't work).**
-  Every spawn/remove ends with `sim.reset()`, which re-applies each tracked object's
-  *original spawn-time* pose (cached once, at spawn, into a
-  `data.default_root_state` tensor that `cfg.init_state` is never consulted from
-  again) — discarding any `set_pose` change made since, with no error at all. Two
-  attempted fixes both failed silently rather than crashing: mutating
-  `obj.cfg.init_state` directly (a no-op — cfg isn't re-read after spawn) and writing
-  into `data.default_root_state` directly (also didn't survive a later reset — root
-  cause not yet found). **Until this is actually fixed: bake the pose you actually
-  want into the `pos`/`rot` args of the `spawn_usd`/`spawn_primitive` call itself, and
-  do all spawning before any `set_pose` calls** — don't spawn-then-set_pose-then-
-  spawn-more. If you do need to verify a `set_pose` took effect, check immediately
-  after the call (`bbox()` for kinematic, `query()` for dynamic), not after a
-  screenshot or anything else that might trigger another spawn/reset first.
+- **`set_pose` changes surviving a later `spawn_*`/`remove` — fixed, real root cause
+  found.** A real (non-soft) `sim.reset()` calls PhysX `stop()` then `play()`. On
+  PLAY, a rigid body's pose is re-initialized from the USD prim's **authored xformOp
+  transform on the stage** — not from `cfg.init_state`, not from
+  `data.default_root_state`. Two earlier fixes both targeted the wrong source and
+  both failed silently for that reason (mutating `cfg.init_state`, writing directly
+  into `data.default_root_state` — neither is what PLAY actually reads).
+  `write_root_pose_to_sim()` only ever touches the live physics *tensor*; it never
+  writes back to the USD prim's actual attributes (confirmed: `query()` reflected a
+  new pose instantly, but a `bbox()` read of the same prim right after showed the
+  authored transform unchanged) — so PLAY kept re-reading the stale, original spawn
+  transform regardless. **Fixed** by writing the new pose to the prim's xformOps for
+  every object now, dynamic or kinematic (previously only the kinematic branch did
+  this) — `write_root_pose_to_sim()` still runs too, so `query()` reflects the move
+  immediately without needing a `step()` first. Verified: spawn, `set_pose`, spawn a
+  second throwaway object (triggers `sim.reset()`), re-`query()` the first — pose
+  held.
+- **After `set_pose`, `query()` is now reliable for both dynamic and kinematic
+  objects** (the USD-prim write happens for both) — no need to special-case which
+  command to check with anymore.
+- **`remove` used to corrupt every OTHER tracked Articulation's physics view — fixed,
+  real root cause found.** Symptom was `ReferenceError: weakly-referenced object no
+  longer exists` / `Failed to get DOF velocities from backend` on a completely
+  untouched object's next `step`/`query`, right after removing something else
+  entirely. Cause: `del objects[name]` alone doesn't immediately garbage-collect the
+  removed object — `_create_buffers()` gives every asset a `WrenchComposer(self)`, a
+  reference cycle, so CPython's refcounting can't free it right away. Until an actual
+  GC pass happens, the removed object's PLAY/STOP timeline callbacks (registered in
+  `AssetBase.__init__`, only unsubscribed in `__del__`) stay live — and the very next
+  `sim.reset()` fires them against a prim `stage.RemovePrim()` already deleted,
+  throwing mid-callback in a way that corrupted shared PhysX/tensor-view state for
+  every other tracked Articulation. Plain resets from ordinary spawns never showed
+  this; only removes did, because only removes delete the underlying prim out from
+  under a still-subscribed callback. **Fixed** by forcing `gc.collect()` between
+  `stage.RemovePrim()` and `sim.reset()`, so the removed object's `__del__` runs and
+  unsubscribes it before the reset cycle can fire its now-orphaned callback. An
+  earlier, different fix attempt here (forcing every OTHER object to manually
+  reinitialize) caused a genuine CUDA crash and was reverted — this fix doesn't touch
+  other objects at all. Verified: spawn an Articulation + a throwaway object, remove
+  the throwaway, then `step`/`joint_state`/`query` the untouched Articulation — no
+  error, repeatable across multiple removes in a row.
 - **After any camera repositioning, check the shot actually shows what you think it
   does before drawing a conclusion from it** — a "nothing changed" screenshot can mean
   the change didn't happen (see above) OR it can mean you're looking at the wrong side
