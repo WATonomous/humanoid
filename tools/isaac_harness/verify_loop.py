@@ -108,6 +108,34 @@ def no_overlap(names: list):
     return True, {}
 
 
+def is_stacked_on(a: str, b: str, z_tol: float = 0.003, xy_tol: float = 0.005, axis: int = 2):
+    """Is `a` properly stacked on `b` — both resting (z-gap within z_tol)
+    AND centered (offset from b's center on the other two axes within
+    xy_tol)?
+
+    Exists because of a real failure, not a hypothetical: is_resting_on
+    alone (z-gap only) reported success closing a stack tightly, but the
+    stack then progressively collapsed/slid apart over further physics
+    steps — a landing box lands with a few degrees of tilt, and with
+    nothing correcting x/y alignment, that tilt compounds into sliding
+    instead of settling. Confirmed by testing (not assumed): a 3-box stack
+    built with is_resting_on alone reached a tight z-gap immediately, but
+    re-querying after 60 more physics steps showed one box moved ~0.3m
+    sideways and down — genuinely fell off, not just noise. Use this
+    instead of is_resting_on whenever the object needs to stay put under
+    continued simulation, not just report a passing check once.
+    """
+    bbox_a = send_command({"cmd": "bbox", "name": a})
+    bbox_b = send_command({"cmd": "bbox", "name": b})
+    other_axes = [i for i in range(3) if i != axis]
+    gap = bbox_a["min"][axis] - bbox_b["max"][axis]
+    center_a = [(bbox_a["min"][i] + bbox_a["max"][i]) / 2 for i in range(3)]
+    center_b = [(bbox_b["min"][i] + bbox_b["max"][i]) / 2 for i in range(3)]
+    offsets = {i: center_a[i] - center_b[i] for i in other_axes}
+    ok = abs(gap) < z_tol and all(abs(o) < xy_tol for o in offsets.values())
+    return ok, {"gap": gap, "offsets": offsets, "axis": axis, "bbox_a": bbox_a, "bbox_b": bbox_b}
+
+
 def is_within_bounds(name: str, min_xyz, max_xyz):
     """Does name's bbox center lie within an axis-aligned region?"""
     bbox = send_command({"cmd": "bbox", "name": name})
@@ -147,16 +175,43 @@ def close_gap_along_axis(name: str, gap_key: str = "gap", bbox_key: str = "bbox_
     return adjust
 
 
+def settle_stack(name: str, damping: float = 0.7):
+    """Adjust_fn pairing with is_stacked_on — corrects the z-gap AND the
+    x/y center offset together in one combined move per iteration, not as
+    two separate corrections that could fight each other across
+    iterations (e.g. a z-only pass re-introducing an x/y offset if the
+    object rotates slightly as it drops).
+    """
+    def adjust(info: dict):
+        bbox_a = info["bbox_a"]
+        cur = [(bbox_a["min"][i] + bbox_a["max"][i]) / 2 for i in range(3)]
+        new_pos = list(cur)
+        new_pos[info["axis"]] -= info["gap"] * damping
+        for i, offset in info["offsets"].items():
+            new_pos[i] -= offset * damping
+        send_command({"cmd": "set_pose", "name": name, "pos": new_pos})
+    return adjust
+
+
 def _main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="cmd", required=True)
 
-    p = sub.add_parser("rest", help="nudge `--name` until it rests on `--on` within `--tol`")
+    p = sub.add_parser("rest", help="nudge `--name` until it rests on `--on` within `--tol` (z-gap only)")
     p.add_argument("--name", required=True)
     p.add_argument("--on", required=True)
     p.add_argument("--tol", type=float, default=0.005)
     p.add_argument("--max-iters", type=int, default=20)
     p.add_argument("--damping", type=float, default=0.8)
+
+    p = sub.add_parser("stack", help="nudge `--name` until it's resting AND centered on `--on` "
+                       "(use this over `rest` for anything that needs to stay put under continued physics)")
+    p.add_argument("--name", required=True)
+    p.add_argument("--on", required=True)
+    p.add_argument("--z-tol", type=float, default=0.003)
+    p.add_argument("--xy-tol", type=float, default=0.005)
+    p.add_argument("--max-iters", type=int, default=25)
+    p.add_argument("--damping", type=float, default=0.7)
 
     args = parser.parse_args()
     if args.cmd == "rest":
@@ -168,6 +223,16 @@ def _main():
         print(f"success={result.success} iterations={result.iterations}")
         for step in result.trace:
             print(f"  iter {step['iteration']}: gap={step['gap']:.5f} ok={step['ok']}")
+    elif args.cmd == "stack":
+        result = until(
+            check_fn=lambda: is_stacked_on(args.name, args.on, z_tol=args.z_tol, xy_tol=args.xy_tol),
+            adjust_fn=settle_stack(args.name, damping=args.damping),
+            max_iters=args.max_iters,
+        )
+        print(f"success={result.success} iterations={result.iterations}")
+        for step in result.trace:
+            off = step["offsets"]
+            print(f"  iter {step['iteration']}: gap={step['gap']:.5f} offsets={off} ok={step['ok']}")
 
 
 if __name__ == "__main__":
