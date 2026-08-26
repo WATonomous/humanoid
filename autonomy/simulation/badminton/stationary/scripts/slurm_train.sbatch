@@ -46,5 +46,7 @@ uv sync --extra train
 uv run scripts/train_rl.py Mjlab-Badminton-Receive-Teacher \
     --env.scene.num-envs "${NUM_ENVS:-1024}" ${EXTRA_ARGS:-} &
 TRAIN_PID=$!
-trap 'kill -INT "$TRAIN_PID"' USR1 TERM INT
+# uv run does not reliably forward SIGINT to its python child: signal the
+# children first, then uv itself
+trap 'pkill -INT -P "$TRAIN_PID"; kill -INT "$TRAIN_PID"' USR1 TERM INT
 wait "$TRAIN_PID" || wait "$TRAIN_PID"
