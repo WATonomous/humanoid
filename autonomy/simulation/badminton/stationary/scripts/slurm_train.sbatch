@@ -16,11 +16,13 @@
 # tr-slurm2's gtx_1080 (sm_61) is excluded ("no kernel image", job 593623).
 # A shard (MiB of VRAM) rather than the exclusive gpu:1: training uses
 # < 1 GB, and an exclusive request queues for hours behind anyone holding
-# a shard. First run on a new GPU arch recompiles the Warp kernels (~5 min).
-#SBATCH --gres=shard:8192,tmpdisk:20480
+# a shard. Sized to fit the gaps on a busy cluster: 1024 envs measured
+# 854 MiB VRAM and the loop is GPU-bound, so 4 GB / 4 CPUs / 16 GB RAM is
+# ample. First run on a new GPU arch recompiles the Warp kernels (~5 min).
+#SBATCH --gres=shard:4096,tmpdisk:20480
 #SBATCH --exclude=tr-slurm2
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=16G
 #SBATCH --time=08:00:00
 #SBATCH --output=runs/slurm-%j.out
 
