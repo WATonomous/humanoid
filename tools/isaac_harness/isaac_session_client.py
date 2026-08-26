@@ -90,13 +90,31 @@ def main() -> None:
     p.add_argument("--usd-path", required=True)
     p.add_argument("--pos", type=_floats, default=[0, 0, 0])
     p.add_argument("--rot", type=_floats, default=[1, 0, 0, 0])
+    p.add_argument("--scale", type=_floats, default=[1, 1, 1])
     p.add_argument("--articulation", action="store_true")
+    p.add_argument("--apply-physics", action="store_true",
+                   help="apply RigidBodyAPI/CollisionAPI/MassAPI to a bare-mesh asset with no "
+                   "physics baked in (e.g. YCB props) — leave off for assets that already "
+                   "have their own, like the vial/rack")
+    p.add_argument("--mass", type=float, default=0.2)
 
     p = sub.add_parser("spawn_bimanual_arm",
                        help="spawn this repo's pioneer_bimanual_arm robot with its real actuator config")
     p.add_argument("--name", required=True)
     p.add_argument("--pos", type=_floats, default=[0, 0, 0])
     p.add_argument("--rot", type=_floats, default=[1, 0, 0, 0])
+
+    p = sub.add_parser("spawn_visual",
+                       help="spawn a USD asset as a pure visual reference, no physics wrapper "
+                            "(for assets with no baked-in RigidBodyAPI, e.g. YCB props)")
+    p.add_argument("--name", required=True)
+    p.add_argument("--usd-path", required=True)
+    p.add_argument("--pos", type=_floats, default=[0, 0, 0])
+    p.add_argument("--rot", type=_floats, default=[1, 0, 0, 0])
+    p.add_argument("--scale", type=_floats, default=[1, 1, 1])
+
+    p = sub.add_parser("list_dir", help="list a Nucleus (or local) directory via omni.client")
+    p.add_argument("--path", required=True)
 
     p = sub.add_parser("remove")
     p.add_argument("--name", required=True)
@@ -140,10 +158,14 @@ def main() -> None:
         cmd.update(name=args.name, shape=args.shape, size=args.size, pos=args.pos,
                    color=args.color, mass=args.mass, dynamic=not args.static)
     elif args.cmd == "spawn_usd":
-        cmd.update(name=args.name, usd_path=args.usd_path, pos=args.pos, rot=args.rot,
-                   articulation=args.articulation)
+        cmd.update(name=args.name, usd_path=args.usd_path, pos=args.pos, rot=args.rot, scale=args.scale,
+                   articulation=args.articulation, apply_physics=args.apply_physics, mass=args.mass)
     elif args.cmd == "spawn_bimanual_arm":
         cmd.update(name=args.name, pos=args.pos, rot=args.rot)
+    elif args.cmd == "spawn_visual":
+        cmd.update(name=args.name, usd_path=args.usd_path, pos=args.pos, rot=args.rot, scale=args.scale)
+    elif args.cmd == "list_dir":
+        cmd.update(path=args.path)
     elif args.cmd == "remove":
         cmd.update(name=args.name)
     elif args.cmd == "set_pose":

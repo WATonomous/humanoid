@@ -25,6 +25,10 @@ Command shapes (all fields besides "id" and "cmd" are command-specific):
    "size": [0.1,0.1,0.1], "pos": [0,0,0.5], "color": [1,0,0], "dynamic": true}
   {"id": "...", "cmd": "spawn_usd", "name": "Robot", "usd_path": "...",
    "pos": [0,0,0], "rot": [1,0,0,0], "articulation": true}
+  {"id": "...", "cmd": "spawn_usd", "name": "Box", "usd_path": "...", "pos": [0,0,0.3],
+   "apply_physics": true, "mass": 0.2}  # for bare-mesh assets with no physics baked in (e.g. YCB)
+  {"id": "...", "cmd": "spawn_visual", "name": "Box", "usd_path": "...", "pos": [0,0,0]}
+  {"id": "...", "cmd": "list_dir", "path": "omniverse://.../some/dir"}
   {"id": "...", "cmd": "remove", "name": "Obj1"}
   {"id": "...", "cmd": "set_pose", "name": "Obj1", "pos": [0,0,1], "rot": [1,0,0,0]}
   {"id": "...", "cmd": "query", "name": "Obj1"}
@@ -72,7 +76,7 @@ import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets import Articulation, ArticulationCfg, RigidObject, RigidObjectCfg
 from isaaclab.sensors import Camera, CameraCfg
-from isaaclab.sim import SimulationContext
+from isaaclab.sim import SimulationContext, schemas as isaaclab_schemas
 
 CMDS_DIR = os.path.join(args_cli.queue_dir, "cmds")
 RESP_DIR = os.path.join(args_cli.queue_dir, "responses")
@@ -180,6 +184,7 @@ def handle_spawn_usd(cmd: dict) -> dict:
         return {"ok": False, "error": f"name '{name}' already exists"}
     pos = tuple(cmd.get("pos", [0, 0, 0]))
     rot = tuple(cmd.get("rot", [1, 0, 0, 0]))
+    scale = tuple(cmd.get("scale", [1, 1, 1]))
     try:
         if cmd.get("articulation", False):
             # ArticulationCfg requires actuators for every DOF or it refuses
@@ -203,7 +208,7 @@ def handle_spawn_usd(cmd: dict) -> dict:
             }
             obj_cfg = ArticulationCfg(
                 prim_path=f"/World/{name}",
-                spawn=sim_utils.UsdFileCfg(usd_path=cmd["usd_path"]),
+                spawn=sim_utils.UsdFileCfg(usd_path=cmd["usd_path"], scale=scale),
                 init_state=ArticulationCfg.InitialStateCfg(pos=pos, rot=rot),
                 actuators=actuators,
             )
@@ -211,10 +216,41 @@ def handle_spawn_usd(cmd: dict) -> dict:
         else:
             obj_cfg = RigidObjectCfg(
                 prim_path=f"/World/{name}",
-                spawn=sim_utils.UsdFileCfg(usd_path=cmd["usd_path"]),
+                spawn=sim_utils.UsdFileCfg(usd_path=cmd["usd_path"], scale=scale),
                 init_state=RigidObjectCfg.InitialStateCfg(pos=pos, rot=rot),
             )
             objects[name] = RigidObject(cfg=obj_cfg)
+            if cmd.get("apply_physics", False):
+                # Root cause (found, not guessed): UsdFileCfg.rigid_props/
+                # collision_props/mass_props route through
+                # isaaclab.sim.schemas.modify_rigid_body_properties() et al,
+                # which only *modifies* an ALREADY-APPLIED RigidBodyAPI/
+                # CollisionAPI/MassAPI — it returns False (no exception) if
+                # the schema isn't there, so passing rigid_props to a
+                # bare-mesh asset (no physics baked in, e.g. YCB) is a silent
+                # no-op, not a failure at spawn time. The actual failure
+                # surfaces later and confusingly, in
+                # RigidObject._initialize_impl() at sim.reset() time:
+                # "Failed to find a rigid body... Please ensure RigidBodyAPI
+                # is applied." IsaacLab's own define_*_properties()
+                # functions (used above by RigidObjectCfg for tables/etc
+                # that already carry the API) apply the schema first, then
+                # delegate to modify_*() — that's the missing step, done
+                # here explicitly instead of through UsdFileCfg's cfg fields.
+                prim_path = f"/World/{name}"
+                isaaclab_schemas.define_rigid_body_properties(
+                    prim_path,
+                    sim_utils.RigidBodyPropertiesCfg(
+                        solver_position_iteration_count=16,
+                        solver_velocity_iteration_count=1,
+                    ),
+                )
+                isaaclab_schemas.define_collision_properties(
+                    prim_path, sim_utils.CollisionPropertiesCfg()
+                )
+                isaaclab_schemas.define_mass_properties(
+                    prim_path, sim_utils.MassPropertiesCfg(mass=cmd.get("mass", 0.2))
+                )
         # Whether a USD-file rigid body is actually kinematic depends on
         # what's baked into the asset itself, which we don't inspect here —
         # conservatively assume dynamic (i.e. bbox may go stale) unless
@@ -265,6 +301,52 @@ def handle_spawn_bimanual_arm(cmd: dict) -> dict:
         objects.pop(name, None)
         _object_is_dynamic.pop(name, None)
         raise
+    return {"ok": True}
+
+
+def handle_list_dir(cmd: dict) -> dict:
+    """List a Nucleus (or local) directory via omni.client — for finding an
+    asset's exact path/filename before spawning it, e.g. browsing
+    ISAAC_NUCLEUS_DIR/Props/YCB/... to see what's actually there rather than
+    guessing a filename.
+    """
+    import omni.client
+
+    path = cmd["path"]
+    result, entries = omni.client.list(path)
+    if result != omni.client.Result.OK:
+        return {"ok": False, "error": f"omni.client.list('{path}') failed: {result}"}
+    return {
+        "ok": True,
+        "entries": [
+            {"name": e.relative_path, "is_folder": bool(e.flags & omni.client.ItemFlags.CAN_HAVE_CHILDREN)}
+            for e in entries
+        ],
+    }
+
+
+def handle_spawn_visual(cmd: dict) -> dict:
+    """Spawn a USD asset as a pure visual reference — no RigidObject/
+    Articulation wrapper, no RigidBodyAPI requirement. For assets that don't
+    need physics (a bare-mesh prop just being looked at/screenshotted, e.g.
+    YCB) and would otherwise fail with "Failed to find a rigid body... please
+    ensure RigidBodyAPI is applied" (a real open bug for those assets via
+    spawn_usd/RigidObject, see #209) — sidesteps that requirement entirely
+    since a purely visual placement was never a physics object to begin with.
+    Not tracked in `objects` (no physics data to query/step/set_pose on);
+    still visible to scene_tree/bbox/screenshot since those work off raw USD.
+    """
+    name = cmd["name"]
+    prim_path = f"/World/{name}"
+    import omni.usd
+
+    if omni.usd.get_context().get_stage().GetPrimAtPath(prim_path).IsValid():
+        return {"ok": False, "error": f"prim already exists at {prim_path}"}
+    pos = tuple(cmd.get("pos", [0, 0, 0]))
+    rot = tuple(cmd.get("rot", [1, 0, 0, 0]))
+    scale = tuple(cmd.get("scale", [1, 1, 1]))
+    cfg = sim_utils.UsdFileCfg(usd_path=cmd["usd_path"], scale=scale)
+    cfg.func(prim_path, cfg, translation=pos, orientation=rot)
     return {"ok": True}
 
 
@@ -536,6 +618,8 @@ HANDLERS = {
     "spawn_primitive": handle_spawn_primitive,
     "spawn_usd": handle_spawn_usd,
     "spawn_bimanual_arm": handle_spawn_bimanual_arm,
+    "spawn_visual": handle_spawn_visual,
+    "list_dir": handle_list_dir,
     "remove": handle_remove,
     "set_pose": handle_set_pose,
     "query": handle_query,

@@ -30,9 +30,13 @@ python3 tools/isaac_harness/isaac_session_client.py screenshot --eye ... --targe
 tools/isaac_harness/isaac_session.sh stop           # see shutdown timing note below
 ```
 
-There's a saved reference scene at `tools/isaac_harness/scenes/bimanual_vial_rack.sh`
-(table + this repo's robot + vial rack + 3 vials) — reuse or extend it rather than
-re-typing spawn commands from scratch.
+There are saved reference scenes under `tools/isaac_harness/scenes/` — reuse or extend
+rather than re-typing spawn commands from scratch:
+- `bimanual_vial_rack.sh` — table + this repo's robot + vial rack + 3 vials
+- `ycb_pick_place.sh` — robot + a real Nucleus packing table + 4 YCB grasp objects +
+  a KLT bin, all dropped and settled under real physics. Read its header comment before
+  copying its numbers elsewhere — every one of them exists because a naive first attempt
+  broke in a specific, now-documented way (see the new sections below).
 
 ## Hard rules
 
@@ -97,6 +101,90 @@ stepped) don't carry this risk.
 `overlap` (AABB overlap, boolean) and `distance` (center-to-center) exist to answer
 "is X actually on Y" / "are these interpenetrating" programmatically — use them instead
 of a screenshot + eyeball judgment call when the question is that concrete.
+
+## Finding & placing external Nucleus assets (YCB, packing tables, bins, etc.)
+
+- **Don't guess an asset's filename — use `list_dir`.** It runs `omni.client.list()`
+  against a real Nucleus (or local) directory and returns actual entries. Browse down
+  to the file before spawning it:
+  ```bash
+  python3 isaac_session_client.py list_dir --path "$ISAAC_NUCLEUS_DIR/Props/YCB/"
+  python3 isaac_session_client.py list_dir --path "$ISAAC_NUCLEUS_DIR/Props/YCB/Axis_Aligned/"
+  # -> 003_cracker_box.usd, 006_mustard_bottle.usd, 025_mug.usd, ...
+  ```
+  `ISAAC_NUCLEUS_DIR` is
+  `https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/5.1/Isaac`
+  (IsaacLab's own `isaaclab.utils.assets.ISAAC_NUCLEUS_DIR` constant — check that file if
+  this ever needs updating for a version bump). Other useful categories found this way:
+  `Props/KLT_Bin/`, `Props/PackingTable/`, `Props/Pallet/`, `Props/Sektion_Cabinet/`.
+- **If an object only needs to be *looked at* (no physics interaction), use
+  `spawn_visual`, not `spawn_usd`.** It places the USD reference directly with no
+  `RigidObject`/`Articulation` wrapper at all, so it can't hit the RigidBodyAPI problem
+  below — there's nothing to apply a physics schema to in the first place. Used for a
+  quick "what does this asset even look like" screenshot.
+- **A bare-mesh USD asset with no physics baked in (YCB props included) needs
+  `spawn_usd --apply-physics` — and the reason it needs a *flag* at all, rather than
+  working automatically, is worth understanding, not just invoking.** IsaacLab's
+  `UsdFileCfg(rigid_props=..., collision_props=..., mass_props=...)` routes through
+  `isaaclab.sim.schemas.modify_rigid_body_properties()` (and the collision/mass
+  equivalents) — and those `modify_*` functions only **modify an already-applied**
+  API schema. If the asset has no `RigidBodyAPI` baked in, the check fails and the
+  function just `return`s `False`, no exception, no warning. The actual failure only
+  shows up later and confusingly, inside `RigidObject._initialize_impl()` at the next
+  `sim.reset()`: `"Failed to find a rigid body... Please ensure RigidBodyAPI is
+  applied."` IsaacLab ships a separate `define_rigid_body_properties()` /
+  `define_collision_properties()` / `define_mass_properties()` family that applies the
+  schema *first*, then delegates to the same `modify_*()` — that's the step
+  `--apply-physics` performs explicitly, directly on the spawned prim, instead of
+  routing through `UsdFileCfg`'s cfg fields. Confirmed fixed by dropping a cracker box
+  from height and watching it actually fall and settle under real gravity (not just
+  "no exception at spawn time").
+- **`scale` on `spawn_usd`/`spawn_visual` should be uniform, not per-axis, for a
+  physics-enabled asset.** An anisotropic scale (e.g. `0.5,0.6,0.7`) caused a
+  reproducible ~6cm mismatch between an asset's *visual* bbox top and its actual PhysX
+  collision surface — every object dropped onto a non-uniformly-scaled table sank a
+  consistent few cm below the visible tabletop. Looked exactly like a physics bug;
+  was actually non-uniform scaling breaking the collision-mesh approximation for that
+  asset. A uniform scale factor (`0.6,0.6,0.6`) avoided it entirely on the same asset.
+  If a non-uniform footprint is genuinely needed, verify with a drop-test (below)
+  before trusting it, don't assume it scales cleanly.
+- **Don't precompute an exact resting/contact height for a physics object — drop it
+  from real clearance and read back where it actually landed with `query()`.** Even
+  after fixing the scale issue above, a scaled prefab asset's *visual* bbox top and its
+  *actual* physics-contact height still didn't line up closely enough to trust by
+  calculation. The robust pattern: spawn well above the target surface (e.g.
+  `table_top_z + 0.3`, not `table_top_z + 0.02`), `step` enough times to fully settle
+  (~60-150 depending on object count), then read the real resting pose with `query()`.
+  This is strictly more reliable than computing "table top + half the object's own
+  height" by hand.
+- **Some assets' `query()` reports a pose that doesn't match where you spawned them —
+  by a large, constant offset — even when the object never moved.** One packing-table
+  asset consistently reported a `root_pos_w` offset by (+0.3, -0.06, ...) from its
+  actual spawn translation, identically across multiple rebuilds, regardless of
+  physics settling. This isn't the usual bbox-staleness issue (see below) — it's the
+  opposite: the asset's *actual* PhysX rigid-body prim (wherever it's authored inside
+  the referenced file) has a local transform offset baked in, and `query()`'s
+  `root_pos_w` reports that inner prim's frame, not the outer reference Xform's. For
+  an asset like this, trust `bbox()` (raw USD, world-composed from the outer
+  transform you actually set) over `query()` for "is this where I put it" — this is
+  the mirror image of `bbox`'s own staleness problem below (there, `query()` is
+  trustworthy and `bbox()` is stale; here it's reversed, and only some assets do it).
+  Don't assume either source is universally authoritative — sanity-check a spawned
+  asset's `query()` against its known spawn translation once, and treat a large
+  constant mismatch as this offset, not as "the object moved."
+
+## Scene layout: check orientation and reach, not just AABB overlap
+
+`overlap` only answers "do these two bounding boxes intersect" — it does NOT answer
+"is this table oriented so its reachable surface actually faces the robot." A table
+placed with zero overlap against the robot can still be effectively unusable if its
+*long* axis runs away from the robot (depth) instead of across it (width) — everything
+past the first ~0.5m becomes unreachable even though nothing is technically colliding.
+Before finalizing a multi-object scene layout: `bbox` the table/surface and the robot,
+compare which world axis carries the surface's long dimension against which axis the
+robot is offset along, and check that the *short* dimension is the one between the
+robot and the surface (i.e. the wide side faces the robot, the narrow side is the
+approach depth) — not just that the two boxes don't intersect.
 
 ## Robot-specific
 
