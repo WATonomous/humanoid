@@ -53,16 +53,25 @@ def main() -> None:
     base_y = aero.load_params()["arm"]["base_y"]
     store = env.unwrapped._badminton
     obs = env.get_observations()
+    feas = env.unwrapped.command_manager.get_term("feasibility")
     rows = []  # (front_dist, z, x, hit)
+    qv_rows, tau_rows, duty_rows = [], [], []  # per-episode, per-joint
     with torch.no_grad():
         while len(rows) < args.episodes:
             prev_p = store["p_star"].clone()
             prev_hit = store["hit"].clone()
+            prev_qv = feas._qvel_peak.clone()
+            prev_tau = feas._tau_peak.clone()
+            prev_duty = (feas._over / feas._ticks.clamp_min(1.0)).clone()
             obs, _, dones, _ = env.step(policy(obs))
             done_ids = dones.nonzero(as_tuple=False).squeeze(-1)
             for i in done_ids.tolist():
                 p = prev_p[i].cpu().numpy()
                 rows.append((p[1] - base_y, p[2], p[0], bool(prev_hit[i])))
+            if len(done_ids):
+                qv_rows.append(prev_qv[done_ids].cpu().numpy())
+                tau_rows.append(prev_tau[done_ids].cpu().numpy())
+                duty_rows.append(prev_duty[done_ids].cpu().numpy())
     r = np.array(rows[: args.episodes])
     front, z, x, hit = r[:, 0], r[:, 1], r[:, 2], r[:, 3].astype(bool)
     print(f"\nepisodes: {len(r)}   overall hit rate: {hit.mean():.3f}")
@@ -79,7 +88,22 @@ def main() -> None:
           [0.0, 0.15, 0.25, 0.35, 0.45, 0.6, 2.0])
     table("hit rate by p* height (m)", z, [0.0, 0.9, 1.1, 1.3, 1.5, 1.7, 3.0])
     table("hit rate by p* lateral x (m)", x, [-2.0, -0.4, -0.2, 0.0, 0.2, 0.4, 2.0])
+    qv = np.concatenate(qv_rows)[: args.episodes]
+    tau = np.concatenate(tau_rows)[: args.episodes]
+    duty = np.concatenate(duty_rows)[: args.episodes]
+    arm = aero.load_params()["arm"]
+    peak, rated = arm["torque_limits"], arm["torque_rated"]
+    print("\nfeasibility per joint (per-episode peaks; median / p95 / max)")
+    print("  joint  |qvel| rad/s            |tau| Nm  (clamp)   at-clamp eps  duty>rated (mean)")
+    for j in range(qv.shape[1]):
+        q = np.percentile(qv[:, j], [50, 95, 100])
+        t = np.percentile(tau[:, j], [50, 95, 100])
+        at_clamp = (tau[:, j] >= 0.99 * peak[j]).mean()
+        print(f"  j{j + 1}    {q[0]:5.1f} / {q[1]:5.1f} / {q[2]:5.1f}"
+              f"    {t[0]:5.2f} / {t[1]:5.2f} / {t[2]:5.2f} ({peak[j]:5.2f})"
+              f"   {at_clamp:5.1%}        {duty[:, j].mean():5.1%} (rated {rated[j]})")
     np.save("runs/eval_pstar_hits.npy", r)
+    np.savez("runs/eval_feasibility.npz", qvel_peak=qv, tau_peak=tau, duty=duty)
     print("\nraw rows saved to runs/eval_pstar_hits.npy")
 
 
