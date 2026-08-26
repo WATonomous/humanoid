@@ -246,3 +246,17 @@ crawl the team intends to raise). Same reward config as run 10. Success:
 duty cycles drop toward transient-only levels while hit rate holds
 near 90%+; d@t* is expected to rise (smoothed targets lag).
 
+### run 10 outcome: killed at ~iter 800 by a cleanup mistake (mine)
+
+A home-quota cleanup deleted every logs/rsl_rl/badminton_teacher/<ts>/
+directory: the keep-list was keyed on the wandb run timestamps (init
+time) but log dirs are named by launch time, a few minutes earlier, so
+nothing matched. Run 10's next checkpoint save hit the missing dir and
+the job died; its metrics through ~iter 800 (hit 97.5%, d@t* 0.064,
+duty j6/j4/j1 0.92/0.82/0.82) stand as the "before" for run 11. All
+checkpoints are also uploaded to W&B (run files), so nothing trained was
+lost: run 8 model_2999.pt and run 10 model_700.pt were re-downloaded into
+wandb/run-*/files/. Rules from this: never delete logs/ while a job is
+running; match on the log dir names, not the wandb names; W&B run files
+are the checkpoint backup.
+
