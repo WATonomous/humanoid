@@ -203,7 +203,9 @@ uv run scripts/play_rl.py  Mjlab-Badminton-Receive-Teacher --viewer viser
 On the WATcloud SLURM cluster (wato-login1/wato-login2), submit
 `sbatch scripts/slurm_train.sbatch` from this directory; it bootstraps uv,
 syncs the train extra, and runs the teacher (NUM_ENVS overrides the default
-1024). Logs land in `runs/slurm-<jobid>.out`.
+1024). Logs land in `runs/slurm-<jobid>.out`. Jobs take any sm_75+ GPU node (2080 Ti / 3090 / 4090); check
+`squeue --me` for the node and tunnel viser to `<node>.cluster.watonomous.ca`.
+Stop with `scripts/slurm_stop.sh <jobid>` so wandb closes the run cleanly.
 
 MDP summary: actions = 6 joint position targets around the ready pose,
 clipped to the joint ranges; episodes reset from the launcher bank (same

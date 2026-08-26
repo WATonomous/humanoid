@@ -11,11 +11,14 @@
 #
 #SBATCH --job-name=badminton-rl
 #SBATCH --partition=compute
-# rtx_4090 pinned: the cluster's gtx_1080 (sm_61) predates the cu128 torch
-# wheels ("no kernel image is available", job 593623). A shard (MiB of
-# VRAM) rather than the exclusive gpu:1: training uses < 1 GB, and an
-# exclusive request queues for hours behind anyone holding a shard.
-#SBATCH --gres=shard:rtx_4090:8192,tmpdisk:20480
+# Any CUDA GPU the cu128 torch wheels support (sm_75+: rtx_2080_ti on
+# delta-slurm1, rtx_3090 x4 on trpro-slurm1, rtx_4090 on trpro-slurm2);
+# tr-slurm2's gtx_1080 (sm_61) is excluded ("no kernel image", job 593623).
+# A shard (MiB of VRAM) rather than the exclusive gpu:1: training uses
+# < 1 GB, and an exclusive request queues for hours behind anyone holding
+# a shard. First run on a new GPU arch recompiles the Warp kernels (~5 min).
+#SBATCH --gres=shard:8192,tmpdisk:20480
+#SBATCH --exclude=tr-slurm2
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
 #SBATCH --time=08:00:00
