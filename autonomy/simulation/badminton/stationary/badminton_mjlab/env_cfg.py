@@ -185,6 +185,12 @@ def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         "joint_vel": RewardTermCfg(
             func=rew_mdp.joint_vel_l2, weight=-1e-4,
             params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
+        # thermal feasibility: sustained torque above rated. -0.5 makes a
+        # full-episode wrist overload (~ -1.2 per episode) competitive with
+        # the contact bonus (2.0) without dominating it (run 9)
+        "torque_thermal": RewardTermCfg(
+            func=mdp.torque_over_rated, weight=-0.5,
+            params={"asset_cfg": SceneEntityCfg("robot")}),
     }
 
     terminations = {

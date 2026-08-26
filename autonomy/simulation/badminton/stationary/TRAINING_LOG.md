@@ -170,3 +170,29 @@ viewer review ("close clips when the shuttle comes at chest/head") and
 with the scripted baseline's own residual failure class. The teacher's
 remaining objective is return quality (return_flight 0.246 logged = ~0.74
 per-episode sum), not contact.
+
+### run 8 feasibility eval (scripts/eval_rl.py, 4096 eps)
+
+Peak joint speeds 6-9 rad/s on every joint vs rated 24.6 (AK10-9) /
+40.8 (AK80-9) / 45 (GL40) rad/s: speed is not a constraint, no
+speed-torque derating needed. Torque: every joint reaches its peak clamp
+in 95-100% of episodes (bang-bang PD swings). Duty above RATED torque:
+j1/j2 16%, j3 19%, j4 35%, j5 13%, j6 (GL40 wrist) 95% — the wrist lives
+at 0.73 Nm peak nearly always. Gravity torque of the 90 g racket at its
+0.45 m offset is ~0.25-0.4 Nm about the wrist, i.e. at/over the 0.25 Nm
+rated value just holding the racket horizontal: most of the 95% is
+posture, not stroke.
+
+## run 9 — thermal penalty (torque_thermal w -0.5), 1500 iters
+
+New reward mdp.torque_over_rated = sum_j max(|tau_j|/tau_rated_j - 1, 0)
+(qfrc_actuator, post-clamp; normalized so a 0.5 Nm wrist overload weighs
+like 35 Nm at the shoulder), weight -0.5: a full-episode wrist overload
+costs ~1.2 vs the 2.0 contact bonus. Physics-grounded (no heat model in
+the sim), not a posture opinion: the only way to cut wrist duty is
+wrist-sparing racket orientations, which should emerge. Success: hit rate
+stays >= 0.97 (eval) while Metrics/feasibility/tau_duty_j6 falls from
+0.95 toward the 0.2-0.35 the other joints show. If hit rate collapses
+instead, the GL40 cannot do this job and the wrist upgrade in the ledger
+becomes mandatory.
+

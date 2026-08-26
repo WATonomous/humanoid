@@ -16,6 +16,7 @@ import torch
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactSensor
 
+import aero
 import launcher
 from badminton_mjlab.perception_command import PerceptionCommand
 from badminton_mjlab.shuttle_action import quat_z2vec
@@ -50,6 +51,7 @@ def _state(env: "ManagerBasedRlEnv") -> dict:
             "p_star": torch.zeros(n, 3, device=dev),
             "t_star": torch.zeros(n, device=dev),
             "hit": torch.zeros(n, dtype=torch.bool, device=dev),
+            "tau_rated": t(aero.load_params()["arm"]["torque_rated"]),
         }
         env._badminton = store
     return store
@@ -172,6 +174,22 @@ def return_flight(env: "ManagerBasedRlEnv", v_scale: float = 6.0) -> torch.Tenso
     _, v = _shuttle_state(env)
     quality = (v[:, 1] + 0.5 * v[:, 2]).clamp(0.0) / v_scale
     return quality.clamp(max=1.0) * store["hit"].float()
+
+
+def torque_over_rated(env: "ManagerBasedRlEnv",
+                      asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Thermal proxy (penalty): sum over joints of max(|tau|/tau_rated - 1, 0).
+
+    The sim caps torque at datasheet peaks but has no heat model, so nothing
+    stops a policy from living above the rated (continuous) torque. Run-8
+    eval: the GL40 wrist sat above rated on 95% of ticks. Normalized per
+    joint so a 0.5 Nm wrist overload weighs like a 35 Nm shoulder overload.
+    Torque is qfrc_actuator (post jnt_actfrcrange clamp)."""
+    store = _state(env)
+    robot = env.scene[asset_cfg.name]
+    idx = robot.data.indexing.joint_v_adr
+    tau = robot.data.data.qfrc_actuator[:, idx].abs()
+    return (tau / store["tau_rated"] - 1.0).clamp_min(0.0).sum(dim=-1)
 
 
 # -- terminations ---------------------------------------------------------
