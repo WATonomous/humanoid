@@ -1,8 +1,14 @@
 # RL training log (teacher phase)
 
-Running record of runs, findings, and next levers. Metric values are
-episode-mean rewards as logged by rsl_rl (mjlab multiplies each reward term
-by step_dt = 0.02, so a sparse 1-tick reward of weight 10 logs as 0.2).
+Running record of runs, findings, and next levers.
+
+**Metric scale (corrected 2026-08-20).** Logged Episode_Reward/* values are
+the per-episode sum (each term x weight x step_dt 0.02) DIVIDED BY
+max_episode_length_s = 3.0 (mjlab reward_manager.py). So a 1-tick contact
+at weight 100 logs as 2.0/3 = 0.667 per hit episode: face_contact 0.657
+means a ~98.5% hit rate, not 33%. Every hit-rate figure below written
+before this note ("31%", "33%") is 3x too low; the raw logged values
+are still correct.
 
 ## run 1 — a1vagllq (SLURM 593617), 2026-08-19, cut at ~943 iters
 
@@ -152,3 +158,15 @@ return_flight climbing past 0.2.
 2. entropy_coef 0.005 let std collapse in run 1; if std collapses again
    despite a live gradient, raise to 0.01-0.02.
 3. return_flight never fired; only meaningful after contacts exist.
+
+## run 8 — bank eval (scripts/eval_rl.py, deterministic policy, 4096 eps)
+
+Overall hit rate 0.993. By p* distance in front of the chest plane:
+0.15-0.25 m 0.944 (n=162), 0.25-0.35 m 0.983, >= 0.35 m 0.995-0.999.
+By height: flat 0.986-0.999. By lateral x: x < -0.4 m 0.954, else
+0.991-1.000. Reading: contact is solved; the residual ~1% of misses sits on
+body-line (chest-plane) and far-left intercepts, consistent with the
+viewer review ("close clips when the shuttle comes at chest/head") and
+with the scripted baseline's own residual failure class. The teacher's
+remaining objective is return quality (return_flight 0.246 logged = ~0.74
+per-episode sum), not contact.
