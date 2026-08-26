@@ -1,10 +1,9 @@
-"""Isaac-free constants for the wato_bimanual_arm cuRobo pipeline.
+"""Isaac-free constants for the wato_bimanual_arm pick_place_gen task.
 
 Values mirror `Teleop/keyboard_based_teleoperation/bimanual_arm_cfg.py`
 (Physics Inspector limits/poses, SolidWorks URDF fingertip geometry). That
-file hard-imports isaaclab, so cuRobo-side scripts that run outside Isaac
-Sim use this module instead. `generate_demos.py` cross-checks these values
-against bimanual_arm_cfg at runtime, where both are importable.
+file hard-imports isaaclab, so scripts that run outside Isaac Sim use this
+module instead.
 """
 import math
 import os
@@ -13,10 +12,6 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 SIM_DIR = os.path.join(REPO_ROOT, "autonomy", "simulation")
 BIMANUAL_ROOT = os.path.join(SIM_DIR, "Humanoid_Wato", "pioneer_bimanual_arm")
 URDF_PATH = os.path.join(BIMANUAL_ROOT, "urdf", "pioneer_bimanual_arm.urdf")
-# Patched copy (real joint limits) written next to the original so its
-# `../meshes/...` references still resolve.
-CUROBO_URDF_PATH = os.path.join(BIMANUAL_ROOT, "urdf", "bimanual_arm_curobo.urdf")
-CUROBO_ROBOT_YML = os.path.join(os.path.dirname(__file__), "curobo_cfg", "wato_bimanual_left.yml")
 
 _REVOLUTE_LIMIT = (-2 * math.pi, 2 * math.pi)
 _JOINT7_LIMIT = (-0.05, 0.0)

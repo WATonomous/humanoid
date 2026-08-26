@@ -39,10 +39,10 @@ def object_grasped(
     gripper_closed_targets: tuple = (-0.05, 0.05),
 ) -> torch.Tensor:
     """True once the object is lifted clear of the table while the gripper is
-    closed -- proxy for the orchestrator (pick_place_gen/orchestrator.py)
-    reaching its post-LIFT phase. Mimic-only: used as the "grasp" subtask
-    termination signal (see pick_place_bimanual_mimic_env.py); not wired into
-    the base task's ObservationsCfg.
+    closed -- proxy for a demo generator's post-LIFT phase. Mimic-only: used
+    as the "grasp" subtask termination signal (see
+    pick_place_bimanual_mimic_env.py); not wired into the base task's
+    ObservationsCfg.
     """
     robot = env.scene[robot_cfg.name]
     obj: RigidObject = env.scene[object_cfg.name]

@@ -1,7 +1,6 @@
 """Configuration surface for the generalized pick-and-place task.
 
-One dataclass consumed by BOTH the Isaac Lab env cfg (scene/events) and the
-cuRobo expert/orchestrator (waypoints, noise, success checks), loaded from a
+One dataclass consumed by the Isaac Lab env cfg (scene/events), loaded from a
 YAML file. See pick_place_gen/README.md for a field-by-field guide and
 worked examples (plain pick-place, stacking, camera-less fast mode).
 
@@ -54,7 +53,14 @@ class PlaceParams:
 
 @dataclass
 class MotionParams:
-    """Expert motion shaping (cuRobo phase targets)."""
+    """Expert motion shaping (phase targets for a scripted/planned demo generator).
+
+    NOTE: these fields were consumed by the cuRobo-based demo generator
+    (pick_place_gen/{curobo_expert,orchestrator,generate_demos}.py), now
+    removed. `lift_height` is still read by the Mimic env's grasp subtask
+    signal; the rest are currently unused pending a replacement seed-demo
+    generator.
+    """
     hover_offset: float = 0.10             # pre-grasp hover above the grasp pose [m]
     place_hover_offset: float = 0.06       # hover above the place pose — lower than the
                                            # grasp hover; poses near the workspace ceiling
@@ -64,7 +70,7 @@ class MotionParams:
     place_clearance: float = 0.005         # drop gap above the support surface [m]
     yaw_candidates: int = wc.NUM_GRASP_YAWS  # top-down grasp yaw goalset size
     max_plan_attempts: int = 3
-    time_dilation: float = 0.6             # slow cuRobo trajectories (1.0 = planner speed)
+    time_dilation: float = 0.6             # slow planner trajectories (1.0 = planner speed)
 
 
 @dataclass
