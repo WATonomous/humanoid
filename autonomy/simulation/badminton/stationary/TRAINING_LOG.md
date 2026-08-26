@@ -224,3 +224,25 @@ and need a re-run. torque_thermal removed from the reward set (function
 kept). Success: hit rate on the bank eval, wrist duty, and return quality
 under an honest wrist — whatever they are, they are the real numbers.
 
+### run 10 early read (iter 269, on wandb_summary.py)
+
+Hit rate 90% and rising, return_flight 0.028 — the realistic gains did
+not hurt hitting. Feasibility got WORSE: wrist duty 0.92, and now j1/j4
+duty 0.86/0.82 (run 8: 0.16/0.35). With drive-range damping (kd 5 not
+30) overshoot is cheap and the policy's bang-bang position targets keep
+every joint at its torque clamp. The missing physics is not in the motor
+but in the command path: hardware (joint_command) rate-limits and
+low-passes every target; the sim had no such moderation.
+
+## run 11 — command moderation in the action term, 1500 iters
+
+BadmintonAction.process_actions now applies the joint_command pipeline:
+per-tick target cap (control.target_velocity_max * step_dt), then
+q <- alpha*q_prev + (1-alpha)*q (alpha 0.85, the configured hardware
+value), then the position clamp; prev resets to the ready pose. Values:
+target_velocity_max = datasheet rated speeds (the physical ceiling; no
+operational value exists in the repo — hardware runs a 40 deg/s bring-up
+crawl the team intends to raise). Same reward config as run 10. Success:
+duty cycles drop toward transient-only levels while hit rate holds
+near 90%+; d@t* is expected to rise (smoothed targets lag).
+

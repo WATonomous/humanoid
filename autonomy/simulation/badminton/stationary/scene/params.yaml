@@ -154,6 +154,18 @@ control:
   # so the wrist gets the "start low" placeholder until the drive is tuned.
   kp: [400.0, 400.0, 300.0, 300.0, 100.0, 8.0]
   kv: [5.0, 5.0, 5.0, 5.0, 2.0, 0.3]
+  # Command moderation, mirroring the hardware path
+  # (autonomy/behaviour/joint_command: per-tick velocity cap on the target,
+  # then low-pass q <- alpha*q_prev + (1-alpha)*q). The MECHANISM is hardware
+  # truth: the real arm cannot receive bang-bang position targets. The
+  # VALUES: hardware currently runs a bring-up crawl (velocity_max 40 deg/s)
+  # that the team intends to raise; no operational value exists in the repo
+  # yet, so the sim uses the datasheet rated speeds (the physical ceiling:
+  # AK10-9 235 rpm, AK80-9 390 rpm, GL40 430 rpm) and the configured
+  # low_pass_alpha 0.85. Copy the team's operational velocity_max here when
+  # it is decided; it can only be lower.
+  target_velocity_max: [24.6, 24.6, 40.8, 40.8, 40.8, 45.0]   # rad/s, per joint
+  low_pass_alpha: 0.85
   # weak-wrist planning: IK joint weights (weight w -> joint moves 1/w^2 as
   # readily) push stroke motion onto the 53/22 Nm shoulder/elbow motors;
   # swing waypoint step caps (rad per 20 ms tick) keep planned distal rates

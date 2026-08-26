@@ -83,6 +83,39 @@ class BadmintonAction(JointPositionAction):
         self._v_adr = idx.free_joint_v_adr
         self._g_vec = torch.tensor([0.0, 0.0, -self._g], device=self.device)
 
+        # Command moderation, mirroring autonomy/behaviour/joint_command
+        # (armPoseToMotorCmds): per-tick cap on target motion, then low-pass
+        # q <- alpha*q_prev + (1-alpha)*q, then the position clamp. The real
+        # arm cannot receive bang-bang targets; without this the policy
+        # exploits a command channel the hardware does not have (runs 8/10:
+        # every joint pinned at its torque clamp most of the episode).
+        c = p["control"]
+        self._step_max = torch.tensor(
+            c["target_velocity_max"], device=self.device) * env.step_dt
+        self._alpha = float(c["low_pass_alpha"])
+        self._prev_target = self._offset.clone() if torch.is_tensor(
+            self._offset) else torch.full_like(self._raw_actions, self._offset)
+
+    def process_actions(self, actions: torch.Tensor) -> None:
+        super().process_actions(actions)
+        tgt = self._processed_actions
+        prev = self._prev_target
+        q = prev + (tgt - prev).clamp(-self._step_max, self._step_max)
+        q = self._alpha * prev + (1.0 - self._alpha) * q
+        if self.cfg.clip is not None:
+            q = torch.clamp(q, min=self._clip[:, :, 0], max=self._clip[:, :, 1])
+        self._prev_target = q
+        self._processed_actions = q
+
+    def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
+        super().reset(env_ids)
+        # the arm restarts at the default (ready) pose: moderate from there
+        # (_offset is the per-env default joint pos when use_default_offset)
+        if env_ids is None:
+            env_ids = slice(None)
+        self._prev_target[env_ids] = (self._offset[env_ids] if torch.is_tensor(
+            self._offset) else self._offset)
+
     def apply_actions(self) -> None:
         super().apply_actions()
         data = self._shuttle.data.data
