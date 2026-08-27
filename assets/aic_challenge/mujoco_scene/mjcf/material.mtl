@@ -1,0 +1,14 @@
+# Shared fallback material for OBJ meshes exported with `usemtl material_0`.
+# Isaac Sim 6 rejects the prior missing-material fallback because it derives an
+# invalid negative roughness.  These neutral physical values preserve geometry
+# while making the mesh set importable into USD.
+newmtl material_0
+Ka 0.2 0.2 0.2
+Kd 0.7 0.7 0.7
+Ks 0.1 0.1 0.1
+# Sim 6's OBJ importer consumes the PBR roughness extension directly.
+# Do not use the legacy Ns shininess term: its conversion path can create
+# the invalid -29 roughness that aborts the USD import.
+Pr 0.5
+d 1.0
+illum 2

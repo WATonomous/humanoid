@@ -1,0 +1,77 @@
+<?xml version="1.0" ?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro">
+
+  <xacro:macro name="lc_mount" params="prefix">
+    <link name="${prefix}link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.1"/>
+        <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001"/>
+      </inertial>
+
+      <visual name="lc_mount_visual">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://aic_assets/models/LC Mount/lc_mount_visual.glb"/>
+        </geometry>
+      </visual>
+
+      <collision name="v1015081011_collider_box">
+        <origin xyz="0.039468 0.0 0.0025" rpy="0.0 0.0 0.0"/>
+        <geometry>
+          <box size="0.017033 0.006 0.005"/>
+        </geometry>
+      </collision>
+
+      <collision name="v1015081011_collider_box.001">
+        <origin xyz="0.006285 0.0 0.0025" rpy="0.0 0.0 0.0"/>
+        <geometry>
+          <box size="0.018569 0.006 0.005"/>
+        </geometry>
+      </collision>
+
+      <collision name="v1015081011_collider_box.002">
+        <origin xyz="0.016889 0.0 0.014186" rpy="0.0 -0.785398 0.0"/>
+        <geometry>
+          <box size="0.014269 0.01475 0.003054"/>
+        </geometry>
+      </collision>
+
+      <collision name="v1015081011_collider_box.003">
+        <origin xyz="0.029227 0.0 0.003364" rpy="0.0 -0.785398 0.0"/>
+        <geometry>
+          <box size="0.012103 0.01475 0.007998"/>
+        </geometry>
+      </collision>
+
+      <collision name="v1015081011_collider_box.004">
+        <origin xyz="0.013496 0.0 0.003079" rpy="0.0 -0.785398 0.0"/>
+        <geometry>
+          <box size="0.006255 0.01475 0.013841"/>
+        </geometry>
+      </collision>
+
+      <collision name="v1015081011_collider_box.005">
+        <origin xyz="0.022239 0.00575 0.008836" rpy="0.0 -0.785398 0.0"/>
+        <geometry>
+          <box size="0.014269 0.00325 0.015602"/>
+        </geometry>
+      </collision>
+
+      <collision name="v1015081011_collider_box.006">
+        <origin xyz="0.02227 -0.004513 0.008805" rpy="0.0 -0.785398 0.0"/>
+        <geometry>
+          <box size="0.014269 0.005725 0.015265"/>
+        </geometry>
+      </collision>
+
+      <collision name="v1015081011_collider_box.007">
+        <origin xyz="0.032739 0.0 0.010179" rpy="0.0 -0.785398 0.0"/>
+        <geometry>
+          <box size="0.009041 0.0065 0.001804"/>
+        </geometry>
+      </collision>
+    </link>
+  </xacro:macro>
+
+</robot>
