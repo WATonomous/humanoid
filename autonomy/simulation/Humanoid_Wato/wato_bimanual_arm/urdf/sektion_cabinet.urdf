@@ -1,0 +1,177 @@
+<!-- Place for location to be decided -->
+<robot name="sektion_cabinet">
+  <material name="cabinet_wood">
+    <color rgba="0.9 0.85 0.8 1.0"/>
+  </material>
+  <material name="cabinet_drawer_white">
+    <color rgba="0.95 0.95 0.95 1.0"/>
+  </material>
+  <material name="cabinet_metal">
+    <color rgba="0.4 0.4 0.4 1.0"/>
+  </material>
+
+  <!-- Cabinet base link -->
+  <link name="cabinet_base_link">
+    <inertial>
+      <mass value="50.0"/>
+      <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+    </inertial>
+  </link>
+
+  <!-- Cabinet main body structure -->
+  <link name="cabinet_body">
+    <visual>
+      <geometry>
+        <!-- A cabinet structure: size 0.5m depth (X), 0.6m width (Y), 0.8m height (Z) -->
+        <box size="0.5 0.6 0.8"/>
+      </geometry>
+      <origin xyz="0.0 0.0 0.4" rpy="0 0 0"/>
+      <material name="cabinet_wood"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.5 0.6 0.8"/>
+      </geometry>
+      <origin xyz="0.0 0.0 0.4" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="30.0"/>
+      <origin xyz="0.0 0.0 0.4"/>
+      <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+    </inertial>
+  </link>
+
+  <joint name="cabinet_body_fixed" type="fixed">
+    <parent link="cabinet_base_link"/>
+    <child link="cabinet_body"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Top Drawer -->
+  <link name="drawer_top">
+    <visual>
+      <geometry>
+        <!-- Top Drawer: depth 0.45m, width 0.54m, height 0.3m -->
+        <box size="0.45 0.54 0.3"/>
+      </geometry>
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+      <material name="cabinet_drawer_white"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.45 0.54 0.3"/>
+      </geometry>
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="2.0"/>
+      <origin xyz="0.0 0.0 0.0"/>
+      <inertia ixx="0.05" ixy="0.0" ixz="0.0" iyy="0.05" iyz="0.0" izz="0.05"/>
+    </inertial>
+  </link>
+
+  <!-- Top Drawer Joint: pulling toward the robot opens drawer (pos goes from 0 to -0.35) -->
+  <joint name="drawer_top_joint" type="prismatic">
+    <parent link="cabinet_body"/>
+    <child link="drawer_top"/>
+    <!-- Positioned in the upper half of the cabinet -->
+    <origin xyz="-0.025 0.0 0.55" rpy="0 0 0"/>
+    <axis xyz="1.0 0.0 0.0"/>
+    <limit lower="-0.35" upper="0.0" effort="100.0" velocity="2.0"/>
+    <dynamics damping="3.0" friction="0.5"/>
+  </joint>
+
+  <!-- Top Drawer Handle -->
+  <link name="drawer_top_handle">
+    <visual>
+      <geometry>
+        <!-- Horizontal handle bar: depth 0.02m, width 0.15m, height 0.02m -->
+        <box size="0.02 0.15 0.02"/>
+      </geometry>
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+      <material name="cabinet_metal"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.02 0.15 0.02"/>
+      </geometry>
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.1"/>
+      <origin xyz="0.0 0.0 0.0"/>
+      <inertia ixx="0.0001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
+    </inertial>
+  </link>
+
+  <joint name="drawer_top_handle_joint" type="fixed">
+    <parent link="drawer_top"/>
+    <child link="drawer_top_handle"/>
+    <!-- Mounted on the front face of the top drawer -->
+    <origin xyz="0.235 0.0 0.0" rpy="0 0 0"/>
+  </joint>
+
+
+  <!-- Bottom Drawer -->
+  <link name="drawer_bottom">
+    <visual>
+      <geometry>
+        <box size="0.45 0.54 0.3"/>
+      </geometry>
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+      <material name="cabinet_drawer_white"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.45 0.54 0.3"/>
+      </geometry>
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="2.0"/>
+      <origin xyz="0.0 0.0 0.0"/>
+      <inertia ixx="0.05" ixy="0.0" ixz="0.0" iyy="0.05" iyz="0.0" izz="0.05"/>
+    </inertial>
+  </link>
+
+  <!-- Bottom Drawer Joint: pulling toward the robot opens drawer (pos goes from 0 to -0.35) -->
+  <joint name="drawer_bottom_joint" type="prismatic">
+    <parent link="cabinet_body"/>
+    <child link="drawer_bottom"/>
+    <!-- Positioned in the lower half of the cabinet -->
+    <origin xyz="-0.025 0.0 0.2" rpy="0 0 0"/>
+    <axis xyz="1.0 0.0 0.0"/>
+    <limit lower="-0.35" upper="0.0" effort="100.0" velocity="2.0"/>
+    <dynamics damping="3.0" friction="0.5"/>
+  </joint>
+
+  <!-- Bottom Drawer Handle -->
+  <link name="drawer_bottom_handle">
+    <visual>
+      <geometry>
+        <box size="0.02 0.15 0.02"/>
+      </geometry>
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+      <material name="cabinet_metal"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.02 0.15 0.02"/>
+      </geometry>
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.1"/>
+      <origin xyz="0.0 0.0 0.0"/>
+      <inertia ixx="0.0001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
+    </inertial>
+  </link>
+
+  <joint name="drawer_bottom_handle_joint" type="fixed">
+    <parent link="drawer_bottom"/>
+    <child link="drawer_bottom_handle"/>
+    <!-- Mounted on the front face of the bottom drawer -->
+    <origin xyz="0.235 0.0 0.0" rpy="0 0 0"/>
+  </joint>
+
+</robot>
