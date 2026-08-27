@@ -1,4 +1,4 @@
-#include <stm32g4xx_hal_tim.h>
+#include <stm32g4xx_hal.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -6,6 +6,7 @@ extern "C" {
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle);
 void MX_TIM4_Init(void);
+void AppError_Handler(void);
 extern TIM_HandleTypeDef htim4;
 
 #ifdef __cplusplus
