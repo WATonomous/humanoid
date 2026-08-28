@@ -1,0 +1,57 @@
+<mujoco model="lego_2x4">
+  <!--
+    Standard 2x4 LEGO brick, built from MJCF primitives (no mesh files needed).
+    Dimensions follow real LEGO measurements (LDU 1 = 0.4mm):
+      stud pitch   = 8mm
+      brick height = 9.6mm (one standard brick = 3 plates)
+      stud dia.    = 4.8mm, stud height = 1.7mm
+    A small per-axis tolerance is subtracted from the body footprint so bricks
+    don't visually z-fight when placed edge-to-edge on the 8mm grid.
+
+    Include this file inside a <worldbody> to splice in one brick, e.g.:
+
+      <mujoco>
+        <include file="lego_2x4.xml"/>
+        <worldbody> ... </worldbody>
+      </mujoco>
+
+    Rename/duplicate the <body>/geom names if you spawn more than one brick
+    in the same scene (MJCF requires unique names).
+  -->
+  <compiler angle="radian"/>
+
+  <default>
+    <default class="lego_2x4">
+      <!-- density chosen (not ABS's true 1050 kg/m3) so the solid primitive body
+           matches a real brick's ~2.5g mass; a real brick is hollow underneath. -->
+      <geom type="box" material="lego_red" density="500" friction="0.9 0.02 0.001"/>
+      <default class="lego_2x4/stud">
+        <geom type="cylinder"/>
+      </default>
+    </default>
+  </default>
+
+  <asset>
+    <material name="lego_red" rgba="0.77 0.06 0.05 1"/>
+  </asset>
+
+  <worldbody>
+    <body name="lego_2x4" childclass="lego_2x4">
+      <freejoint name="lego_2x4_freejoint"/>
+
+      <!-- brick body: 4 studs long (x) x 2 studs wide (y) x 9.6mm tall (z) -->
+      <!-- mass/inertia are left to MuJoCo, computed from geom volume x density below -->
+      <geom name="lego_2x4_body" size="0.0159 0.0079 0.0048" pos="0 0 0.0048"/>
+
+      <!-- 8 studs on the 8mm grid, top face at z = 0.0096 -->
+      <geom class="lego_2x4/stud" name="lego_2x4_stud_00" size="0.0024 0.00085" pos="-0.012 -0.004 0.00965"/>
+      <geom class="lego_2x4/stud" name="lego_2x4_stud_01" size="0.0024 0.00085" pos="-0.012  0.004 0.00965"/>
+      <geom class="lego_2x4/stud" name="lego_2x4_stud_10" size="0.0024 0.00085" pos="-0.004 -0.004 0.00965"/>
+      <geom class="lego_2x4/stud" name="lego_2x4_stud_11" size="0.0024 0.00085" pos="-0.004  0.004 0.00965"/>
+      <geom class="lego_2x4/stud" name="lego_2x4_stud_20" size="0.0024 0.00085" pos=" 0.004 -0.004 0.00965"/>
+      <geom class="lego_2x4/stud" name="lego_2x4_stud_21" size="0.0024 0.00085" pos=" 0.004  0.004 0.00965"/>
+      <geom class="lego_2x4/stud" name="lego_2x4_stud_30" size="0.0024 0.00085" pos=" 0.012 -0.004 0.00965"/>
+      <geom class="lego_2x4/stud" name="lego_2x4_stud_31" size="0.0024 0.00085" pos=" 0.012  0.004 0.00965"/>
+    </body>
+  </worldbody>
+</mujoco>

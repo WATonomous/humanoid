@@ -1,0 +1,26 @@
+<mujoco model="lego_2x4_scene">
+  <!--
+    Standalone viewer scene for the 2x4 LEGO brick asset.
+    Quick look:
+      python -m mujoco.viewer --mjcf assets/lego/scene_lego_2x4.xml
+  -->
+  <option timestep="0.002" gravity="0 0 -9.81"/>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="512"/>
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3"
+              markrgb="0.8 0.8 0.8" width="300" height="300"/>
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.1"/>
+  </asset>
+
+  <worldbody>
+    <light pos="0 0 1" dir="0 0 -1" directional="true"/>
+    <geom name="floor" type="plane" size="0.5 0.5 0.05" material="groundplane"/>
+  </worldbody>
+
+  <include file="lego_2x4.xml"/>
+
+  <keyframe>
+    <key name="dropped" qpos="0 0 0.05 1 0 0 0"/>
+  </keyframe>
+</mujoco>
