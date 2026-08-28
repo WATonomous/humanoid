@@ -6,6 +6,10 @@
   -->
   <option timestep="0.002" gravity="0 0 -9.81"/>
 
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.6 0.6 0.6" specular="0.1 0.1 0.1"/>
+  </visual>
+
   <asset>
     <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="512"/>
     <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3"
@@ -14,7 +18,7 @@
   </asset>
 
   <worldbody>
-    <light pos="0 0 1" dir="0 0 -1" directional="true"/>
+    <light pos="0.2 0.2 0.3" dir="-0.5 -0.5 -1" diffuse="0.8 0.8 0.8"/>
     <geom name="floor" type="plane" size="0.5 0.5 0.05" material="groundplane"/>
   </worldbody>
 
