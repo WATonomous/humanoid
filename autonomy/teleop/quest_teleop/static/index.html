@@ -227,10 +227,42 @@
         };
       }
 
-      // Shared with the marker-overlay UV->quad-space mapping below, so a marker position
-      // computed from the backend's projected UV lands on the same pixel of the POV image
-      // regardless of how these bounds are tuned.
-      const POV_QUAD_X0 = -1.1, POV_QUAD_Y0 = -0.825, POV_QUAD_X1 = 1.1, POV_QUAD_Y1 = 0.825;
+      // ── HUD layout ──────────────────────────────────────────────────────────────
+      // All of these are in the eye-space quad coordinates described on createQuadRenderer
+      // (X ~ -1.1..1.1, Y ~ -0.825..0.825 at Z=-1.5, approximating the eye's near-plane
+      // frustum extent). Both feeds are 4:3 -- the sim renders 480x360 eye frames and 640x480
+      // wrist frames -- so every height is DERIVED from its width. Retune a width and the
+      // aspect stays correct; hand-editing both is how a stretched feed gets introduced.
+      const HUD_ASPECT = 4 / 3;
+
+      // Main POV. Was the full -1.1..1.1 / -0.825..0.825 quad with the wrist feed floating over
+      // it at half opacity; now a stacked layout, POV above and two wrist panels below, so the
+      // panels stop covering the operator's view. Top edge is unchanged, so the horizon sits
+      // where it always did -- the quad loses height off the BOTTOM only.
+      //
+      // POV_QUAD_Y1 is the anchor for the WHOLE stack: every other Y below derives from it, so
+      // raising or lowering it slides POV and both panels together without changing any size or
+      // gap. That is the knob to reach for if the bottom row sits too low in the headset -- the
+      // stack now runs to -1.105, past the approximate -0.825 frustum bound (that bound is not a
+      // hard clip; the previous single picture-in-picture already reached -0.930).
+      // POV_QUAD_* is shared with the marker-overlay UV->quad-space mapping below, so a marker
+      // position computed from the backend's projected UV lands on the same pixel of the POV
+      // image regardless of how these bounds are tuned. Retuning here needs no marker change.
+      const POV_QUAD_Y1 = 0.825;
+      const POV_QUAD_X1 = 0.95, POV_QUAD_X0 = -POV_QUAD_X1;
+      const POV_QUAD_Y0 = POV_QUAD_Y1 - (POV_QUAD_X1 - POV_QUAD_X0) / HUD_ASPECT;
+
+      // Wrist panels: side by side in the cleared band, left arm left, right arm right, both
+      // centred about X=0 so they read as a matched pair under the POV image. Drawn FULLY
+      // OPAQUE (WRIST_HUD_OPACITY) -- they no longer overlap the POV quad, so there is nothing
+      // to see through them and blending only washed the image out.
+      const WRIST_HUD_OPACITY = 1.0;
+      const WRIST_HUD_HALF_GAP_X = 0.02;   // half the horizontal gap between the two panels
+      const WRIST_HUD_TOP_GAP = 0.025;     // vertical gap below the POV quad's bottom edge
+      const WRIST_HUD_W = 0.64;
+      const WRIST_HUD_H = WRIST_HUD_W / HUD_ASPECT;
+      const WRIST_HUD_Y1 = POV_QUAD_Y0 - WRIST_HUD_TOP_GAP;
+      const WRIST_HUD_Y0 = WRIST_HUD_Y1 - WRIST_HUD_H;
 
       // POV quad: stereo camera feed, drawn HUD-locked (eye-space only, no
       // view matrix) so it's always visible regardless of head orientation.
@@ -436,20 +468,19 @@
           const pointRenderer = createPointRenderer(gl);
           const markerRenderer = createMarkerQuadRenderer(gl);
           const quadRenderer = createQuadRenderer(gl, POV_QUAD_X0, POV_QUAD_Y0, POV_QUAD_X1, POV_QUAD_Y1);
-          // Small picture-in-picture HUD in the bottom-right of each eye's view, per live
-          // feedback (was top-right) -- same quad-space convention as the main POV quad, just a
-          // smaller sub-range positioned toward +X/-Y (right/down). Bumped ~20% bigger once, then
-          // 150% of THAT size per live feedback (was 0.45,-0.82,1.05,-0.40 -- 0.6x0.42), scaled
-          // up from its center (0.75,-0.61) to 0.9x0.63 rather than from a corner, so it grows
-          // evenly instead of pushing further off in one direction. Slightly exceeds the main
-          // quad's approximate -0.825/1.1 bounds now (minor, not a hard clip boundary).
-          // Bumped 50% larger per live feedback (was 0.30,-0.93,1.20,-0.30 -- 0.90x0.63),
-          // scaled up from the bottom-right corner (1.20,-0.93) so that corner stays anchored
-          // in place and the quad grows up/left instead of shifting off-screen.
-          const wristHudRenderer = createQuadRenderer(gl, -0.15, -0.93, 1.20, 0.015);
+          // Two wrist panels in the band below the POV quad (see the HUD layout block above).
+          // Superseded a single half-transparent picture-in-picture that floated over the
+          // bottom-right of the POV image; that one showed only the link6l wrist, so the other
+          // gripper was never visible. Geometry is baked into each renderer's vertex buffer at
+          // creation, hence two renderers rather than one drawn twice.
+          const wristHudRendererLeft = createQuadRenderer(
+            gl, -(WRIST_HUD_HALF_GAP_X + WRIST_HUD_W), WRIST_HUD_Y0, -WRIST_HUD_HALF_GAP_X, WRIST_HUD_Y1);
+          const wristHudRendererRight = createQuadRenderer(
+            gl, WRIST_HUD_HALF_GAP_X, WRIST_HUD_Y0, WRIST_HUD_HALF_GAP_X + WRIST_HUD_W, WRIST_HUD_Y1);
           const leftEyeTexture = createEyeTexture(gl);
           const rightEyeTexture = createEyeTexture(gl);
-          const wristCamTexture = createEyeTexture(gl);
+          const wristCamTextureLeft = createEyeTexture(gl);
+          const wristCamTextureRight = createEyeTexture(gl);
 
           // Periodically fetch both eyes' latest POV frames and stash them;
           // the actual gl.texImage2D upload happens once in onFrame (not
@@ -457,7 +488,8 @@
           // context bound -- this loop just keeps decoded ImageBitmaps ready.
           let pendingLeftBitmap = null;
           let pendingRightBitmap = null;
-          let pendingWristBitmap = null;
+          let pendingWristLeftBitmap = null;
+          let pendingWristRightBitmap = null;
           async function refreshPovTexture(path, setPending) {
             try {
               const res = await fetch(`${path}?t=${Date.now()}`, { cache: "no-store" });
@@ -498,7 +530,8 @@
               await Promise.all([
                 refreshPovTexture("/pov_left.jpg", (bmp) => { pendingLeftBitmap = bmp; }),
                 refreshPovTexture("/pov_right.jpg", (bmp) => { pendingRightBitmap = bmp; }),
-                refreshPovTexture("/wrist_cam.jpg", (bmp) => { pendingWristBitmap = bmp; }),
+                refreshPovTexture("/wrist_cam_left.jpg", (bmp) => { pendingWristLeftBitmap = bmp; }),
+                refreshPovTexture("/wrist_cam_right.jpg", (bmp) => { pendingWristRightBitmap = bmp; }),
                 refreshMarkerUV(),
               ]);
               const remaining = POV_POLL_FLOOR_MS - (performance.now() - cycleStart);
@@ -556,10 +589,15 @@
               gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pendingRightBitmap);
               pendingRightBitmap = null;
             }
-            if (pendingWristBitmap) {
-              gl.bindTexture(gl.TEXTURE_2D, wristCamTexture);
-              gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pendingWristBitmap);
-              pendingWristBitmap = null;
+            if (pendingWristLeftBitmap) {
+              gl.bindTexture(gl.TEXTURE_2D, wristCamTextureLeft);
+              gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pendingWristLeftBitmap);
+              pendingWristLeftBitmap = null;
+            }
+            if (pendingWristRightBitmap) {
+              gl.bindTexture(gl.TEXTURE_2D, wristCamTextureRight);
+              gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pendingWristRightBitmap);
+              pendingWristRightBitmap = null;
             }
 
             const pose = frame.getViewerPose(refSpace);
@@ -580,10 +618,13 @@
                 // frames with a single combined view, no eye separation).
                 const eyeTexture = view.eye === "right" ? rightEyeTexture : leftEyeTexture;
                 drawPovQuad(gl, quadRenderer, view.projectionMatrix, eyeTexture);
-                // Small wrist_cam picture-in-picture, drawn slightly closer than the main POV
-                // quad (-1.45 vs -1.5) so it reliably renders on top with depth testing enabled,
-                // instead of z-fighting/flickering against the main quad at the same depth.
-                drawPovQuad(gl, wristHudRenderer, view.projectionMatrix, wristCamTexture, -1.45, 0.5);
+                // Wrist panels, drawn slightly closer than the main POV quad (-1.45 vs -1.5).
+                // They no longer overlap it, so this is belt-and-braces against z-fighting
+                // rather than a requirement. Opaque, so drawPovQuad re-enables depth writes.
+                drawPovQuad(gl, wristHudRendererLeft, view.projectionMatrix,
+                            wristCamTextureLeft, -1.45, WRIST_HUD_OPACITY);
+                drawPovQuad(gl, wristHudRendererRight, view.projectionMatrix,
+                            wristCamTextureRight, -1.45, WRIST_HUD_OPACITY);
 
                 drawHandPoints(
                   gl,

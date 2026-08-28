@@ -131,18 +131,38 @@ def _deg(degrees: float) -> float:
 # give identical first-order +Z motion. Nothing restores it afterwards -- solve_and_apply()
 # teleports via write_joint_state_to_sim, so there is no gravity and no dynamics.
 #
-# Flexing the elbows fixes both problems at once: manipulability rises to 2.1e-02 (10,000x) and
-# the arm starts unambiguously in the flexion branch. Signs are opposite because the two elbows
+# Flexing the elbows fixes both problems at once: manipulability rises to 1.9e-02 (10,000x) and
+# the arm starts unambiguously in the flexion branch. SIGNS ARE OPPOSITE because the two elbows
 # have opposite axis vectors (joint4 is (0,-1,0), joint4l is (0,1,0)); both put the forearm
-# FORWARD toward +X, the direction the robot faces. Verified at these values: fingertip reaches
-# base-frame (0.407, +/-0.289, -0.241), the elbow stays at z=-0.241 (well below the shoulder at
-# +0.0605, i.e. it hangs low), and the lowest point of the arm is -0.290 against a table top at
-# -0.513. Both are inside the URDF limits of [-132.5 deg, +100 deg].
+# FORWARD toward +X, the direction the robot faces. Keep them opposite and equal in magnitude --
+# that, not equal signed values, is what makes the spawn pose mirror-symmetric.
+#
+# 75 deg, not 90: lowered from 90 to drop the fingertip ~10cm, solved by sweeping theta with
+# joint4=+theta / joint4l=-theta and measuring the real tip with compute_gripper_tip_pose_b.
+#
+# MEASUREMENT NOTE, worth knowing before re-deriving any of this: InitialStateCfg.joint_pos only
+# populates robot.data.default_joint_pos. PhysX still spawns the articulation at the USD ZERO
+# pose, and the implicit actuators barely move it (measured: joint4 was -0.36 deg after 500
+# steps). A script that just calls sim.reset() and steps therefore measures the arms hanging
+# straight down, NOT this pose. run_simulator writes the state explicitly (see
+# run_quest_armv2_teleop.py:1403); any offline check must pin the pose the same way each step.
+#
+# Measured with the pose pinned, theta = 75 vs 90:
+#     tip (base frame)    (+0.3931, +/-0.2886, -0.3424)   vs (+0.4066, +/-0.2886, -0.2410)
+#     drop                -0.1014 m at the tip
+#     mirror error        0.000000 m  (L and R tips exactly opposite in Y)
+#     tip above table     +0.1526 m   (table top at base-frame z -0.4950)
+#     conditioning        manipulability 2.002e-02, cond(J) 14.7
+#                         (90 deg: 2.134e-02 / 12.8;  theta=0 singularity: 1.21e-05 / 1220)
+# So the drop costs ~6% of manipulability and stays three orders of magnitude clear of the
+# singularity. Do not push much below ~60 deg -- the tip approaches the table and the sweep goes
+# non-monotonic as the hand starts contacting it.
+# Both values are inside the URDF limits of [-132.5 deg, +100 deg].
 _DEFAULT_JOINT_POS = {
     "joint1": 0.0,
     "joint2": 0.0,
     "joint3": 0.0,
-    "joint4": _deg(90.0),
+    "joint4": _deg(75.0),
     "joint5": 0.0,
     "joint6": 0.0,
     "joint7": 0.0,
@@ -151,7 +171,7 @@ _DEFAULT_JOINT_POS = {
     "joint1L": 0.0,
     "joint2l": 0.0,
     "joint3l": 0.0,
-    "joint4l": _deg(-90.0),
+    "joint4l": _deg(-75.0),
     "joint5l": 0.0,
     "joint6l": 0.0,
     "joint7l": 0.0,
@@ -205,15 +225,13 @@ _GRIPPER_VELOCITY_LIMIT = 0.2  # m/s
 
 
 # ── data-collection cameras ───────────────────────────────────────────────────
-# ego_cam (on base_link) and wrist_cam (on link6l) are the cameras recording reads. They are
-# defined HERE, not in the teleop scripts, because run_quest_armv2_teleop.py,
-# keyboard_teleop_armv2.py and keyboard_teleop_armv2_lightbox.py all need the same two cameras
-# and previously each carried its own copy.
+# ego_cam (on base_link) and wrist_cam (on link6l) are the cameras recording reads. Defined here
+# rather than in run_quest_armv2_teleop.py because their prim paths are properties of this arm.
 #
-# They are SPAWNED rather than read from the robot asset. The old armWithStand.usd baked camera
+# They are SPAWNED rather than read from the robot asset. armWithStand.usd used to bake camera
 # prims into its sensor layer and the scripts pointed at them with spawn=None; the
-# pioneer_bimanual_arm export has no cameras at all, which broke every one of those call sites at
-# once. Defining them in code means a future re-export cannot silently drop them.
+# pioneer_bimanual_arm export has no cameras at all, so every such call site broke at once.
+# Defining them in code means a future re-export cannot silently drop them.
 
 # focal_length 18 is ~60deg horizontal; lower it to widen. run_quest_armv2_teleop.py overwrites
 # ego_cam's at runtime to match the headset's widened RSD455 FOV.
@@ -255,12 +273,17 @@ def _quat_mul_wxyz(a: tuple, b: tuple) -> tuple:
 
 # Pitch must be composed OUTSIDE the roll. The other order rolls the pitch axis too, so changing
 # the roll would silently change which way the camera tilts.
-WRIST_CAM_ROT = _quat_mul_wxyz(
-    (math.cos(math.radians(WRIST_CAM_PITCH_DEG) / 2.0), 0.0,
-     math.sin(math.radians(WRIST_CAM_PITCH_DEG) / 2.0), 0.0),
-    (math.cos(math.radians(WRIST_CAM_ROLL_DEG) / 2.0), 0.0, 0.0,
-     math.sin(math.radians(WRIST_CAM_ROLL_DEG) / 2.0)),
-)
+def _wrist_cam_rot(roll_deg: float) -> tuple:
+    """Wrist-camera orientation for a given roll, at the shared WRIST_CAM_PITCH_DEG."""
+    return _quat_mul_wxyz(
+        (math.cos(math.radians(WRIST_CAM_PITCH_DEG) / 2.0), 0.0,
+         math.sin(math.radians(WRIST_CAM_PITCH_DEG) / 2.0), 0.0),
+        (math.cos(math.radians(roll_deg) / 2.0), 0.0, 0.0,
+         math.sin(math.radians(roll_deg) / 2.0)),
+    )
+
+
+WRIST_CAM_ROT = _wrist_cam_rot(WRIST_CAM_ROLL_DEG)
 
 
 def make_ego_cam_cfg() -> CameraCfg:
@@ -280,12 +303,44 @@ def make_ego_cam_cfg() -> CameraCfg:
     )
 
 
-def make_wrist_cam_cfg() -> CameraCfg:
-    """Fresh CameraCfg for wrist_cam -- see make_ego_cam_cfg for why it is a factory."""
+# The two arms are mirror images through the robot's XZ plane, and in each wrist link's OWN
+# object-space frame that mirror is "negate Y" -- see LEFT/RIGHT_FINGER_DISTAL_TIP_LOCAL above,
+# whose measured mesh extremes differ only in the sign of Y. Confirmed in-sim: link6 and link6l's
+# world orientations satisfy (w, x, y, z) -> (w, -x, y, -z) to 5 decimals.
+#
+#   position   (x, y, z) -> (x, -y, z)
+#   rotation   roll -> 180 - roll.
+#
+# That 180 is NOT cosmetic and is easy to miss. Reflecting the frame maps the camera's view axis
+# correctly (M sends local -Z to -Z), but it also maps the camera's local +Y -- the direction that
+# becomes UP in the image -- to -Y. So the pure mirror M*R*M aims at the right gripper but renders
+# it upside down; this was visibly confirmed before the term was added. Composing an extra 180
+# roll about the camera's own view axis puts image-up back where it belongs, and since both rolls
+# are about local Z they add: mirrored_roll = -ROLL + 180 = 180 - ROLL.
+# Pitch is untouched because it is already about Y, the mirror plane's normal.
+#
+# ASSET ASYMMETRY, compensated: link6's origin sits 9.0mm further out in Y than the exact mirror
+# of link6l's (measured base-frame y +0.23556 vs -0.24455, while x and z match to 6e-5). The
+# fingertips themselves ARE perfectly mirrored, so this is only where the CAD put the link frames.
+# A plain mirror of the mount offset therefore inherits that 9mm and pushes the right camera
+# outboard, which showed up in the headset as the right feed sitting too far out. Adding the
+# measured asymmetry back puts the right camera at the exact mirror of the left one's world
+# position, so the two feeds frame their grippers identically.
+_LINK6_ORIGIN_Y_ASYMMETRY_M = 0.008997  # link6l.y + link6.y, measured in-sim at the rest pose
+def make_wrist_cam_cfg(body: str = "link6l", name: str = "wrist_cam", mirror: bool = False) -> CameraCfg:
+    """Fresh CameraCfg for a wrist camera -- see make_ego_cam_cfg for why it is a factory.
+
+    Defaults reproduce the original single link6l camera exactly, so existing call sites are
+    unchanged. Pass ``body="link6", mirror=True`` for the opposite arm's wrist."""
+    mirrored_pos = (WRIST_CAM_POS[0],
+                    -WRIST_CAM_POS[1] + _LINK6_ORIGIN_Y_ASYMMETRY_M,
+                    WRIST_CAM_POS[2])
+    pos = mirrored_pos if mirror else WRIST_CAM_POS
+    rot = _wrist_cam_rot(180.0 - WRIST_CAM_ROLL_DEG) if mirror else WRIST_CAM_ROT
     return CameraCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/link6l/wrist_cam",
+        prim_path="{ENV_REGEX_NS}/Robot/" + f"{body}/{name}",
         spawn=DATA_CAM_LENS,
-        offset=CameraCfg.OffsetCfg(pos=WRIST_CAM_POS, rot=WRIST_CAM_ROT, convention="opengl"),
+        offset=CameraCfg.OffsetCfg(pos=pos, rot=rot, convention="opengl"),
         height=480, width=640,
         update_period=0.0,
         data_types=["rgb"],

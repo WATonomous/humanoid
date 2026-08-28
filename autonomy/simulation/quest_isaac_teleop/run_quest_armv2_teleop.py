@@ -30,7 +30,8 @@ wrist" and still points at the same physical chain it always did.
 Cameras
 -------
     eye pair (RSD455)  stereo headset view, attached at runtime -> pov_left/right.jpg
-    wrist_cam          headset HUD overlay + recording
+    wrist_cam          link6l (LEFT Quest hand) -- headset HUD panel + recording
+    wrist_cam_right    link6  (RIGHT Quest hand) -- headset HUD panel only
     ego_cam            recording only; left out of the scene entirely without --record
 
 Performance
@@ -303,18 +304,28 @@ _JOINT_DELTA_MAX_RAD = 0.2617993877991494  # 15 deg/step
 _SMOOTH_TIME_S = 0.08  # _smooth_damp: time to close ~90% of the gap. Lower = snappier.
 
 _ENCLOSURE_MATERIAL = sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0), emissive_color=(1.0, 1.0, 1.0))
-# Back wall clears the mount/stand bar; front reaches 0.75m so the enclosure actually contains
-# the arms' full reach instead of them poking through it.
-_ENCLOSURE_BACK_X = -0.45
-_ENCLOSURE_FRONT_X = 0.75  # open front, arm reach direction
+# Enclosure footprint. X spans the mount/stand bar back to 0.75m, which contains the arms' full
+# reach instead of letting them poke through; the Y walls and ceiling close the sides and top.
+_ENCLOSURE_X_MIN = -0.45
+_ENCLOSURE_X_MAX = 0.75
 _ENCLOSURE_Y_MIN = -0.9
 _ENCLOSURE_Y_MAX = 1.0
 # The stand puts the arm's highest point ~1.457m above the table; 1.8m leaves ~0.34m headroom.
 _ENCLOSURE_TOP_Z = 1.8
 _ENCLOSURE_Y_CTR = (_ENCLOSURE_Y_MIN + _ENCLOSURE_Y_MAX) / 2
 _ENCLOSURE_Y_SPAN = _ENCLOSURE_Y_MAX - _ENCLOSURE_Y_MIN
-_ENCLOSURE_X_SPAN = _ENCLOSURE_FRONT_X - _ENCLOSURE_BACK_X
-_ENCLOSURE_X_CTR = (_ENCLOSURE_BACK_X + _ENCLOSURE_FRONT_X) / 2
+_ENCLOSURE_X_SPAN = _ENCLOSURE_X_MAX - _ENCLOSURE_X_MIN
+_ENCLOSURE_X_CTR = (_ENCLOSURE_X_MIN + _ENCLOSURE_X_MAX) / 2
+# Which X face carries the closed backdrop -- the enclosure's 180deg yaw, expressed as the one
+# quantity that is not symmetric under it. The rotation is about the enclosure's OWN centre
+# (_ENCLOSURE_X_CTR/_ENCLOSURE_Y_CTR), so the occupied volume is bit-identical and only this
+# wall moves; yawing about the world origin instead would have dragged the box to
+# x in [-0.75, 0.45] and left the table (world bbox x in [0.068, 0.690]) outside it. The Y walls
+# and ceiling are invariant under the yaw -- the pair swaps places but the set is unchanged.
+# _ENCLOSURE_X_MAX puts the backdrop in the +X direction the robot faces, 6cm past the table's
+# front edge, so the head cameras and the recorded POV see white instead of the open end; the
+# open face is then at _ENCLOSURE_X_MIN, behind the robot, where the operator stands.
+_ENCLOSURE_BACK_X = _ENCLOSURE_X_MAX
 
 
 # Table converted from Table.STEP. Source units are inches, hence the scale. Its origin sits at
@@ -634,7 +645,7 @@ def _camera_rgb_frame(camera):
 
 def _write_pov_jpeg(camera, file_path) -> None:
     """Write a standalone Camera's current RGB frame to file_path as an atomically-replaced
-    JPEG -- same tensor-read approach as _write_wrist_cam_hud_frame, for the two eye cameras."""
+    JPEG -- same tensor-read approach as _write_wrist_cam_hud_frames, for the two eye cameras."""
     _save_frame_atomic(_camera_rgb_frame(camera), file_path)
 
 
@@ -682,9 +693,12 @@ _PACER_MAX_DEBT_CYCLES = 1.0
 # [Quest][axisdbg]: two prints per physics step while a hand moves (~200 stdout writes/sec
 # through the docker pipe -- costs real loop time). On only when re-deriving the axis mapping.
 _SHOW_AXIS_DEBUG = False
-# wrist_cam HUD overlay, written from the existing sensor tensor (the one recording reads)
-# rather than a second viewport window, which would re-add render cost that was removed.
-_WRIST_CAM_FRAME_PATH = _POV_STATIC_DIR / "wrist_cam.jpg"
+# Wrist-cam HUD overlays, written from the existing sensor tensors (the ones recording reads)
+# rather than second viewport windows, which would re-add render cost that was removed.
+# LEFT/RIGHT here are Quest-hand-relative (this file's convention, see the aliasing NOTE above):
+# left = the L-suffixed chain (link6l), right = the unsuffixed chain (link6).
+_WRIST_CAM_FRAME_PATH_LEFT = _POV_STATIC_DIR / "wrist_cam_left.jpg"
+_WRIST_CAM_FRAME_PATH_RIGHT = _POV_STATIC_DIR / "wrist_cam_right.jpg"
 # Per-eye IK-target marker screen position, projected through the REAL eye cameras so the
 # browser draws it where it actually appears in the image. Using the browser's own WebXR hand
 # position instead put the marker at the operator's physical wrist. Temp-file-then-renamed.
@@ -732,12 +746,19 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
         ),
     )
 
-    # Data-collection cameras, NOT the headset display (that's the RSD455 pair attached at
-    # runtime). wrist_cam is on link6l -- the "right" arm's wrist in this file's naming.
-    # Both are defined in armWithStand_v2_cfg.py (DATA_CAM_LENS, EGO_CAM_*, WRIST_CAM_*), shared
-    # with the keyboard teleop scripts -- adjust camera position and aim there, not here.
+    # Data-collection / HUD cameras, NOT the headset display (that's the RSD455 pair attached
+    # at runtime). wrist_cam is on link6l, which is the LEFT arm in this file's Quest-hand
+    # naming (LEFT_EE_BODY is aliased to armWithStand_v2_cfg's RIGHT_EE_BODY == "link6l" -- see
+    # the aliasing NOTE at the imports). wrist_cam_right is its mirror on link6.
+    # All are defined in armWithStand_v2_cfg.py (DATA_CAM_LENS, EGO_CAM_*, WRIST_CAM_*) --
+    # adjust camera position and aim there, not here.
+    #
+    # wrist_cam keeps its unsuffixed name on purpose: _capture_record_images and the dataset
+    # schema bind that scene key, and the keyboard teleop scenes construct it too. Only the
+    # served JPEG filenames are left/right symmetric.
     ego_cam = make_ego_cam_cfg()
     wrist_cam = make_wrist_cam_cfg()
+    wrist_cam_right = make_wrist_cam_cfg(body="link6", name="wrist_cam_right", mirror=True)
 
     enclosure_back: AssetBaseCfg = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/EnclosureBack",
@@ -1266,11 +1287,12 @@ def _capture_record_images(scene: InteractiveScene) -> dict:
     return images
 
 
-def _write_wrist_cam_hud_frame(scene: InteractiveScene) -> None:
-    """wrist_cam's current frame -> the headset HUD overlay, from the same sensor tensor
+def _write_wrist_cam_hud_frames(scene: InteractiveScene) -> None:
+    """Both wrist cams' current frames -> the headset HUD panels, from the same sensor tensors
     recording uses (no extra viewport render). JPEG, not PNG: as a PNG this was ~155KB, ten times
     the two eye JPEGs combined and the largest thing the headset polled."""
-    _save_frame_atomic(_camera_rgb_frame(scene["wrist_cam"]), _WRIST_CAM_FRAME_PATH)
+    _save_frame_atomic(_camera_rgb_frame(scene["wrist_cam"]), _WRIST_CAM_FRAME_PATH_LEFT)
+    _save_frame_atomic(_camera_rgb_frame(scene["wrist_cam_right"]), _WRIST_CAM_FRAME_PATH_RIGHT)
 
 
 # ── main simulation loop ──────────────────────────────────────────────────────
@@ -1515,19 +1537,20 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         _marker_prim = _stage.GetPrimAtPath(_marker_path)
         if _marker_prim.IsValid():
             UsdGeom.Imageable(_marker_prim).GetPurposeAttr().Set(UsdGeom.Tokens.guide)
-    for _rp_path in scene["wrist_cam"].render_product_paths:
-        _rp_prim = _stage.GetPrimAtPath(_rp_path)
-        if _rp_prim.IsValid():
-            _cam_vis_collection = Usd.CollectionAPI.Apply(_rp_prim, "cameraVisibility")
-            _cam_vis_collection.CreateIncludeRootAttr().Set(True)  # "/" isn't a valid rel target
-            _excludes_rel = _cam_vis_collection.CreateExcludesRel()
-            _excludes_rel.AddTarget("/Visuals/left_ik_target")
-            _excludes_rel.AddTarget("/Visuals/right_ik_target")
-            print(f"[Quest] Excluded both IK target markers from wrist_cam's RenderProduct "
-                  f"({_rp_path}) cameraVisibility", flush=True)
-        else:
-            print(f"[Quest] WARNING: wrist_cam RenderProduct prim {_rp_path} not valid -- "
-                  f"marker exclusion did not apply", flush=True)
+    for _wrist_key in ("wrist_cam", "wrist_cam_right"):
+        for _rp_path in scene[_wrist_key].render_product_paths:
+            _rp_prim = _stage.GetPrimAtPath(_rp_path)
+            if _rp_prim.IsValid():
+                _cam_vis_collection = Usd.CollectionAPI.Apply(_rp_prim, "cameraVisibility")
+                _cam_vis_collection.CreateIncludeRootAttr().Set(True)  # "/" isn't a valid rel target
+                _excludes_rel = _cam_vis_collection.CreateExcludesRel()
+                _excludes_rel.AddTarget("/Visuals/left_ik_target")
+                _excludes_rel.AddTarget("/Visuals/right_ik_target")
+                print(f"[Quest] Excluded both IK target markers from {_wrist_key}'s RenderProduct "
+                      f"({_rp_path}) cameraVisibility", flush=True)
+            else:
+                print(f"[Quest] WARNING: {_wrist_key} RenderProduct prim {_rp_path} not valid -- "
+                      f"marker exclusion did not apply", flush=True)
 
     def _recalibrate() -> None:
         nonlocal head_home_xyz, head_home_quat
@@ -1943,7 +1966,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 right_eye_camera.update(dt=sim_dt * _POV_CAPTURE_EVERY_N_STEPS)
                 _write_pov_jpeg(left_eye_camera, _POV_FRAME_PATH_LEFT)
                 _write_pov_jpeg(right_eye_camera, _POV_FRAME_PATH_RIGHT)
-                _write_wrist_cam_hud_frame(scene)
+                _write_wrist_cam_hud_frames(scene)
             except Exception as _pov_exc:  # noqa: BLE001 -- see comment above
                 print(f"[Quest] WARNING: POV capture failed this cycle: {_pov_exc}", flush=True)
 
