@@ -22,10 +22,9 @@ yawed 180deg. Both hand POSITION and wrist ORIENTATION are mapped CAMERA-RELATIV
 _QUEST_TO_CAM_LOCAL / _CAM_LOCAL_*), not through a fixed world rotation, so "push away
 from you" follows the camera's actual boresight.
 
-Naming: the "L"-suffixed URDF chain is physically the RIGHT arm (the CAD naming is
-backwards). armWithStand_v2_cfg fixed that upstream; the import block below re-aliases it
-so every local left_*/right_* here keeps meaning "the arm driven by the LEFT/RIGHT Quest
-wrist" and still points at the same physical chain it always did.
+Naming: the "L"-suffixed chain (joint1L..joint6l, link6l) is the physical LEFT arm and is
+driven by the LEFT Quest wrist -- both senses agree. Unsuffixed = RIGHT. armWithStand_v2_cfg's
+LEFT_*/RIGHT_* are imported as-is.
 
 Cameras
 -------
@@ -133,29 +132,27 @@ from isaaclab.utils.math import (  # noqa: E402
     subtract_frame_transforms,
 )
 
-# NOTE on the aliasing below: bimanual_arm_cfg.py's LEFT_*/RIGHT_* constants were
-# corrected (the "L"-suffixed URDF chain is physically the RIGHT arm, not left --
-# the mechanical/CAD naming had it backwards). This file's own left_*/right_* local
-# variables mean something different: "the arm driven by the LEFT/RIGHT Quest
-# wrist" (msg.left_wrist / msg.right_wrist), a Quest-hand-relative label that is
-# NOT part of that correction. Aliasing here keeps every local left_*/right_*
-# variable below pointing at the SAME physical URDF chain (and therefore the same
-# real hardware) it always did -- only the upstream symbol names changed.
+# No aliasing: LEFT_* is the L-suffixed chain (physical left = left Quest wrist), RIGHT_* the
+# unsuffixed one. This block used to swap them to undo a reversed upstream; don't bring that back.
 from armWithStand_v2_cfg import (  # noqa: E402
     ARM_V2_CFG,
-    GRIPPER_CLOSED,
-    GRIPPER_OPEN,
     WRIST_CAM_POS,
     make_ego_cam_cfg,
     make_wrist_cam_cfg,
-    RIGHT_ARM_JOINTS as LEFT_ARM_JOINTS,
-    RIGHT_EE_BODY as LEFT_EE_BODY,
-    RIGHT_FINGER_TIP_BODIES as LEFT_FINGER_TIP_BODIES,
-    RIGHT_FINGER_DISTAL_TIP_LOCAL as LEFT_FINGER_DISTAL_TIP_LOCAL,
-    RIGHT_GRIPPER_JOINTS as LEFT_GRIPPER_JOINTS,
-    LEFT_EE_BODY as RIGHT_EE_BODY,
-    LEFT_FINGER_TIP_BODIES as RIGHT_FINGER_TIP_BODIES,
-    LEFT_FINGER_DISTAL_TIP_LOCAL as RIGHT_FINGER_DISTAL_TIP_LOCAL,
+    LEFT_ARM_JOINTS,
+    LEFT_EE_BODY,
+    LEFT_FINGER_TIP_BODIES,
+    LEFT_FINGER_DISTAL_TIP_LOCAL,
+    LEFT_GRIPPER_JOINTS,
+    LEFT_GRIPPER_OPEN,
+    LEFT_GRIPPER_CLOSED,
+    RIGHT_ARM_JOINTS,
+    RIGHT_EE_BODY,
+    RIGHT_FINGER_TIP_BODIES,
+    RIGHT_FINGER_DISTAL_TIP_LOCAL,
+    RIGHT_GRIPPER_JOINTS,
+    RIGHT_GRIPPER_OPEN,
+    RIGHT_GRIPPER_CLOSED,
     apply_joint_limits,
     compute_gripper_tip_pose_b,
     compute_tip_ik_jacobian,
@@ -164,16 +161,6 @@ from armWithStand_v2_cfg import (  # noqa: E402
 )
 
 # ── constants ─────────────────────────────────────────────────────────────────
-
-_RIGHT_ARM_JOINTS = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]
-_RIGHT_GRIPPER_JOINTS = ["joint7", "joint8"]
-# VERIFIED empirically (headless sim, fingertip-gap measurement) -- see
-# armWithStand_v2_cfg.py's GRIPPER_OPEN/CLOSED comment for the same swap on
-# joint7l/8l. (joint7=0, joint8=0) -> gap=0.161m (open);
-# (joint7=-0.05, joint8=0.05) -> closed. Opposite of bimanual's labeling for
-# joint7/8 (different prismatic axis, see module docstring).
-_RIGHT_GRIPPER_OPEN = {"joint7": 0.0, "joint8": 0.0}
-_RIGHT_GRIPPER_CLOSED = {"joint7": -0.05, "joint8": 0.05}
 
 # RETIRED. Fixed WebXR->world rotation, superseded by _QUEST_TO_CAM_LOCAL for both position and
 # orientation. Kept only because quest_to_world_quat is still constructed from it below.
@@ -252,7 +239,7 @@ _PINCH_OPEN_M = 0.050
 
 # Lowered from 0.2/0.35. Both values were raised to survive the arm's conditioning near FULL
 # EXTENSION -- which was a property of the old all-zeros spawn pose (cond(J) = 2560,
-# manipulability 2.0e-06). armWithStand_v2_cfg now spawns with the elbows flexed to +/-90 deg,
+# manipulability 2.0e-06). armWithStand_v2_cfg now spawns with the elbows flexed to +/-75 deg,
 # where manipulability is 2.1e-02, so that justification is gone. The ratio between the two arms
 # is preserved rather than unified, since only the left chain was re-measured.
 #
@@ -664,6 +651,12 @@ _POV_FRAME_PATH_RIGHT = _POV_STATIC_DIR / "pov_right.jpg"
 # measured cost model and the fps/RTF table.
 _POV_CAPTURE_EVERY_N_STEPS = 5
 _PHYSICS_DT = 0.02  # seconds of simulated time per physics step (50Hz)
+
+# Dataset fps, derived: the render rate is the only rate at which recorded pixels can change.
+# Declared independently (schema said 30, sim rendered 10) it duplicated ~25% of frames --
+# measured 217/858 ego transitions with zero pixel change. Recorder gets rate_limit=False so
+# the render gate in run_simulator is the sole decimator; never set this by hand.
+_RECORD_FPS = round(1.0 / (_POV_CAPTURE_EVERY_N_STEPS * _PHYSICS_DT))
 # Feeds Kit's rendering_dt (= _PHYSICS_DT * this). This is NOT the render gate -- the gate is
 # _POV_CAPTURE_EVERY_N_STEPS, applied via sim.step(render=...) in run_simulator.
 #
@@ -695,8 +688,8 @@ _PACER_MAX_DEBT_CYCLES = 1.0
 _SHOW_AXIS_DEBUG = False
 # Wrist-cam HUD overlays, written from the existing sensor tensors (the ones recording reads)
 # rather than second viewport windows, which would re-add render cost that was removed.
-# LEFT/RIGHT here are Quest-hand-relative (this file's convention, see the aliasing NOTE above):
-# left = the L-suffixed chain (link6l), right = the unsuffixed chain (link6).
+# left = the L-suffixed chain (link6l), right = the unsuffixed chain (link6) -- the robot's
+# actual left and right, and also which Quest wrist drives each.
 _WRIST_CAM_FRAME_PATH_LEFT = _POV_STATIC_DIR / "wrist_cam_left.jpg"
 _WRIST_CAM_FRAME_PATH_RIGHT = _POV_STATIC_DIR / "wrist_cam_right.jpg"
 # Per-eye IK-target marker screen position, projected through the REAL eye cameras so the
@@ -733,23 +726,12 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
     robot = ARM_V2_CFG.replace(
         prim_path="{ENV_REGEX_NS}/Robot",
         init_state=ARM_V2_CFG.init_state.replace(pos=(0.0, 0.0, 1.1997)),
-        # Self-collisions OFF (ARM_V2_CFG defaults them on). THIS IS WHAT MAKES GRASPING WORK.
-        # armWithStand is a CAD export, so each finger's collider is a convex hull that fills the
-        # concave gripping face and bulges into the jaw gap. With self-collisions on, the two
-        # hulls push against each other and hold the jaw wider than the box -- only one finger
-        # ever touches it, so friction was irrelevant at every value from 0.5 to 220.
-        # Re-enable only once the finger colliders are replaced with proper primitives.
-        spawn=ARM_V2_CFG.spawn.replace(
-            articulation_props=ARM_V2_CFG.spawn.articulation_props.replace(
-                enabled_self_collisions=False,
-            ),
-        ),
+        # Self-collisions are OFF in ARM_V2_CFG itself (see the note there); no override needed.
     )
 
     # Data-collection / HUD cameras, NOT the headset display (that's the RSD455 pair attached
-    # at runtime). wrist_cam is on link6l, which is the LEFT arm in this file's Quest-hand
-    # naming (LEFT_EE_BODY is aliased to armWithStand_v2_cfg's RIGHT_EE_BODY == "link6l" -- see
-    # the aliasing NOTE at the imports). wrist_cam_right is its mirror on link6.
+    # at runtime). wrist_cam is on link6l (LEFT_EE_BODY), the LEFT arm; wrist_cam_right is its
+    # mirror on link6.
     # All are defined in armWithStand_v2_cfg.py (DATA_CAM_LENS, EGO_CAM_*, WRIST_CAM_*) --
     # adjust camera position and aim there, not here.
     #
@@ -1218,12 +1200,12 @@ class _ArmDlsController:
         joint_pos_des = self.controller.compute(tip_pos_b, tip_quat_b, jacobian_b, joint_pos)
         self.last_joint_pos_des = joint_pos_des
 
+        # Position target only. This used to ALSO write_joint_state_to_sim(joint_pos_des, 0),
+        # teleporting the joints every step: physics never ran on the arm, so gravity, contact
+        # and every effort_limit_sim/stiffness value in ARM_V2_CFG did nothing, and recorded
+        # observation.state was just a copy of the action. The actuators drive the arm now, so
+        # those gains are live -- retune them, not this, if tracking lags.
         robot.set_joint_position_target(joint_pos_des, joint_ids=self.arm_ids)
-        robot.write_joint_state_to_sim(
-            joint_pos_des,
-            torch.zeros_like(joint_pos_des),
-            joint_ids=self.arm_ids,
-        )
         return tip_pos_b, tip_quat_b
 
 
@@ -1261,15 +1243,19 @@ def _init_recorder(device: str):
         task_name=args_cli.task_description,
         repo_id=str(cfg.get("repo_id", "humanoid/wato_arm_v2_push_box")),
         dataset_root=dataset_root,
-        fps=int(cfg.get("fps", 30)),
+        fps=_RECORD_FPS,     # render cadence, not the schema -- see _RECORD_FPS
+        rate_limit=False,    # the render gate is the sole decimator
         device="cpu",
         joint_names=list(cfg["joint_names"]),
         cameras=cameras,
         num_episodes=args_cli.num_episodes,
         buffer_capacity_s=30.0,
+        # else the dataset records itself as an SO-101 (recorder default)
+        robot_type=str(cfg.get("robot_type", "wato_arm_v2")),
     )
     recorder.init_dataset()
-    print(f"[RECORD] Writing to {dataset_root}", flush=True)
+    print(f"[RECORD] Writing to {dataset_root} at {_RECORD_FPS} fps "
+          f"(1 frame / {_POV_CAPTURE_EVERY_N_STEPS} physics steps)", flush=True)
     # Key bindings differ from humanoid_il's defaults -- see run_simulator's _on_keyboard_event.
     return recorder, cfg
 
@@ -1359,7 +1345,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
               f"(served by webxr_server.py's static handler at /pov_left.jpg, /pov_right.jpg)", flush=True)
 
     left_arm_names = [resolve_joint_name(robot, n) for n in LEFT_ARM_JOINTS]
-    right_arm_names = [resolve_joint_name(robot, n) for n in _RIGHT_ARM_JOINTS]
+    right_arm_names = [resolve_joint_name(robot, n) for n in RIGHT_ARM_JOINTS]
 
     left_arm = _ArmDlsController(
         scene, robot, device, left_arm_names, LEFT_EE_BODY,
@@ -1387,12 +1373,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     right_arm.wrist_orient_offset = _WRIST_ORIENT_OFFSET_RIGHT.to(device).unsqueeze(0)
 
     left_gripper_ids = _joint_ids(robot, LEFT_GRIPPER_JOINTS)
-    right_gripper_ids = _joint_ids(robot, _RIGHT_GRIPPER_JOINTS)
+    right_gripper_ids = _joint_ids(robot, RIGHT_GRIPPER_JOINTS)
 
-    left_g_open = torch.tensor([[GRIPPER_OPEN["joint7l"], GRIPPER_OPEN["joint8l"]]], device=device)
-    left_g_closed = torch.tensor([[GRIPPER_CLOSED["joint7l"], GRIPPER_CLOSED["joint8l"]]], device=device)
-    right_g_open = torch.tensor([[_RIGHT_GRIPPER_OPEN["joint7"], _RIGHT_GRIPPER_OPEN["joint8"]]], device=device)
-    right_g_closed = torch.tensor([[_RIGHT_GRIPPER_CLOSED["joint7"], _RIGHT_GRIPPER_CLOSED["joint8"]]], device=device)
+    left_g_open = torch.tensor([[LEFT_GRIPPER_OPEN["joint7l"], LEFT_GRIPPER_OPEN["joint8l"]]], device=device)
+    left_g_closed = torch.tensor([[LEFT_GRIPPER_CLOSED["joint7l"], LEFT_GRIPPER_CLOSED["joint8l"]]], device=device)
+    right_g_open = torch.tensor([[RIGHT_GRIPPER_OPEN["joint7"], RIGHT_GRIPPER_OPEN["joint8"]]], device=device)
+    right_g_closed = torch.tensor([[RIGHT_GRIPPER_CLOSED["joint7"], RIGHT_GRIPPER_CLOSED["joint8"]]], device=device)
     # The open/closed DECISION stays binary at the pinch threshold, but the resulting joint
     # TARGET is smoothed -- snapping it produced a visible discontinuity in recorded demos.
     left_gripper_smoothed = left_g_open.clone()
@@ -1834,6 +1820,21 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 elif rd > _PINCH_OPEN_M:
                     right_closed = False
 
+        # Decided here so sim.step(render=), the recorder and the POV capture share one answer.
+        # +1 because pov_capture_frame is incremented later in the loop.
+        _render_this_step = (pov_capture_frame + 1) % _POV_CAPTURE_EVERY_N_STEPS == 0
+
+        # Sampled here, before the solve and before sim.step -- this is the state the action
+        # responds to, giving the (s_t, a_t -> s_t+1) pairing training expects. Reading it in
+        # the recording block instead samples post-step, which used to make observation.state a
+        # near-copy of action (r>0.999 on all 6 arm joints) and teaches a BC policy to echo
+        # proprioception rather than move.
+        if recorder is not None and _render_this_step:
+            _record_state = torch.cat([
+                robot.data.joint_pos[:, left_arm.arm_ids],
+                robot.data.joint_pos[:, left_gripper_ids[:1]],
+            ], dim=1)[0].clone()
+
         # ── Differential IK (DLS) solve, both arms, every frame ─────────────────
         tip_pos_b_l_now, tip_quat_b_l_now = left_arm.solve_and_apply(robot, device, target_pos_b_left, target_quat_b_left, sim_dt)
         tip_pos_b_r_now, tip_quat_b_r_now = right_arm.solve_and_apply(robot, device, target_pos_b_right, target_quat_b_right, sim_dt)
@@ -1896,10 +1897,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         # This is a standalone script with no env, so that gate never ran and bare sim.step()
         # -- whose `render` arg defaults to True -- rendered every single physics step.
         #
-        # Phase: pov_capture_frame is incremented AFTER this call, so the step that must render
-        # is the one whose post-increment value trips the capture gate below. Same modulus, same
-        # counter, so captures always land on freshly-rendered pixels.
-        _render_this_step = (pov_capture_frame + 1) % _POV_CAPTURE_EVERY_N_STEPS == 0
+        # _render_this_step: decided at the top of the loop, shared with recorder + capture.
         _step_t0 = time.monotonic()
         sim.step(render=_render_this_step)
         _step_ms = (time.monotonic() - _step_t0) * 1000.0
@@ -1937,14 +1935,17 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             if recorder.is_complete:
                 print("[RECORD] Session complete.", flush=True)
                 break
-            gripper_target = left_g_closed if left_closed else left_g_open
-            action = torch.cat([left_arm.last_joint_pos_des, gripper_target[:, :1]], dim=1)[0]
-            measured_gripper = robot.data.joint_pos[:, left_gripper_ids[:1]]
-            state = torch.cat([robot.data.joint_pos[:, left_arm.arm_ids], measured_gripper], dim=1)[0]
-            # Passed as a callable, not a dict: two 640x480 GPU->CPU copies that must only run
-            # on frames the recorder actually pushes. Doing them every step tanked RTF, which
-            # presented as the arm "barely moving" whenever --record was on.
-            recorder.tick(action, state, lambda: _capture_record_images(scene))
+            # Render steps only: rate_limit=False, so this is the sole frame-rate gate, and it
+            # is the same gate that decided whether the cameras produced new pixels.
+            if _render_this_step:
+                # left_gripper_smoothed, not the binary open/closed decision: the decision
+                # snaps 0 -> -0.05 in one frame while _smooth_damp eases the joint over ~50ms,
+                # and it is the eased value that was actually commanded. Logging the snap
+                # trained the policy to slam a gripper the demos never slammed.
+                action = torch.cat([left_arm.last_joint_pos_des, left_gripper_smoothed[:, :1]], dim=1)[0]
+                # images as a callable, not a dict: two 640x480 GPU->CPU copies that must only
+                # run on pushed frames. Every step tanked RTF -- looked like the arm barely moving.
+                recorder.tick(action, _record_state, lambda: _capture_record_images(scene))
 
         # Mounts are static while _HEAD_TRACKING_LIVE is False -- positioned once before the
         # loop by _sync_camera_mounts (see there for why this is not a cheap no-op).
@@ -1952,8 +1953,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             _sync_camera_mounts()
 
         pov_capture_frame += 1
-        if (left_eye_camera is not None and right_eye_camera is not None
-                and pov_capture_frame % _POV_CAPTURE_EVERY_N_STEPS == 0):
+        if left_eye_camera is not None and right_eye_camera is not None and _render_this_step:
             _capture_t0 = time.monotonic()
             # dt here only feeds the sensor's own update-period bookkeeping -- these are not
             # scene entities, so scene.update() never ticks them.

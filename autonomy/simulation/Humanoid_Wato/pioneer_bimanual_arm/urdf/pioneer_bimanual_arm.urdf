@@ -7,6 +7,12 @@
      joints rotate about Z, so only X/Y placement matters; a Z offset along the axis is a no-op.
      link5/link5l visual+collision+inertial origins compensate, so no geometry moved. The
      pioneer_badminton_arm and pioneer_boxing_arm exports are from the same batch: check them. -->
+<!-- MANUAL FIX to joint4's <limit>, also not from the exporter. Arms mirror as q_right =
+     -q_left (FK-verified, 0.000000 m on every pair), so limits must satisfy
+     R == (-L_upper, -L_lower). joint4 was identical to joint4l instead of negated-swapped,
+     giving the elbows opposite flexion/hyperextension budgets; now [-1.745329, 2.312561].
+     joint1/joint1L has the same defect, left alone as it predates this asset.
+     These limits are live: urdf_joint_limits.py writes them onto the spawned USD prims. -->
 <robot
   name="armv2URDF">
   <link
@@ -276,8 +282,8 @@
     <axis
       xyz="0 -1 0" />
     <limit
-      lower="-2.312561"
-      upper="1.745329"
+      lower="-1.745329"
+      upper="2.312561"
       effort="0"
       velocity="0" />
   </joint>

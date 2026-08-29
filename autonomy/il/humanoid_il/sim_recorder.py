@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import queue
-import shutil
 import subprocess
 import threading
 import time
@@ -108,6 +107,7 @@ class SimLeRobotRecorder:
         buffer_capacity_s: float = 120.0,
         robot_type: str = "so101_follower",
         extra_features: dict[str, list[str]] | None = None,
+        rate_limit: bool = True,
     ) -> None:
         self.fps = fps
         self.save_mp4 = save_mp4
@@ -147,7 +147,10 @@ class SimLeRobotRecorder:
         self._flags: EpisodeFlags | None = None
         self._keyboard: EpisodeKeyboard | None = None
         self._last_frame_t: float = 0.0
-        self._frame_period: float = 1.0 / fps
+        # rate_limit=False: caller owns the cadence, tick() pushes every call. Use it when the
+        # images only change on some ticks (sim rendering every Nth step) -- a second decimator
+        # here can't line up with the render gate, and the extra ticks duplicate images.
+        self._frame_period: float = (1.0 / fps) if rate_limit else 0.0
 
     def start_keyboard(self) -> bool:
         """Create episode flags, attach keyboard listener, and return whether keyboard started."""
@@ -242,8 +245,12 @@ class SimLeRobotRecorder:
         behind a root that LeRobotDataset() cannot open, permanently dead-ending every
         later run against that path. Such a shell holds no recorded frames, so recreating
         it loses nothing; a root with real episodes in it is never touched.
+
+        Decides only whether the path is IN THE WAY; init_dataset moves it aside, never deletes.
         """
         root = self.dataset_root
+        if not root.is_dir():
+            return False  # a plain file is not a shell; iterdir() below would raise
         if not any(root.iterdir()):
             return True  # bare directory (mkdir -p, empty checkout) -- nothing to lose
         for produced in ("data", "videos", "images"):
@@ -269,11 +276,14 @@ class SimLeRobotRecorder:
         root = self.dataset_root
         if root.exists():
             if self._is_empty_dataset_shell():
+                # Moved aside, never deleted -- dataset_root is operator input, so a wrong
+                # heuristic has to stay recoverable. Timestamped to avoid collisions.
+                shelved = root.with_name(f"{root.name}.empty-{time.strftime('%Y%m%d-%H%M%S')}")
+                root.rename(shelved)
                 print(
-                    f"[INFO]: Discarding empty dataset shell at {root} -- an earlier run "
-                    "created it but saved no episodes. Recreating."
+                    f"[INFO]: {root} was created by a run that saved no episodes, so it "
+                    f"cannot be re-opened. Moved to {shelved}; starting fresh. Delete it once checked."
                 )
-                shutil.rmtree(root)
             else:
                 try:
                     self.dataset = LeRobotDataset(self.repo_id, root=root)
@@ -284,8 +294,8 @@ class SimLeRobotRecorder:
                         f"[ERROR]: Dataset folder exists and holds recorded episodes, but "
                         f"cannot be opened: {root}\n"
                         f"  Cause: {type(exc).__name__}: {exc}\n"
-                        "  Move it aside or pass --dataset_root elsewhere; it is NOT deleted "
-                        "automatically because it contains data."
+                        "  Move it aside or pass --dataset_root elsewhere. It is left exactly "
+                        "as it is because it contains recorded episodes."
                     ) from exc
 
         self.dataset = LeRobotDataset.create(

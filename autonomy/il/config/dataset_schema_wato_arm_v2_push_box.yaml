@@ -2,7 +2,11 @@
 # link6l arm chain, Quest VR teleop via run_quest_armv2_teleop.py.
 robot_id: wato_arm_v2_push_box_sim_v1
 repo_id: humanoid/wato_arm_v2_push_box
-fps: 30
+# info.json robot_type; recorder default is "so101_follower", which mislabels this arm.
+robot_type: wato_arm_v2
+
+# Fallback only -- run_quest_armv2_teleop.py overrides with its derived _RECORD_FPS.
+fps: 10
 
 # observation.state AND action are joint positions, in this order.
 # Gripper: only joint7l is logged -- joint8l is a synchronized mirror of it

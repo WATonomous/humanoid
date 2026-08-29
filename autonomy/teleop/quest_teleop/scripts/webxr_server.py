@@ -22,12 +22,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         # Serves files in the static directory over HTTPS.
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
 
-    def log_message(self, format, *args):
-        # index.html polls pov_left/right.png, wrist_cam.png, contact_force_hud.png, and
-        # marker_uv.json back-to-back with no fixed interval -- the default access log (one line
-        # per GET) floods the console at dozens of lines/sec and buries the sim's own
-        # [Quest][...] diagnostic prints. Silenced; flip to a plain `print` here if the raw
-        # request log is ever needed again.
+    def log_request(self, code="-", size="-"):
+        # index.html polls pov_left/right.jpg, wrist_cam_*.jpg and marker_uv.json back-to-back,
+        # so the per-GET access log floods the console and buries the sim's [Quest][...] prints.
+        # log_request, NOT log_message: log_error() routes through log_message, so overriding
+        # that would also swallow 404s and 500s -- exactly the errors behind a blank headset.
         pass
 
 

@@ -12,10 +12,11 @@ Motor specs: https://watonomous.github.io/humanoid-docs/mechanical/index.html
                        (rotary motor + linkage → prismatic finger travel in URDF)
 
 NOTE: the "L"-suffixed URDF chain (joint1L..joint6l) is the robot's REAL,
-CAN-actuated arm -- confirmed against real hardware. The mechanical/CAD
-naming ("L" for what it called "left") was WRONG: this chain is physically
-the robot's RIGHT arm. Corrected throughout this file; the unsuffixed chain
-(joint1..joint6) is the LEFT arm (mirrored/held, not CAN-actuated).
+CAN-actuated arm -- confirmed against real hardware -- and it is physically the
+LEFT arm; the CAD naming is correct. The LEFT_*/RIGHT_* constants below are
+REVERSED relative to that (RIGHT_* names the L-suffixed chain). Renaming them
+means updating 5 importers, so it is a separate change; armWithStand_v2_cfg.py
+covers the same asset and is already correct, so don't copy names between them.
 
 In this module's own keyboard-teleop script, only the right arm is actuated;
 the left arm is held at the Physics Inspector default pose below. Note that
