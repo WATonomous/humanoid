@@ -38,7 +38,7 @@ What this means for the values below:
     GL40 hardware presumed), not orientation-derived, so they're a reasonable
     carry-over but still worth confirming against the real mechanism.
   - JOINT_POS_LIMITS: from the URDF (authoritative); see the section below.
-  - _WRIST_ORIENT_OFFSET_LEFT/RIGHT in run_quest_armv2_teleop.py
+  - _WRIST_ORIENT_OFFSET_LEFT/RIGHT in run_quest_bimanual_teleop.py
     (not in this file) were reset to identity for the same reason as
     _DEFAULT_JOINT_POS -- bimanual's offsets were empirically tuned against
     its own joint6 axis and don't transfer. Needs live retuning once wrist
@@ -120,7 +120,7 @@ def _deg(degrees: float) -> float:
 # At URDF zero both arms hang straight down with the elbow fully extended, which is the elbow
 # EXTENSION SINGULARITY: measured there, cond(J) = 2560 and manipulability sqrt(det(J J^T)) =
 # 2.0e-06, and the least-controllable translation direction is almost exactly +Z -- the very
-# direction run_quest_armv2_teleop.py's _HOME_TIP_Z_OFFSET then commands the fingertip along.
+# direction run_quest_bimanual_teleop.py's _HOME_TIP_Z_OFFSET then commands the fingertip along.
 # Moving the tip 1 m along +Z from there costs 282 rad of joint motion, so the first IK step is
 # enormous and ill-conditioned: it dumps motion into the shoulder (the "shoulder hike") and
 # picks an elbow bend direction essentially at random, because at joint4/joint4l = 0 both signs
@@ -140,7 +140,7 @@ def _deg(degrees: float) -> float:
 # pose, and the implicit actuators barely move it (measured: joint4 was -0.36 deg after 500
 # steps). A script that just calls sim.reset() and steps therefore measures the arms hanging
 # straight down, NOT this pose. run_simulator writes the state explicitly (see
-# run_quest_armv2_teleop.py:1403); any offline check must pin the pose the same way each step.
+# run_quest_bimanual_teleop.py:1403); any offline check must pin the pose the same way each step.
 #
 # Measured with the pose pinned, theta = 75 vs 90:
 #     tip (base frame)    (+0.3931, +/-0.2886, -0.3424)   vs (+0.4066, +/-0.2886, -0.2410)
@@ -229,14 +229,14 @@ _GRIPPER_VELOCITY_LIMIT = 0.2  # m/s
 
 # ── data-collection cameras ───────────────────────────────────────────────────
 # ego_cam (on base_link) and wrist_cam (on link6l) are the cameras recording reads. Defined here
-# rather than in run_quest_armv2_teleop.py because their prim paths are properties of this arm.
+# rather than in run_quest_bimanual_teleop.py because their prim paths are properties of this arm.
 #
 # They are SPAWNED rather than read from the robot asset. armWithStand.usd used to bake camera
 # prims into its sensor layer and the scripts pointed at them with spawn=None; the
 # pioneer_bimanual_arm export has no cameras at all, so every such call site broke at once.
 # Defining them in code means a future re-export cannot silently drop them.
 
-# focal_length 18 is ~60deg horizontal; lower it to widen. run_quest_armv2_teleop.py overwrites
+# focal_length 18 is ~60deg horizontal; lower it to widen. run_quest_bimanual_teleop.py overwrites
 # ego_cam's at runtime to match the headset's widened RSD455 FOV.
 DATA_CAM_LENS = sim_utils.PinholeCameraCfg(
     focal_length=7.336, horizontal_aperture=20.955, vertical_aperture=15.2908,

@@ -6,7 +6,7 @@
 # processes THIS invocation started are stopped on exit; anything already
 # running beforehand is left alone.
 #
-# Which IK script to launch varies by branch (e.g. run_quest_armv2_teleop.sh
+# Which IK script to launch varies by branch (e.g. run_quest_bimanual_teleop.sh
 # only exists where the armWithStand asset does) -- auto-detected below
 # rather than hardcoded, so this doesn't silently break when switching
 # branches. Prefers armv2 if present, falls back to bimanual.
@@ -60,11 +60,11 @@ fi
 sleep 2
 
 cd "${WORKSPACE}/autonomy/simulation/quest_isaac_teleop"
-if [ -x ./run_quest_armv2_teleop.sh ]; then
-    LAUNCH_SCRIPT="./run_quest_armv2_teleop.sh"
+if [ -x ./run_quest_bimanual_teleop.sh ]; then
+    LAUNCH_SCRIPT="./run_quest_bimanual_teleop.sh"
     LAUNCH_LABEL="armWithStand / wato_arm_v2"
 else
-    echo "[teleop] ERROR: run_quest_armv2_teleop.sh"
+    echo "[teleop] ERROR: run_quest_bimanual_teleop.sh"
     echo "[teleop]        found in $(pwd) on this branch. Nothing to launch."
     exit 1
 fi
