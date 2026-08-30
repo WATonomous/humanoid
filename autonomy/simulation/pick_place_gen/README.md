@@ -12,7 +12,7 @@ What's left in this directory:
 | Path | What it is |
 |---|---|
 | `task_params.py` | Config surface (`PickPlaceTaskParams`) still used by the Isaac Lab env (`pick_place_env_cfg.py`) and the Mimic env (`pick_place_bimanual_mimic_env.py`). |
-| `wato_constants.py` | Shared, Isaac-free constants (joint limits, workspace box, tray geometry). |
+| `task_geometry.py` | Shared, Isaac-free task constants (workspace box, table + tray geometry, gripper approach frame). |
 | `run_isaaclab_mimic_script.py` | Wrapper that runs IsaacLab's stock `annotate_demos.py` / `generate_dataset.py` against the custom `pick_place_bimanual` task — still valid, but now needs a non-cuRobo source of seed demos to annotate. |
 | `params/*.yaml` | Task configs (tray, stack, table modes) consumed by `task_params.py`. |
 

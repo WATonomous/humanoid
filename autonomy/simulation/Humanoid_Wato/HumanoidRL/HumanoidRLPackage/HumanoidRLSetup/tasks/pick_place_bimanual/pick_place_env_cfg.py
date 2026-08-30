@@ -30,13 +30,13 @@ from .robot_cfg_shim import (
     BIMANUAL_ARM_CFG,
     LEFT_JOINTS_ALL,
     PickPlaceTaskParams,
-    wato_constants as wc,
+    task_geometry as tg,
 )
 
 _TABLE_CENTER = (
-    wc.TABLE_X_MIN + wc.TABLE_DIMS[0] / 2,
+    tg.TABLE_X_MIN + tg.TABLE_DIMS[0] / 2,
     -0.20,
-    wc.TABLE_TOP_Z - wc.TABLE_DIMS[2] / 2,
+    tg.TABLE_TOP_Z - tg.TABLE_DIMS[2] / 2,
 )
 
 
@@ -71,15 +71,15 @@ def _tray_cfg(place) -> RigidObjectCfg:
     s = place.tray_scale
     sz = s * place.tray_height_scale  # wall-height scale (footprint unchanged)
     root = (
-        place.tray_center[0] - s * wc.TRAY_LOCAL_CENTER[0],
-        place.tray_center[1] - s * wc.TRAY_LOCAL_CENTER[1],
-        wc.TABLE_TOP_Z,  # tray bottom rests on the table top
+        place.tray_center[0] - s * tg.TRAY_LOCAL_CENTER[0],
+        place.tray_center[1] - s * tg.TRAY_LOCAL_CENTER[1],
+        tg.TABLE_TOP_Z,  # tray bottom rests on the table top
     )
     return RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Tray",
         init_state=RigidObjectCfg.InitialStateCfg(pos=root),
         spawn=sim_utils.UsdFileCfg(
-            usd_path=wc.TRAY_USDA,
+            usd_path=tg.TRAY_USDA,
             scale=(s, s, sz),
             rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
             collision_props=sim_utils.CollisionPropertiesCfg(),
@@ -118,7 +118,7 @@ class PickPlaceSceneCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/Table",
         init_state=AssetBaseCfg.InitialStateCfg(pos=_TABLE_CENTER),
         spawn=sim_utils.CuboidCfg(
-            size=wc.TABLE_DIMS,
+            size=tg.TABLE_DIMS,
             collision_props=sim_utils.CollisionPropertiesCfg(),
             physics_material=sim_utils.RigidBodyMaterialCfg(
                 static_friction=0.9, dynamic_friction=0.8, restitution=0.0
@@ -206,7 +206,7 @@ class TerminationsCfg:
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     object_dropping = DoneTerm(
         func=mdp.root_height_below_minimum,
-        params={"minimum_height": wc.TABLE_TOP_Z - 0.10, "asset_cfg": SceneEntityCfg("object")},
+        params={"minimum_height": tg.TABLE_TOP_Z - 0.10, "asset_cfg": SceneEntityCfg("object")},
     )
 
 
@@ -234,7 +234,7 @@ class PickPlaceBimanualEnvCfg(ManagerBasedRLEnvCfg):
 def apply_task_params(cfg: "PickPlaceBimanualEnvCfg", params: PickPlaceTaskParams) -> None:
     """Project a PickPlaceTaskParams onto the env cfg (idempotent)."""
     obj = params.object
-    obj_rest_z = wc.TABLE_TOP_Z + obj.size[2] / 2 + 0.002
+    obj_rest_z = tg.TABLE_TOP_Z + obj.size[2] / 2 + 0.002
     cfg.scene.object = _cuboid_object_cfg(
         "Object", obj.size, obj.mass, obj.color,
         ((obj.x_range[0] + obj.x_range[1]) / 2, (obj.y_range[0] + obj.y_range[1]) / 2, obj_rest_z),
@@ -246,7 +246,7 @@ def apply_task_params(cfg: "PickPlaceBimanualEnvCfg", params: PickPlaceTaskParam
     cfg.scene.tray = None
     if params.place.mode == "stack":
         pl = params.place
-        stack_rest_z = wc.TABLE_TOP_Z + pl.stack_object_size[2] / 2 + 0.002
+        stack_rest_z = tg.TABLE_TOP_Z + pl.stack_object_size[2] / 2 + 0.002
         cfg.scene.place_object = _cuboid_object_cfg(
             "PlaceObject", pl.stack_object_size, pl.stack_object_mass, pl.stack_object_color,
             (0.36, -0.14, stack_rest_z),
@@ -266,8 +266,8 @@ def apply_task_params(cfg: "PickPlaceBimanualEnvCfg", params: PickPlaceTaskParam
         s = params.place.tray_scale
         keepout = (
             params.place.tray_center[0], params.place.tray_center[1],
-            wc.TRAY_FOOTPRINT[0] / 2 * s + obj.size[0] / 2 + 0.01,
-            wc.TRAY_FOOTPRINT[1] / 2 * s + obj.size[1] / 2 + 0.01,
+            tg.TRAY_FOOTPRINT[0] / 2 * s + obj.size[0] / 2 + 0.01,
+            tg.TRAY_FOOTPRINT[1] / 2 * s + obj.size[1] / 2 + 0.01,
         )
     cfg.events.reset_objects.params = {
         "x_range": obj.x_range,
@@ -291,7 +291,7 @@ def apply_task_params(cfg: "PickPlaceBimanualEnvCfg", params: PickPlaceTaskParam
     cam = params.cameras
     if cam.enabled and cam.external:
         eye = (1.05, -0.85, 0.75)
-        target = ((obj.x_range[0] + obj.x_range[1]) / 2, (obj.y_range[0] + obj.y_range[1]) / 2, wc.TABLE_TOP_Z)
+        target = ((obj.x_range[0] + obj.x_range[1]) / 2, (obj.y_range[0] + obj.y_range[1]) / 2, tg.TABLE_TOP_Z)
         cfg.scene.camera_external = TiledCameraCfg(
             prim_path="{ENV_REGEX_NS}/external_cam",
             offset=TiledCameraCfg.OffsetCfg(pos=eye, rot=_look_at_quat_ros(eye, target), convention="ros"),
@@ -306,7 +306,7 @@ def apply_task_params(cfg: "PickPlaceBimanualEnvCfg", params: PickPlaceTaskParam
         # perched laterally off the gripper rail (wrist +Z), looking at the
         # fingertip center; clears the rail (|z|<0.05) and forearm (+Y side)
         cam_pos = (0.0345, -0.06, -0.22)
-        tip_ref = np.array(wc.FINGERTIP_OFFSET_IN_WRIST)
+        tip_ref = np.array(tg.FINGERTIP_OFFSET_IN_WRIST)
         cfg.scene.camera_wrist = TiledCameraCfg(
             prim_path="{ENV_REGEX_NS}/Robot/link6l/wrist_cam",
             offset=TiledCameraCfg.OffsetCfg(

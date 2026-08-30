@@ -54,7 +54,7 @@ data                                  attrs: env_args (JSON), total
 | 6 | `joint7l` | gripper, limit `[-0.05, 0.00]` |
 | 7 | `joint8l` | gripper, limit `[0.00, 0.05]` |
 
-Gripper (per `wato_constants.py`, the corrected convention):
+Gripper (corrected convention; `bimanual_arm_cfg.py`'s `GRIPPER_OPEN` / `GRIPPER_CLOSED` labels are still inverted, pending PR #218):
 **open `(0.0, 0.0)`**, **closed `(-0.05, +0.05)`**.
 
 `states/.../joint_position` holds all **16** joints (both arms); the left-arm 8 are
