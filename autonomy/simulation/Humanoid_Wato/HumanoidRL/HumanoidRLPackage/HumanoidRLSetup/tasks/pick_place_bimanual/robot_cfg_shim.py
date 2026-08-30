@@ -1,4 +1,4 @@
-"""Import bridge for the wato_bimanual_arm configs and pick_place_gen modules.
+"""Import bridge for the pioneer_bimanual_arm config and pick_place_gen modules.
 
 The authoritative robot config lives outside this task package's import tree
 ("Teleop/keyboard_based_teleoperation"), so it is imported as a top-level
@@ -32,32 +32,8 @@ from bimanual_arm_cfg import (  # noqa: E402,F401
     compute_tip_ik_jacobian,
     resolve_body_ids,
 )
-import wato_constants  # noqa: E402,F401
+import task_geometry  # noqa: E402,F401
 from task_params import PickPlaceTaskParams  # noqa: E402,F401
 
 # Recorded joint order for the dataset (arm 6 + gripper pair).
 RIGHT_JOINTS_ALL = RIGHT_ARM_JOINTS + RIGHT_GRIPPER_JOINTS
-
-
-def check_constants_consistency() -> None:
-    """Assert the Isaac-free wato_constants mirror matches bimanual_arm_cfg.
-
-    Gripper open/closed and gripper defaults are intentionally EXCLUDED:
-    measured finger STL geometry shows bimanual_arm_cfg's labels are inverted
-    (its GRIPPER_OPEN crosses the finger meshes) — see wato_constants.py.
-    """
-    import math
-
-    import bimanual_arm_cfg as bac
-
-    assert wato_constants.RIGHT_EE_BODY == bac.RIGHT_EE_BODY
-    assert wato_constants.RIGHT_FINGER_DISTAL_TIP_LOCAL == bac.RIGHT_FINGER_DISTAL_TIP_LOCAL
-    # the upstream dicts are the inversion of ours (both files agree on values)
-    assert wato_constants.GRIPPER_OPEN == bac.GRIPPER_CLOSED
-    for name, (lo, hi) in bac.JOINT_POS_LIMITS.items():
-        wlo, whi = wato_constants.JOINT_POS_LIMITS[name]
-        assert math.isclose(lo, wlo) and math.isclose(hi, whi), name
-    gripper = {"joint7", "joint8", "joint7l", "joint8l"}
-    for name, val in bac._DEFAULT_JOINT_POS.items():
-        if name not in gripper:
-            assert math.isclose(val, wato_constants.DEFAULT_JOINT_POS[name]), name

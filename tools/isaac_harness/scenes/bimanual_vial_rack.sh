@@ -9,7 +9,7 @@
 #   tools/isaac_harness/scenes/bimanual_vial_rack.sh
 #
 # Geometry matches the real pick_place_bimanual task's table
-# (autonomy/simulation/pick_place_gen/wato_constants.py: TABLE_TOP_Z=0.05,
+# (autonomy/simulation/pick_place_gen/task_geometry.py: TABLE_TOP_Z=0.05,
 # TABLE_DIMS=(0.9,1.2,0.05), TABLE_X_MIN=0.18) and the so101_vial_task's
 # rack/vial assets (assets/lerobot/so101_vial_task/usd/).
 #
@@ -31,7 +31,7 @@ VIAL_ASSETS="/workspace/humanoid/assets/lerobot/so101_vial_task/usd"
 # to -0.25 for this visualization scene specifically — 0.05 (and an initial
 # attempt at -0.10) both sat too high for comfortable manipulation reach
 # relative to the robot's shoulder height. This is a demo-scene-only change;
-# the real task's wato_constants.py is untouched.
+# the real task's task_geometry.py is untouched.
 TABLE_TOP_Z=-0.25
 
 echo "[scene] table"
