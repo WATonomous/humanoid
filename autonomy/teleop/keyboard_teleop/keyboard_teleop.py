@@ -53,6 +53,13 @@ parser.add_argument(
 )
 parser.add_argument("--num_episodes", type=int, default=10)
 parser.add_argument("--task_description", type=str, default="sim keyboard teleop demonstration")
+parser.add_argument(
+    "--scene",
+    type=str,
+    choices=("bare", "push"),
+    default="bare",
+    help="bare (arm only, default) or push (adds the push-block table, block, ramp-box + lightbox walls)",
+)
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 
@@ -64,19 +71,16 @@ import omni.appwindow
 import torch
 
 import isaaclab.sim as sim_utils
-from isaaclab.assets import AssetBaseCfg
 from isaaclab.controllers import DifferentialIKController, DifferentialIKControllerCfg
 from isaaclab.devices import Se3Keyboard, Se3KeyboardCfg
 from isaaclab.managers import SceneEntityCfg
-from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
-from isaaclab.utils import configclass
+from isaaclab.scene import InteractiveScene
 from isaaclab.utils.math import compute_pose_error, quat_from_angle_axis, quat_mul, subtract_frame_transforms
 
 # This script actuates the L-suffixed chain (physical LEFT arm) and holds the unsuffixed
 # one. Canonical names it LEFT_*; the aliases below keep this file's RIGHT_*/GRIPPER_* local
 # names (RIGHT_* = the actuated arm) so the body is unchanged.
 from pioneer_humanoid.bimanual_arm import (
-    BIMANUAL_ARM_CFG,
     LEFT_GRIPPER_CLOSED as GRIPPER_CLOSED,
     LEFT_GRIPPER_OPEN as GRIPPER_OPEN,
     LEFT_ARM_JOINTS as RIGHT_ARM_JOINTS,
@@ -90,24 +94,7 @@ from pioneer_humanoid.bimanual_arm import (
     compute_gripper_tip_pose_b,
     compute_tip_ik_jacobian,
 )
-
-
-@configclass
-class BimanualSceneCfg(InteractiveSceneCfg):
-    """Minimal scene with the Pioneer bimanual arm."""
-
-    ground = AssetBaseCfg(
-        prim_path="/World/defaultGroundPlane",
-        spawn=sim_utils.GroundPlaneCfg(),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, -1.05)),
-    )
-
-    dome_light = AssetBaseCfg(
-        prim_path="/World/Light",
-        spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75)),
-    )
-
-    robot = BIMANUAL_ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+from pioneer_humanoid.teleop_scenes import SCENE_CFGS
 
 
 def _joint_ids(robot, names: list[str]) -> list[int]:
@@ -359,9 +346,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 def main():
     sim_cfg = sim_utils.SimulationCfg(dt=0.01, device=args_cli.device)
     sim = sim_utils.SimulationContext(sim_cfg)
-    sim.set_camera_view([2.5, 2.5, 2.0], [0.0, 0.0, 0.8])
+    if args_cli.scene == "push":
+        sim.set_camera_view([1.4, -1.0, 0.9], [0.35, -0.2, 0.05])
+    else:
+        sim.set_camera_view([2.5, 2.5, 2.0], [0.0, 0.0, 0.8])
 
-    scene_cfg = BimanualSceneCfg(num_envs=1, env_spacing=2.0)
+    scene_cfg = SCENE_CFGS[args_cli.scene](num_envs=1, env_spacing=2.0)
     scene = InteractiveScene(scene_cfg)
 
     sim.reset()
