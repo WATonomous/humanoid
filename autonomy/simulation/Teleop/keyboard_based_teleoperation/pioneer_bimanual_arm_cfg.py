@@ -1,26 +1,25 @@
 """
-armWithStand (wato_arm_v2) articulation config for teleoperation.
+Canonical articulation config for the pioneer_bimanual_arm.
 
 Robot model: Humanoid_Wato/pioneer_bimanual_arm (pioneer_bimanual_arm.usd),
-formerly wato_arm_v2/armWithStand.usd.
-
-This is a DIFFERENT CAD export from wato_bimanual_arm despite sharing link/joint
-names -- the per-joint rotation axes and origins differ (e.g. joint4 axis (0,-1,0)
-here vs (-1,0,0) in bimanual). Do NOT assume any constant transfers from
-bimanual_arm_cfg.py just because names match. In particular:
-  - _DEFAULT_JOINT_POS is this URDF's zero pose (+ elbow flex, see below), not
-    bimanual's tuned degree values -- those produced a twisted rest pose here.
-  - LEFT_/RIGHT_FINGER_DISTAL_TIP_LOCAL are measured against this asset's mesh,
-    along its joint7/8 travel axis (Y here, X in bimanual).
-  - _WRIST_ORIENT_OFFSET_* in run_quest_bimanual_teleop.py are reset to identity
-    for the same reason; they need live in-headset retuning.
-  - actuator gains and the +/-0.05 m gripper stroke are carried over from
-    bimanual (motor-derived, not orientation-derived) but not independently
-    verified.
+formerly wato_arm_v2/armWithStand.usd. This replaces the old bimanual_arm_cfg.py,
+which used a reversed L/R convention, inverted gripper dicts, X-axis fingertip
+geometry (wrong for this asset), and a rest pose tuned for a superseded CAD
+export.
 
 Naming: LEFT_* = the L-suffixed chain (joint1L..joint6l) = physical LEFT arm,
-matching the CAD. RIGHT_* = unsuffixed. An earlier revision had these reversed;
-don't reintroduce that.
+matching the CAD. RIGHT_* = unsuffixed (joint1..joint6). An earlier revision
+had these reversed; don't reintroduce that.
+
+Notes on the values below:
+  - _DEFAULT_JOINT_POS is this URDF's zero pose plus elbow flex (see below), a
+    correct-by-construction rest pose -- not a hand-tuned one.
+  - LEFT_/RIGHT_FINGER_DISTAL_TIP_LOCAL are measured against this asset's mesh,
+    along its joint7/8 travel axis (Y for this export).
+  - _WRIST_ORIENT_OFFSET_* in run_quest_bimanual_teleop.py are identity and need
+    live in-headset retuning for this asset's joint6 axis.
+  - actuator gains and the +/-0.05 m gripper stroke are motor/mechanism-derived
+    but not independently verified.
 
 Motor specs: https://watonomous.github.io/humanoid-docs/mechanical/index.html
   Shoulder joints 1-2  AK10-9 V3.0  18 Nm rated / 53 Nm peak
@@ -43,16 +42,13 @@ import sys
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
-from isaaclab.sensors import CameraCfg
 
 _THIS_DIR = os.path.abspath(os.path.dirname(__file__))
-# pioneer_bimanual_arm is the current export of this arm, superseding wato_arm_v2/armWithStand.
-# Same joint/link names and topology, but the mesh and joint origins moved.
-_ARM_V2_ROOT = os.path.abspath(os.path.join(_THIS_DIR, "..", "..", "Humanoid_Wato", "pioneer_bimanual_arm"))
-_ARM_USD_PATH = os.path.join(_ARM_V2_ROOT, "usd", "pioneer_bimanual_arm.usd")
+_ARM_ROOT = os.path.abspath(os.path.join(_THIS_DIR, "..", "..", "Humanoid_Wato", "pioneer_bimanual_arm"))
+_ARM_USD_PATH = os.path.join(_ARM_ROOT, "usd", "pioneer_bimanual_arm.usd")
 
-if _ARM_V2_ROOT not in sys.path:
-    sys.path.insert(0, _ARM_V2_ROOT)
+if _ARM_ROOT not in sys.path:
+    sys.path.insert(0, _ARM_ROOT)
 from urdf_joint_limits import JOINT_POS_LIMITS  # noqa: E402  (needs the path insert above)
 
 
@@ -61,7 +57,7 @@ def _deg(degrees: float) -> float:
 
 
 # --- Joint limits -----------------------------------------------------------
-# Re-exported from urdf_joint_limits (parses the URDF) so `from armWithStand_v2_cfg import
+# Re-exported from urdf_joint_limits (parses the URDF) so `from pioneer_bimanual_arm_cfg import
 # JOINT_POS_LIMITS` call sites keep working. apply_joint_limits() and
 # patch_joint_pos_limits_on_prim() below write it onto the spawned prims, so this is what the
 # joints actually enforce at runtime. Replaced an unverified +/-2pi (no-limit) placeholder.
@@ -147,108 +143,8 @@ _GRIPPER_DAMPING = 40.0
 _GRIPPER_EFFORT_LIMIT = 30.0  # N (sim linear-force cap; tune empirically)
 _GRIPPER_VELOCITY_LIMIT = 0.2  # m/s
 
-
-# ── data-collection cameras ───────────────────────────────────────────────────
-# ego_cam (on base_link) and wrist_cam (on link6l) record the dataset image reads. Defined and
-# SPAWNED here (their prim paths are properties of this arm): the old armWithStand.usd baked
-# camera prims into its sensor layer, but the pioneer_bimanual_arm export has none, so defining
-# them in code keeps a future re-export from silently dropping them.
-
-# focal_length 18 is ~60deg horizontal; lower it to widen. run_quest_bimanual_teleop.py overwrites
-# ego_cam's at runtime to match the headset's widened RSD455 FOV.
-DATA_CAM_LENS = sim_utils.PinholeCameraCfg(
-    focal_length=7.336, horizontal_aperture=20.955, vertical_aperture=15.2908,
-    clipping_range=(0.01, 100.0),
-)
-
-# ego_cam pose, relative to base_link. Only an initial value in the Quest teleop script, which
-# re-aims ego_cam at the operator's head viewpoint at startup when --record is passed.
-EGO_CAM_POS = (0.047450090928410314, -0.008096717438775313, 0.21180604954921534)
-EGO_CAM_ROT = (0.8660254037844387, 0.49999999999999983, 0.0, 0.0)
-
-# wrist_cam aiming. The two angles are independent: roll spins the image, pitch aims the camera.
-WRIST_CAM_ROLL_DEG = 270.0   # rotates the image counter-clockwise; 90 / 180 / 270
-WRIST_CAM_PITCH_DEG = 30.0   # angles the camera down toward the gripper
-
-# wrist_cam mount, relative to link6l's origin. Gripper-relative: +X up, +Y left, -Z forward
-# (follows from the roll/pitch above). It sits inside the wrist housing, so large moves bury it
-# in the mesh; the Quest script's _SHOW_WRIST_CAM_MARKER flag draws a sphere here to check.
-WRIST_CAM_POS = (0.06168, 0.053, -0.06995)
-
-
-def _quat_mul_wxyz(a: tuple, b: tuple) -> tuple:
-    """Hamilton product of two (w, x, y, z) quaternions as plain tuples.
-
-    isaaclab.utils.math.quat_mul wants torch tensors; these are module constants."""
-    w1, x1, y1, z1 = a
-    w2, x2, y2, z2 = b
-    return (
-        w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
-        w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
-        w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
-        w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
-    )
-
-
-# Pitch must be composed OUTSIDE the roll. The other order rolls the pitch axis too, so changing
-# the roll would silently change which way the camera tilts.
-def _wrist_cam_rot(roll_deg: float) -> tuple:
-    """Wrist-camera orientation for a given roll, at the shared WRIST_CAM_PITCH_DEG."""
-    return _quat_mul_wxyz(
-        (math.cos(math.radians(WRIST_CAM_PITCH_DEG) / 2.0), 0.0,
-         math.sin(math.radians(WRIST_CAM_PITCH_DEG) / 2.0), 0.0),
-        (math.cos(math.radians(roll_deg) / 2.0), 0.0, 0.0,
-         math.sin(math.radians(roll_deg) / 2.0)),
-    )
-
-
-WRIST_CAM_ROT = _wrist_cam_rot(WRIST_CAM_ROLL_DEG)
-
-
-def make_ego_cam_cfg() -> CameraCfg:
-    """Fresh CameraCfg for ego_cam. Requires launching with --enable_cameras.
-
-    A new instance per call, not a shared constant: InteractiveScene rewrites prim_path in place
-    when it resolves {ENV_REGEX_NS}."""
-    return CameraCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/base_link/ego_cam",
-        spawn=DATA_CAM_LENS,
-        offset=CameraCfg.OffsetCfg(pos=EGO_CAM_POS, rot=EGO_CAM_ROT, convention="opengl"),
-        height=480, width=640,
-        # Refresh whenever the app renders. An additional per-camera update_period on top of
-        # that froze this feed on a stale scene state.
-        update_period=0.0,
-        data_types=["rgb"],
-    )
-
-
-# Right wrist cam is the left one mirrored through the robot's XZ plane: position (x,y,z)->
-# (x,-y,z), roll -> 180 - roll. The +180 is not cosmetic: a pure frame mirror aims correctly
-# but flips image-up (local +Y -> -Y), rendering the gripper upside down; the extra 180 roll
-# about the view axis restores it. Pitch is unchanged (already about the mirror-plane normal).
-#
-# Asset asymmetry, compensated: link6's origin sits 9.0mm further out in Y than the exact mirror
-# of link6l's (CAD frame placement; the fingertips themselves mirror perfectly). Without adding
-# it back, the right feed sat too far outboard in the headset.
-_LINK6_ORIGIN_Y_ASYMMETRY_M = 0.008997  # link6l.y + link6.y, measured in-sim at the rest pose
-def make_wrist_cam_cfg(body: str = "link6l", name: str = "wrist_cam", mirror: bool = False) -> CameraCfg:
-    """Fresh CameraCfg for a wrist camera -- see make_ego_cam_cfg for why it is a factory.
-
-    Defaults reproduce the original single link6l camera exactly, so existing call sites are
-    unchanged. Pass ``body="link6", mirror=True`` for the opposite arm's wrist."""
-    mirrored_pos = (WRIST_CAM_POS[0],
-                    -WRIST_CAM_POS[1] + _LINK6_ORIGIN_Y_ASYMMETRY_M,
-                    WRIST_CAM_POS[2])
-    pos = mirrored_pos if mirror else WRIST_CAM_POS
-    rot = _wrist_cam_rot(180.0 - WRIST_CAM_ROLL_DEG) if mirror else WRIST_CAM_ROT
-    return CameraCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/" + f"{body}/{name}",
-        spawn=DATA_CAM_LENS,
-        offset=CameraCfg.OffsetCfg(pos=pos, rot=rot, convention="opengl"),
-        height=480, width=640,
-        update_period=0.0,
-        data_types=["rgb"],
-    )
+# Data-collection cameras (ego_cam, wrist_cam) live in teleop_cameras.py -- they are
+# teleop-scene config, not robot properties.
 
 
 def _joint_limit_key(name: str) -> str | None:
@@ -433,7 +329,7 @@ spawn_bimanual_arm_from_usd.__name__ = "spawn_bimanual_arm_from_usd"
 spawn_bimanual_arm_from_usd.__qualname__ = "spawn_bimanual_arm_from_usd"
 
 
-ARM_V2_CFG = ArticulationCfg(
+PIONEER_BIMANUAL_ARM_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
         func=spawn_bimanual_arm_from_usd,
         usd_path=_ARM_USD_PATH,
@@ -526,3 +422,6 @@ ARM_V2_CFG = ArticulationCfg(
         ),
     },
 )
+
+# Back-compat alias (old name). Remove once no importer uses it.
+ARM_V2_CFG = PIONEER_BIMANUAL_ARM_CFG
