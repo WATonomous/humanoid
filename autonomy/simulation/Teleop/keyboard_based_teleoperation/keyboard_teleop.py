@@ -1,6 +1,6 @@
 """Minimal bimanual-arm keyboard teleoperation (left arm only).
 
-Robot: Humanoid_Wato wato_bimanual_arm (bimanual_arm.usd)
+Robot: pioneer_bimanual_arm (see pioneer_humanoid.bimanual_arm)
 Motor specs: https://watonomous.github.io/humanoid-docs/mechanical/index.html
 Teleop bindings: https://isaac-sim.github.io/IsaacLab/v2.0.1/source/overview/teleop_imitation.html
 
@@ -27,7 +27,7 @@ _DEFAULT_SIM_SCHEMA = _IL_PKG / "config" / "dataset_schema_sim.yaml"
 # keeps a bare bind-mounted checkout working.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "pioneer_humanoid"))
 
-parser = argparse.ArgumentParser(description="Keyboard teleoperation for the WATonomous bimanual arm (left only).")
+parser = argparse.ArgumentParser(description="Keyboard teleoperation for the Pioneer bimanual arm (left only).")
 parser.add_argument(
     "--record",
     action="store_true",
@@ -92,7 +92,7 @@ from pioneer_humanoid.bimanual_arm import (
 
 @configclass
 class BimanualSceneCfg(InteractiveSceneCfg):
-    """Minimal scene with the WATonomous bimanual arm."""
+    """Minimal scene with the Pioneer bimanual arm."""
 
     ground = AssetBaseCfg(
         prim_path="/World/defaultGroundPlane",

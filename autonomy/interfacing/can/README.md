@@ -42,7 +42,7 @@ Live joint mirror, mjlab sim parity, and interactive calibration are done — se
 | Status | Task | Why |
 |--------|------|-----|
 | TODO | **VR teleop** — Quest → real motors via teleop + `joint_command` / CAN | End-to-end teleop UX |
-| TODO (later) | **Isaac Lab sim-to-real** — `task_space_real.py` (IK) + `reach` RL task driving the real arm | Validate IK/policy against real hardware |
+| TODO (later) | **Isaac Lab sim-to-real** — `task_space_ik.py --publish-real-left-arm` (IK) + `reach` RL task driving the real arm | Validate IK/policy against real hardware |
 
 ---
 

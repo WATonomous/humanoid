@@ -463,7 +463,7 @@ there's nothing on the other end to receive it yet. Adding it requires:
 ### Message mapping
 
 Field layout and units are copied exactly from the existing sim-to-real
-precedent, `Task_space_controller/robot_arm_controllers/task_space_real.py`
+precedent, `Task_space_controller/robot_arm_controllers/task_space_ik.py`
 (`publish_joint_pos`) — same `LEFT_ARM_JOINTS` order
 (`joint1L, joint2l, joint3l, joint4l, joint5l, joint6l`) maps 1:1 to:
 
@@ -495,7 +495,7 @@ without actually re-positioning the arm during the delay).
 
 Publish rate is throttled to `_REAL_ARM_PUBLISH_PERIOD_S = 0.02` (50Hz,
 matching `joint_command_node`'s `control_rate_hz`) using the same
-held-off-then-throttled accumulator pattern as `task_space_real.py`, so the
+held-off-then-throttled accumulator pattern as `task_space_ik.py`, so the
 delay can't build up a backlog and burst-publish once it ends. Actual
 observed rate can be lower than 50Hz if the sim itself runs below real-time
 (seen at ~10Hz in one `--device cpu` test with no GPU) — this isn't a bug,

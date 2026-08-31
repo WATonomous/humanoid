@@ -1,9 +1,19 @@
 """
-Task-space IK demo for the WATonomous bimanual arm (left arm only).
+Task-space IK for the Pioneer bimanual arm (left arm only), sim + optional sim-to-real.
 
-A cube in the scene is the absolute gripper-tip pose target. Move the cube in
-the viewport and the left arm (6 revolute joints) follows via Differential IK.
-The right arm and both grippers are held at their default poses.
+A cube in the scene is the absolute gripper-tip pose target -- drag/rotate it in the
+viewport and the left arm (6 revolute joints) follows via Differential IK. The right arm
+and both grippers are held at their default poses.
+
+Default: sim only. Pass --publish-real-left-arm to also publish the DLS-solved left-arm
+joint targets to /behaviour/arm_pose (rclpy, direct):
+
+    task_space_ik.py --publish-real-left-arm  ->  /behaviour/arm_pose  ->  joint_command_node
+      (safety: seed-from-feedback + velocity/delta/low-pass)  ->  /interfacing/motorCMD
+      ->  can_node  ->  AK motors (0x0A-0x0E, POSITION_LOOP frames)
+
+joint_command_node seeds its rate-limiter from live motor feedback on the first ArmPose,
+so even the first command ramps from the real arm's actual pose (no snap).
 """
 
 import argparse
@@ -12,7 +22,12 @@ import sys
 
 from isaaclab.app import AppLauncher
 
-parser = argparse.ArgumentParser(description="Bimanual arm task-space IK (cube target, left arm only)")
+parser = argparse.ArgumentParser(description="Pioneer bimanual-arm task-space IK (cube target, left arm only)")
+parser.add_argument(
+    "--publish-real-left-arm",
+    action="store_true",
+    help="Also publish the left arm's joint targets to /behaviour/arm_pose to drive the REAL arm. Off by default.",
+)
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 
@@ -60,6 +75,77 @@ import torch  # noqa: E402
 def _joint_ids(robot, names: list[str]) -> list[int]:
     name_to_id = {name: i for i, name in enumerate(robot.data.joint_names)}
     return [name_to_id[resolve_joint_name(robot, name)] for name in names]
+
+
+# --- Real left-arm bridge (--publish-real-left-arm) --------------------------
+_REAL_ARM_PUBLISH_PERIOD_S = 0.02   # 50 Hz, matches joint_command_node's control_rate_hz
+_REAL_ARM_PUBLISH_START_DELAY_S = 3.0   # operator prep time (e-stop in hand); the snap is
+#                                        already prevented by joint_command_node's seed
+
+
+class _RealLeftArm:
+    """Publishes IK-solved left-arm joint targets to /behaviour/arm_pose (rclpy, direct).
+
+    Same field layout/units as run_quest_bimanual_teleop.py: LEFT_ARM_JOINTS order
+    (joint1L..joint6l) -> shoulder(flexion, abduction, rotation) / elbow(flexion,
+    forearm_rotation) / wrist(extension), degrees.
+
+    KNOWN GAP: these are raw sim joint angles. joint_command_node treats them as
+    calibrated cmd-frame degrees (0 = the real arm's calibrate_arm.py home), while sim's
+    qpos=0 is an unrelated reference in the USD. Nothing converts between the two, so real
+    motion will not track the sim/cube target until a sim<->real calibration is added.
+    """
+
+    def __init__(self):
+        import threading
+
+        import rclpy
+        from common_msgs.msg import ArmPose
+
+        rclpy.init()
+        self._rclpy = rclpy
+        self._node = rclpy.create_node("task_space_left_arm")
+        self._pub = self._node.create_publisher(ArmPose, "/behaviour/arm_pose", 10)
+        self._ArmPose = ArmPose
+        threading.Thread(target=rclpy.spin, args=(self._node,), daemon=True).start()
+        self._elapsed_s = 0.0
+        self._since_publish_s = 0.0
+        self._started = False
+        print(f"[REAL] Left arm publishes to /behaviour/arm_pose in "
+              f"{_REAL_ARM_PUBLISH_START_DELAY_S:.0f}s -- position the REAL arm near the sim pose now.")
+
+    def tick(self, dt: float, joint_pos_des_rad) -> None:
+        import math
+
+        from common_msgs.msg import JointState
+
+        self._elapsed_s += dt
+        if self._elapsed_s < _REAL_ARM_PUBLISH_START_DELAY_S:
+            return
+        if not self._started:
+            self._started = True
+            print("[REAL] Publishing left arm to /behaviour/arm_pose now.", flush=True)
+        self._since_publish_s += dt
+        if self._since_publish_s < _REAL_ARM_PUBLISH_PERIOD_S:
+            return
+        self._since_publish_s -= _REAL_ARM_PUBLISH_PERIOD_S
+
+        q = [math.degrees(v) for v in joint_pos_des_rad[0].tolist()]
+        msg = self._ArmPose()
+        msg.header.stamp = self._node.get_clock().now().to_msg()
+        msg.is_left = True
+        shoulder = JointState()
+        shoulder.position = [q[0], q[1], q[2]]
+        elbow = JointState()
+        elbow.position = [q[3], q[4]]
+        wrist = JointState()
+        wrist.position = [q[5]]
+        msg.shoulder, msg.elbow, msg.wrist = shoulder, elbow, wrist
+        self._pub.publish(msg)
+
+    def close(self):
+        if self._rclpy.ok():
+            self._rclpy.shutdown()
 
 
 @configclass
@@ -171,6 +257,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     _, _wrist_q0_b = compute_gripper_tip_pose_b(robot, _root0, wrist_body_id, finger_body_ids)
     _cube_q0_b_inv = quat_inv(_cube_q0_b)
 
+    real_arm = _RealLeftArm() if args_cli.publish_real_left_arm else None
+
     while simulation_app.is_running():
         cube_pos_w, cube_quat_w = _cube_pose_w()
         root_pose_w = robot.data.root_state_w[:, 0:7]
@@ -204,6 +292,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         joint_pos_des = diff_ik_controller.compute(tip_pos_b, tip_quat_b, jacobian, joint_pos)
         robot.set_joint_position_target(joint_pos_des, joint_ids=left_arm_ids)
 
+        if real_arm is not None:
+            real_arm.tick(sim_dt, joint_pos_des)
+
         # Hold left gripper open; right arm + gripper at default pose
         robot.set_joint_position_target(gripper_open_targets, joint_ids=right_gripper_ids)
         robot.set_joint_position_target(left_default_pos, joint_ids=left_joint_ids)
@@ -219,6 +310,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         tip_pos_w, tip_quat_w = compute_gripper_tip_pose_w(robot, wrist_body_id, finger_body_ids)
         ee_marker.visualize(tip_pos_w, tip_quat_w)
         goal_marker.visualize(cube_pos_w, cube_quat_w)
+
+    if real_arm is not None:
+        real_arm.close()
 
 
 def main():

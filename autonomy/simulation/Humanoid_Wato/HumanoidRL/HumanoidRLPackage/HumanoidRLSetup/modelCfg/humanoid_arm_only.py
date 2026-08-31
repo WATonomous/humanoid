@@ -1,4 +1,4 @@
-"""This cfg is only used by the task_space_test.py script and 
+"""This cfg is only used by the task_space_ik.py script and 
 the humanoid arm is only exposing the 6 DOF Arm for control"""
 import os
 

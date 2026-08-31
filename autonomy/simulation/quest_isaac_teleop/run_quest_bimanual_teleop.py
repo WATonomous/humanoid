@@ -206,7 +206,7 @@ _MAX_REACH_M = 0.5
 _HOME_TIP_X_OFFSET = 0.0
 _HOME_TIP_Z_OFFSET = 0.0
 
-# Real-hardware bridge timing (--publish-real-left-arm), mirroring task_space_real.py.
+# Real-hardware bridge timing (--publish-real-left-arm), mirroring task_space_ik.py.
 # SAFETY: joint_command_node applies NO rate limiting to the FIRST ArmPose it receives, so an
 # un-delayed publish can snap the real arm hard from wherever it physically is. The delay
 # exists so a human can position the real arm near the sim pose first -- do not shorten it.
@@ -837,7 +837,7 @@ def _pinch_dist(hand_joints: list) -> float:
 def _publish_real_left_arm_pose(pub, clock_node, joint_pos_des_rad) -> None:
     """Build and publish an ArmPose for the real left arm from a DLS
     solution. Field layout/units copied EXACTLY from
-    Task_space_controller/robot_arm_controllers/task_space_real.py's
+    Task_space_controller/robot_arm_controllers/task_space_ik.py's
     publish_joint_pos -- same LEFT_ARM_JOINTS order (joint1L, joint2l,
     joint3l, joint4l, joint5l, joint6l) maps 1:1 to
     shoulder(flexion,abduction,rotation) / elbow(flexion,forearm_rotation) /
