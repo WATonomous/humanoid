@@ -102,7 +102,7 @@ def _bimanual_ee_frame_cfg(*, debug_vis: bool) -> FrameTransformerCfg:
     URDF gripper body), no verified fingertip-center offset from link6l exists
     for the bimanual arm as a static frame (the teleop code only computes it
     dynamically from both finger tips at runtime, see
-    ``bimanual_arm_cfg.compute_gripper_tip_pose_b``). Zero offset is a
+    ``pioneer_humanoid.bimanual_arm.compute_gripper_tip_pose_b``). Zero offset is a
     reasonable proxy for the push reward terms; refine with a measured offset
     if pushing behavior looks visibly off from the wrist position.
     """

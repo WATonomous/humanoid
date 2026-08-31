@@ -1,3 +1,7 @@
 *.png
 *.xwd
 .session/
+
+# transient scene dumps from the daemon
+*.usd
+.session_table.usd

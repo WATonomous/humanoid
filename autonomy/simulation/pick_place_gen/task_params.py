@@ -113,7 +113,7 @@ class EpisodeParams:
     record_divisor: int = 2                # record every Nth control step
     phase_timeout_s: float = 8.0           # per-phase watchdog
     # ACTUATOR EFFORT OVERRIDES (this task's env only, never the shared teleop
-    # config). bimanual_arm_cfg uses RATED torques, which saturate under the
+    # config). pioneer_humanoid.bimanual_arm uses PEAK torques, which the old bimanual_arm_cfg's RATED values saturated under
     # arm's own gravity load (measured: joint2l sags 0.21 rad at 18 Nm ->
     # ~9 cm fingertip error; joint6l sags ~0.5 rad at 0.25 Nm). Shoulder and
     # elbow use the motors' documented PEAK torques (AK10-9: 53 Nm,

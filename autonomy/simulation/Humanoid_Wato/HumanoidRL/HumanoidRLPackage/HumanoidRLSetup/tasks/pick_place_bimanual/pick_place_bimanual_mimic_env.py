@@ -7,7 +7,7 @@ paired with an IK-relative-pose action term; here it's bridged onto the
 joint-position action space using Isaac Lab's own DifferentialIKController
 plus the Jacobian utilities already used, for this exact
 robot/gripper-tip convention, by
-Task_space_controller/robot_arm_controllers/task_space_real.py. No cuRobo
+Task_space_controller/robot_arm_controllers/task_space_ik.py. No cuRobo
 code is touched anywhere in this file.
 
 Nothing in pick_place_env_cfg.py's ActionsCfg/ObservationsCfg/TerminationsCfg

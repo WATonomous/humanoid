@@ -339,7 +339,7 @@ stable near singular configurations; higher damping is more stable but
 converges more slowly.
 
 Current values (`0.1` left, `0.175` right) were lowered from `0.2 / 0.35`
-once `armWithStand_v2_cfg` started spawning the arm with the elbows flexed —
+once the canonical arm config started spawning the arm with the elbows flexed —
 the higher damping had been compensating for the ill-conditioned
 full-extension spawn pose, which no longer occurs. Lower damping also cuts
 wrist-twist leakage into the shoulder (see `_IK_JOINT_COST`). Raise both back
@@ -352,7 +352,7 @@ jitter — retune live in sim rather than assuming this number is final.
 **If the arm undershoots specifically on upward reach** (tracks fine
 horizontally but doesn't lift as far as the real wrist moves), check
 `effort_limit_sim` on the shoulder/elbow `ImplicitActuatorCfg` blocks in
-`armWithStand_v2_cfg.py` before touching IK gains — lifting the arm against
+`pioneer_humanoid.bimanual_arm` before touching IK gains — lifting the arm against
 gravity at extension needs more torque than any other direction, and a cap
 set to the motor's *rated* torque (not *peak*) will saturate there first and
 visibly lag the commanded target. Shoulder/elbow are currently set to peak
@@ -360,7 +360,7 @@ visibly lag the commanded target. Shoulder/elbow are currently set to peak
 kinematic reach limit.
 
 Actuator responsiveness (how fast joints track the IK output) is set in
-`autonomy/simulation/Teleop/keyboard_based_teleoperation/armWithStand_v2_cfg.py`
+`autonomy/simulation/pioneer_humanoid/pioneer_humanoid/bimanual_arm.py`
 via `stiffness` and `damping` on each `ImplicitActuatorCfg`. Current values
 are raised ~25–50% above the original static-hold tuning for faster tracking
 of a moving IK target; the torque caps stay at the real motor peak.
@@ -463,7 +463,7 @@ there's nothing on the other end to receive it yet. Adding it requires:
 ### Message mapping
 
 Field layout and units are copied exactly from the existing sim-to-real
-precedent, `Task_space_controller/robot_arm_controllers/task_space_real.py`
+precedent, `Task_space_controller/robot_arm_controllers/task_space_ik.py`
 (`publish_joint_pos`) — same `LEFT_ARM_JOINTS` order
 (`joint1L, joint2l, joint3l, joint4l, joint5l, joint6l`) maps 1:1 to:
 
@@ -482,20 +482,17 @@ degrees, so `_publish_real_left_arm_pose` converts before publishing.
 
 ### Safety: the 5-second startup delay
 
-`joint_command_node` applies **no velocity/delta rate-limiting to the very
-first `ArmPose` message** it receives after startup — every message after
-that is smoothed (position clamp → velocity limit → delta limit → low-pass),
-but not the first one. An un-delayed first publish could snap the real arm
-hard from wherever it physically is to whatever the sim's current IK target
-happens to be. `_REAL_ARM_PUBLISH_START_DELAY_S = 5.0` holds off all
-publishing for 5s after the flag is enabled — **that window is for a human to
-manually position the real arm near the sim's rest pose**, not a technical
-formality. Don't shorten it. Don't skip using it (i.e. don't stand there
-without actually re-positioning the arm during the delay).
+`joint_command_node` seeds its rate-limiter from live motor feedback on the
+first `ArmPose` and rate-limits every message including that one (position
+clamp → velocity limit → delta limit → low-pass), so the arm ramps from its
+actual pose rather than snapping. `_REAL_ARM_PUBLISH_START_DELAY_S = 5.0`
+holds off publishing for 5s after the flag is enabled — **operator prep time:
+get a hand on the e-stop, and position the real arm near the sim's pose so the
+ramp is short.** Not a technical formality; don't skip it.
 
 Publish rate is throttled to `_REAL_ARM_PUBLISH_PERIOD_S = 0.02` (50Hz,
 matching `joint_command_node`'s `control_rate_hz`) using the same
-held-off-then-throttled accumulator pattern as `task_space_real.py`, so the
+held-off-then-throttled accumulator pattern as `task_space_ik.py`, so the
 delay can't build up a backlog and burst-publish once it ends. Actual
 observed rate can be lower than 50Hz if the sim itself runs below real-time
 (seen at ~10Hz in one `--device cpu` test with no GPU) — this isn't a bug,
