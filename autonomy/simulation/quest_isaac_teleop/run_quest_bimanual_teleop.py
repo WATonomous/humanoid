@@ -721,9 +721,9 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
         prim_path="/World/Light",
         spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75)),
     )
-    # The stand's bottom sits 1.1997m below base_link, so lift by that to rest it on the TABLE
-    # top (z=0) -- not on the collision-safety ground plane far below at z=-1.05, which leaves
-    # the stand buried under the table.
+    # The stand's bottom sits 1.1997m below base_link, so lift by that to rest the feet on the
+    # floor (z=0), not on the collision-safety ground plane at z=-1.05. The table (top ~0.7m)
+    # is a separate work surface; the column passes up through it.
     robot = ARM_V2_CFG.replace(
         prim_path="{ENV_REGEX_NS}/Robot",
         init_state=ARM_V2_CFG.init_state.replace(pos=(0.0, 0.0, 1.1997)),
