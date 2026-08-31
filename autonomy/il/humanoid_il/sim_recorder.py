@@ -168,10 +168,9 @@ class SimLeRobotRecorder:
     ) -> bool:
         """Handle episode flags and push one frame if the rate allows.
 
-        `images` may be a plain dict, or a zero-arg callable that produces one --
-        pass a callable when capturing images is expensive (e.g. GPU->CPU camera
-        reads); it's only invoked on frames actually pushed to the buffer,
-        instead of once per call regardless of whether this tick is a no-op.
+        `images` may be a plain dict or a zero-arg callable returning one -- pass a
+        callable when capturing images is expensive (GPU->CPU reads); it's invoked
+        only on frames actually pushed, not on no-op ticks.
 
         Returns True if an episode was just saved (so callers can trigger a scene reset).
         No-op if start_keyboard() was never called.
@@ -236,17 +235,15 @@ class SimLeRobotRecorder:
     _NUM_CPU_SLOTS = 2
 
     def _is_empty_dataset_shell(self) -> bool:
-        """True if dataset_root is a created-but-never-written dataset.
+        """True if dataset_root was created by LeRobotDataset.create() but never had an
+        episode saved into it.
 
-        LeRobotDataset.create() writes meta/info.json immediately, but the metadata a
-        reader actually needs (tasks, episodes, stats) plus data/ and videos/ only appear
-        once the first episode is saved. Any session that ends before save_episode() --
-        a crash, a Ctrl-C, or an operator who simply never pressed the save key -- leaves
-        behind a root that LeRobotDataset() cannot open, permanently dead-ending every
-        later run against that path. Such a shell holds no recorded frames, so recreating
-        it loses nothing; a root with real episodes in it is never touched.
-
-        Decides only whether the path is IN THE WAY; init_dataset moves it aside, never deletes.
+        create() writes meta/info.json up front; tasks/episodes/stats and data/, videos/
+        only appear on the first save_episode(). A session that ends before then (crash,
+        Ctrl-C, save key never pressed) leaves a root LeRobotDataset() cannot re-open,
+        dead-ending every later run against that path. Such a shell holds no frames, so
+        recreating it loses nothing; a root with real episodes is never touched.
+        init_dataset moves an in-the-way shell aside, never deletes.
         """
         root = self.dataset_root
         if not root.is_dir():

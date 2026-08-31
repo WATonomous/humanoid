@@ -2,17 +2,15 @@
 <!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
      Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
      For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
-<!-- MANUAL FIX to joint5/joint5l, not from the exporter. joint5's frame had drifted 4.5mm in Y;
-     joint5l/joint6l carried a +/-0.001264 X zigzag that broke mirror symmetry with joint5. Both
-     joints rotate about Z, so only X/Y placement matters; a Z offset along the axis is a no-op.
-     link5/link5l visual+collision+inertial origins compensate, so no geometry moved. The
-     pioneer_badminton_arm and pioneer_boxing_arm exports are from the same batch: check them. -->
-<!-- MANUAL FIX to joint4's <limit>, also not from the exporter. Arms mirror as q_right =
-     -q_left (FK-verified, 0.000000 m on every pair), so limits must satisfy
-     R == (-L_upper, -L_lower). joint4 was identical to joint4l instead of negated-swapped,
-     giving the elbows opposite flexion/hyperextension budgets; now [-1.745329, 2.312561].
-     joint1/joint1L has the same defect, left alone as it predates this asset.
-     These limits are live: urdf_joint_limits.py writes them onto the spawned USD prims. -->
+<!-- MANUAL FIXES below, not from the exporter. urdf_joint_limits.py parses the limit tags and
+     writes them onto the spawned USD prims, so these are live. -->
+<!-- joint5/joint5l origins: joint5's frame had a 4.5mm Y drift; joint5l/joint6l a +/-0.001264 X
+     zigzag. Both rotate about Z so only X/Y matters. link5/link5l visual+collision+inertial
+     origins compensate, so no geometry moved. Same export batch as pioneer_badminton_arm and
+     pioneer_boxing_arm: check those. -->
+<!-- joint4/joint4l limits: swapped so each elbow's larger travel budget (+/-132.5 deg) is on its
+     flexion side. The +/-75 deg rest pose and the teleop volume both bend the elbows toward +X;
+     the exporter had the budgets on the hyperextension side. -->
 <robot
   name="armv2URDF">
   <link

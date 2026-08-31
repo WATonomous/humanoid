@@ -170,14 +170,10 @@ _QUEST_TO_WORLD = torch.tensor(
      [0.0, 1.0, 0.0]],
     dtype=torch.float32,
 )
-# Maps a WebXR-local rotation (X=right, Y=up, -Z=forward) into the camera MOUNT's local frame
-# by the ergonomic correspondence quest-forward->cam-forward, quest-up->cam-up,
-# quest-right->cam-right. Row i = cam-local axis i in terms of (quest_x, quest_y, quest_z):
-#   X (forward) = -quest_z    Y (left) = -quest_x    Z (up) = quest_y
-# The result is then rotated into world by camera_tilt_quat. Both POSITION and ORIENTATION use
-# this two-stage camera-relative construction; a fixed world rotation was tried first and put
-# raw X into the world forward/back row (moving your hand sideways drove the arm forward).
-# Flip an entry only for a genuine handedness issue -- tilt is already handled by the basis.
+# Maps a WebXR-local rotation (X=right, Y=up, -Z=forward) into the camera mount's local frame:
+# cam X(fwd)=-quest_z, Y(left)=-quest_x, Z(up)=quest_y. Then rotated to world by camera_tilt_quat.
+# Position and orientation both use this camera-relative construction; a fixed world rotation
+# made sideways hand motion drive the arm forward. Flip an entry only for a handedness issue.
 _QUEST_TO_CAM_LOCAL = torch.tensor(
     [[0.0, 0.0, -1.0],
      [-1.0, 0.0, 0.0],
@@ -199,21 +195,11 @@ _GAIN_RAMP_END_M = 0.35
 # _DLS_LAMBDA_RIGHT. Lower it if the right arm locks up mid-reach.
 _MAX_REACH_M = 0.5
 
-# Keep X at 0 -- fix framing on the camera/enclosure side, not by dragging the arm's target
-# off its natural rest pose.
-#
-# Z was +0.2 and is now 0. It existed because the OLD all-zeros spawn pose left both arms
-# hanging straight down with the rest tip ~0.145m BELOW the table top, so the target had to be
-# lifted clear of the surface. armWithStand_v2_cfg now spawns with the elbows flexed, which puts
-# the rest tip at base-frame z=-0.241 -- already 0.27m above the table top at -0.513 -- so the
-# lift is redundant.
-#
-# Leaving it at +0.2 was also a measured performance problem: it stacked on top of the raised
-# rest pose and put both hands at z=-0.041, i.e. 0.490m from the eye cameras and 31.6deg off
-# their boresight, versus 0.719m and 49.7deg (near the frame edge) before. That is ~2.15x the
-# solid angle of detailed arm mesh in frame for all three cameras, and it cost ~4ms of JPEG
-# encode and ~11ms of render per cycle -- POV capture went 5.5ms -> 9.4ms and the full cycle
-# 99ms -> 131ms. At 0.0 the hands sit 0.626m out at 24.3deg, ~0.61x that solid angle.
+# Both 0: fix framing on the camera/enclosure side, not by offsetting the arm's target from its
+# rest pose. Z was +0.2 to lift the tip clear of the table under the old all-zeros spawn pose;
+# armWithStand_v2_cfg's flexed-elbow spawn already rests 0.27m above the table, so it's
+# redundant -- and it also pulled the hands closer to the eye cameras, ~doubling the arm mesh
+# in frame and adding ~30ms/cycle of render+encode.
 _HOME_TIP_X_OFFSET = 0.0
 _HOME_TIP_Z_OFFSET = 0.0
 
@@ -237,33 +223,21 @@ _INDEX_TIP_IDX = 9
 _PINCH_CLOSE_M = 0.035  # was 0.030, nudged up per live feedback (easier to trigger close)
 _PINCH_OPEN_M = 0.050
 
-# Lowered from 0.2/0.35. Both values were raised to survive the arm's conditioning near FULL
-# EXTENSION -- which was a property of the old all-zeros spawn pose (cond(J) = 2560,
-# manipulability 2.0e-06). armWithStand_v2_cfg now spawns with the elbows flexed to +/-75 deg,
-# where manipulability is 2.1e-02, so that justification is gone. The ratio between the two arms
-# is preserved rather than unified, since only the left chain was re-measured.
-#
-# Damping is also what was leaking wrist rotation into the shoulder (see _IK_JOINT_COST): at
-# lambda=0.2 a pure forearm twist came out 34.7% shoulder, at 0.1 it is 17.8%, and the exact
-# undamped solution is 0.4%. Averaged over four poses spanning the workspace, dropping to 0.1
-# and weighting the shoulder improves BOTH shoulder leakage and translation tracking versus the
-# old lambda=0.2 unweighted setup. Raise these back toward 0.2/0.35 if the arm feels jittery
-# near singular configurations.
+# Lowered from 0.2/0.35: those were raised for conditioning near full extension, which was an
+# artifact of the old all-zeros spawn pose. armWithStand_v2_cfg's flexed spawn fixes the
+# conditioning, and lower damping cuts wrist-twist leakage into the shoulder (~35% -> ~18% at
+# 0.2 -> 0.1). Raise back toward 0.2/0.35 if the arm feels jittery near singularities.
+# Per-arm ratio kept, not unified -- only the left chain was re-measured.
 _DLS_LAMBDA = 0.1
 _DLS_LAMBDA_RIGHT = 0.175
 
-# Per-joint cost for the weighted DLS solve (see _WeightedDlsIKController). Higher = the solver
-# avoids moving that joint. Only RATIOS matter, not absolute size.
-#
-# The shoulder is expensive so that a hand rotation is absorbed by the forearm roll (joint5/5l)
-# and the wrist (joint6/6l) instead of swinging the whole arm. The shoulder stays free enough to
-# do the work only it can do -- translating the tip, which needs its lever arm -- because at
-# weight 5 it still supplies ~50% of the joint motion for a pure translation, while its share of
-# a pure wrist twist drops from 34.7% to 11.4%. Pushing the weight to 25 gets the twist share to
-# 4.2% but measurably slows translation tracking, which reads as a laggy arm.
-#
-# Elbow, forearm roll and wrist are all left at 1.0: the elbow must stay cheap or reaching
-# suffers, and the forearm/wrist are exactly the joints we want the rotation to land in.
+# Per-joint cost for the weighted DLS solve (see _WeightedDlsIKController). Higher = solver
+# avoids that joint; only ratios matter. Shoulder is expensive so a hand rotation lands in the
+# forearm roll and wrist instead of swinging the whole arm -- at weight 5 the shoulder's share
+# of a pure twist drops to ~11% while it still does ~50% of a pure translation (which needs its
+# lever arm). Weight 25 cuts the twist share further but visibly slows translation. Elbow,
+# forearm roll, wrist stay at 1.0: elbow must stay cheap for reach, the other two are where we
+# want the rotation.
 _IK_SHOULDER_COST = 5.0
 _IK_JOINT_COST = {
     "joint1": _IK_SHOULDER_COST, "joint2": _IK_SHOULDER_COST, "joint3": _IK_SHOULDER_COST,
@@ -303,15 +277,9 @@ _ENCLOSURE_Y_CTR = (_ENCLOSURE_Y_MIN + _ENCLOSURE_Y_MAX) / 2
 _ENCLOSURE_Y_SPAN = _ENCLOSURE_Y_MAX - _ENCLOSURE_Y_MIN
 _ENCLOSURE_X_SPAN = _ENCLOSURE_X_MAX - _ENCLOSURE_X_MIN
 _ENCLOSURE_X_CTR = (_ENCLOSURE_X_MIN + _ENCLOSURE_X_MAX) / 2
-# Which X face carries the closed backdrop -- the enclosure's 180deg yaw, expressed as the one
-# quantity that is not symmetric under it. The rotation is about the enclosure's OWN centre
-# (_ENCLOSURE_X_CTR/_ENCLOSURE_Y_CTR), so the occupied volume is bit-identical and only this
-# wall moves; yawing about the world origin instead would have dragged the box to
-# x in [-0.75, 0.45] and left the table (world bbox x in [0.068, 0.690]) outside it. The Y walls
-# and ceiling are invariant under the yaw -- the pair swaps places but the set is unchanged.
-# _ENCLOSURE_X_MAX puts the backdrop in the +X direction the robot faces, 6cm past the table's
-# front edge, so the head cameras and the recorded POV see white instead of the open end; the
-# open face is then at _ENCLOSURE_X_MIN, behind the robot, where the operator stands.
+# Which X face carries the closed backdrop. _ENCLOSURE_X_MAX puts it in the +X direction the
+# robot faces (6cm past the table's front edge), so the head cameras and recorded POV see white;
+# the open face is at _ENCLOSURE_X_MIN, behind the robot where the operator stands.
 _ENCLOSURE_BACK_X = _ENCLOSURE_X_MAX
 
 
@@ -658,14 +626,10 @@ _PHYSICS_DT = 0.02  # seconds of simulated time per physics step (50Hz)
 # measured 217/858 ego transitions with zero pixel change. Recorder gets rate_limit=False so
 # the render gate in run_simulator is the sole decimator; never set this by hand.
 _RECORD_FPS = round(1.0 / (_POV_CAPTURE_EVERY_N_STEPS * _PHYSICS_DT))
-# Feeds Kit's rendering_dt (= _PHYSICS_DT * this). This is NOT the render gate -- the gate is
-# _POV_CAPTURE_EVERY_N_STEPS, applied via sim.step(render=...) in run_simulator.
-#
-# Do NOT "tidy" this by setting it equal to the gate. It was tried: raising it 2 -> 5 to match a
-# gate of 5 took each render from ~36ms to ~97ms and dropped RTF from ~1.0 to ~0.7. rendering_dt
-# is a shading input -- RTX uses it for temporal accumulation and the motion-blur shutter -- so a
-# longer frame delta costs real GPU time. It only needs to stay small; it does not need to
-# describe the true interval between rendered frames for a preview feed.
+# Feeds Kit's rendering_dt (= _PHYSICS_DT * this). NOT the render gate -- that's
+# _POV_CAPTURE_EVERY_N_STEPS via sim.step(render=...). Don't set it equal to the gate: rendering_dt
+# is an RTX shading input (temporal accumulation, motion blur), so a larger value costs real GPU
+# time (2 -> 5 took each render ~36ms -> ~97ms). It only needs to stay small.
 _KIT_RENDERING_INTERVAL = 2
 
 # Wall-clock pacer. Without it the sim advances as fast as it computes, so whenever there is
@@ -730,15 +694,11 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
         # Self-collisions are OFF in ARM_V2_CFG itself (see the note there); no override needed.
     )
 
-    # Data-collection / HUD cameras, NOT the headset display (that's the RSD455 pair attached
-    # at runtime). wrist_cam is on link6l (LEFT_EE_BODY), the LEFT arm; wrist_cam_right is its
-    # mirror on link6.
-    # All are defined in armWithStand_v2_cfg.py (DATA_CAM_LENS, EGO_CAM_*, WRIST_CAM_*) --
-    # adjust camera position and aim there, not here.
-    #
-    # wrist_cam keeps its unsuffixed name on purpose: _capture_record_images and the dataset
-    # schema bind that scene key, and the keyboard teleop scenes construct it too. Only the
-    # served JPEG filenames are left/right symmetric.
+    # Data-collection / HUD cameras, not the headset display (the RSD455 pair, attached at
+    # runtime). wrist_cam is on link6l (LEFT arm), wrist_cam_right its mirror on link6. Pose and
+    # lens live in armWithStand_v2_cfg.py -- adjust there, not here. wrist_cam keeps its
+    # unsuffixed name because _capture_record_images, the dataset schema, and the keyboard
+    # teleop scenes all bind that key.
     ego_cam = make_ego_cam_cfg()
     wrist_cam = make_wrist_cam_cfg()
     wrist_cam_right = make_wrist_cam_cfg(body="link6", name="wrist_cam_right", mirror=True)
@@ -1111,17 +1071,10 @@ class _WeightedDlsIKController(DifferentialIKController):
         # Scaling J's columns by w_inv IS J @ W^-1, without materialising the diagonal.
         lhs = (jacobian * w_inv) @ jacobian_T
         lhs = lhs + (lambda_val**2) * torch.eye(jacobian.shape[1], device=self._device)
-        # solve_ex(check_errors=False), NOT solve() or the base class's inverse(). All three are
-        # numerically identical here (measured: 0.0 difference vs solve), but both of the others
-        # inspect a singularity `info` flag on the host, and reading it forces a CUDA
-        # synchronisation. Measured with GPU work already queued -- which is the real situation,
-        # since the render is in flight -- that sync blocks the host for ~4.1-4.2ms per call
-        # against 0.067ms here, i.e. 63x, and it happens twice per physics step. It stalls CPU
-        # work (JPEG encode, ROS polling) behind the render instead of overlapping with it.
-        #
-        # Skipping the check is safe by construction, not by luck: lhs = J W^-1 J^T + lambda^2 I
-        # is symmetric positive definite for any lambda > 0 (J W^-1 J^T is PSD because W^-1 is
-        # positive diagonal), with minimum eigenvalue >= lambda^2. It cannot be singular.
+        # solve_ex(check_errors=False), not solve()/inverse(): those read a singularity flag on
+        # the host, forcing a CUDA sync that blocks ~4ms per call (twice per step) behind the
+        # in-flight render. Safe to skip: lhs = J W^-1 J^T + lambda^2 I is SPD for any lambda > 0
+        # (min eigenvalue >= lambda^2), so it's never singular.
         y, _ = torch.linalg.solve_ex(lhs, delta_pose.unsqueeze(-1), check_errors=False)
         return (w_inv.unsqueeze(-1) * (jacobian_T @ y)).squeeze(-1)
 
@@ -1232,14 +1185,10 @@ def _init_recorder(device: str):
         else Path((cfg.get("record") or {}).get("root", "datasets/record_wato_arm_v2_push_box"))
     )
     cameras = {name: {"height": spec["height"], "width": spec["width"]} for name, spec in enabled_images(cfg).items()}
-    # device="cpu" ALWAYS, whatever the physics device. The recorder allocates a multi-GB
-    # circular frame buffer on whatever device it is handed; passing "cuda" made it compete with
-    # Isaac Sim's own GPU memory on a 7.5GB card and killed the process silently mid-run.
-    #
-    # buffer_capacity_s=30, down from the 120 default. At 2 cameras x 640x480 x 30fps with the
-    # recorder's 2 pinned CPU slots, 120s is ~20GB RSS on a 30GB host -- measured climbing from
-    # 7.3GB idle to 24-27GB once recording started, and it hung the process twice. Episodes run
-    # 15-20s, so 30s is generous. Overrunning it drops frames with a warning, it does not crash.
+    # device="cpu" always: the recorder's multi-GB circular frame buffer on "cuda" competes with
+    # Isaac Sim's own GPU memory and silently kills the process. buffer_capacity_s=30 (not the
+    # 120 default): at 2x 640x480x30fps, 120s is ~20GB RSS and hung the host twice; episodes run
+    # 15-20s. Overrunning it drops frames with a warning, no crash.
     recorder = SimLeRobotRecorder(
         task_name=args_cli.task_description,
         repo_id=str(cfg.get("repo_id", "humanoid/wato_arm_v2_push_box")),
@@ -1891,14 +1840,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         robot.set_joint_velocity_target(torch.zeros(1, len(right_gripper_ids), device=device), joint_ids=right_gripper_ids)
 
         scene.write_data_to_sim()
-        # Gate rendering explicitly -- SimulationCfg(render_interval=...) does NOT do it here.
-        # Isaac Lab consumes render_interval in exactly two places: it sets Kit's rendering_dt
-        # (= dt * render_interval), and it gates rendering inside the ENV classes
-        # (ManagerBasedEnv._sim_step_counter % render_interval, manager_based_env.py:488).
-        # This is a standalone script with no env, so that gate never ran and bare sim.step()
-        # -- whose `render` arg defaults to True -- rendered every single physics step.
-        #
-        # _render_this_step: decided at the top of the loop, shared with recorder + capture.
+        # Gate rendering explicitly: render_interval only gates rendering inside the Isaac Lab
+        # ENV classes, which this standalone script has none of, so bare sim.step() (render=True
+        # by default) renders every physics step. _render_this_step is decided at the top of the
+        # loop and shared with the recorder + capture.
         _step_t0 = time.monotonic()
         sim.step(render=_render_this_step)
         _step_ms = (time.monotonic() - _step_t0) * 1000.0
@@ -2044,32 +1989,16 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
 
 
 def main() -> None:
-    # PERFORMANCE MODEL. Measured wall-clock, live:
-    #     render        ~35.5ms   once per cycle    <- the bottleneck (643k visual triangles)
-    #     physics step   ~4.8ms   every step
-    #     loop work      ~8.2ms   every step (IK, ROS poll, gripper smoothing, scene.update)
-    #     POV capture      ~5ms   once per cycle
-    #     => cycle(n) = 35.5 + n*13 + 5,  fps = RTF/(n*dt),  RTF = n*dt/cycle
+    # Performance model (measured, live): render ~35.5ms once per cycle (the bottleneck),
+    # physics step ~4.8ms + loop work ~8.2ms every step, POV capture ~5ms per cycle.
+    # => cycle(n) ~= 35.5 + n*13 + 5. Raising _POV_CAPTURE_EVERY_N_STEPS (n) trades fps for RTF
+    # favourably (physics-only steps are cheap, render is fixed): n=2 -> 15fps/RTF 0.60,
+    # n=5 -> 9.5fps/RTF 0.95. RTF is felt arm latency; fps is only video smoothness.
+    # _PACE_TO_REALTIME caps RTF at 1.0.
     #
-    #     n=2  15.0fps  RTF 0.60      n=4  10.8fps  RTF 0.87
-    #     n=3  12.6fps  RTF 0.76      n=5   9.5fps  RTF 0.95
-    #
-    # Raising n trades frame rate for RTF, favourably, because physics-only steps are cheap
-    # while the render is fixed. RTF is felt latency (how fast the arm moves in wall-clock);
-    # fps is only video smoothness. Which to prefer is a subjective call in the headset.
-    # _PACE_TO_REALTIME caps RTF at 1.0 so surplus headroom never becomes speed-up.
-    #
-    # render_interval below does NOT gate rendering. Isaac Lab applies it only as Kit's
-    # rendering_dt; the gate lives in the ENV classes, which this standalone script does not
-    # use, so bare sim.step() rendered EVERY physics step until the explicit `render=` argument
-    # in run_simulator was added. See _KIT_RENDERING_INTERVAL for why the two must stay separate.
-    #
-    # dt was 0.01. Halving steps per simulated second is the main RTF lever, since per-step cost
-    # does not halve with dt. Larger dt means coarser contact resolution and the grasp is already
-    # marginal (holds on GPU PhysX, slips on CPU -- see run_quest_bimanual_teleop.sh), so if the box
-    # starts slipping, put dt back first. Everything else in the loop derives from
-    # sim.get_physics_dt(); only _POV_CAPTURE_EVERY_N_STEPS and the `% 100` diagnostic prints
-    # are step-counted.
+    # dt was 0.01; halved for RTF (per-step cost doesn't scale with dt). Larger dt = coarser
+    # contacts and the grasp is marginal (holds on GPU PhysX, slips on CPU), so if the box slips,
+    # restore dt first. render_interval below does NOT gate rendering -- see _KIT_RENDERING_INTERVAL.
     sim_cfg = sim_utils.SimulationCfg(dt=_PHYSICS_DT, render_interval=_KIT_RENDERING_INTERVAL,
                                       device=args_cli.device)
     sim = sim_utils.SimulationContext(sim_cfg)
@@ -2122,14 +2051,10 @@ def main() -> None:
         except Exception as exc:  # noqa: BLE001 -- teardown must never raise past this point
             print(f"[Quest]   skipped: {exc}", flush=True)
 
-        # sim.stop() and simulation_app.close() are BOTH deliberately skipped: each was tried
-        # and each blocked forever. sim.stop() fires timeline STOP callbacks that tear down
-        # sensors -- including the eye Cameras _open_pov_camera hand-initialises -- against
-        # still-live RenderProducts; close() blocks for the same reason. Nothing is lost:
-        # everything durable is already written, and the rest is memory the kernel reclaims.
-        # os._exit also skips interpreter teardown, since Kit's atexit hooks are part of the
-        # hang. A watchdog cannot rescue either call (blocked C code holds the GIL), so not
-        # calling them is the only fix. Re-add one only with proof that it returns.
+        # sim.stop() and simulation_app.close() are both skipped -- each blocks forever tearing
+        # down sensors (the hand-initialised eye Cameras) against still-live RenderProducts.
+        # os._exit skips interpreter teardown too, since Kit's atexit hooks are part of the hang.
+        # Everything durable is already written. Re-add a call only with proof it returns.
         print(f"[Quest] Teardown 2/2: exiting (status {exit_code}).", flush=True)
         os._exit(exit_code)
 

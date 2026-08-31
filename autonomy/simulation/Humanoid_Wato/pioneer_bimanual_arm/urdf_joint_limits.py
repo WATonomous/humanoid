@@ -1,24 +1,14 @@
 """Joint position limits for pioneer_bimanual_arm, parsed from the URDF.
 
-The URDF is the SINGLE SOURCE OF TRUTH for joint limits. Every consumer
-(Teleop/keyboard_based_teleoperation/armWithStand_v2_cfg.py, that directory's
-bimanual_arm_cfg.py, and pick_place_gen/wato_constants.py) imports from here
-instead of carrying its own copy, so editing urdf/pioneer_bimanual_arm.urdf
-changes the limits everywhere at once. Before this module those three files each
-hardcoded the same +/-2pi placeholder, which silently overrode the real limits.
+The URDF is the single source of truth for joint limits. bimanual_arm_cfg.py and
+armWithStand_v2_cfg.py both import JOINT_POS_LIMITS from here instead of carrying
+their own copy (they previously hardcoded a +/-2pi placeholder that overrode the
+real limits). Stdlib only -- no isaaclab, no numpy.
 
-Why a shared module rather than each config parsing the URDF itself:
-wato_constants.py runs OUTSIDE Isaac Sim (it feeds the cuRobo pipeline and says
-so in its own docstring), so anything shared with it must import nothing beyond
-the standard library. This module does exactly that -- no isaaclab, no numpy.
-
-IMPORTANT -- how a URDF edit actually reaches the simulation. The USD under
-usd/ is a separate, pre-converted artifact; nothing regenerates it when the URDF
-changes, and Isaac Sim loads the USD, never the URDF. The bridge is
-armWithStand_v2_cfg.patch_joint_pos_limits_on_prim() (at spawn) and
-apply_joint_limits() (post-init), which write these values over the spawned USD
-prims. That is what makes editing the URDF take effect without re-running
-UrdfConverter -- and it is why those two functions must keep being called.
+Isaac Sim loads the pre-converted USD under usd/, never the URDF, and nothing
+regenerates that USD on a URDF edit. The bridge is armWithStand_v2_cfg's
+patch_joint_pos_limits_on_prim() (at spawn) and apply_joint_limits() (post-init),
+which write these values onto the spawned prims -- keep both call sites.
 """
 import os
 import xml.etree.ElementTree as ET
@@ -30,11 +20,9 @@ URDF_PATH = os.path.join(_THIS_DIR, "urdf", "pioneer_bimanual_arm.urdf")
 # "continuous" joint has no limits by definition and "fixed" has no DOF.
 _LIMITED_JOINT_TYPES = ("revolute", "prismatic")
 
-# Prismatic gripper travel is deliberately NOT taken from the URDF. GRIPPER_OPEN /
-# GRIPPER_CLOSED in the arm configs, and the empirically tuned grasp that depends on
-# them, are built around this exact stroke; the URDF says joint7/joint7l [-0.05, 0.02]
-# and joint8/joint8l [-0.01, 0.05], and widening the jaw changes what the fingers do
-# to the box. Delete this dict to make the URDF authoritative for the grippers too.
+# Gripper travel is pinned here, not read from the URDF: GRIPPER_OPEN/CLOSED in the arm
+# configs and the empirically tuned grasp are built around this exact stroke. Delete this
+# dict to let the URDF ([-0.05, 0.02] / [-0.01, 0.05]) drive the grippers instead.
 GRIPPER_LIMIT_OVERRIDES = {
     "joint7": (-0.05, 0.0),
     "joint8": (0.0, 0.05),
@@ -47,16 +35,11 @@ def load_joint_limits(
     urdf_path: str | None = None,
     joint_types: tuple[str, ...] = _LIMITED_JOINT_TYPES,
 ) -> dict[str, tuple[float, float]]:
-    """{joint_name: (lower, upper)} read straight from the URDF.
+    """{joint_name: (lower, upper)} from the URDF (rad for revolute, m for prismatic).
 
-    Units follow URDF convention: radians for revolute, metres for prismatic.
-
-    Joints whose limit is degenerate (lower >= upper) are SKIPPED rather than
-    returned. The SolidWorks exporter writes lower=upper=0 for any joint whose
-    limits were never filled in, and PhysX reads lower >= upper as "no limit",
-    so propagating such a pair would silently unlock the joint instead of
-    constraining it. Skipping means the caller keeps whatever the asset already
-    had, and a missing key is visible rather than quietly wrong.
+    Degenerate limits (lower >= upper) are skipped: the exporter writes lower=upper=0
+    for unfilled joints and PhysX reads that as "no limit", so propagating it would
+    unlock the joint. Skipping leaves the asset's own limit in place.
     """
     root = ET.parse(urdf_path or URDF_PATH).getroot()
     limits: dict[str, tuple[float, float]] = {}

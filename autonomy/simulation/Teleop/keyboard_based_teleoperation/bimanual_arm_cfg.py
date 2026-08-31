@@ -11,20 +11,16 @@ Motor specs: https://watonomous.github.io/humanoid-docs/mechanical/index.html
   Gripper              GL40 KV70     0.25 Nm rated / 0.73 Nm peak
                        (rotary motor + linkage → prismatic finger travel in URDF)
 
-NOTE: the "L"-suffixed URDF chain (joint1L..joint6l) is the robot's REAL,
-CAN-actuated arm -- confirmed against real hardware -- and it is physically the
-LEFT arm; the CAD naming is correct. The LEFT_*/RIGHT_* constants below are
-REVERSED relative to that (RIGHT_* names the L-suffixed chain). Renaming them
-means updating 5 importers, so it is a separate change; armWithStand_v2_cfg.py
-covers the same asset and is already correct, so don't copy names between them.
+NOTE: the "L"-suffixed chain (joint1L..joint6l) is physically the LEFT arm (CAD
+naming is correct), but the LEFT_*/RIGHT_* constants below are REVERSED relative
+to that -- RIGHT_* names the L-suffixed chain. Fixing it means updating 5
+importers, so it's a separate change. armWithStand_v2_cfg.py covers the same
+asset and is already correct; don't copy names between the two files.
 
-In this module's own keyboard-teleop script, only the right arm is actuated;
-the left arm is held at the Physics Inspector default pose below. Note that
-run_quest_bimanual_teleop.py also imports BIMANUAL_ARM_CFG from here and
-drives BOTH arms via Quest hand tracking — the "left_arm" ImplicitActuatorCfg
-gains below were tuned for a held-still pose, not for continuous IK tracking,
-so re-check them if the left arm feels sluggish or unresponsive under Quest
-teleop.
+Only the right arm is actuated in this module's keyboard-teleop script; the left
+is held at the default pose below. The "left_arm" actuator gains were tuned for a
+held pose -- re-check them if the left arm feels sluggish under Quest teleop
+(run_quest_bimanual_teleop.py also imports BIMANUAL_ARM_CFG and drives both arms).
 
 Gripper actuation note
 ----------------------
@@ -60,10 +56,8 @@ def _deg(degrees: float) -> float:
 
 
 # --- Joint limits -----------------------------------------------------------
-# JOINT_POS_LIMITS is imported above from pioneer_bimanual_arm/urdf_joint_limits.py, which
-# parses urdf/pioneer_bimanual_arm.urdf -- the ground truth for this asset's limits. It is
-# re-exported here so existing `from bimanual_arm_cfg import JOINT_POS_LIMITS` call sites
-# keep working. This replaced a hardcoded +/-2pi placeholder that was never verified.
+# Re-exported from urdf_joint_limits (parses the URDF) so `from bimanual_arm_cfg import
+# JOINT_POS_LIMITS` call sites keep working. Replaced an unverified +/-2pi placeholder.
 
 # --- Default poses from Physics Inspector (revolute: deg -> rad) ------------
 _DEFAULT_JOINT_POS = {
