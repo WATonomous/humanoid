@@ -22,6 +22,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         # Serves files in the static directory over HTTPS.
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
 
+    def log_request(self, code="-", size="-"):
+        # index.html polls pov_left/right.jpg, wrist_cam_*.jpg and marker_uv.json back-to-back,
+        # so the per-GET access log floods the console and buries the sim's [Quest][...] prints.
+        # log_request, NOT log_message: log_error() routes through log_message, so overriding
+        # that would also swallow 404s and 500s -- exactly the errors behind a blank headset.
+        pass
+
 
 if __name__ == "__main__":
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)  # Change HTTP to HTTPS.

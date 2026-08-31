@@ -332,20 +332,18 @@ if they overshoot.
 
 ### IK tracking speed
 
-Tracking aggressiveness is controlled by `_DLS_LAMBDA` (damping) in
-`run_quest_bimanual_teleop.py`, passed as `lambda_val` to each arm's
-`DifferentialIKControllerCfg(ik_method="dls", ...)`. Lower damping converges
-faster but is less stable near singular configurations; higher damping is
-more stable but converges more slowly.
+Tracking aggressiveness is controlled by the DLS damping `_DLS_LAMBDA` /
+`_DLS_LAMBDA_RIGHT` in `run_quest_bimanual_teleop.py`, passed as `lambda_val`
+to each arm's weighted-DLS solve. Lower damping converges faster but is less
+stable near singular configurations; higher damping is more stable but
+converges more slowly.
 
-Current value (`0.2`) was tuned live on the left arm: at the DLS default
-(`0.01`), a ~0.1m commanded tip displacement pushed the Jacobian condition
-number from ~60 (rest) to 4000+, and the solver's per-frame correction
-actually moved some axes AWAY from the target instead of converging. `0.2`
-keeps the condition number bounded (~100) and converges to a stable ~0.05m
-residual instead. The right arm inherits the same value (mechanically
-mirrors the left) — retune per-arm live if one side feels sluggish or
-unstable relative to the other.
+Current values (`0.1` left, `0.175` right) were lowered from `0.2 / 0.35`
+once `armWithStand_v2_cfg` started spawning the arm with the elbows flexed —
+the higher damping had been compensating for the ill-conditioned
+full-extension spawn pose, which no longer occurs. Lower damping also cuts
+wrist-twist leakage into the shoulder (see `_IK_JOINT_COST`). Raise both back
+toward `0.2 / 0.35` if an arm feels jittery near singularities.
 
 Since the Quest wrist stream only updates at ~30 Hz against a 100 Hz solve
 loop, low damping directly translates hand-tracking noise into visible
@@ -354,35 +352,30 @@ jitter — retune live in sim rather than assuming this number is final.
 **If the arm undershoots specifically on upward reach** (tracks fine
 horizontally but doesn't lift as far as the real wrist moves), check
 `effort_limit_sim` on the shoulder/elbow `ImplicitActuatorCfg` blocks in
-`bimanual_arm_cfg.py` before touching IK gains — lifting the arm against
+`armWithStand_v2_cfg.py` before touching IK gains — lifting the arm against
 gravity at extension needs more torque than any other direction, and a cap
 set to the motor's *rated* torque (not *peak*) will saturate there first and
 visibly lag the commanded target. Shoulder/elbow are currently set to peak
-(53 Nm / 22 Nm); if it's still undershooting, the next suspects are IK
-singularity damping near full extension (`lm_damping`, above) or an actual
+(53 Nm / 22 Nm); if it's still undershooting, the next suspect is an actual
 kinematic reach limit.
 
 Actuator responsiveness (how fast joints track the IK output) is set in
-`autonomy/simulation/Teleop/keyboard_based_teleoperation/bimanual_arm_cfg.py`
+`autonomy/simulation/Teleop/keyboard_based_teleoperation/armWithStand_v2_cfg.py`
 via `stiffness` and `damping` on each `ImplicitActuatorCfg`. Current values
-are 2× the original motor datasheet figures for faster sim tracking.
+are raised ~25–50% above the original static-hold tuning for faster tracking
+of a moving IK target; the torque caps stay at the real motor peak.
 
 ### Coordinate frame mapping
 
-`_QUEST_TO_WORLD` in `run_quest_bimanual_teleop.py` is the 3×3 rotation matrix
-that maps Quest standing-space axes to simulation world-frame axes. It must
-have determinant +1 (proper rotation) — a det = −1 matrix silently corrupts
-orientation tracking via `quat_from_matrix`.
+Both position and orientation are now mapped camera-relative, through
+`_QUEST_TO_CAM_LOCAL` / `_CAM_LOCAL_*` and the runtime `camera_tilt_quat`, so
+sideways hand motion stays sideways regardless of head tilt. `_QUEST_TO_WORLD`
+is retired — kept only because `quest_to_world_quat` is still derived from it.
 
 `_AXIS_SIGN_LEFT` / `_AXIS_SIGN_RIGHT` are per-arm, per-axis sign vectors
-`[sx, sy, sz]` applied to the world-frame position delta after the matrix
-remap. Use them to flip individual axes per arm without touching the
-orientation-critical matrix.
-
-If an axis feels backwards, flip the corresponding element of
-`_AXIS_SIGN_LEFT`/`_AXIS_SIGN_RIGHT` (currently `[1, -1, 1]` for both). Do
-**not** negate a row of `_QUEST_TO_WORLD` — that changes the determinant sign
-and breaks orientation.
+`[sx, sy, sz]` applied to the position delta. Use them to flip an axis per
+arm if it feels backwards (currently `[1, 1, 1]` for both). Don't negate a
+row of the mapping matrix — that flips its determinant and breaks orientation.
 
 ### Wrist orientation alignment
 
@@ -396,12 +389,14 @@ remap, the rotation axes do not 1:1 correspond between the physical wrist and
 the EE.
 
 **Current knob:** `_WRIST_ORIENT_OFFSET_LEFT` / `_WRIST_ORIENT_OFFSET_RIGHT`
-(line ~135 in `run_quest_bimanual_teleop.py`) are independent `(w, x, y, z)`
-quaternions, one per arm, applied as a conjugation on the world-frame
-orientation delta before converting to base frame. They're separate because
-the measured misalignment differs per arm (~30° right, ~90° left) — a single
-shared offset can't correct both simultaneously. Identity `[1, 0, 0, 0]` = no
-correction. Common trial values (tune each arm independently):
+(in the constants block near the top of `run_quest_bimanual_teleop.py`) are
+independent `(w, x, y, z)` quaternions, one per arm, applied as a conjugation
+on the world-frame orientation delta before converting to base frame. They're
+separate because the measured misalignment differs per arm (~30° right, ~90°
+left) — a single shared offset can't correct both simultaneously. Identity
+`[1, 0, 0, 0]` = no correction. Both are identity now: armWithStand's joint6l
+rotates about a different axis than the old asset's, so the old non-identity
+values don't transfer and need live in-headset retuning. Common trial values:
 
 | Value | Meaning |
 |-------|---------|
@@ -535,7 +530,7 @@ degrades gracefully to whatever rate actually arrives.
 ### Do you need a physical RealSense on the real arm?
 
 No, not for this. The stereo camera feed documented earlier in this README
-(the "Both-Arms POV" stereo pair, `pov_left.png`/`pov_right.png`) is captured
+(the "Both-Arms POV" stereo pair, `pov_left.jpg`/`pov_right.jpg`) is captured
 entirely from the Isaac Sim viewport — it's a property of the simulated
 scene, has no connection to the real-hardware bridge above, and doesn't
 require or benefit from a physical camera. For the first real-hardware test,

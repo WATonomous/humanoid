@@ -6,7 +6,7 @@ import subprocess
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import torch
@@ -106,6 +106,7 @@ class SimLeRobotRecorder:
         buffer_capacity_s: float = 120.0,
         robot_type: str = "so101_follower",
         extra_features: dict[str, list[str]] | None = None,
+        rate_limit: bool = True,
     ) -> None:
         self.fps = fps
         self.save_mp4 = save_mp4
@@ -145,7 +146,10 @@ class SimLeRobotRecorder:
         self._flags: EpisodeFlags | None = None
         self._keyboard: EpisodeKeyboard | None = None
         self._last_frame_t: float = 0.0
-        self._frame_period: float = 1.0 / fps
+        # rate_limit=False: caller owns the cadence, tick() pushes every call. Use it when the
+        # images only change on some ticks (sim rendering every Nth step) -- a second decimator
+        # here can't line up with the render gate, and the extra ticks duplicate images.
+        self._frame_period: float = (1.0 / fps) if rate_limit else 0.0
 
     def start_keyboard(self) -> bool:
         """Create episode flags, attach keyboard listener, and return whether keyboard started."""
@@ -157,11 +161,15 @@ class SimLeRobotRecorder:
         self,
         action: np.ndarray | torch.Tensor,
         state: np.ndarray | torch.Tensor,
-        images: dict[str, np.ndarray | torch.Tensor],
+        images: dict[str, np.ndarray | torch.Tensor] | Callable[[], dict[str, np.ndarray | torch.Tensor]],
         depth_buffers: dict[str, np.ndarray | torch.Tensor] | None = None,
         instance_id_seg_buffers: dict[str, np.ndarray | torch.Tensor] | None = None,
     ) -> bool:
         """Handle episode flags and push one frame if the rate allows.
+
+        `images` may be a plain dict or a zero-arg callable returning one -- pass a
+        callable when capturing images is expensive (GPU->CPU reads); it's invoked
+        only on frames actually pushed, not on no-op ticks.
 
         Returns True if an episode was just saved (so callers can trigger a scene reset).
         No-op if start_keyboard() was never called.
@@ -181,7 +189,8 @@ class SimLeRobotRecorder:
             now = time.monotonic()
             if now - self._last_frame_t >= self._frame_period:
                 self._last_frame_t = now
-                self.push_frame_to_buffer(action, state, images, depth_buffers, instance_id_seg_buffers)
+                resolved_images = images() if callable(images) else images
+                self.push_frame_to_buffer(action, state, resolved_images, depth_buffers, instance_id_seg_buffers)
         return False
 
     @property
@@ -237,10 +246,13 @@ class SimLeRobotRecorder:
                 self.dataset = LeRobotDataset(self.repo_id, root=root)
                 print(f"[INFO]: Opened existing dataset at {root}")
                 return
-            except Exception:
+            except Exception as exc:
                 raise ValueError(
-                    f"[ERROR]: Dataset folder exists but cannot be opened: {root}"
-                )
+                    f"[ERROR]: Dataset folder exists but cannot be opened: {root}\n"
+                    f"  Cause: {type(exc).__name__}: {exc}\n"
+                    "  A run that ended before saving an episode leaves a folder LeRobotDataset "
+                    "cannot re-open. Delete it (or pass --dataset_root elsewhere) and retry."
+                ) from exc
 
         self.dataset = LeRobotDataset.create(
             self.repo_id,

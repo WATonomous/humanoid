@@ -11,19 +11,16 @@ Motor specs: https://watonomous.github.io/humanoid-docs/mechanical/index.html
   Gripper              GL40 KV70     0.25 Nm rated / 0.73 Nm peak
                        (rotary motor + linkage → prismatic finger travel in URDF)
 
-NOTE: the "L"-suffixed URDF chain (joint1L..joint6l) is the robot's REAL,
-CAN-actuated arm -- confirmed against real hardware. The mechanical/CAD
-naming ("L" for what it called "left") was WRONG: this chain is physically
-the robot's RIGHT arm. Corrected throughout this file; the unsuffixed chain
-(joint1..joint6) is the LEFT arm (mirrored/held, not CAN-actuated).
+NOTE: the "L"-suffixed chain (joint1L..joint6l) is physically the LEFT arm (CAD
+naming is correct), but the LEFT_*/RIGHT_* constants below are REVERSED relative
+to that -- RIGHT_* names the L-suffixed chain. Fixing it means updating 5
+importers, so it's a separate change. armWithStand_v2_cfg.py covers the same
+asset and is already correct; don't copy names between the two files.
 
-In this module's own keyboard-teleop script, only the right arm is actuated;
-the left arm is held at the Physics Inspector default pose below. Note that
-run_quest_bimanual_teleop.py also imports BIMANUAL_ARM_CFG from here and
-drives BOTH arms via Quest hand tracking — the "left_arm" ImplicitActuatorCfg
-gains below were tuned for a held-still pose, not for continuous IK tracking,
-so re-check them if the left arm feels sluggish or unresponsive under Quest
-teleop.
+Only the right arm is actuated in this module's keyboard-teleop script; the left
+is held at the default pose below. The "left_arm" actuator gains were tuned for a
+held pose -- re-check them if the left arm feels sluggish under Quest teleop
+(run_quest_bimanual_teleop.py also imports BIMANUAL_ARM_CFG and drives both arms).
 
 Gripper actuation note
 ----------------------
@@ -39,6 +36,7 @@ In sim we:
 """
 import math
 import os
+import sys
 
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
@@ -48,34 +46,18 @@ _THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 _BIMANUAL_ROOT = os.path.abspath(os.path.join(_THIS_DIR, "..", "..", "Humanoid_Wato", "pioneer_bimanual_arm"))
 _ARM_USD_PATH = os.path.join(_BIMANUAL_ROOT, "usd", "pioneer_bimanual_arm.usd")
 
+if _BIMANUAL_ROOT not in sys.path:
+    sys.path.insert(0, _BIMANUAL_ROOT)
+from urdf_joint_limits import JOINT_POS_LIMITS  # noqa: E402  (needs the path insert above)
+
 
 def _deg(degrees: float) -> float:
     return degrees * math.pi / 180.0
 
 
-# --- Joint limits from Physics Inspector ------------------------------------
-_REVOLUTE_LIMIT = (-2 * math.pi, 2 * math.pi)
-_JOINT7_LIMIT = (-0.05, 0.0)
-_JOINT8_LIMIT = (0.0, 0.05)
-
-JOINT_POS_LIMITS = {
-    "joint1": _REVOLUTE_LIMIT,
-    "joint2": _REVOLUTE_LIMIT,
-    "joint3": _REVOLUTE_LIMIT,
-    "joint4": _REVOLUTE_LIMIT,
-    "joint5": _REVOLUTE_LIMIT,
-    "joint6": _REVOLUTE_LIMIT,
-    "joint7": _JOINT7_LIMIT,
-    "joint8": _JOINT8_LIMIT,
-    "joint1L": _REVOLUTE_LIMIT,
-    "joint2l": _REVOLUTE_LIMIT,
-    "joint3l": _REVOLUTE_LIMIT,
-    "joint4l": _REVOLUTE_LIMIT,
-    "joint5l": _REVOLUTE_LIMIT,
-    "joint6l": _REVOLUTE_LIMIT,
-    "joint7l": _JOINT7_LIMIT,
-    "joint8l": _JOINT8_LIMIT,
-}
+# --- Joint limits -----------------------------------------------------------
+# Re-exported from urdf_joint_limits (parses the URDF) so `from bimanual_arm_cfg import
+# JOINT_POS_LIMITS` call sites keep working. Replaced an unverified +/-2pi placeholder.
 
 # --- Default poses from Physics Inspector (revolute: deg -> rad) ------------
 _DEFAULT_JOINT_POS = {
