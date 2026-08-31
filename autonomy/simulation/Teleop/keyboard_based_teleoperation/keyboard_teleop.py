@@ -64,7 +64,7 @@ import torch
 import isaaclab.sim as sim_utils
 from isaaclab.assets import AssetBaseCfg
 from isaaclab.controllers import DifferentialIKController, DifferentialIKControllerCfg
-from isaaclab.devices import Se3Keyboard
+from isaaclab.devices import Se3Keyboard, Se3KeyboardCfg
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.utils import configclass
@@ -246,7 +246,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         device=sim.device,
     )
 
-    teleop = Se3Keyboard(pos_sensitivity=0.005, rot_sensitivity=0.05)
+    teleop = Se3Keyboard(Se3KeyboardCfg(pos_sensitivity=0.005, rot_sensitivity=0.05, gripper_term=True))
     should_reset = False
 
     def reset_left_arm():
@@ -274,8 +274,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             teleop.reset()
             should_reset = False
 
-        delta_pose, close_gripper = teleop.advance()
-        command = torch.tensor(delta_pose, dtype=torch.float32, device=sim.device).unsqueeze(0)
+        # Se3Keyboard.advance() returns a 7-vec tensor: [dx,dy,dz,drx,dry,drz, gripper(+1 open/-1 close)].
+        cmd = teleop.advance()
+        command = cmd[:6].to(dtype=torch.float32, device=sim.device).unsqueeze(0)
+        close_gripper = bool(cmd[6].item() < 0.0) if cmd.numel() > 6 else False
 
         if debug_steps < 5 and torch.any(command.abs() > 1e-4):
             print(f"[DEBUG] Keyboard command: {command[0].tolist()}")
