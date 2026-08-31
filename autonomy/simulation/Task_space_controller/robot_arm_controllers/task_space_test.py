@@ -53,7 +53,7 @@ from isaaclab.markers import VisualizationMarkers  # noqa: E402
 from isaaclab.markers.config import FRAME_MARKER_CFG  # noqa: E402
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg  # noqa: E402
 from isaaclab.utils import configclass  # noqa: E402
-from isaaclab.utils.math import subtract_frame_transforms  # noqa: E402
+from isaaclab.utils.math import quat_inv, quat_mul, subtract_frame_transforms  # noqa: E402
 import torch  # noqa: E402
 
 
@@ -140,20 +140,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     diff_ik_controller.reset(env_ids=torch.arange(scene.num_envs, device=sim.device))
 
-    # Read the cube's live authored USD transform each frame -- scene["cube"] is a plain
-    # visual prim (AssetBaseCfg), so its physics-tensor pose never updates on a viewport
-    # drag; the composed USD transform does.
+    # Read the cube from its USD transform, not the physics tensor -- an AssetBaseCfg prim's
+    # tensor pose doesn't update on a viewport drag.
     _cube_prim = omni.usd.get_context().get_stage().GetPrimAtPath("/World/cube")
     _cube_xf = UsdGeom.Xformable(_cube_prim)
-
-    # Start the cube target exactly at the gripper's current pose, so the arm doesn't
-    # snap to an awkward orientation on launch (link6l's frame is not identity). Written
-    # straight to the prim's xformOps since the cube is a plain visual prim.
-    _tp, _tq = compute_gripper_tip_pose_w(robot, wrist_body_id, finger_body_ids)
-    _p, _q = _tp[0].tolist(), _tq[0].tolist()
-    _cube_xf.ClearXformOpOrder()
-    _cube_xf.AddTranslateOp(UsdGeom.XformOp.PrecisionDouble).Set(Gf.Vec3d(_p[0], _p[1], _p[2]))
-    _cube_xf.AddOrientOp(UsdGeom.XformOp.PrecisionDouble).Set(Gf.Quatd(_q[0], _q[1], _q[2], _q[3]))
 
     def _cube_pose_w():
         m = _cube_xf.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
@@ -163,6 +153,23 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         pos = torch.tensor([[t[0], t[1], t[2]]], dtype=torch.float32, device=sim.device)
         quat = torch.tensor([[q.GetReal(), im[0], im[1], im[2]]], dtype=torch.float32, device=sim.device)
         return pos, quat
+
+    # Co-locate the cube with the gripper at launch (position only; orientation stays identity).
+    _tp_w, _ = compute_gripper_tip_pose_w(robot, wrist_body_id, finger_body_ids)
+    _p = _tp_w[0].tolist()
+    _cube_xf.ClearXformOpOrder()
+    _cube_xf.AddTranslateOp(UsdGeom.XformOp.PrecisionDouble).Set(Gf.Vec3d(_p[0], _p[1], _p[2]))
+    sim.step()
+    scene.update(sim_dt)
+
+    # link6l's frame isn't identity, so the IK target is (cube rotation since launch) applied
+    # to the gripper's rest orientation -- cube at rest -> gripper at rest, and a world-axis
+    # cube rotation is a world-axis gripper rotation.
+    _root0 = robot.data.root_state_w[:, 0:7]
+    _cp0_w, _cq0_w = _cube_pose_w()
+    _, _cube_q0_b = subtract_frame_transforms(_root0[:, 0:3], _root0[:, 3:7], _cp0_w, _cq0_w)
+    _, _wrist_q0_b = compute_gripper_tip_pose_b(robot, _root0, wrist_body_id, finger_body_ids)
+    _cube_q0_b_inv = quat_inv(_cube_q0_b)
 
     while simulation_app.is_running():
         cube_pos_w, cube_quat_w = _cube_pose_w()
@@ -181,9 +188,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             robot, root_pose_w, wrist_body_id, finger_body_ids
         )
 
-        # Full 6-DOF target: track the cube's position AND orientation.
-        cube_pose_b = torch.cat([cube_pos_b, cube_quat_b], dim=-1)
-        diff_ik_controller.set_command(cube_pose_b, ee_quat=tip_quat_b)
+        d_cube_b = quat_mul(cube_quat_b, _cube_q0_b_inv)
+        target_quat_b = quat_mul(d_cube_b, _wrist_q0_b)
+        diff_ik_controller.set_command(
+            torch.cat([cube_pos_b, target_quat_b], dim=-1), ee_quat=tip_quat_b
+        )
 
         jacobian = compute_tip_ik_jacobian(
             robot,
