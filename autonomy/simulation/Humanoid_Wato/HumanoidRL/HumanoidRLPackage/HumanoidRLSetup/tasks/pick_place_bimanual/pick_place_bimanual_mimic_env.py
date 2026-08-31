@@ -56,7 +56,7 @@ from .robot_cfg_shim import (
     compute_tip_ik_jacobian,
     resolve_body_ids,
 )
-from .robot_cfg_shim import wato_constants as wc
+from .robot_cfg_shim import task_geometry as tg
 
 _EEF_NAME = "left_arm"
 # object_ref for the second (place) subtask, keyed by PlaceParams.mode. Every
@@ -101,7 +101,7 @@ def _add_place_target_marker(cfg: "PickPlaceBimanualMimicEnvCfg", params: PickPl
     mid = (
         (params.place.x_range[0] + params.place.x_range[1]) / 2,
         (params.place.y_range[0] + params.place.y_range[1]) / 2,
-        wc.TABLE_TOP_Z,
+        tg.TABLE_TOP_Z,
     )
     marker = _cuboid_object_cfg("PlaceTarget", (0.01, 0.01, 0.002), 0.001, (0.15, 0.85, 0.15), mid)
     marker.spawn.collision_props = None
@@ -111,7 +111,7 @@ def _add_place_target_marker(cfg: "PickPlaceBimanualMimicEnvCfg", params: PickPl
 
     reset_params = cfg.events.reset_objects.params
     reset_params["asset_cfgs"] = list(reset_params["asset_cfgs"]) + [SceneEntityCfg("place_target")]
-    reset_params["z_values"] = list(reset_params["z_values"]) + [wc.TABLE_TOP_Z]
+    reset_params["z_values"] = list(reset_params["z_values"]) + [tg.TABLE_TOP_Z]
 
 
 def _wire_mimic_extras(cfg: "PickPlaceBimanualMimicEnvCfg", params: PickPlaceTaskParams) -> None:
@@ -137,7 +137,7 @@ def _wire_mimic_extras(cfg: "PickPlaceBimanualMimicEnvCfg", params: PickPlaceTas
     elif params.place.mode == "tray":
         s = params.place.tray_scale * params.place.tray_height_scale
         success_params["target_xy"] = tuple(params.place.tray_center)
-        success_params["target_support_z"] = wc.TABLE_TOP_Z + s * wc.TRAY_FLOOR_LOCAL_Z
+        success_params["target_support_z"] = tg.TABLE_TOP_Z + s * tg.TRAY_FLOOR_LOCAL_Z
     else:  # table
         success_params["target_cfg"] = SceneEntityCfg("place_target")
         success_params["target_support_offset"] = 0.0

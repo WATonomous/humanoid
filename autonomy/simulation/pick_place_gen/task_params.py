@@ -1,13 +1,11 @@
 """Configuration surface for the generalized pick-and-place task.
 
-One dataclass consumed by BOTH the Isaac Lab env cfg (scene/events) and the
-cuRobo expert/orchestrator (waypoints, noise, success checks), loaded from a
+One dataclass consumed by the Isaac Lab env cfg (scene/events), loaded from a
 YAML file. See pick_place_gen/README.md for a field-by-field guide and
 worked examples (plain pick-place, stacking, camera-less fast mode).
 
 All poses/ranges are in the robot base frame (== env-local frame; the robot
-sits at the env origin). Defaults come from the validated workspace in
-wato_constants.py.
+sits at the env origin). Defaults come from the validated workspace in task_geometry.py.
 """
 from __future__ import annotations
 
@@ -16,7 +14,7 @@ from typing import Optional
 
 import yaml
 
-import wato_constants as wc
+import task_geometry as tg
 
 
 @dataclass
@@ -25,8 +23,8 @@ class ObjectParams:
     size: tuple = (0.04, 0.04, 0.04)      # cuboid edge lengths [m]
     mass: float = 0.05                     # [kg]
     color: tuple = (0.8, 0.1, 0.1)         # RGB 0-1
-    x_range: tuple = wc.WORKSPACE_X        # spawn range [m]
-    y_range: tuple = wc.WORKSPACE_Y
+    x_range: tuple = tg.WORKSPACE_X        # spawn range [m]
+    y_range: tuple = tg.WORKSPACE_Y
     yaw_range: tuple = (-3.14159, 3.14159)
 
 
@@ -35,8 +33,8 @@ class PlaceParams:
     """Where to place it."""
     mode: str = "table"                    # "table": random pose on the table | "stack": on top of
                                            # place_object | "tray": centre of a fixed tray (tray.usda)
-    x_range: tuple = wc.WORKSPACE_X        # target sample range (table mode)
-    y_range: tuple = wc.WORKSPACE_Y
+    x_range: tuple = tg.WORKSPACE_X        # target sample range (table mode)
+    y_range: tuple = tg.WORKSPACE_Y
     min_separation: float = 0.12           # min XY distance object <-> target at reset [m]
     xy_tolerance: float = 0.03             # success: object center within this XY radius [m]
     z_tolerance: float = 0.02              # success: object height within this of target [m]
@@ -54,7 +52,14 @@ class PlaceParams:
 
 @dataclass
 class MotionParams:
-    """Expert motion shaping (cuRobo phase targets)."""
+    """Expert motion shaping (phase targets for a scripted/planned demo generator).
+
+    NOTE: these fields were consumed by the cuRobo-based demo generator
+    (pick_place_gen/{curobo_expert,orchestrator,generate_demos}.py), now
+    removed. `lift_height` is still read by the Mimic env's grasp subtask
+    signal; the rest are currently unused pending a replacement seed-demo
+    generator.
+    """
     hover_offset: float = 0.10             # pre-grasp hover above the grasp pose [m]
     place_hover_offset: float = 0.06       # hover above the place pose — lower than the
                                            # grasp hover; poses near the workspace ceiling
@@ -62,9 +67,9 @@ class MotionParams:
     grasp_tip_depth: float = 0.010         # fingertip-center below object top at grasp [m]
     lift_height: float = 0.16              # transit height above table top [m]
     place_clearance: float = 0.005         # drop gap above the support surface [m]
-    yaw_candidates: int = wc.NUM_GRASP_YAWS  # top-down grasp yaw goalset size
+    yaw_candidates: int = tg.NUM_GRASP_YAWS  # top-down grasp yaw goalset size
     max_plan_attempts: int = 3
-    time_dilation: float = 0.6             # slow cuRobo trajectories (1.0 = planner speed)
+    time_dilation: float = 0.6             # slow planner trajectories (1.0 = planner speed)
 
 
 @dataclass

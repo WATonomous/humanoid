@@ -33,7 +33,6 @@ from HumanoidRLPackage.HumanoidRLSetup.tasks.pick_place_bimanual.pick_place_env_
 
 
 def main():
-    shim.check_constants_consistency()
     params = shim.PickPlaceTaskParams.from_yaml(args_cli.task_params)
     if not args_cli.enable_cameras:
         params.cameras.enabled = False
