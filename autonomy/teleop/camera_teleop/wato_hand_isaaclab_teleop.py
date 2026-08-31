@@ -12,7 +12,7 @@ Usage (in the Docker container):
   # Terminal 3 — run from the repo root:
   PYTHONPATH=<repo_root>/autonomy/simulation/Humanoid_Wato \
     /workspace/isaaclab/isaaclab.sh -p \
-    <repo_root>/autonomy/teleop/camera_based_teleoperation/wato_hand_isaaclab_teleop.py
+    <repo_root>/autonomy/teleop/camera_teleop/wato_hand_isaaclab_teleop.py
 """
 
 import argparse

@@ -838,7 +838,7 @@ def _pinch_dist(hand_joints: list) -> float:
 def _publish_real_left_arm_pose(pub, clock_node, joint_pos_des_rad) -> None:
     """Build and publish an ArmPose for the real left arm from a DLS
     solution. Field layout/units copied EXACTLY from
-    autonomy/teleop/task_space/task_space_ik.py's
+    autonomy/teleop/task_space_controller/task_space_ik.py's
     publish_joint_pos -- same LEFT_ARM_JOINTS order (joint1L, joint2l,
     joint3l, joint4l, joint5l, joint6l) maps 1:1 to
     shoulder(flexion,abduction,rotation) / elbow(flexion,forearm_rotation) /

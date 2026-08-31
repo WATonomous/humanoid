@@ -463,7 +463,7 @@ there's nothing on the other end to receive it yet. Adding it requires:
 ### Message mapping
 
 Field layout and units are copied exactly from the existing sim-to-real
-precedent, `autonomy/teleop/task_space/task_space_ik.py`
+precedent, `autonomy/teleop/task_space_controller/task_space_ik.py`
 (`publish_joint_pos`) — same `LEFT_ARM_JOINTS` order
 (`joint1L, joint2l, joint3l, joint4l, joint5l, joint6l`) maps 1:1 to:
 

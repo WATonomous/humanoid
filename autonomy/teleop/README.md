@@ -16,10 +16,10 @@ All teleoperation entry points live here (one home, not scattered across `autono
 
 | Folder | Input device | Sim robot | IL recording |
 |--------|--------------|-----------|--------------|
-| [`keyboard_based_teleoperation/`](keyboard_based_teleoperation/) | Keyboard + IK | pioneer bimanual (right arm) | `--record` → `humanoid_il` |
-| [`task_space/`](task_space/) | Viewport pose target + IK | pioneer bimanual (left arm) | `--publish-real-left-arm` → `/behaviour/arm_pose` |
-| [`so101_leader_teleoperation/`](so101_leader_teleoperation/) | SO101 Leader (USB) or keyboard + IK | SO101 follower | `--record` → `humanoid_il` |
-| [`camera_based_teleoperation/`](camera_based_teleoperation/) | Webcam hand landmarks | pioneer hand | not wired yet |
+| [`keyboard_teleop/`](keyboard_teleop/) | Keyboard + IK | pioneer bimanual (right arm) | `--record` → `humanoid_il` |
+| [`task_space_controller/`](task_space_controller/) | Viewport pose target + IK | pioneer bimanual (left arm) | `--publish-real-left-arm` → `/behaviour/arm_pose` |
+| [`so101_leader_teleop/`](so101_leader_teleop/) | SO101 Leader (USB) or keyboard + IK | SO101 follower | `--record` → `humanoid_il` |
+| [`camera_teleop/`](camera_teleop/) | Webcam hand landmarks | pioneer hand | not wired yet |
 | `humanoid-record` (CLI) | ROS topics | real pioneer arm | `autonomy/il` |
 
 Shared IK helpers + arm config: `autonomy/simulation/pioneer_humanoid`.

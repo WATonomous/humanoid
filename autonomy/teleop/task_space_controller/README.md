@@ -45,7 +45,7 @@ ros2 launch can can.launch.py
 ros2 launch joint_command joint_command.launch.py
 
 # Terminal 3 — the sim, in the simulation_isaac container (has ROS 2 built for Isaac's Python)
-<isaaclab.sh> -p autonomy/teleop/task_space/task_space_ik.py \
+<isaaclab.sh> -p autonomy/teleop/task_space_controller/task_space_ik.py \
   --publish-real-left-arm
 ```
 
