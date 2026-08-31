@@ -9,7 +9,7 @@ History: this file was `wato_constants.py`. It used to also carry a copy of the
 arm's joint limits / default pose / EE bodies so the (now-removed) cuRobo
 pipeline could import them without pulling in isaaclab. cuRobo was archived in
 PR #187 and every remaining importer runs inside Isaac Lab, so the arm half now
-lives only in `Teleop/keyboard_based_teleoperation/pioneer_bimanual_arm_cfg.py`.
+lives only in `pioneer_humanoid/pioneer_humanoid/bimanual_arm.py`.
 """
 import math  # noqa: F401  (kept for downstream configs that do trig on these)
 import os
@@ -19,7 +19,7 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", 
 # --- Gripper approach frame ------------------------------------------------
 # Fingertip-center offset in the link6l (wrist) frame. Constant for a
 # synchronized gripper pair (q7l = -q8l); derived from the joint7l/joint8l URDF
-# origins + the finger distal-tip locals in pioneer_bimanual_arm_cfg.py
+# origins + the finger distal-tip locals in pioneer_humanoid.bimanual_arm
 # (RIGHT_FINGER_DISTAL_TIP_LOCAL). Fingers extend along wrist -Y.
 #   x: ((-0.016558 + 0.13211595) + (0.085558 - 0.13211595)) / 2
 #   y: -0.10361 - 0.04057075

@@ -36,17 +36,20 @@ Actuator groups were tuned for holding a static pose -- recheck stiffness/dampin
 if an arm feels sluggish tracking a moving IK target.
 """
 import math
-import os
 import sys
+from pathlib import Path
 
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
-_THIS_DIR = os.path.abspath(os.path.dirname(__file__))
-_ARM_ROOT = os.path.abspath(os.path.join(_THIS_DIR, "..", "..", "Humanoid_Wato", "pioneer_bimanual_arm"))
-_ARM_USD_PATH = os.path.join(_ARM_ROOT, "usd", "pioneer_bimanual_arm.usd")
+# .../autonomy/simulation/pioneer_humanoid/pioneer_humanoid/bimanual_arm.py -> .../autonomy/simulation
+_SIM_DIR = Path(__file__).resolve().parents[2]
+_ARM_ROOT = str(_SIM_DIR / "Humanoid_Wato" / "pioneer_bimanual_arm")
+_ARM_USD_PATH = str(Path(_ARM_ROOT) / "usd" / "pioneer_bimanual_arm.usd")
 
+# urdf_joint_limits.py is stdlib-only and deliberately co-located with the URDF it parses
+# (Humanoid_Wato/pioneer_bimanual_arm/), so it stays outside this package.
 if _ARM_ROOT not in sys.path:
     sys.path.insert(0, _ARM_ROOT)
 from urdf_joint_limits import JOINT_POS_LIMITS  # noqa: E402  (needs the path insert above)
@@ -57,7 +60,7 @@ def _deg(degrees: float) -> float:
 
 
 # --- Joint limits -----------------------------------------------------------
-# Re-exported from urdf_joint_limits (parses the URDF) so `from pioneer_bimanual_arm_cfg import
+# Re-exported from urdf_joint_limits (parses the URDF) so `from pioneer_humanoid.bimanual_arm import
 # JOINT_POS_LIMITS` call sites keep working. apply_joint_limits() and
 # patch_joint_pos_limits_on_prim() below write it onto the spawned prims, so this is what the
 # joints actually enforce at runtime. Replaced an unverified +/-2pi (no-limit) placeholder.
@@ -329,7 +332,7 @@ spawn_bimanual_arm_from_usd.__name__ = "spawn_bimanual_arm_from_usd"
 spawn_bimanual_arm_from_usd.__qualname__ = "spawn_bimanual_arm_from_usd"
 
 
-PIONEER_BIMANUAL_ARM_CFG = ArticulationCfg(
+BIMANUAL_ARM_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
         func=spawn_bimanual_arm_from_usd,
         usd_path=_ARM_USD_PATH,

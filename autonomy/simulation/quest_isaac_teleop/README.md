@@ -339,7 +339,7 @@ stable near singular configurations; higher damping is more stable but
 converges more slowly.
 
 Current values (`0.1` left, `0.175` right) were lowered from `0.2 / 0.35`
-once `armWithStand_v2_cfg` started spawning the arm with the elbows flexed —
+once the canonical arm config started spawning the arm with the elbows flexed —
 the higher damping had been compensating for the ill-conditioned
 full-extension spawn pose, which no longer occurs. Lower damping also cuts
 wrist-twist leakage into the shoulder (see `_IK_JOINT_COST`). Raise both back
@@ -352,7 +352,7 @@ jitter — retune live in sim rather than assuming this number is final.
 **If the arm undershoots specifically on upward reach** (tracks fine
 horizontally but doesn't lift as far as the real wrist moves), check
 `effort_limit_sim` on the shoulder/elbow `ImplicitActuatorCfg` blocks in
-`armWithStand_v2_cfg.py` before touching IK gains — lifting the arm against
+`pioneer_humanoid.bimanual_arm` before touching IK gains — lifting the arm against
 gravity at extension needs more torque than any other direction, and a cap
 set to the motor's *rated* torque (not *peak*) will saturate there first and
 visibly lag the commanded target. Shoulder/elbow are currently set to peak
@@ -360,7 +360,7 @@ visibly lag the commanded target. Shoulder/elbow are currently set to peak
 kinematic reach limit.
 
 Actuator responsiveness (how fast joints track the IK output) is set in
-`autonomy/simulation/Teleop/keyboard_based_teleoperation/armWithStand_v2_cfg.py`
+`autonomy/simulation/pioneer_humanoid/pioneer_humanoid/bimanual_arm.py`
 via `stiffness` and `damping` on each `ImplicitActuatorCfg`. Current values
 are raised ~25–50% above the original static-hold tuning for faster tracking
 of a moving IK target; the torque caps stay at the real motor peak.

@@ -23,6 +23,10 @@ from isaaclab.app import AppLauncher
 _IL_PKG = Path(__file__).resolve().parents[3] / "il"
 _DEFAULT_SIM_SCHEMA = _IL_PKG / "config" / "dataset_schema_sim.yaml"
 
+# pioneer_humanoid package (canonical arm config). Editable-installed in the image; this fallback
+# keeps a bare bind-mounted checkout working.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "pioneer_humanoid"))
+
 parser = argparse.ArgumentParser(description="Keyboard teleoperation for the WATonomous bimanual arm (left only).")
 parser.add_argument(
     "--record",
@@ -75,8 +79,8 @@ from isaaclab.utils.math import (
 # This script actuates the L-suffixed chain (physical LEFT arm) and holds the unsuffixed
 # one. Canonical names it LEFT_*; the aliases below keep this file's RIGHT_*/GRIPPER_* local
 # names (RIGHT_* = the actuated arm) so the body is unchanged.
-from pioneer_bimanual_arm_cfg import (
-    PIONEER_BIMANUAL_ARM_CFG as BIMANUAL_ARM_CFG,
+from pioneer_humanoid.bimanual_arm import (
+    BIMANUAL_ARM_CFG,
     LEFT_GRIPPER_CLOSED as GRIPPER_CLOSED,
     LEFT_GRIPPER_OPEN as GRIPPER_OPEN,
     LEFT_ARM_JOINTS as RIGHT_ARM_JOINTS,
@@ -87,7 +91,7 @@ from pioneer_bimanual_arm_cfg import (
     resolve_joint_name,
 )
 
-# Fingertip IK (same as task_space_test.py) — kept local, not shared via pioneer_bimanual_arm_cfg.
+# Fingertip IK (same as task_space_test.py) — kept local, not shared via pioneer_humanoid.
 _FINGER_TIP_BODIES = ("link7l", "link8l")
 _FINGER_DISTAL_TIP_LOCAL = {
     "link7l": (0.13211595, -0.04057075, -0.00434997),

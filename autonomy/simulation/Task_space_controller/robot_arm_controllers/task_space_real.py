@@ -32,16 +32,16 @@ args_cli = parser.parse_args()
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
-# Canonical arm config lives in keyboard_based_teleoperation (same robot model as keyboard_teleop.py)
-_KEYBOARD_TELEOP_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../Teleop/keyboard_based_teleoperation")
-)
-sys.path.insert(0, _KEYBOARD_TELEOP_DIR)
+# pioneer_humanoid package (canonical arm config). Editable-installed in the image; this fallback
+# keeps a bare bind-mounted checkout working.
+sys.path.insert(0, os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "../../pioneer_humanoid")
+))
 
 # This bridge drives the L-suffixed chain (physical LEFT arm), which the canonical config
 # names LEFT_*; aliased to RIGHT_* here so the body's "RIGHT_* = the arm we drive" is unchanged.
-from pioneer_bimanual_arm_cfg import (  # noqa: E402
-    PIONEER_BIMANUAL_ARM_CFG as BIMANUAL_ARM_CFG,
+from pioneer_humanoid.bimanual_arm import (  # noqa: E402
+    BIMANUAL_ARM_CFG,
     LEFT_GRIPPER_OPEN as GRIPPER_OPEN,
     LEFT_ARM_JOINTS as RIGHT_ARM_JOINTS,
     LEFT_EE_BODY as RIGHT_EE_BODY,

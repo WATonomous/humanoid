@@ -54,7 +54,7 @@ data                                  attrs: env_args (JSON), total
 | 6 | `joint7l` | gripper, limit `[-0.05, 0.00]` |
 | 7 | `joint8l` | gripper, limit `[0.00, 0.05]` |
 
-Gripper (`pioneer_bimanual_arm_cfg.py` `LEFT_GRIPPER_OPEN` / `LEFT_GRIPPER_CLOSED`):
+Gripper (`pioneer_humanoid` `LEFT_GRIPPER_OPEN` / `LEFT_GRIPPER_CLOSED`):
 **open `(0.0, 0.0)`**, **closed `(-0.05, +0.05)`**.
 
 `states/.../joint_position` holds all **16** joints (both arms); the left-arm 8 are

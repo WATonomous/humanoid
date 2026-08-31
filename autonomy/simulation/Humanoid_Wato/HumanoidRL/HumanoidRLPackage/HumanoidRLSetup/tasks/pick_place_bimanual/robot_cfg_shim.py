@@ -1,10 +1,9 @@
-"""Import bridge for the pioneer_bimanual_arm config and pick_place_gen modules.
+"""Import bridge for the pioneer_humanoid config and pick_place_gen modules.
 
-The authoritative robot config lives outside this task package's import tree
-("Teleop/keyboard_based_teleoperation"), so it is imported as a top-level
-module by putting that directory on sys.path — the same pattern as
-quest_isaac_teleop/run_quest_bimanual_teleop.py. This module is the ONLY place
-in the task package that touches those paths.
+The canonical robot config (pioneer_humanoid) and pick_place_gen live outside this task
+package's import tree, so they go on sys.path here — the ONLY place in the task
+package that touches those paths. pioneer_humanoid is editable-installed in the image;
+the sys.path entry is a fallback for a bare bind-mounted checkout.
 """
 import sys
 from pathlib import Path
@@ -13,7 +12,7 @@ _SIM_DIR = Path(__file__).resolve().parents[6]  # .../autonomy/simulation
 assert (_SIM_DIR / "Humanoid_Wato").is_dir(), f"unexpected repo layout at {_SIM_DIR}"
 
 for _p in (
-    _SIM_DIR / "Teleop" / "keyboard_based_teleoperation",
+    _SIM_DIR / "pioneer_humanoid",
     _SIM_DIR / "pick_place_gen",
 ):
     if str(_p) not in sys.path:
@@ -21,8 +20,8 @@ for _p in (
 
 # The pick task drives the L-suffixed chain (physical LEFT arm), which the canonical config
 # names LEFT_*; aliased to RIGHT_* here so downstream "RIGHT_* = the picking arm" is unchanged.
-from pioneer_bimanual_arm_cfg import (  # noqa: E402,F401
-    PIONEER_BIMANUAL_ARM_CFG as BIMANUAL_ARM_CFG,
+from pioneer_humanoid.bimanual_arm import (  # noqa: E402,F401
+    BIMANUAL_ARM_CFG,
     LEFT_GRIPPER_CLOSED as GRIPPER_CLOSED,
     LEFT_GRIPPER_OPEN as GRIPPER_OPEN,
     LEFT_ARM_JOINTS as RIGHT_ARM_JOINTS,

@@ -1,7 +1,7 @@
 """Data-collection camera configs for pioneer_bimanual_arm teleop.
 
 ego_cam (on base_link) and wrist_cam (on link6l) are the cameras that record the
-dataset image reads. They live here rather than in pioneer_bimanual_arm_cfg
+dataset image reads. They live here rather than in the robot config
 because they are teleop-scene config, not properties of the robot: the arm asset
 ships no cameras (the superseded armWithStand.usd baked them into its sensor
 layer), so they are defined and SPAWNED in code, which also keeps a future

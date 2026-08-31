@@ -1,4 +1,4 @@
-"""Quest VR -> Isaac Sim teleoperation for the wato_arm_v2 arm (pioneer_bimanual_arm.usd).
+"""Quest VR -> Isaac Sim teleoperation for the pioneer_bimanual_arm (pioneer_bimanual_arm.usd).
 
 Runs inside the simulation_isaac container. Both arms are driven by Quest hand tracking:
 the left Quest wrist drives the left arm, the right drives the right, and pinching
@@ -23,7 +23,7 @@ _QUEST_TO_CAM_LOCAL / _CAM_LOCAL_*), not through a fixed world rotation, so "pus
 from you" follows the camera's actual boresight.
 
 Naming: the "L"-suffixed chain (joint1L..joint6l, link6l) is the physical LEFT arm and is
-driven by the LEFT Quest wrist -- both senses agree. Unsuffixed = RIGHT. pioneer_bimanual_arm_cfg's
+driven by the LEFT Quest wrist -- both senses agree. Unsuffixed = RIGHT. pioneer_humanoid.bimanual_arm's
 LEFT_*/RIGHT_* are imported as-is.
 
 Cameras
@@ -62,8 +62,9 @@ from isaaclab.app import AppLauncher
 # ── path setup (must be before AppLauncher so PYTHONPATH is correct) ─────────
 _THIS_DIR = Path(__file__).resolve().parent
 _SIM_DIR = _THIS_DIR.parent
-_KEYBOARD_TELEOP_DIR = _SIM_DIR / "Teleop" / "keyboard_based_teleoperation"
-sys.path.insert(0, str(_KEYBOARD_TELEOP_DIR))
+# pioneer_humanoid package (canonical arm config). Editable-installed in the image; this fallback
+# keeps a bare bind-mounted checkout working.
+sys.path.insert(0, str(_SIM_DIR / "pioneer_humanoid"))
 _IL_PKG = _SIM_DIR.parent / "il"
 
 
@@ -134,13 +135,13 @@ from isaaclab.utils.math import (  # noqa: E402
 
 # No aliasing: LEFT_* is the L-suffixed chain (physical left = left Quest wrist), RIGHT_* the
 # unsuffixed one. This block used to swap them to undo a reversed upstream; don't bring that back.
-from teleop_cameras import (  # noqa: E402
+from pioneer_humanoid.teleop_cameras import (  # noqa: E402
     WRIST_CAM_POS,
     make_ego_cam_cfg,
     make_wrist_cam_cfg,
 )
-from pioneer_bimanual_arm_cfg import (  # noqa: E402
-    PIONEER_BIMANUAL_ARM_CFG,
+from pioneer_humanoid.bimanual_arm import (  # noqa: E402
+    BIMANUAL_ARM_CFG,
     LEFT_ARM_JOINTS,
     LEFT_EE_BODY,
     LEFT_FINGER_TIP_BODIES,
@@ -199,7 +200,7 @@ _MAX_REACH_M = 0.5
 
 # Both 0: fix framing on the camera/enclosure side, not by offsetting the arm's target from its
 # rest pose. Z was +0.2 to lift the tip clear of the table under the old all-zeros spawn pose;
-# pioneer_bimanual_arm_cfg's flexed-elbow spawn already rests 0.27m above the table, so it's
+# the arm config's flexed-elbow spawn already rests 0.27m above the table, so it's
 # redundant -- and it also pulled the hands closer to the eye cameras, ~doubling the arm mesh
 # in frame and adding ~30ms/cycle of render+encode.
 _HOME_TIP_X_OFFSET = 0.0
@@ -226,7 +227,7 @@ _PINCH_CLOSE_M = 0.035  # was 0.030, nudged up per live feedback (easier to trig
 _PINCH_OPEN_M = 0.050
 
 # Lowered from 0.2/0.35: those were raised for conditioning near full extension, which was an
-# artifact of the old all-zeros spawn pose. pioneer_bimanual_arm_cfg's flexed spawn fixes the
+# artifact of the old all-zeros spawn pose. the arm config's flexed spawn fixes the
 # conditioning, and lower damping cuts wrist-twist leakage into the shoulder (~35% -> ~18% at
 # 0.2 -> 0.1). Raise back toward 0.2/0.35 if the arm feels jittery near singularities.
 # Per-arm ratio kept, not unified -- only the left chain was re-measured.
@@ -259,7 +260,7 @@ _DLS_MANIPULABILITY_EPSILON = 0.01
 
 # Joint-space output smoothing, modelled on joint_command_core.cpp's active default (velocity +
 # delta clamp; NOT its trapezoidal ramp or low-pass, both inactive on hardware). safety_limits
-# .yaml's per-joint overrides are deliberately NOT applied -- pioneer_bimanual_arm_cfg's joint
+# .yaml's per-joint overrides are deliberately NOT applied -- the arm config's joint
 # grouping (2-DOF shoulder/3-DOF elbow) does not match hardware_mapping.yaml's ArmPose split.
 # All three are UNUSED as of the revert to unsmoothed IK output; kept for a retry.
 _JOINT_VELOCITY_MAX_RAD_S = 1.7453292519943295  # 100 deg/s speed ceiling
@@ -664,7 +665,7 @@ _WRIST_CAM_FRAME_PATH_RIGHT = _POV_STATIC_DIR / "wrist_cam_right.jpg"
 # position instead put the marker at the operator's physical wrist. Temp-file-then-renamed.
 _MARKER_UV_PATH = _POV_STATIC_DIR / "marker_uv.json"
 
-# Draws a 2cm green sphere at pioneer_bimanual_arm_cfg.WRIST_CAM_POS so the camera's mount point is
+# Draws a 2cm green sphere at teleop_cameras.WRIST_CAM_POS so the camera's mount point is
 # visible in the viewport while tuning it. Visual only -- no collision or physics. Turn it off
 # before recording: it sits inside link6l and can appear in ego_cam/wrist_cam frames.
 _SHOW_WRIST_CAM_MARKER = False
@@ -690,15 +691,15 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
     # The stand's bottom sits 1.1997m below base_link, so lift by that to rest the feet on the
     # floor (z=0), not on the collision-safety ground plane at z=-1.05. The table (top ~0.7m)
     # is a separate work surface; the column passes up through it.
-    robot = PIONEER_BIMANUAL_ARM_CFG.replace(
+    robot = BIMANUAL_ARM_CFG.replace(
         prim_path="{ENV_REGEX_NS}/Robot",
-        init_state=PIONEER_BIMANUAL_ARM_CFG.init_state.replace(pos=(0.0, 0.0, 1.1997)),
-        # Self-collisions are OFF in PIONEER_BIMANUAL_ARM_CFG itself (see the note there); no override needed.
+        init_state=BIMANUAL_ARM_CFG.init_state.replace(pos=(0.0, 0.0, 1.1997)),
+        # Self-collisions are OFF in BIMANUAL_ARM_CFG itself (see the note there); no override needed.
     )
 
     # Data-collection / HUD cameras, not the headset display (the RSD455 pair, attached at
     # runtime). wrist_cam is on link6l (LEFT arm), wrist_cam_right its mirror on link6. Pose and
-    # lens live in pioneer_bimanual_arm_cfg.py -- adjust there, not here. wrist_cam keeps its
+    # lens live in pioneer_humanoid/teleop_cameras.py -- adjust there, not here. wrist_cam keeps its
     # unsuffixed name because _capture_record_images, the dataset schema, and the keyboard
     # teleop scenes all bind that key.
     ego_cam = make_ego_cam_cfg()
@@ -1158,7 +1159,7 @@ class _ArmDlsController:
 
         # Position target only. This used to ALSO write_joint_state_to_sim(joint_pos_des, 0),
         # teleporting the joints every step: physics never ran on the arm, so gravity, contact
-        # and every effort_limit_sim/stiffness value in PIONEER_BIMANUAL_ARM_CFG did nothing, and recorded
+        # and every effort_limit_sim/stiffness value in BIMANUAL_ARM_CFG did nothing, and recorded
         # observation.state was just a copy of the action. The actuators drive the arm now, so
         # those gains are live -- retune them, not this, if tracking lags.
         robot.set_joint_position_target(joint_pos_des, joint_ids=self.arm_ids)
