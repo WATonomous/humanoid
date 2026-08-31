@@ -315,8 +315,9 @@ _ENCLOSURE_X_CTR = (_ENCLOSURE_X_MIN + _ENCLOSURE_X_MAX) / 2
 _ENCLOSURE_BACK_X = _ENCLOSURE_X_MAX
 
 
-# Table converted from Table.STEP. Source units are inches, hence the scale. Its origin sits at
-# the table-TOP surface, so no Z offset is needed. Real size ~1.39 x 0.75 x 0.62m.
+# table.usd was converted from a SolidWorks STEP export (units: inches, hence the scale). The
+# STEP source is not tracked here; re-export from CAD if the geometry changes. Its origin sits
+# at the table-TOP surface, so no Z offset is needed. Real size ~1.39 x 0.75 x 0.62m.
 _TABLE_USD_PATH = str(
     _SIM_DIR / "Humanoid_Wato" / "Table" / "table.usd"
 )
