@@ -1,4 +1,7 @@
-# Task Space Teleoperation — Setup & Run Guide
+# Keyboard Teleoperation — Setup & Run Guide
+
+Drives the pioneer bimanual arm's left arm with the keyboard + differential IK.
+See the top of `keyboard_teleop.py` for the key bindings.
 
 ## Prerequisites
 
@@ -24,6 +27,17 @@ From this directory (`keyboard_teleop/`):
 
 ```bash
 PYTHONPATH=$(pwd) <path>/IsaacLab/isaaclab.sh -p keyboard_teleop.py
+```
+
+### Scene (`--scene`)
+
+| Value | Contents |
+|-------|----------|
+| `bare` (default) | ground + light + arm only |
+| `box` | adds a work table, a graspable box, and a drop container (table/box/container geometry shared with the Quest scene via `pioneer_humanoid.teleop_scenes`) |
+
+```bash
+PYTHONPATH=$(pwd) <path>/IsaacLab/isaaclab.sh -p keyboard_teleop.py --scene box
 ```
 
 ---
