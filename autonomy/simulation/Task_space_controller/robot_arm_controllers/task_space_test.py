@@ -42,6 +42,9 @@ from pioneer_humanoid.bimanual_arm import (  # noqa: E402
     resolve_body_ids,
     resolve_joint_name,
 )
+import omni.usd  # noqa: E402
+from pxr import Gf, Usd, UsdGeom  # noqa: E402
+
 import isaaclab.sim as sim_utils  # noqa: E402
 from isaaclab.assets import AssetBaseCfg  # noqa: E402
 from isaaclab.controllers import DifferentialIKController, DifferentialIKControllerCfg  # noqa: E402
@@ -95,7 +98,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     print("[INFO] IK tracks fingertip center (link7l/link8l mesh distal midpoint)")
 
     diff_ik_cfg = DifferentialIKControllerCfg(
-        command_type="position", use_relative_mode=False, ik_method="dls"
+        command_type="pose", use_relative_mode=False, ik_method="dls"
     )
     diff_ik_controller = DifferentialIKController(
         diff_ik_cfg, num_envs=scene.num_envs, device=sim.device
@@ -137,8 +140,32 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     diff_ik_controller.reset(env_ids=torch.arange(scene.num_envs, device=sim.device))
 
+    # Read the cube's live authored USD transform each frame -- scene["cube"] is a plain
+    # visual prim (AssetBaseCfg), so its physics-tensor pose never updates on a viewport
+    # drag; the composed USD transform does.
+    _cube_prim = omni.usd.get_context().get_stage().GetPrimAtPath("/World/cube")
+    _cube_xf = UsdGeom.Xformable(_cube_prim)
+
+    # Start the cube target exactly at the gripper's current pose, so the arm doesn't
+    # snap to an awkward orientation on launch (link6l's frame is not identity). Written
+    # straight to the prim's xformOps since the cube is a plain visual prim.
+    _tp, _tq = compute_gripper_tip_pose_w(robot, wrist_body_id, finger_body_ids)
+    _p, _q = _tp[0].tolist(), _tq[0].tolist()
+    _cube_xf.ClearXformOpOrder()
+    _cube_xf.AddTranslateOp(UsdGeom.XformOp.PrecisionDouble).Set(Gf.Vec3d(_p[0], _p[1], _p[2]))
+    _cube_xf.AddOrientOp(UsdGeom.XformOp.PrecisionDouble).Set(Gf.Quatd(_q[0], _q[1], _q[2], _q[3]))
+
+    def _cube_pose_w():
+        m = _cube_xf.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+        t = m.ExtractTranslation()
+        q = m.ExtractRotationQuat()
+        im = q.GetImaginary()
+        pos = torch.tensor([[t[0], t[1], t[2]]], dtype=torch.float32, device=sim.device)
+        quat = torch.tensor([[q.GetReal(), im[0], im[1], im[2]]], dtype=torch.float32, device=sim.device)
+        return pos, quat
+
     while simulation_app.is_running():
-        cube_pos_w, cube_quat_w = scene["cube"].get_world_poses()
+        cube_pos_w, cube_quat_w = _cube_pose_w()
         root_pose_w = robot.data.root_state_w[:, 0:7]
         cube_pos_b, cube_quat_b = subtract_frame_transforms(
             root_pose_w[:, 0:3], root_pose_w[:, 3:7], cube_pos_w, cube_quat_w
@@ -154,8 +181,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             robot, root_pose_w, wrist_body_id, finger_body_ids
         )
 
-        # set_command needs ee_quat to hold current orientation (used for display only in position mode)
-        diff_ik_controller.set_command(cube_pos_b, ee_quat=tip_quat_b)
+        # Full 6-DOF target: track the cube's position AND orientation.
+        cube_pose_b = torch.cat([cube_pos_b, cube_quat_b], dim=-1)
+        diff_ik_controller.set_command(cube_pose_b, ee_quat=tip_quat_b)
 
         jacobian = compute_tip_ik_jacobian(
             robot,
