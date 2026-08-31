@@ -5,7 +5,7 @@ Test the dex_retargeting library (WatoHandDexRetargeting) for the custom Wato ar
 No Isaac Lab / XR required — only dex_retargeting, torch, wato_dex_retargeting_utils, and arm_assembly URDF.
 
 Usage:
-  cd /path/to/autonomy/simulation/Teleop/wato_hand
+  cd /path/to/autonomy/teleop/external_script
   python run_dex_retargeting_test.py
 
 Requires: torch, dex_retargeting, scipy, pyyaml (e.g. conda env with isaac lab deps).

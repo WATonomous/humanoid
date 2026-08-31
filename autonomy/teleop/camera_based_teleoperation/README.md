@@ -70,14 +70,14 @@ ros2 launch rosbridge_server rosbridge_websocket_launch.xml
 ### Terminal 2 — ROS2 landmark-to-joints node
 ```bash
 source /opt/ros/humble/setup.bash
-cd "/workspace/isaaclab/final_repo/humanoid/autonomy/simulation/Teleop/camera_based_teleoperation"
+cd "/workspace/isaaclab/final_repo/humanoid/autonomy/teleop/camera_based_teleoperation"
 python wato_hand_ros2_node.py
 ```
 
 ### Terminal 3 — Isaac Lab simulation
 ```bash
 source /opt/ros/humble/setup.bash
-cd "/workspace/isaaclab/final_repo/humanoid/autonomy/simulation/Teleop/camera_based_teleoperation"
+cd "/workspace/isaaclab/final_repo/humanoid/autonomy/teleop/camera_based_teleoperation"
 /workspace/isaaclab/isaaclab.sh -p wato_hand_isaaclab_teleop.py
 ```
 

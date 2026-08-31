@@ -61,11 +61,12 @@ from isaaclab.app import AppLauncher
 
 # ── path setup (must be before AppLauncher so PYTHONPATH is correct) ─────────
 _THIS_DIR = Path(__file__).resolve().parent
-_SIM_DIR = _THIS_DIR.parent
+_AUTONOMY = _THIS_DIR.parents[1]  # autonomy/teleop/quest_isaac_teleop -> autonomy
+_SIM_DIR = _AUTONOMY / "simulation"
 # pioneer_humanoid package (canonical arm config). Editable-installed in the image; this fallback
 # keeps a bare bind-mounted checkout working.
 sys.path.insert(0, str(_SIM_DIR / "pioneer_humanoid"))
-_IL_PKG = _SIM_DIR.parent / "il"
+_IL_PKG = _AUTONOMY / "il"
 
 
 def _ensure_il_on_path() -> None:
@@ -837,7 +838,7 @@ def _pinch_dist(hand_joints: list) -> float:
 def _publish_real_left_arm_pose(pub, clock_node, joint_pos_des_rad) -> None:
     """Build and publish an ArmPose for the real left arm from a DLS
     solution. Field layout/units copied EXACTLY from
-    Task_space_controller/robot_arm_controllers/task_space_ik.py's
+    autonomy/teleop/task_space/task_space_ik.py's
     publish_joint_pos -- same LEFT_ARM_JOINTS order (joint1L, joint2l,
     joint3l, joint4l, joint5l, joint6l) maps 1:1 to
     shoulder(flexion,abduction,rotation) / elbow(flexion,forearm_rotation) /

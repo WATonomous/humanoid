@@ -83,7 +83,7 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_agent.py \
 
 RGB-only path without Gym:
 
-`autonomy/simulation/Teleop/so101_leader_teleoperation/` + `autonomy/il/` (`--record --cameras --domain_rand`).
+`autonomy/teleop/so101_leader_teleoperation/` + `autonomy/il/` (`--record --cameras --domain_rand`).
 
 Use **this** package for depth/seg MP4 sidecars and automatic success scoring.
 

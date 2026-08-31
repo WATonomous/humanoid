@@ -222,7 +222,7 @@ cd ~/Documents/Wato/humanoid && ./watod -t simulation_isaac_dev
 Wait for `Summary: 2 packages finished`, then:
 
 ```bash
-cd /workspace/humanoid/autonomy/simulation/quest_isaac_teleop
+cd /workspace/humanoid/autonomy/teleop/quest_isaac_teleop
 ./run_quest_bimanual_teleop.sh
 ```
 
@@ -463,7 +463,7 @@ there's nothing on the other end to receive it yet. Adding it requires:
 ### Message mapping
 
 Field layout and units are copied exactly from the existing sim-to-real
-precedent, `Task_space_controller/robot_arm_controllers/task_space_ik.py`
+precedent, `autonomy/teleop/task_space/task_space_ik.py`
 (`publish_joint_pos`) — same `LEFT_ARM_JOINTS` order
 (`joint1L, joint2l, joint3l, joint4l, joint5l, joint6l`) maps 1:1 to:
 
