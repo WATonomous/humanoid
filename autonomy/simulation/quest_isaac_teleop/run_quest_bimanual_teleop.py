@@ -207,9 +207,9 @@ _HOME_TIP_X_OFFSET = 0.0
 _HOME_TIP_Z_OFFSET = 0.0
 
 # Real-hardware bridge timing (--publish-real-left-arm), mirroring task_space_ik.py.
-# SAFETY: joint_command_node applies NO rate limiting to the FIRST ArmPose it receives, so an
-# un-delayed publish can snap the real arm hard from wherever it physically is. The delay
-# exists so a human can position the real arm near the sim pose first -- do not shorten it.
+# joint_command_node now seeds its rate-limiter from live motor feedback on the first
+# ArmPose, so even that first command is velocity/delta-limited from the real arm's actual
+# pose (no snap). The delay is operator prep time -- a hand on the e-stop before motion.
 _REAL_ARM_PUBLISH_PERIOD_S = 0.02  # 20ms = 50Hz, matches joint_command_node's control_rate_hz
 _REAL_ARM_PUBLISH_START_DELAY_S = 5.0
 

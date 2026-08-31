@@ -482,16 +482,13 @@ degrees, so `_publish_real_left_arm_pose` converts before publishing.
 
 ### Safety: the 5-second startup delay
 
-`joint_command_node` applies **no velocity/delta rate-limiting to the very
-first `ArmPose` message** it receives after startup — every message after
-that is smoothed (position clamp → velocity limit → delta limit → low-pass),
-but not the first one. An un-delayed first publish could snap the real arm
-hard from wherever it physically is to whatever the sim's current IK target
-happens to be. `_REAL_ARM_PUBLISH_START_DELAY_S = 5.0` holds off all
-publishing for 5s after the flag is enabled — **that window is for a human to
-manually position the real arm near the sim's rest pose**, not a technical
-formality. Don't shorten it. Don't skip using it (i.e. don't stand there
-without actually re-positioning the arm during the delay).
+`joint_command_node` seeds its rate-limiter from live motor feedback on the
+first `ArmPose` and rate-limits every message including that one (position
+clamp → velocity limit → delta limit → low-pass), so the arm ramps from its
+actual pose rather than snapping. `_REAL_ARM_PUBLISH_START_DELAY_S = 5.0`
+holds off publishing for 5s after the flag is enabled — **operator prep time:
+get a hand on the e-stop, and position the real arm near the sim's pose so the
+ramp is short.** Not a technical formality; don't skip it.
 
 Publish rate is throttled to `_REAL_ARM_PUBLISH_PERIOD_S = 0.02` (50Hz,
 matching `joint_command_node`'s `control_rate_hz`) using the same
