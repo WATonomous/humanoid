@@ -68,13 +68,7 @@ from isaaclab.devices import Se3Keyboard, Se3KeyboardCfg
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.utils import configclass
-from isaaclab.utils.math import (
-    matrix_from_quat,
-    quat_apply,
-    quat_inv,
-    skew_symmetric_matrix,
-    subtract_frame_transforms,
-)
+from isaaclab.utils.math import subtract_frame_transforms
 
 # This script actuates the L-suffixed chain (physical LEFT arm) and holds the unsuffixed
 # one. Canonical names it LEFT_*; the aliases below keep this file's RIGHT_*/GRIPPER_* local
@@ -86,17 +80,14 @@ from pioneer_humanoid.bimanual_arm import (
     LEFT_ARM_JOINTS as RIGHT_ARM_JOINTS,
     LEFT_EE_BODY as RIGHT_EE_BODY,
     LEFT_GRIPPER_JOINTS as RIGHT_GRIPPER_JOINTS,
+    LEFT_FINGER_TIP_BODIES as RIGHT_FINGER_TIP_BODIES,
     RIGHT_ARM_JOINTS as LEFT_ARM_JOINTS,
     apply_joint_limits,
     resolve_joint_name,
+    resolve_body_ids,
+    compute_gripper_tip_pose_b,
+    compute_tip_ik_jacobian,
 )
-
-# Fingertip IK (same as task_space_test.py) — kept local, not shared via pioneer_humanoid.
-_FINGER_TIP_BODIES = ("link7l", "link8l")
-_FINGER_DISTAL_TIP_LOCAL = {
-    "link7l": (0.13211595, -0.04057075, -0.00434997),
-    "link8l": (-0.13211595, -0.04057075, -0.00435003),
-}
 
 
 @configclass
@@ -120,37 +111,6 @@ class BimanualSceneCfg(InteractiveSceneCfg):
 def _joint_ids(robot, names: list[str]) -> list[int]:
     name_to_id = {name: i for i, name in enumerate(robot.data.joint_names)}
     return [name_to_id[resolve_joint_name(robot, name)] for name in names]
-
-
-def _body_ids(robot, names: tuple[str, ...]) -> list[int]:
-    name_to_id = {name: idx for idx, name in enumerate(robot.data.body_names)}
-    return [name_to_id[name] for name in names]
-
-
-def _gripper_tip_pose_b(robot, root_pose_w, wrist_body_id: int, finger_body_ids: list[int]):
-    dtype = robot.data.body_pos_w.dtype
-    device = robot.data.body_pos_w.device
-    tips = []
-    for body_name, body_id in zip(_FINGER_TIP_BODIES, finger_body_ids):
-        local = torch.tensor([_FINGER_DISTAL_TIP_LOCAL[body_name]], device=device, dtype=dtype)
-        body_pos = robot.data.body_pos_w[:, body_id]
-        body_quat = robot.data.body_quat_w[:, body_id]
-        tips.append(body_pos + quat_apply(body_quat, local))
-    tip_pos_w = (tips[0] + tips[1]) * 0.5
-    tip_quat_w = robot.data.body_quat_w[:, wrist_body_id]
-    return subtract_frame_transforms(
-        root_pose_w[:, 0:3], root_pose_w[:, 3:7], tip_pos_w, tip_quat_w
-    )
-
-
-def _tip_ik_jacobian(robot, jacobian_w, wrist_pos_b, tip_pos_b):
-    base_rot = matrix_from_quat(quat_inv(robot.data.root_quat_w))
-    jacobian_b = jacobian_w.clone()
-    jacobian_b[:, :3, :] = torch.bmm(base_rot, jacobian_b[:, :3, :])
-    jacobian_b[:, 3:, :] = torch.bmm(base_rot, jacobian_b[:, 3:, :])
-    offset_b = tip_pos_b - wrist_pos_b
-    jacobian_b[:, 0:3, :] += torch.bmm(-skew_symmetric_matrix(offset_b), jacobian_b[:, 3:, :])
-    return jacobian_b
 
 
 def _init_recorder(device: str):
@@ -225,7 +185,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     ee_jacobi_idx = robot_entity_cfg.body_ids[0] - 1 if robot.is_fixed_base else robot_entity_cfg.body_ids[0]
     wrist_body_id = robot_entity_cfg.body_ids[0]
-    finger_body_ids = _body_ids(robot, _FINGER_TIP_BODIES)
+    finger_body_ids = resolve_body_ids(robot, RIGHT_FINGER_TIP_BODIES)
 
     left_arm_ids = robot_entity_cfg.joint_ids
     right_gripper_ids = _joint_ids(robot, RIGHT_GRIPPER_JOINTS)
@@ -290,7 +250,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         ee_pos_b, _ = subtract_frame_transforms(
             root_pose_w[:, 0:3], root_pose_w[:, 3:7], ee_pose_w[:, 0:3], ee_pose_w[:, 3:7]
         )
-        tip_pos_b, tip_quat_b = _gripper_tip_pose_b(
+        tip_pos_b, tip_quat_b = compute_gripper_tip_pose_b(
             robot, root_pose_w, wrist_body_id, finger_body_ids
         )
 
@@ -299,7 +259,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         # pos_sensitivity=0.005 keeps the IK step small enough for the linearization to hold.
         diff_ik_controller.set_command(command, ee_pos=tip_pos_b, ee_quat=tip_quat_b)
 
-        jacobian = _tip_ik_jacobian(
+        jacobian = compute_tip_ik_jacobian(
             robot,
             robot.root_physx_view.get_jacobians()[:, ee_jacobi_idx, :, left_arm_ids],
             ee_pos_b,
