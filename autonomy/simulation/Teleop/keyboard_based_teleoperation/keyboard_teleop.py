@@ -72,19 +72,22 @@ from isaaclab.utils.math import (
     subtract_frame_transforms,
 )
 
-from bimanual_arm_cfg import (
-    BIMANUAL_ARM_CFG,
-    GRIPPER_CLOSED,
-    GRIPPER_OPEN,
-    RIGHT_ARM_JOINTS,
-    RIGHT_EE_BODY,
-    RIGHT_GRIPPER_JOINTS,
-    LEFT_ARM_JOINTS,
+# This script actuates the L-suffixed chain (physical LEFT arm) and holds the unsuffixed
+# one. Canonical names it LEFT_*; the aliases below keep this file's RIGHT_*/GRIPPER_* local
+# names (RIGHT_* = the actuated arm) so the body is unchanged.
+from pioneer_bimanual_arm_cfg import (
+    PIONEER_BIMANUAL_ARM_CFG as BIMANUAL_ARM_CFG,
+    LEFT_GRIPPER_CLOSED as GRIPPER_CLOSED,
+    LEFT_GRIPPER_OPEN as GRIPPER_OPEN,
+    LEFT_ARM_JOINTS as RIGHT_ARM_JOINTS,
+    LEFT_EE_BODY as RIGHT_EE_BODY,
+    LEFT_GRIPPER_JOINTS as RIGHT_GRIPPER_JOINTS,
+    RIGHT_ARM_JOINTS as LEFT_ARM_JOINTS,
     apply_joint_limits,
     resolve_joint_name,
 )
 
-# Fingertip IK (same as task_space_test.py) — kept local, not shared via bimanual_arm_cfg.
+# Fingertip IK (same as task_space_test.py) — kept local, not shared via pioneer_bimanual_arm_cfg.
 _FINGER_TIP_BODIES = ("link7l", "link8l")
 _FINGER_DISTAL_TIP_LOCAL = {
     "link7l": (0.13211595, -0.04057075, -0.00434997),

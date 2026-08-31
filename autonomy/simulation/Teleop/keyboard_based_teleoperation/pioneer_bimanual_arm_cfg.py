@@ -422,6 +422,3 @@ PIONEER_BIMANUAL_ARM_CFG = ArticulationCfg(
         ),
     },
 )
-
-# Back-compat alias (old name). Remove once no importer uses it.
-ARM_V2_CFG = PIONEER_BIMANUAL_ARM_CFG

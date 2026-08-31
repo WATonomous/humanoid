@@ -19,14 +19,16 @@ for _p in (
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from bimanual_arm_cfg import (  # noqa: E402,F401
-    BIMANUAL_ARM_CFG,
-    GRIPPER_CLOSED,
-    GRIPPER_OPEN,
-    RIGHT_ARM_JOINTS,
-    RIGHT_EE_BODY,
-    RIGHT_FINGER_TIP_BODIES,
-    RIGHT_GRIPPER_JOINTS,
+# The pick task drives the L-suffixed chain (physical LEFT arm), which the canonical config
+# names LEFT_*; aliased to RIGHT_* here so downstream "RIGHT_* = the picking arm" is unchanged.
+from pioneer_bimanual_arm_cfg import (  # noqa: E402,F401
+    PIONEER_BIMANUAL_ARM_CFG as BIMANUAL_ARM_CFG,
+    LEFT_GRIPPER_CLOSED as GRIPPER_CLOSED,
+    LEFT_GRIPPER_OPEN as GRIPPER_OPEN,
+    LEFT_ARM_JOINTS as RIGHT_ARM_JOINTS,
+    LEFT_EE_BODY as RIGHT_EE_BODY,
+    LEFT_FINGER_TIP_BODIES as RIGHT_FINGER_TIP_BODIES,
+    LEFT_GRIPPER_JOINTS as RIGHT_GRIPPER_JOINTS,
     compute_gripper_tip_pose_b,
     compute_gripper_tip_pose_w,
     compute_tip_ik_jacobian,

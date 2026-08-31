@@ -32,21 +32,22 @@ args_cli = parser.parse_args()
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
-# Import bimanual_arm_cfg from keyboard teleoperation (same robot model as keyboard_teleop.py)
+# Canonical arm config lives in keyboard_based_teleoperation (same robot model as keyboard_teleop.py)
 _KEYBOARD_TELEOP_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "../../Teleop/keyboard_based_teleoperation")
 )
 sys.path.insert(0, _KEYBOARD_TELEOP_DIR)
 
-from bimanual_arm_cfg import (  # noqa: E402
-    BIMANUAL_ARM_CFG,
-    GRIPPER_OPEN,
-    RIGHT_ARM_JOINTS,
-    RIGHT_EE_BODY,
-    RIGHT_FINGER_TIP_BODIES,
-    RIGHT_GRIPPER_JOINTS,
-    LEFT_ARM_JOINTS,
-    RIGHT_GRIPPER_JOINTS,
+# This bridge drives the L-suffixed chain (physical LEFT arm), which the canonical config
+# names LEFT_*; aliased to RIGHT_* here so the body's "RIGHT_* = the arm we drive" is unchanged.
+from pioneer_bimanual_arm_cfg import (  # noqa: E402
+    PIONEER_BIMANUAL_ARM_CFG as BIMANUAL_ARM_CFG,
+    LEFT_GRIPPER_OPEN as GRIPPER_OPEN,
+    LEFT_ARM_JOINTS as RIGHT_ARM_JOINTS,
+    LEFT_EE_BODY as RIGHT_EE_BODY,
+    LEFT_FINGER_TIP_BODIES as RIGHT_FINGER_TIP_BODIES,
+    LEFT_GRIPPER_JOINTS as RIGHT_GRIPPER_JOINTS,
+    RIGHT_ARM_JOINTS as LEFT_ARM_JOINTS,
     apply_joint_limits,
     compute_tip_ik_jacobian,
     compute_gripper_tip_pose_b,

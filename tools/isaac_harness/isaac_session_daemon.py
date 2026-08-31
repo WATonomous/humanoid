@@ -266,8 +266,8 @@ def handle_spawn_usd(cmd: dict) -> dict:
 
 def handle_spawn_bimanual_arm(cmd: dict) -> dict:
     """Spawn the repo's actual pioneer_bimanual_arm robot with its real,
-    pre-built actuator config (BIMANUAL_ARM_CFG from
-    Teleop/keyboard_based_teleoperation/bimanual_arm_cfg.py) — generic
+    pre-built actuator config (PIONEER_BIMANUAL_ARM_CFG from
+    Teleop/keyboard_based_teleoperation/pioneer_bimanual_arm_cfg.py) — generic
     spawn_usd --articulation builds a bare ArticulationCfg with no actuators
     and fails outright for this robot:
         TypeError: Missing values detected in object ArticulationCfg for
@@ -286,11 +286,11 @@ def handle_spawn_bimanual_arm(cmd: dict) -> dict:
     teleop_dir = "/workspace/humanoid/autonomy/simulation/Teleop/keyboard_based_teleoperation"
     if teleop_dir not in sys.path:
         sys.path.insert(0, teleop_dir)
-    from bimanual_arm_cfg import BIMANUAL_ARM_CFG
+    from pioneer_bimanual_arm_cfg import PIONEER_BIMANUAL_ARM_CFG
 
     pos = tuple(cmd.get("pos", [0, 0, 0]))
     rot = tuple(cmd.get("rot", [1, 0, 0, 0]))
-    obj_cfg = BIMANUAL_ARM_CFG.replace(prim_path=f"/World/{name}")
+    obj_cfg = PIONEER_BIMANUAL_ARM_CFG.replace(prim_path=f"/World/{name}")
     obj_cfg.init_state.pos = pos
     obj_cfg.init_state.rot = rot
     try:
