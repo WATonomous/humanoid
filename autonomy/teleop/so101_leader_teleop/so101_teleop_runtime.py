@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-_IL_PKG = Path(__file__).resolve().parents[3] / "il"
+_IL_PKG = Path(__file__).resolve().parents[2] / "il"
 
 
 def ensure_il_on_path() -> Path:

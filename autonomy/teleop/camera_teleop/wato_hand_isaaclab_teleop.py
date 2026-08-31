@@ -12,7 +12,7 @@ Usage (in the Docker container):
   # Terminal 3 — run from the repo root:
   PYTHONPATH=<repo_root>/autonomy/simulation/Humanoid_Wato \
     /workspace/isaaclab/isaaclab.sh -p \
-    <repo_root>/autonomy/simulation/Teleop/camera_based_teleoperation/wato_hand_isaaclab_teleop.py
+    <repo_root>/autonomy/teleop/camera_teleop/wato_hand_isaaclab_teleop.py
 """
 
 import argparse
@@ -52,7 +52,7 @@ HAND_TIMEOUT = 2.0  # seconds before hand is considered lost
 # Resolve asset paths relative to this script (works locally and in Docker).
 _SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 _ARM_ASSEMBLY_DIR = os.path.abspath(
-    os.path.join(_SCRIPT_DIR, "..", "..", "Humanoid_Wato", "arm_assembly")
+    os.path.join(_SCRIPT_DIR, "..", "..", "simulation", "Humanoid_Wato", "arm_assembly")
 )
 
 

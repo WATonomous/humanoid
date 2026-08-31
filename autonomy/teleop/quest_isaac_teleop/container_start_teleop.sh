@@ -54,7 +54,7 @@ fi
 
 sleep 2
 
-cd "${WORKSPACE}/autonomy/simulation/quest_isaac_teleop"
+cd "${WORKSPACE}/autonomy/teleop/quest_isaac_teleop"
 if [ ! -x ./run_quest_bimanual_teleop.sh ]; then
     echo "[teleop] ERROR: run_quest_bimanual_teleop.sh not found in $(pwd). Nothing to launch."
     exit 1

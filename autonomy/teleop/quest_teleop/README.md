@@ -8,7 +8,7 @@ hand poses over WSS to `quest_teleop_node`, which publishes:
 ```
 
 For the full Quest + Isaac Sim workflow, prefer
-[quest_isaac_teleop/README.md](../../simulation/quest_isaac_teleop/README.md)
+[quest_isaac_teleop/README.md](../quest_isaac_teleop/README.md)
 (`ACTIVE_MODULES="simulation_isaac"`, shell into `simulation_isaac_dev`).
 
 ## Start the Controller (standalone)

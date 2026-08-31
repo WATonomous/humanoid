@@ -72,8 +72,8 @@ humanoid
 | Isaac Lab 2.3.2 / Sim 5.1 (SO101 IL, HumanoidRL, Quest) | `simulation_isaac` | [QUICKSTART](docker/simulation/isaac_lab/QUICKSTART.md) · [full README](docker/simulation/isaac_lab/README.md) |
 | MuJoCo / mjlab | `simulation_mj` | [mjlabs_setup.md](mjlabs_setup.md) |
 | SO101 vial Gym envs | (inside `simulation_isaac`) | [so101_vial_task](autonomy/simulation/so101_vial_task/README.md) |
-| Quest bimanual teleop | (inside `simulation_isaac`) | [quest_isaac_teleop](autonomy/simulation/quest_isaac_teleop/README.md) |
-| Other teleop variants | host or container | [Teleop.md](autonomy/simulation/Teleop/Teleop.md) |
+| Quest bimanual teleop | (inside `simulation_isaac`) | [quest_isaac_teleop](autonomy/teleop/quest_isaac_teleop/README.md) |
+| Other teleop variants | host or container | [teleop/README.md](autonomy/teleop/README.md) |
 
 Isaac Lab needs Linux, NVIDIA GPU, Docker GPU passthrough, and X11 (`xhost +local:docker`).
 

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from isaaclab.assets.articulation import ArticulationCfg
 
-_HUMANOID_WATO_ROOT = Path(__file__).resolve().parents[2] / "Humanoid_Wato"
+_HUMANOID_WATO_ROOT = Path(__file__).resolve().parents[2] / "simulation" / "Humanoid_Wato"
 if str(_HUMANOID_WATO_ROOT) not in sys.path:
     sys.path.insert(0, str(_HUMANOID_WATO_ROOT))
 
