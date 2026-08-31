@@ -1,7 +1,6 @@
 """GPU-buffered async LeRobot dataset recorder for Isaac Sim teleop."""
 from __future__ import annotations
 
-import json
 import queue
 import subprocess
 import threading
@@ -234,35 +233,6 @@ class SimLeRobotRecorder:
 
     _NUM_CPU_SLOTS = 2
 
-    def _is_empty_dataset_shell(self) -> bool:
-        """True if dataset_root was created by LeRobotDataset.create() but never had an
-        episode saved into it.
-
-        create() writes meta/info.json up front; tasks/episodes/stats and data/, videos/
-        only appear on the first save_episode(). A session that ends before then (crash,
-        Ctrl-C, save key never pressed) leaves a root LeRobotDataset() cannot re-open,
-        dead-ending every later run against that path. Such a shell holds no frames, so
-        recreating it loses nothing; a root with real episodes is never touched.
-        init_dataset moves an in-the-way shell aside, never deletes.
-        """
-        root = self.dataset_root
-        if not root.is_dir():
-            return False  # a plain file is not a shell; iterdir() below would raise
-        if not any(root.iterdir()):
-            return True  # bare directory (mkdir -p, empty checkout) -- nothing to lose
-        for produced in ("data", "videos", "images"):
-            sub = root / produced
-            if sub.is_dir() and any(sub.rglob("*")):
-                return False
-        info_path = root / "meta" / "info.json"
-        if not info_path.is_file():
-            return False  # not a layout this recorder created; leave it for the operator
-        try:
-            info = json.loads(info_path.read_text())
-        except (OSError, ValueError):
-            return False
-        return int(info.get("total_episodes", 0)) == 0
-
     def init_dataset(self) -> None:
         """Create or re-open the LeRobot dataset on disk."""
         from lerobot.datasets.lerobot_dataset import LeRobotDataset
@@ -272,28 +242,17 @@ class SimLeRobotRecorder:
             self._allocate_cpu_slots()
         root = self.dataset_root
         if root.exists():
-            if self._is_empty_dataset_shell():
-                # Moved aside, never deleted -- dataset_root is operator input, so a wrong
-                # heuristic has to stay recoverable. Timestamped to avoid collisions.
-                shelved = root.with_name(f"{root.name}.empty-{time.strftime('%Y%m%d-%H%M%S')}")
-                root.rename(shelved)
-                print(
-                    f"[INFO]: {root} was created by a run that saved no episodes, so it "
-                    f"cannot be re-opened. Moved to {shelved}; starting fresh. Delete it once checked."
-                )
-            else:
-                try:
-                    self.dataset = LeRobotDataset(self.repo_id, root=root)
-                    print(f"[INFO]: Opened existing dataset at {root}")
-                    return
-                except Exception as exc:
-                    raise ValueError(
-                        f"[ERROR]: Dataset folder exists and holds recorded episodes, but "
-                        f"cannot be opened: {root}\n"
-                        f"  Cause: {type(exc).__name__}: {exc}\n"
-                        "  Move it aside or pass --dataset_root elsewhere. It is left exactly "
-                        "as it is because it contains recorded episodes."
-                    ) from exc
+            try:
+                self.dataset = LeRobotDataset(self.repo_id, root=root)
+                print(f"[INFO]: Opened existing dataset at {root}")
+                return
+            except Exception as exc:
+                raise ValueError(
+                    f"[ERROR]: Dataset folder exists but cannot be opened: {root}\n"
+                    f"  Cause: {type(exc).__name__}: {exc}\n"
+                    "  A run that ended before saving an episode leaves a folder LeRobotDataset "
+                    "cannot re-open. Delete it (or pass --dataset_root elsewhere) and retry."
+                ) from exc
 
         self.dataset = LeRobotDataset.create(
             self.repo_id,
