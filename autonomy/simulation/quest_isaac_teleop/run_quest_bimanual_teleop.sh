@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Launch Quest armWithStand (wato_arm_v2) teleop (both arms = Differential
-# IK/DLS fingertip tracking) inside the simulation_isaac container.
+# Launch Quest pioneer_bimanual_arm teleop (both arms = weighted-DLS
+# fingertip IK) inside the simulation_isaac container.
 #
 # Run this from the repo root (on the host):
 #   ./watod -t simulation_isaac_dev

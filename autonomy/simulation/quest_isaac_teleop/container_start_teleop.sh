@@ -5,11 +5,6 @@
 # running first"), then runs the Isaac Sim IK script in the foreground. Only
 # processes THIS invocation started are stopped on exit; anything already
 # running beforehand is left alone.
-#
-# Which IK script to launch varies by branch (e.g. run_quest_bimanual_teleop.sh
-# only exists where the armWithStand asset does) -- auto-detected below
-# rather than hardcoded, so this doesn't silently break when switching
-# branches. Prefers armv2 if present, falls back to bimanual.
 set -e
 
 WORKSPACE="/workspace/humanoid"
@@ -60,14 +55,10 @@ fi
 sleep 2
 
 cd "${WORKSPACE}/autonomy/simulation/quest_isaac_teleop"
-if [ -x ./run_quest_bimanual_teleop.sh ]; then
-    LAUNCH_SCRIPT="./run_quest_bimanual_teleop.sh"
-    LAUNCH_LABEL="armWithStand / wato_arm_v2"
-else
-    echo "[teleop] ERROR: run_quest_bimanual_teleop.sh"
-    echo "[teleop]        found in $(pwd) on this branch. Nothing to launch."
+if [ ! -x ./run_quest_bimanual_teleop.sh ]; then
+    echo "[teleop] ERROR: run_quest_bimanual_teleop.sh not found in $(pwd). Nothing to launch."
     exit 1
 fi
 
-echo "[teleop] Starting Isaac Sim IK script (${LAUNCH_LABEL}, takes 1-3 min to load)..."
-"$LAUNCH_SCRIPT" "$@"
+echo "[teleop] Starting Isaac Sim IK script (pioneer_bimanual_arm, takes 1-3 min to load)..."
+./run_quest_bimanual_teleop.sh "$@"

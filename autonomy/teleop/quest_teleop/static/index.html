@@ -170,7 +170,7 @@
 
       // IK-target marker, drawn as a small HUD-locked quad (2 triangles) in the SAME eye-space
       // (no view matrix) as the POV image quad itself -- positioned from a UV the Python backend
-      // projects through the REAL eye cameras (see run_quest_armv2_teleop.py's
+      // projects through the REAL eye cameras (see run_quest_bimanual_teleop.py's
       // _project_world_point_to_uv), not the browser's own raw WebXR hand-tracking position.
       // Those are different coordinate spaces: the operator's physical room-scale hand position
       // has no fixed relationship to the robot's (head-locked, fixed) camera view, which is why
@@ -502,7 +502,7 @@
             }
           }
           // Polled the same way and cadence as the POV images -- written atomically (temp file +
-          // rename) by run_quest_armv2_teleop.py, so this should never observe a torn/partial
+          // rename) by run_quest_bimanual_teleop.py, so this should never observe a torn/partial
           // JSON, but a stale/absent value here just means the marker skips a draw this frame.
           let markerUV = null;
           async function refreshMarkerUV() {

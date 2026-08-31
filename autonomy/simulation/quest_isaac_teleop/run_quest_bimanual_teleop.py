@@ -11,11 +11,11 @@ Pipeline
 
 Control
 -------
-IK: isaaclab DifferentialIKController, ik_method="dls", one instance per arm so neither
-arm's homing state leaks into the other's. Each arm tracks its gripper's FINGERTIP-TIP
-midpoint (not the wrist link); orientation comes from the wrist link. lambda_val 0.2
-(0.35 right) -- at the DLS default of 0.01, a 0.1m commanded step pushed the Jacobian
-condition number past 4000 and some axes diverged instead of converging.
+IK: weighted damped-least-squares, one solver per arm so neither arm's homing state leaks
+into the other's. Each arm tracks its gripper's FINGERTIP-TIP midpoint (not the wrist
+link); orientation comes from the wrist link. Damping lambda_val is 0.1 (0.175 right) --
+see _DLS_LAMBDA; the shoulder is up-weighted (_IK_JOINT_COST) so hand rotation lands in
+the forearm/wrist instead of swinging the whole arm.
 
 Coordinate mapping: WebXR is Y-up (X=right, Y=up, -Z=forward); the robot base is Z-up and
 yawed 180deg. Both hand POSITION and wrist ORIENTATION are mapped CAMERA-RELATIVE (see
@@ -73,7 +73,7 @@ def _ensure_il_on_path() -> None:
 
 
 # ── CLI args ──────────────────────────────────────────────────────────────────
-parser = argparse.ArgumentParser(description="Quest armWithStand teleop (both arms: DLS fingertip IK)")
+parser = argparse.ArgumentParser(description="Quest pioneer_bimanual_arm teleop (both arms: weighted-DLS fingertip IK)")
 parser.add_argument("--gain", type=float, default=1.0,
                     help="Motion gain: metres of EE motion per metre of real wrist motion")
 parser.add_argument("--record", action="store_true",
