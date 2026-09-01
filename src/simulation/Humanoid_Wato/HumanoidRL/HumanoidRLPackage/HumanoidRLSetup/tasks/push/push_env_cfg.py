@@ -10,12 +10,10 @@ up-the-ramp direction (box-local +y) is the env-frame ``+x`` axis.
 
 from __future__ import annotations
 
+import sys
 from dataclasses import MISSING
 from pathlib import Path
-from typing import Optional
 
-import isaaclab.sim as sim_utils
-from isaaclab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg
 from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.managers import EventTermCfg as EventTerm
@@ -24,132 +22,48 @@ from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
-from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sensors import TiledCameraCfg
-from isaaclab.sensors.frame_transformer.frame_transformer_cfg import FrameTransformerCfg
-from isaaclab.sim.spawners.from_files.from_files_cfg import GroundPlaneCfg, UsdFileCfg
+from isaaclab.markers.config import FRAME_MARKER_CFG
+from isaaclab.sensors.frame_transformer.frame_transformer_cfg import (
+    FrameTransformerCfg,
+    OffsetCfg,
+)
 from isaaclab.utils import configclass
-from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
 from . import mdp
+from .scene import (  # noqa: F401  (BOX_* / FLOOR_TARGET re-exported for distill_env_cfg)
+    BLOCK_DROP_MIN_Z,
+    BLOCK_HALF,
+    BLOCK_INIT_POS,
+    BOX_EXCLUSION,
+    BOX_POS,
+    BOX_QUAT,
+    FLOOR_TARGET,
+    FLOOR_X_MAX,
+    FLOOR_Y_HALF,
+    FLOOR_Z,
+    FLOOR_Z_COLLISION,
+    FULL_YAW,
+    PUSH_DIR,
+    RAMP_BASE_X,
+    RAMP_BASE_Z,
+    RAMP_TOP_X,
+    REPOSITION_START_STAGE,
+    ROBOT_STAND_LIFT_Z,
+    SPAWN_STAGES,
+    TABLE_TOP_Z,
+    PushBlockSceneCfg,
+)
 
-##
-# Task geometry (env frame; robot base at the origin)
-##
-
-ASSETS_DIR = Path(__file__).resolve().parents[5] / "UsdModelAssets"
-
-# box placed corner at (0.27, 0.127), yaw -90 deg: box-local +y (up the ramp) -> env +x
-BOX_POS = (0.27, 0.127, 0.0)
-BOX_QUAT = (0.70711, 0.0, 0.0, -0.70711)
-PUSH_DIR = (1.0, 0.0)
-
-RAMP_BASE_X = 0.279  # ramp meets the table (z=0)
-RAMP_TOP_X = 0.308  # ramp meets the interior floor
-FLOOR_Z = 0.0063  # interior floor height above the table (visual mesh)
-# Effective COLLISION floor: the box USD's collision surface sits ~5 mm above the
-# visual floor, so a settled 50.8 mm block rests at center z ~= 0.0369
-# (= FLOOR_Z_COLLISION + BLOCK_HALF), not FLOOR_Z + BLOCK_HALF. Used only by the
-# block_on_floor success check; FLOOR_Z stays the visual value for obs/scoop.
-FLOOR_Z_COLLISION = 0.0115
-FLOOR_X_MAX = 0.511  # interior floor end (back wall)
-FLOOR_Y_HALF = 0.114  # interior floor half width
-
-BLOCK_HALF = mdp.BLOCK_HALF_SIZE  # 50.8 mm cube, corner-origin USD
-# block starts on the table in front of the ramp (center at ~(0.21, 0))
-BLOCK_INIT_POS = (0.21 - BLOCK_HALF, -BLOCK_HALF, 0.0)
-# target point on the interior floor, comfortably past the ramp top
-FLOOR_TARGET = (0.37, 0.0)
-
-##
-# Spawn curriculum (performance-gated widening of the block spawn offsets)
-##
-
-# Default block center anchor (matches BLOCK_INIT_POS center = (0.21, 0.0)); the
-# curriculum only grows the OFFSET magnitude around this fixed anchor.
-FULL_YAW = (0.0, 6.2831853)
-SPAWN_STAGES = [
-    # stage 0: current moderate range (ramp-approach side only)
-    {"x": (-0.06, 0.02), "y": (-0.06, 0.06), "yaw": FULL_YAW},
-    # stage 1: wider approach, out to the edges of the ramp mouth
-    {"x": (-0.10, 0.05), "y": (-0.12, 0.12), "yaw": FULL_YAW},
-    # stage 2: reaches beside the box (|y| past the 0.127 wall) -> repositioning on
-    {"x": (-0.12, 0.20), "y": (-0.20, 0.20), "yaw": FULL_YAW},
-    # stage 3: full reachable table incl. beside + near-behind the box
-    {"x": (-0.14, 0.30), "y": (-0.26, 0.26), "yaw": FULL_YAW},
-]
-# Curriculum stage (0-indexed) at which the block can spawn beside/behind the
-# box and the repositioning reward switches on.
-REPOSITION_START_STAGE = 2
-
-# Box footprint to exclude from spawns (env frame). Open ramp (-x) side is left
-# unmargined so the block can still spawn right at the ramp base; wall/back and
-# lateral sides are inflated by the block half-extent so the body clears them.
-BOX_EXCLUSION = {
-    "x_min": RAMP_BASE_X,
-    "x_max": 0.524 + BLOCK_HALF,
-    "y_abs": 0.127 + BLOCK_HALF,
-}
-
-
-##
-# Scene definition
-##
-
-
-@configclass
-class PushBlockSceneCfg(InteractiveSceneCfg):
-    """Scene with a robot, the block to push and the static ramp-box."""
-
-    # robot and end-effector frame: populated by the agent env cfg
-    robot: ArticulationCfg = MISSING
-    ee_frame: FrameTransformerCfg = MISSING
-    # optional external camera (set by distillation env cfg)
-    tiled_camera: Optional[TiledCameraCfg] = None
-
-    # dynamic block to push (corner-origin USD)
-    object = RigidObjectCfg(
-        prim_path="{ENV_REGEX_NS}/Object",
-        init_state=RigidObjectCfg.InitialStateCfg(pos=BLOCK_INIT_POS, rot=[1, 0, 0, 0]),
-        spawn=UsdFileCfg(
-            usd_path=str(ASSETS_DIR / "block.usd"),
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                solver_position_iteration_count=16,
-                solver_velocity_iteration_count=1,
-                max_angular_velocity=1000.0,
-                max_linear_velocity=1000.0,
-                max_depenetration_velocity=5.0,
-                disable_gravity=False,
-            ),
-        ),
-    )
-
-    # static open box with ramp (no RigidBodyAPI in the USD -> fixed collider)
-    box = AssetBaseCfg(
-        prim_path="{ENV_REGEX_NS}/Box",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=BOX_POS, rot=BOX_QUAT),
-        spawn=UsdFileCfg(usd_path=str(ASSETS_DIR / "box.usd")),
-    )
-
-    # Table
-    table = AssetBaseCfg(
-        prim_path="{ENV_REGEX_NS}/Table",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=[0.5, 0, 0], rot=[0.707, 0, 0, 0.707]),
-        spawn=UsdFileCfg(usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd"),
-    )
-
-    # plane
-    plane = AssetBaseCfg(
-        prim_path="/World/GroundPlane",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=[0, 0, -1.05]),
-        spawn=GroundPlaneCfg(),
-    )
-
-    # lights
-    light = AssetBaseCfg(
-        prim_path="/World/light",
-        spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=3000.0),
-    )
+# The canonical pioneer bimanual-arm config (editable-installed in the isaac_lab
+# image; the sys.path entry is a fallback for a bare bind-mounted checkout).
+_PIONEER = Path(__file__).resolve().parents[7] / "pioneer_humanoid"
+if str(_PIONEER) not in sys.path:
+    sys.path.insert(0, str(_PIONEER))
+from pioneer_humanoid.bimanual_arm import (  # noqa: E402
+    BIMANUAL_ARM_CFG,
+    LEFT_ARM_JOINTS as RIGHT_ARM_JOINTS,
+    LEFT_EE_BODY as RIGHT_EE_BODY,
+)
 
 
 ##
@@ -291,6 +205,7 @@ class RewardsCfg:
         params={
             "ramp_base_x": RAMP_BASE_X,
             "ramp_top_x": RAMP_TOP_X,
+            "ramp_base_z": RAMP_BASE_Z,
             "floor_z": FLOOR_Z,
             "box_x_max": FLOOR_X_MAX,
             "box_y_half": FLOOR_Y_HALF,
@@ -337,7 +252,8 @@ class TerminationsCfg:
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
 
     object_dropping = DoneTerm(
-        func=mdp.root_height_below_minimum, params={"minimum_height": -0.05, "asset_cfg": SceneEntityCfg("object")}
+        func=mdp.root_height_below_minimum,
+        params={"minimum_height": BLOCK_DROP_MIN_Z, "asset_cfg": SceneEntityCfg("object")},
     )
 
     block_off_course = DoneTerm(
@@ -390,35 +306,104 @@ class CurriculumCfg:
 ##
 
 
+def _ee_frame_cfg(*, debug_vis: bool) -> FrameTransformerCfg:
+    """EE proxy at the left wrist link (RIGHT_EE_BODY = link6l), zero offset.
+
+    No verified fingertip-center offset from link6l exists as a static frame (the
+    teleop code computes it dynamically from both finger tips at runtime, see
+    ``pioneer_humanoid.bimanual_arm.compute_gripper_tip_pose_b``). Zero offset is a
+    reasonable proxy for the push reward terms; refine with a measured offset if
+    pushing behavior looks visibly off from the wrist position.
+    """
+    marker_cfg = FRAME_MARKER_CFG.replace(prim_path="/Visuals/FrameTransformer/ee_tcp")
+    marker_cfg.markers["frame"].scale = (0.03, 0.03, 0.03)
+    return FrameTransformerCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/base_link",
+        debug_vis=debug_vis,
+        visualizer_cfg=marker_cfg,
+        target_frames=[
+            FrameTransformerCfg.FrameCfg(
+                prim_path="{ENV_REGEX_NS}/Robot/" + RIGHT_EE_BODY,
+                name="end_effector",
+                offset=OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0)),
+            ),
+        ],
+    )
+
+
 @configclass
 class PushBlockEnvCfg(ManagerBasedRLEnvCfg):
-    """Configuration for the push-block environment."""
+    """Push-block env: pioneer bimanual arm (left arm) drives a block up the ramp.
 
-    # Scene settings
-    scene: PushBlockSceneCfg = PushBlockSceneCfg(num_envs=4096, env_spacing=2.5)
-    # Basic settings
+    Scene, geometry and grounding come from ``scene.PushBlockSceneCfg`` (the
+    teleop-verified placement, shared with ``pioneer_humanoid.teleop_scenes``).
+    Only the arm is actuated; the closed gripper is the pushing tool.
+    """
+
+    scene: PushBlockSceneCfg = PushBlockSceneCfg(num_envs=1024, env_spacing=2.5)
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
-    # MDP settings
     rewards: RewardsCfg = RewardsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
     events: EventCfg = EventCfg()
     curriculum: CurriculumCfg = CurriculumCfg()
 
     def __post_init__(self):
-        """Post initialization."""
         # general settings
         self.decimation = 2
         self.episode_length_s = 5.0
-        self.viewer.eye = (2.5, 2.5, 1.5)
+        self.viewer.eye = (2.6, 2.6, 2.3)
+        self.viewer.lookat = (0.4, 0.0, TABLE_TOP_Z)
         # simulation settings
         self.sim.dt = 0.01  # 100Hz
         self.sim.render_interval = self.decimation
-
         self.sim.physx.bounce_threshold_velocity = 0.01
         self.sim.physx.gpu_found_lost_aggregate_pairs_capacity = 1024 * 1024 * 4
-        # was 16 * 1024 (=16384): PhysX warned it needed ~16400 for 4096 envs and
-        # dropped interactions. Give real headroom (8x) since randomized block
-        # spawns/yaw create more varied contacts.
+        # PhysX warned it needed ~16400 for 4096 envs and dropped interactions;
+        # give real headroom since randomized block spawns/yaw create varied contacts.
         self.sim.physx.gpu_total_aggregate_pairs_capacity = 128 * 1024
         self.sim.physx.friction_correlation_distance = 0.00625
+
+        # ── bimanual arm ────────────────────────────────────────────────────
+        self.scene.replicate_physics = True
+        self.scene.robot = BIMANUAL_ARM_CFG.replace(
+            prim_path="{ENV_REGEX_NS}/Robot",
+            init_state=BIMANUAL_ARM_CFG.init_state.replace(pos=(0.0, 0.0, ROBOT_STAND_LIFT_Z)),
+        )
+        self.scene.robot.spawn.articulation_props.enabled_self_collisions = False
+
+        self.actions.arm_action = mdp.JointPositionActionCfg(
+            asset_name="robot",
+            joint_names=RIGHT_ARM_JOINTS,
+            scale=0.5,
+            use_default_offset=True,
+        )
+        self.scene.ee_frame = _ee_frame_cfg(debug_vis=False)
+
+
+@configclass
+class PushBlockEnvCfg_PLAY(PushBlockEnvCfg):
+    # GUI CRASH WORKAROUND (interactive play/inspection only; does NOT affect
+    # headless training): playing this task in a live GUI window aborts ~29 s
+    # after the scene renders with a native Kit assertion
+    #   carb::thread::detail::BaseMutex::unlock(): "unlock() called by
+    #   non-owning thread" (carb/delegate Mutex.h:158)
+    # -- a cross-thread race in Kit's tasking plugin triggered by something
+    # bimanual-arm-specific. Root-cause fix is still TODO; until then launch
+    # play.py with Kit forced to a single tasking thread, which serializes the
+    # race away (measured cost: startup ~16 s vs ~11 s, no runtime impact):
+    #
+    #   ./isaaclab.sh -p .../rsl_rl_scripts/play.py \
+    #       --task Isaac-Bimanual-Push-Block-Play-v0 --num_envs 4 \
+    #       --checkpoint <run>/model_<N>.pt \
+    #       "--kit_args=--/plugins/carb.tasking.plugin/threadCount=1"
+    #
+    # NOTE the "=" form ("--kit_args=--/..."): with a space, argparse mistakes
+    # the "--/..." value for a new flag and errors. It is a Kit *launch* arg, so
+    # it cannot live in the env cfg -- it must be passed on the CLI.
+    def __post_init__(self):
+        super().__post_init__()
+        self.scene.num_envs = 16
+        self.scene.env_spacing = 2.5
+        self.observations.policy.enable_corruption = False
+        self.scene.ee_frame = _ee_frame_cfg(debug_vis=True)
