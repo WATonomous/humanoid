@@ -8,7 +8,7 @@ WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
 COPY src/behaviour/voxel_grid voxel_grid
-COPY src/wato_msgs/common_msgs wato_msgs/common_msgs
+COPY src/common_msgs common_msgs
 
 # Scan for rosdeps
 # RUN apt-get -qq update

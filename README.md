@@ -18,7 +18,7 @@ cp watod-config.sh watod-config.local.sh
 ```bash
 ./watod build
 ./watod up -d
-./watod -t <service>           # e.g. interfacing, mjlabs, simulation_isaac
+./watod -t <service>           # e.g. interfacing, simulation_mj, simulation_isaac
 ```
 
 One editable container per module — code is bind-mounted from `src/<module>`, so edits are live. Shell in with `./watod -t <service>` and run/rebuild by hand.
@@ -29,7 +29,7 @@ One editable container per module — code is bind-mounted from `src/<module>`, 
 | `perception` | Perception (cameras, GPU) |
 | `behaviour` | `joint_command`, `voxel_grid` |
 | `simulation_isaac` | **Isaac Lab 2.3.2** — SO101 IL, HumanoidRL, Quest teleop |
-| `simulation_mj` | MuJoCo / mjlab RL (`mjlabs` service) |
+| `simulation_mj` | MuJoCo / mjlab RL |
 
 **Isaac Lab sim (recommended):** see [docker/simulation/isaac_lab/QUICKSTART.md](docker/simulation/isaac_lab/QUICKSTART.md).
 
@@ -50,7 +50,7 @@ humanoid
 │       ├── isaac_lab/        # Isaac Lab + LeRobot (primary sim)
 │       └── mjlabs/           # MuJoCo / mjlab
 ├── src/
-│   ├── wato_msgs/            # Shared messages (common_msgs)
+│   ├── common_msgs/         # Shared ROS 2 messages
 │   ├── interfacing/          # CAN, DBC
 │   ├── perception/
 │   ├── behaviour/            # joint_command, voxel_grid
@@ -81,7 +81,7 @@ Isaac Lab needs Linux, NVIDIA GPU, Docker GPU passthrough, and X11 (`xhost +loca
 |------|------------|
 | Imitation learning | [src/il/README.md](src/il/README.md) · Isaac [QUICKSTART](docker/simulation/isaac_lab/QUICKSTART.md) |
 | CAN / hardware | [src/interfacing/can/README.md](src/interfacing/can/README.md) |
-| Messages | [src/wato_msgs/common_msgs/README.md](src/wato_msgs/common_msgs/README.md) |
+| Messages | [src/common_msgs/README.md](src/common_msgs/README.md) |
 | New ROS package | [utils/README.md](utils/README.md) |
 | Doc conventions | [docs/README.md](docs/README.md) |
 

@@ -16,7 +16,7 @@ Read-only mirror of live motor feedback in the browser. Confirms calibration loo
 before commanding anything.
 
 ```bash
-./watod -t mjlabs
+./watod -t simulation_mj
 python3 src/simulation/Humanoid_Wato/pioneer_bimanual_arm/live_arm_mjviser.py \
   --arm-side left --urdf-side right
 # open http://localhost:8080

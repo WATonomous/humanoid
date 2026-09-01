@@ -2,5 +2,5 @@
 src/simulation/**
 
 # Vendored third-party code
-src/embedded/STM32/lib/**
+embedded/STM32/lib/**
 

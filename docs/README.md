@@ -26,4 +26,4 @@ common_msgs/
 The system architecture can be viewed in this [document](Architecture_Map.pdf), along with the .odg file (use libre draw to edit).
 
 ### Infrastructure Documentation
-- [Messages](../src/wato_msgs/common_msgs/README.md)
+- [Messages](../src/common_msgs/README.md)

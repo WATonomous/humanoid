@@ -34,7 +34,7 @@ To use the messages defined in this package within another ROS 2 package:
 1.  **Copy the package into your Docker image's source workspace**: Add the following line to your Dockerfile (typically `root/docker/MODULE_NAME/MODULE_NAME.Dockerfile`), typically in the section where you copy your source code:
     ```dockerfile
     # # Copy in source code
-    COPY src/wato_msgs/common_msgs common_msgs
+    COPY src/common_msgs common_msgs
     ```
 
 2.  **Add Dependency**: Ensure that `common_msgs` is listed as a dependency in the `package.xml` of your consuming package:

@@ -1,9 +1,12 @@
 services:
-  mjlabs:
+  simulation_mj:
     build:
       context: ..
       dockerfile: docker/simulation/mjlabs/mjlabs.Dockerfile
-    image: "ghcr.io/watonomous/humanoid/mjlabs:latest"
+      cache_from:
+        - "${SIMULATION_MJ_IMAGE:?}:${TAG}"
+        - "${SIMULATION_MJ_IMAGE:?}:main"
+    image: "${SIMULATION_MJ_IMAGE:?}:${TAG}"
     network_mode: "bridge"
     ipc: "none"
     ports:
@@ -24,5 +27,5 @@ services:
     volumes:
       - ${MONO_DIR}/src/simulation:/root/ament_ws/src/simulation
       - ${MONO_DIR}/src/teleop:/root/ament_ws/src/teleop
-      - ${MONO_DIR}/src/wato_msgs/common_msgs:/root/ament_ws/src/common_msgs
+      - ${MONO_DIR}/src/common_msgs:/root/ament_ws/src/common_msgs
       - ${MONO_DIR}/src/behaviour:/root/ament_ws/src/behaviour

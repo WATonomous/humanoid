@@ -8,7 +8,7 @@ WORKDIR ${AMENT_WS}/src
 # Copy source code
 COPY src/interfacing/can can
 COPY src/interfacing/dbc dbc
-COPY src/wato_msgs/common_msgs common_msgs
+COPY src/common_msgs common_msgs
 
 # Install rosdep if not present, update package lists
 RUN apt-get update && \
