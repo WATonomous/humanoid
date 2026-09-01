@@ -61,8 +61,7 @@ humanoid
 │   └── embedded/             # STM32, ESP32S3 firmware
 ├── assets/lerobot/           # SO101 USD / vial-task assets
 ├── docs/                     # Doc conventions + architecture map
-├── utils/                    # Package scaffolding helpers
-└── camera/                   # Host RealSense utility
+└── utils/                    # Package scaffolding helpers
 ```
 
 ## Simulation
@@ -70,7 +69,7 @@ humanoid
 | Stack | Module | Docs |
 |-------|--------|------|
 | Isaac Lab 2.3.2 / Sim 5.1 (SO101 IL, HumanoidRL, Quest) | `simulation_isaac` | [QUICKSTART](docker/simulation/isaac_lab/QUICKSTART.md) · [full README](docker/simulation/isaac_lab/README.md) |
-| MuJoCo / mjlab | `simulation_mj` | [mjlabs_setup.md](mjlabs_setup.md) |
+| MuJoCo / mjlab | `simulation_mj` | [README](docker/simulation/mjlabs/README.md) |
 | SO101 vial Gym envs | (inside `simulation_isaac`) | [so101_vial_task](src/simulation/so101_vial_task/README.md) |
 | Quest bimanual teleop | (inside `simulation_isaac`) | [quest_isaac_teleop](src/teleop/quest_isaac_teleop/README.md) |
 | Other teleop variants | host or container | [teleop/README.md](src/teleop/README.md) |
