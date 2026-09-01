@@ -36,7 +36,7 @@ x-simulation_isaac_env: &simulation_isaac_env
 
 services:
   simulation_isaac:
-    build: &simulation_isaac_build
+    build:
       context: ..
       dockerfile: docker/simulation/isaac_lab/isaac_lab.Dockerfile
       cache_from:
@@ -46,7 +46,6 @@ services:
     privileged: true
     gpus: all
     environment: *simulation_isaac_env
-    profiles: [deploy]
     deploy:
       resources:
         reservations:
@@ -59,15 +58,3 @@ services:
     tty: true
     command: sleep infinity
 
-  simulation_isaac_dev:
-    build: *simulation_isaac_build
-    image: "${SIMULATION_ISAAC_IMAGE:?}:dev_${TAG}"
-    privileged: true
-    gpus: all
-    environment: *simulation_isaac_env
-    profiles: [develop]
-    volumes: *simulation_isaac_volumes
-    network_mode: host
-    stdin_open: true
-    tty: true
-    command: sleep infinity

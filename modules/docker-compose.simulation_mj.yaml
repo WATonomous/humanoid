@@ -13,7 +13,6 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
       - ROS_DOMAIN_ID=0
       - FASTDDS_BUILTIN_TRANSPORTS=UDPv4
-    profiles: [deploy, develop]
     command: sleep infinity
     deploy:
       resources:

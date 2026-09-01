@@ -1,6 +1,6 @@
 services:
   voxel_grid:
-    build: &voxel_grid_build
+    build:
       context: ..
       dockerfile: docker/behaviour/voxel_grid/voxel_grid.Dockerfile
       cache_from:
@@ -13,7 +13,6 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-    profiles: [deploy]
     working_dir: /root/ament_ws
     deploy:
       resources:
@@ -25,21 +24,8 @@ services:
       - ${MONO_DIR}/src/behaviour/voxel_grid:/root/ament_ws/src/voxel_grid
     command: tail -F anything
 
-  voxel_grid_dev:
-    build: *voxel_grid_build
-    image: "${BEHAVIOUR_VOXEL_IMAGE:?}:dev_${TAG}"
-    runtime: nvidia
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-    profiles: [develop]
-    working_dir: /root/ament_ws
-    volumes:
-      - ${MONO_DIR}/src/behaviour/voxel_grid:/root/ament_ws/src/voxel_grid
-    command: tail -F anything
-
   joint_command:
-    build: &joint_command_build
+    build:
       context: ..
       dockerfile: docker/behaviour/joint_command/joint_command.Dockerfile
       cache_from:
@@ -48,19 +34,10 @@ services:
       args:
         BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
     image: "${BEHAVIOUR_JOINT_COMMAND_IMAGE:?}:${TAG}"
-    profiles: [deploy]
     network_mode: host
     working_dir: /root/ament_ws
-    command: /bin/bash -c "ros2 launch joint_command joint_command.launch.py"
-    volumes:
-      - ${MONO_DIR}/src/behaviour/joint_command:/root/ament_ws/src/joint_command
-
-  joint_command_dev:
-    build: *joint_command_build
-    image: "${BEHAVIOUR_JOINT_COMMAND_IMAGE:?}:dev_${TAG}"
-    profiles: [develop]
-    network_mode: host
-    working_dir: /root/ament_ws
-    volumes:
-      - ${MONO_DIR}/src/behaviour/joint_command:/root/ament_ws/src/joint_command
+    # editable src is bind-mounted; launch it yourself:
+    #   watod -t joint_command  ->  ros2 launch joint_command joint_command.launch.py
     command: tail -F anything
+    volumes:
+      - ${MONO_DIR}/src/behaviour/joint_command:/root/ament_ws/src/joint_command
