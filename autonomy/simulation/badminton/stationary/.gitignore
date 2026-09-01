@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+runs/
+MUJOCO_LOG.TXT
+scene/workspace_W.npz
+scene/assets/armWithStand_patched.urdf

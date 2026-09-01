@@ -1,0 +1,36 @@
+[project]
+name = "badminton-stationary"
+version = "0.1.0"
+description = "Badminton receive environment: shuttle aero, MuJoCo scene, inverse launcher, interception predictor, scripted baseline"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "mujoco>=3.2",
+    "numpy>=1.26",
+    "scipy>=1.13",
+    "matplotlib>=3.9",
+    "trimesh>=4.4",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# GPU training runs through mjlab (MuJoCo Warp): train = NVIDIA (CUDA torch
+# wheels; training needs Linux + an NVIDIA GPU), train-cpu = CPU torch so the
+# task code can be smoke-tested on any machine (MuJoCo Warp runs on CPU but
+# is far too slow to train on). Everything else in the project is the local
+# CPU mode on plain MuJoCo.
+train = ["mjlab[cu128]>=1.6.0"]
+train-cpu = ["mjlab[cpu]>=1.6.0"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.uv]
+package = false
+# the two train extras pull torch from different wheel indexes (mjlab's
+# cu128/cpu extras); never install both
+conflicts = [[{ extra = "train" }, { extra = "train-cpu" }]]
