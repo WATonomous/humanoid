@@ -278,3 +278,28 @@ the team: wrist motor upgrade, lighter/shorter racket, or accept
 intermittent duty with thermal monitoring. Checkpoint: wandb run
 a0uh1o2d, model_1499.pt. This is the teacher to distill from.
 
+
+### 2026-08-31 — where the misses are (run-11 teacher, 8192 episodes)
+
+`scripts/eval_rl.py` now records the cork-sphere centre at closest approach
+to the face centre (frozen at the contact tick for hits) in the face frame;
+`scripts/plot_hits.py` draws it next to a front-on strike zone
+(`runs/hits.png`). Job 611919 on thor-slurm1: 99.3% hits, 60 misses, every
+miss within 30 cm of the face (no whiffs). Findings:
+
+- Strike zone: misses cluster at chest/waist height (0.75–1.25 m) at or just
+  left of body centre — the body-line receive the viewer clip suggested.
+  Bins: height 0.9–1.1 m 96%, x < −0.4 m 98%; everything else ≥ 98.5%.
+- Face map: 37 of 60 misses pass **below the bottom edge** of the face
+  (v < −7.5 cm), none above it; 11 are outside laterally. The failure is the
+  racket sitting a few cm too high on close body-line shots, not lateral aim.
+  Misses drawn inside the outline are timing misses (shuttle passed the
+  face plane before/after the racket got there).
+- Hit contact points sit in a ~10 cm blob slightly left of face centre
+  (median u −1.7 cm, v +0.6 cm); the 50 Hz sampling puts some hit points a
+  few cm outside the outline (the shuttle moves ~10 cm per tick).
+
+Ops note: the first attempt (job 599012) died in the Warp kernel build with
+"No space left on device" — a `--wrap` submission without `tmpdisk` uses the
+node's shared /tmp, which was full on trpro-slurm1. Always request
+`--gres=shard:4096,tmpdisk:20480` (the sbatch script already does).
