@@ -1,7 +1,7 @@
 """
 Canonical articulation config for the pioneer_bimanual_arm.
 
-Robot model: Humanoid_Wato/pioneer_bimanual_arm (pioneer_bimanual_arm.usd),
+Robot model: assets/pioneer_bimanual_arm (pioneer_bimanual_arm.usd),
 formerly wato_arm_v2/armWithStand.usd. This replaces the old bimanual_arm_cfg.py,
 which used a reversed L/R convention, inverted gripper dicts, X-axis fingertip
 geometry (wrong for this asset), and a rest pose tuned for a superseded CAD
@@ -43,13 +43,13 @@ import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
-# .../src/simulation/pioneer_humanoid/pioneer_humanoid/bimanual_arm.py -> .../src/simulation
-_SIM_DIR = Path(__file__).resolve().parents[2]
-_ARM_ROOT = str(_SIM_DIR / "Humanoid_Wato" / "pioneer_bimanual_arm")
+# .../src/pioneer_humanoid/pioneer_humanoid/bimanual_arm.py -> .../src/pioneer_humanoid
+_PKG_DIR = Path(__file__).resolve().parents[1]
+_ARM_ROOT = str(_PKG_DIR / "assets" / "pioneer_bimanual_arm")
 _ARM_USD_PATH = str(Path(_ARM_ROOT) / "usd" / "pioneer_bimanual_arm.usd")
 
 # urdf_joint_limits.py is stdlib-only and deliberately co-located with the URDF it parses
-# (Humanoid_Wato/pioneer_bimanual_arm/), so it stays outside this package.
+# (assets/pioneer_bimanual_arm/), so it stays outside the importable package.
 if _ARM_ROOT not in sys.path:
     sys.path.insert(0, _ARM_ROOT)
 from urdf_joint_limits import JOINT_POS_LIMITS  # noqa: E402  (needs the path insert above)

@@ -360,7 +360,7 @@ visibly lag the commanded target. Shoulder/elbow are currently set to peak
 kinematic reach limit.
 
 Actuator responsiveness (how fast joints track the IK output) is set in
-`src/simulation/pioneer_humanoid/pioneer_humanoid/bimanual_arm.py`
+`src/pioneer_humanoid/pioneer_humanoid/bimanual_arm.py`
 via `stiffness` and `damping` on each `ImplicitActuatorCfg`. Current values
 are raised ~25–50% above the original static-hold tuning for faster tracking
 of a moving IK target; the torque caps stay at the real motor peak.

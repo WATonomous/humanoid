@@ -34,9 +34,9 @@ from isaaclab.utils import configclass
 
 from pioneer_humanoid.bimanual_arm import BIMANUAL_ARM_CFG
 
-# src/simulation/pioneer_humanoid/pioneer_humanoid/teleop_scenes.py -> src/simulation
-_SIM_DIR = Path(__file__).resolve().parents[2]
-_HW = _SIM_DIR / "Humanoid_Wato"
+# src/pioneer_humanoid/pioneer_humanoid/teleop_scenes.py -> src/
+# Shared scene props still live under src/simulation/Humanoid_Wato/ for now.
+_HW = Path(__file__).resolve().parents[2] / "simulation" / "Humanoid_Wato"
 _TABLE_USD = str(_HW / "Table" / "table.usd")
 _BLOCK_USD = str(_HW / "UsdModelAssets" / "block.usd")
 _BOX_USD = str(_HW / "UsdModelAssets" / "box.usd")
