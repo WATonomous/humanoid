@@ -10,21 +10,26 @@ struct CanMessage {
   CanMessage(int size) : data(size, 0), dlc(size) {}
   CanMessage(int id, int size) : id(id), data(size, 0), dlc(size) {}
 
-  uint32_t id;                  // CAN message ID
-  std::vector<uint8_t> data;    // Message data 8 bytes
-  uint8_t dlc;                  // Data Length Code
-  bool is_extended_id = false;  // Extended frame format flag
-  bool is_remote_frame = false; // Remote transmission request flag
-  uint64_t timestamp_us;        // Timestamp in microseconds
+  uint32_t id;
+  std::vector<uint8_t> data; // up to 8 bytes, or 64 if is_fd
+  uint8_t dlc;
+  bool is_extended_id = false;
+  bool is_remote_frame = false;
+  bool is_fd = false;            // requires CanConfig::enable_fd on the interface
+  bool fd_bitrate_switch = true; // CANFD_BRS; only meaningful when is_fd is true
+  uint64_t timestamp_us;
 };
 
 struct CanConfig {
-  std::string interface_name;  // CAN interface name (e.g., "can0")
-  std::string device_path;     // Device path for SLCAN (e.g., "/dev/ttyACM0")
-  std::string bustype;         // Bus type: "socketcan" or "slcan"
-  uint32_t bitrate;            // Bitrate in bps for arbitration phase
-  uint32_t data_bitrate;       // Data bitrate in bps for CAN-FD data phase
-  uint32_t receive_timeout_ms; // Receive timeout in milliseconds
+  std::string interface_name;
+  std::string device_path; // SLCAN serial device (e.g., "/dev/ttyACM0")
+  std::string bustype;     // "socketcan" or "slcan"
+  uint32_t bitrate;        // arbitration-phase bps
+  uint32_t data_bitrate;   // CAN-FD data-phase bps -- not yet wired into interface setup
+  uint32_t receive_timeout_ms;
+  // Not supported with bustype="slcan" (SLCAN can't carry FD frames -- setupSlcan() refuses).
+  // Unvalidated on real hardware; see real-hardware-safety skill before testing on the arm.
+  bool enable_fd = false;
 };
 
 class CanCore {

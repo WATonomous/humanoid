@@ -37,19 +37,32 @@ CanNode::CanNode() : Node("can_node"), can_core(this->get_logger()) {
   this->declare_parameter("bitrate", 500000);
   this->declare_parameter("receive_poll_interval_ms", 10);
   this->declare_parameter("receive_timeout_ms", 10000);
+  this->declare_parameter("enable_can_fd", false);
+  this->declare_parameter("data_bitrate", 5000000);
 
   // Get parameter values
   std::string can_interface = this->get_parameter("can_interface").as_string();
   std::string device_path = this->get_parameter("device_path").as_string();
   std::string bustype = this->get_parameter("bustype").as_string();
   int bitrate = this->get_parameter("bitrate").as_int();
+  bool enable_can_fd = this->get_parameter("enable_can_fd").as_bool();
+  int data_bitrate = this->get_parameter("data_bitrate").as_int();
 
   int receive_poll_interval_ms = this->get_parameter("receive_poll_interval_ms").as_int();
 
   RCLCPP_INFO(this->get_logger(),
-              "Loaded parameters: interface=%s, bustype=%s, bitrate=%d, "
-              "poll_interval_ms=%d",
-              can_interface.c_str(), bustype.c_str(), bitrate, receive_poll_interval_ms);
+              "Loaded parameters: interface=%s, bustype=%s, bitrate=%d, enable_can_fd=%s, "
+              "data_bitrate=%d, poll_interval_ms=%d",
+              can_interface.c_str(), bustype.c_str(), bitrate, enable_can_fd ? "true" : "false",
+              data_bitrate, receive_poll_interval_ms);
+
+  if (enable_can_fd && bustype == "slcan") {
+    RCLCPP_ERROR(this->get_logger(),
+                 "enable_can_fd=true with bustype=slcan is not supported (see can_core.cpp "
+                 "setupSlcan()). Refusing to start rather than silently falling back to "
+                 "classic CAN.");
+    return;
+  }
 
   // Configure CanCore
   CanConfig config;
@@ -57,6 +70,8 @@ CanNode::CanNode() : Node("can_node"), can_core(this->get_logger()) {
   config.device_path = device_path;
   config.bustype = bustype;
   config.bitrate = bitrate;
+  config.data_bitrate = static_cast<uint32_t>(data_bitrate);
+  config.enable_fd = enable_can_fd;
   config.receive_timeout_ms = 10000;
 
   // Initialize the CAN interface

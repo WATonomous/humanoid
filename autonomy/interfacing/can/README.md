@@ -53,3 +53,21 @@ Live joint mirror, mjlab sim parity, and interactive calibration are done — se
 `config/params.yaml` defaults: `can_interface=can0` `device_path=/dev/canable` `bustype=slcan` `bitrate=1000000`
 
 DBC: `autonomy/interfacing/dbc/humanoid.dbc` · Debug: `candump can0`
+
+## CAN-FD (opt-in, unvalidated on real hardware)
+
+`enable_can_fd` / `data_bitrate` in `params.yaml` exist as scaffolding for a future move to
+CAN-FD (higher data-phase bitrate, more bus headroom at high motor counts/control rates).
+Defaults are `enable_can_fd: false`, which preserves today's classic-CAN/SLCAN behavior
+exactly.
+
+**Do not flip this on against the real arm without bench-testing first.** Enabling it
+requires:
+- A CAN-FD-capable adapter (the CANable + SLCAN setup this repo documents cannot carry FD
+  frames — SLCAN is the Lawicel ASCII protocol, which has no FD framing). You need a native
+  SocketCAN-FD interface (`bustype: "socketcan"`), e.g. via `gs_usb`/candleLight firmware.
+- Re-validating CAN watchdog/timeout behavior on that new adapter before trusting it near
+  motors — see the `real-hardware-safety` skill.
+
+`can_node` will refuse to start (not silently fall back to classic CAN) if `enable_can_fd:
+true` is set together with `bustype: "slcan"`, since that combination can't work.
