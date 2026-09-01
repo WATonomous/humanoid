@@ -39,7 +39,7 @@ class VoxelGridNode(Node):
             qos_profile_sensor_data)
 
         self.voxel_pub = self.create_publisher(
-            PointCloud2, '/behaviour/voxel_grid', qos_profile_sensor_data
+            PointCloud2, '/perception/voxel_grid', qos_profile_sensor_data
         )
 
         self.rgb_image = None

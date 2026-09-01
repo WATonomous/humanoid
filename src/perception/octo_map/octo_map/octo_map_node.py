@@ -24,7 +24,7 @@ class OctoMapNode(Node):
             CameraInfo, '/perception/camera_info', self.info_callback, 10)
 
         self.octo_pub = self.create_publisher(
-            PointCloud2, '/behaviour/octo_map', 10)
+            PointCloud2, '/perception/octo_map', 10)
 
         self.rgb_image = None
         self.depth_image = None
