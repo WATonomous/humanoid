@@ -19,7 +19,7 @@ Training stays outside this repo (`lerobot-train` on the LeRobot folder). HDF5 o
 | Field | Source | Units |
 |-------|--------|-------|
 | `observation.state` / `proprio` | measured joint positions | rad |
-| `action` | commanded joint targets (IK output on sim, `/behaviour/arm_pose` on robot) | rad |
+| `action` | commanded joint targets (IK output on sim, `/arm/joint_targets` on robot) | rad |
 | `observation.images.*` / `pixels` | cameras in schema (optional for sim) | uint8 |
 | `task` | `--task_description` | string |
 

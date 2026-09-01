@@ -4,7 +4,7 @@ We convert high-level arm joint targets (`ArmPose`) into per-motor CAN commands 
 
 ## Pipeline
 
-**Input:** `common_msgs/ArmPose` on `/behaviour/arm_pose` (6 angles: 3 shoulder, 2 elbow, 1 wrist).
+**Input:** `common_msgs/ArmPose` on `/arm/joint_targets` (6 angles: 3 shoulder, 2 elbow, 1 wrist).
 
 **Output:** six `common_msgs/MotorCmd` messages on `/interfacing/motorCMD` (`POSITION_LOOP` by default).
 

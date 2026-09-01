@@ -55,7 +55,7 @@ Slot order: `shoulder=[pitch(14), roll(12), yaw(13)]`, `elbow=[pitch(10), roll(1
 ```bash
 docker exec -d watod_hy-jc-dry bash -c 'source /opt/ros/humble/setup.bash; source /opt/watonomous/setup.bash; \
   source /root/ament_ws/install/setup.bash; \
-  timeout 12 ros2 topic pub -r 50 /behaviour/arm_pose common_msgs/msg/ArmPose \
+  timeout 12 ros2 topic pub -r 50 /arm/joint_targets common_msgs/msg/ArmPose \
   "{is_left: true, shoulder: {position: [-124.0, -40.5, -165.4]}, elbow: {position: [-88.7, 14.1]}, wrist: {position: [0.0]}, include_hand_pose: false}"'
 ```
 
@@ -73,7 +73,7 @@ docker exec watod_hy-interfacing-1 bash -c 'source /opt/watonomous/setup.bash; \
   END{printf \"14=%s 12=%s 13=%s 10=%s 11=%s\n\", p[14],p[12],p[13],p[10],p[11]}"'
 ```
 Values are in raw motor-frame degrees; convert via each joint's `zero_offset`/`direction` in
-`hardware_mapping.yaml` before using as an `/behaviour/arm_pose` target (cmd-frame).
+`hardware_mapping.yaml` before using as an `/arm/joint_targets` target (cmd-frame).
 Recorded poses go stale whenever calibration changes — re-capture after any recalibration
 rather than reusing old numbers.
 

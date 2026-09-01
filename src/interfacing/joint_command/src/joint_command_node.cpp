@@ -10,7 +10,7 @@
 JointCommandNode::JointCommandNode() : Node("joint_command_node") {
   this->declare_parameter("arm_side", "left");
   this->declare_parameter("control_rate_hz", 50.0);
-  this->declare_parameter("input_topic", "/behaviour/arm_pose");
+  this->declare_parameter("input_topic", "/arm/joint_targets");
   this->declare_parameter("motor_cmd_topic", "/interfacing/motorCMD");
   this->declare_parameter("control_type", common_msgs::msg::MotorCmd::POSITION_LOOP);
   this->declare_parameter("feedback_topic", "/interfacing/motorFeedback");

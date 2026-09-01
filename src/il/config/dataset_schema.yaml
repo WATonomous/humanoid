@@ -24,7 +24,8 @@ images:
   #   width: 640
 
 ros:
-  action_topic: /behaviour/arm_pose
+  # Datasets recorded before 2026-09 used /behaviour/arm_pose here.
+  action_topic: /arm/joint_targets
   # When null, observation.state mirrors action (until motor feedback exists).
   state_topic: null
   arm_pose_unit: deg
