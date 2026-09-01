@@ -30,8 +30,8 @@ Notes:
 
 - Dev containers run as your host user (UID/GID), so bind-mounted files under
   `src/` are never root-owned.
-- The first `simulation_isaac` image build is large (~1 hour). Later builds are
-  cached.
+- The first `simulation_isaac` image build pulls a large base image and takes a
+  while. Later builds are cached.
 - Isaac Lab / perception need X11 access: `xhost +local:docker`.
 
 ## Per-module dev loop
