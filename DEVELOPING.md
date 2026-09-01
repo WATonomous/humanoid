@@ -83,4 +83,4 @@ ros2 launch joint_command joint_command.launch.py
 | Teleop | [src/teleop/README.md](src/teleop/README.md) |
 | CAN / hardware, arm bring-up | [src/interfacing/can/README.md](src/interfacing/can/README.md) · [ARM_BRINGUP.md](ARM_BRINGUP.md) |
 | Messages | [src/common_msgs/README.md](src/common_msgs/README.md) |
-| Doc conventions | [docs/README.md](docs/README.md) |
+| Design / subsystem docs | [humanoid-docs site](https://watonomous.github.io/humanoid-docs/index.html) |
