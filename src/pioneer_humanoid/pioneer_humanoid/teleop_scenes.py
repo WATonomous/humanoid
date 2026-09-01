@@ -1,18 +1,17 @@
-"""Shared InteractiveScene configs for pioneer_bimanual_arm teleop scripts.
+"""Scene lookup for pioneer_bimanual_arm teleop scripts (``--scene`` flag).
 
-Selected by a ``--scene`` flag on the teleop script:
+Most scenes are **discovered** from the ``humanoid_scenes`` package -- adding one
+is a single folder there (see ``humanoid_scenes/_register.py``), nothing changes
+here. Two are hand-wired:
 
-- ``BimanualBareSceneCfg``  ground + light + arm only (default).
-- ``BimanualPushSceneCfg``  the push-block task scene -- imported directly from
-                            the RL task (``...tasks/push/scene.py``) so teleop
-                            demos are collected in the *exact* scene the push
-                            policy trains on: same table, ramp-box, block,
-                            lightbox and grounding. Only ``robot`` (lifted onto
-                            its floor stand) and ``ee_frame`` (dropped) differ.
+- ``bare``  ground + light + arm only. Not a real scene, no package needed.
+- ``push``  the RL push-block scene. Still lives 4 dirs deep in
+            ``HumanoidRLPackage`` (not an installable package yet), so it's
+            imported via a sys.path shim until it's extracted. Once it is, delete
+            the shim and give it an ``@scene`` decorator like any other.
 
-The push scene's geometry and the teleop-verified placement (table top at
-``TABLE_TOP_Z``, arm lifted ``ROBOT_STAND_LIFT_Z``) live in one place --
-``push/scene.py`` -- not copied here.
+Teleop scripts call ``scene_names()`` (for ``--scene`` validation),
+``build_scene_cfg(name)`` and ``camera_for(name)``.
 """
 
 from __future__ import annotations
@@ -25,12 +24,10 @@ from isaaclab.assets import AssetBaseCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.utils import configclass
 
+from humanoid_scenes import list_scenes, make_scene_cfg, scene_camera
 from pioneer_humanoid.bimanual_arm import BIMANUAL_ARM_CFG
 
-# The push task package isn't installable yet (it lives 4 dirs deep in
-# HumanoidRLPackage); add its `tasks/` parent to sys.path and import `push.scene`
-# directly. This runs push/__init__.py (gym.register x4) but NOT the heavy
-# tasks/__init__.py that pulls in every RL task.
+# ── legacy: push still lives in HumanoidRLPackage ────────────────────────────
 _RL_TASKS = (
     Path(__file__).resolve().parents[2]
     / "simulation" / "Humanoid_Wato" / "HumanoidRL"
@@ -39,9 +36,6 @@ _RL_TASKS = (
 if str(_RL_TASKS) not in sys.path:
     sys.path.insert(0, str(_RL_TASKS))
 from push.scene import PushBlockSceneCfg, ROBOT_STAND_LIFT_Z  # noqa: E402
-
-# pioneer_vial_task is a proper installable package -- no sys.path hack needed.
-from humanoid_pioneer_vial.scene import VialRackSceneCfg
 
 
 @configclass
@@ -72,17 +66,26 @@ class BimanualPushSceneCfg(PushBlockSceneCfg):
         self.ee_frame = None
 
 
-@configclass
-class BimanualVialRackSceneCfg(VialRackSceneCfg):
-    """The vial-rack scene, driven by the pioneer bimanual arm (arm at origin)."""
-
-    def __post_init__(self):
-        self.robot = BIMANUAL_ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        self.ee_frame = None
-
-
-SCENE_CFGS = {
-    "bare": BimanualBareSceneCfg,
-    "push": BimanualPushSceneCfg,
-    "vial_rack": BimanualVialRackSceneCfg,
+_LEGACY = {"bare": BimanualBareSceneCfg, "push": BimanualPushSceneCfg}
+_LEGACY_CAMERAS = {
+    "bare": ([2.5, 2.5, 2.0], [0.0, 0.0, 0.8]),
+    "push": ([1.4, -1.0, 0.9], [0.35, -0.2, 0.05]),
 }
+
+
+def scene_names() -> list[str]:
+    """All available ``--scene`` values (legacy + discovered)."""
+    return sorted({*_LEGACY, *list_scenes()})
+
+
+def build_scene_cfg(name: str, *, num_envs: int = 1, env_spacing: float = 2.0):
+    if name in _LEGACY:
+        return _LEGACY[name](num_envs=num_envs, env_spacing=env_spacing)
+    return make_scene_cfg(name, BIMANUAL_ARM_CFG, num_envs=num_envs, env_spacing=env_spacing)
+
+
+def camera_for(name: str):
+    """(eye, target) for the teleop initial view, or a sane default."""
+    if name in _LEGACY:
+        return _LEGACY_CAMERAS[name]
+    return scene_camera(name) or ([2.5, 2.5, 2.0], [0.0, 0.0, 0.8])

@@ -56,10 +56,9 @@ parser.add_argument("--task_description", type=str, default="sim keyboard teleop
 parser.add_argument(
     "--scene",
     type=str,
-    choices=("bare", "push", "vial_rack"),
     default="bare",
-    help="bare (arm only, default), push (push-block table + ramp-box + lightbox) "
-    "or vial_rack (low table + vial rack + 3 loose vials)",
+    help="scene name: 'bare' (arm only), 'push', or any scene registered in "
+    "humanoid_scenes (validated after launch — pass an unknown name to list them)",
 )
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
@@ -95,7 +94,7 @@ from pioneer_humanoid.bimanual_arm import (
     compute_gripper_tip_pose_b,
     compute_tip_ik_jacobian,
 )
-from pioneer_humanoid.teleop_scenes import SCENE_CFGS
+from pioneer_humanoid.teleop_scenes import build_scene_cfg, camera_for, scene_names
 
 
 def _joint_ids(robot, names: list[str]) -> list[int]:
@@ -345,16 +344,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
 
 def main():
+    if args_cli.scene not in scene_names():
+        raise SystemExit(f"unknown --scene {args_cli.scene!r}; available: {scene_names()}")
+
     sim_cfg = sim_utils.SimulationCfg(dt=0.01, device=args_cli.device)
     sim = sim_utils.SimulationContext(sim_cfg)
-    if args_cli.scene == "push":
-        sim.set_camera_view([1.4, -1.0, 0.9], [0.35, -0.2, 0.05])
-    elif args_cli.scene == "vial_rack":
-        sim.set_camera_view([1.1, -1.1, 0.4], [0.45, -0.2, -0.2])
-    else:
-        sim.set_camera_view([2.5, 2.5, 2.0], [0.0, 0.0, 0.8])
+    sim.set_camera_view(*camera_for(args_cli.scene))
 
-    scene_cfg = SCENE_CFGS[args_cli.scene](num_envs=1, env_spacing=2.0)
+    scene_cfg = build_scene_cfg(args_cli.scene, num_envs=1, env_spacing=2.0)
     scene = InteractiveScene(scene_cfg)
 
     sim.reset()

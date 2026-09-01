@@ -1,16 +1,14 @@
 """Vial-rack manipulation scene for the pioneer bimanual arm.
 
-Single source of truth for the scene geometry -- imported both by teleop
-(``pioneer_humanoid.teleop_scenes`` -> ``SCENE_CFGS["vial_rack"]``) and, later,
-by an RL/IL env cfg once someone trains a policy on it.
+Registered as ``@scene("vial_rack")`` -- teleop picks it up via discovery, no
+wiring anywhere else. Grounding follows
+``tools/isaac_harness/scenes/bimanual_vial_rack.sh``: the arm at the origin (no
+floor-stand lift) and a low table (top at ``TABLE_TOP_Z``) so the rack/vials sit
+in the arm's manipulation reach. Rack + vial USDs are the so101 vial task's
+assets.
 
-Grounding follows ``tools/isaac_harness/scenes/bimanual_vial_rack.sh``: the arm
-at the origin (no floor-stand lift) and a low table (top at ``TABLE_TOP_Z``) so
-the rack/vials sit in the arm's manipulation reach. The rack + vial USDs are the
-so101 vial task's assets.
-
-``robot`` and ``ee_frame`` are ``MISSING`` -- the teleop registry (or an env
-cfg) fills them in.
+``robot`` / ``ee_frame`` are ``MISSING`` -- ``humanoid_scenes.make_scene_cfg``
+plugs in the caller's arm.
 
 FIRST PASS: the rack / vial xy placement is the harness starting point, pulled
 in ~0.1 m. It should get a reach-tuning pass against the arm that actually
@@ -28,7 +26,9 @@ from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors.frame_transformer.frame_transformer_cfg import FrameTransformerCfg
 from isaaclab.utils import configclass
 
-_ASSETS = Path(__file__).resolve().parents[4] / "assets" / "lerobot" / "so101_vial_task" / "usd"
+from humanoid_scenes import scene
+
+_ASSETS = Path(__file__).resolve().parents[5] / "assets" / "lerobot" / "so101_vial_task" / "usd"
 VIAL_RACK_USD = str(_ASSETS / "Vial_rack_simple.usda")
 VIAL_USD = str(_ASSETS / "Vial_opaque.usda")
 
@@ -54,6 +54,7 @@ _VIAL_RIGID_PROPS = sim_utils.RigidBodyPropertiesCfg(
 )
 
 
+@scene("vial_rack", robot_pos=(0.0, 0.0, 0.0), camera=([1.1, -1.1, 0.4], [0.45, -0.2, -0.2]))
 @configclass
 class VialRackSceneCfg(InteractiveSceneCfg):
     """Table + vial rack + 3 loose vials, for pioneer-arm vial-placement teleop."""
