@@ -65,7 +65,7 @@ _AUTONOMY = _THIS_DIR.parents[1]  # src/teleop/quest_isaac_teleop -> src
 _SIM_DIR = _AUTONOMY / "simulation"
 # pioneer_humanoid package (canonical arm config). Editable-installed in the image; this fallback
 # keeps a bare bind-mounted checkout working.
-sys.path.insert(0, str(_SIM_DIR / "pioneer_humanoid"))
+sys.path.insert(0, str(_AUTONOMY / "pioneer_humanoid"))
 _IL_PKG = _AUTONOMY / "il"
 
 

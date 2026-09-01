@@ -10,7 +10,7 @@ All teleoperation entry points, one home. **Everything runs inside the
 ```
 
 The repo is bind-mounted at `/workspace/humanoid`. Shared arm config + IK helpers:
-`src/simulation/pioneer_humanoid`. Shared recorder: `src/il`.
+`src/pioneer_humanoid`. Shared recorder: `src/il`.
 
 | Folder | Input | Sim robot | Notes |
 |--------|-------|-----------|-------|

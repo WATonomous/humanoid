@@ -37,7 +37,7 @@ simulation_app = app_launcher.app
 # pioneer_humanoid package (canonical arm config). Editable-installed in the image; this fallback
 # keeps a bare bind-mounted checkout working.
 sys.path.insert(0, os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../simulation/pioneer_humanoid")
+    os.path.join(os.path.dirname(__file__), "../../pioneer_humanoid")
 ))
 
 # This script drives the L-suffixed chain (physical LEFT arm), which the canonical config
