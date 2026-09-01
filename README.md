@@ -1,6 +1,4 @@
-# WATonomous Humanoid - UWaterloo's First Humanoid Robot 
-
-Dockerized ROS 2 stack for controlling and interfacing with the humanoid robot, plus Isaac Lab / MuJoCo simulation, teleop, and imitation learning.
+# Pioneer - UWaterloo's First Humanoid Robot 
 
 Published docs: https://watonomous.github.io/humanoid-docs/index.html
 
