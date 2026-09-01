@@ -143,6 +143,7 @@ def block_scoop_penalty(
     env: ManagerBasedRLEnv,
     ramp_base_x: float,
     ramp_top_x: float,
+    ramp_base_z: float,
     floor_z: float,
     box_x_max: float,
     box_y_half: float,
@@ -158,9 +159,10 @@ def block_scoop_penalty(
     object: RigidObject = env.scene[object_cfg.name]
     center = block_center_w(object) - env.scene.env_origins
     x, y, z = center[:, 0], center[:, 1], center[:, 2]
-    # local support-surface height: 0 before the ramp, linear up the ramp, floor after
+    # local support-surface height (absolute world Z): the table top before the
+    # ramp, linear up the ramp, the interior floor after.
     frac = ((x - ramp_base_x) / (ramp_top_x - ramp_base_x)).clamp(0.0, 1.0)
-    surface_h = frac * floor_z
+    surface_h = ramp_base_z + frac * (floor_z - ramp_base_z)
     # upper-clamped: an unbounded excess lets a single physics contact glitch
     # (e.g. a block launched by a bad contact resolution) produce a reward
     # outlier large enough to blow up the value function target (observed:

@@ -677,8 +677,8 @@ _SHOW_WRIST_CAM_MARKER = False
 @configclass
 class ArmV2SceneCfg(InteractiveSceneCfg):
     """Bare arm stand + the white lightbox enclosure walls/table (visual only, no collision on the
-    walls) -- same geometry as BimanualPushBlockSceneCfg in
-    HumanoidRLSetup/tasks/push/bimanual_env_cfg.py. Always on (no CLI flag)."""
+    walls) -- same geometry as PushBlockSceneCfg in
+    HumanoidRLSetup/tasks/push/scene.py. Always on (no CLI flag)."""
 
     ground = AssetBaseCfg(
         prim_path="/World/defaultGroundPlane",

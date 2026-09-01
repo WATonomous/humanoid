@@ -13,7 +13,7 @@ gym.register(
     id="Isaac-Bimanual-Push-Block-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.bimanual_env_cfg:BimanualPushBlockEnvCfg",
+        "env_cfg_entry_point": f"{__name__}.push_env_cfg:PushBlockEnvCfg",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:BimanualPushBlockPPORunnerCfg",
     },
     disable_env_checker=True,
@@ -23,7 +23,7 @@ gym.register(
     id="Isaac-Bimanual-Push-Block-Play-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.bimanual_env_cfg:BimanualPushBlockEnvCfg_PLAY",
+        "env_cfg_entry_point": f"{__name__}.push_env_cfg:PushBlockEnvCfg_PLAY",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:BimanualPushBlockPPORunnerCfg",
     },
     disable_env_checker=True,
@@ -33,7 +33,7 @@ gym.register(
     id="Isaac-Bimanual-Push-Block-Distill-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.distill_env_cfg:BimanualPushBlockDistillEnvCfg",
+        "env_cfg_entry_point": f"{__name__}.distill_env_cfg:PushBlockDistillEnvCfg",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:BimanualPushBlockPPORunnerCfg",
     },
     disable_env_checker=True,
@@ -43,7 +43,7 @@ gym.register(
     id="Isaac-Bimanual-Push-Block-Distill-Play-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.distill_env_cfg:BimanualPushBlockDistillEnvCfg_PLAY",
+        "env_cfg_entry_point": f"{__name__}.distill_env_cfg:PushBlockDistillEnvCfg_PLAY",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:BimanualPushBlockPPORunnerCfg",
     },
     disable_env_checker=True,
