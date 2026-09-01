@@ -40,6 +40,9 @@ if str(_RL_TASKS) not in sys.path:
     sys.path.insert(0, str(_RL_TASKS))
 from push.scene import PushBlockSceneCfg, ROBOT_STAND_LIFT_Z  # noqa: E402
 
+# pioneer_vial_task is a proper installable package -- no sys.path hack needed.
+from humanoid_pioneer_vial.scene import VialRackSceneCfg
+
 
 @configclass
 class BimanualBareSceneCfg(InteractiveSceneCfg):
@@ -69,7 +72,17 @@ class BimanualPushSceneCfg(PushBlockSceneCfg):
         self.ee_frame = None
 
 
+@configclass
+class BimanualVialRackSceneCfg(VialRackSceneCfg):
+    """The vial-rack scene, driven by the pioneer bimanual arm (arm at origin)."""
+
+    def __post_init__(self):
+        self.robot = BIMANUAL_ARM_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.ee_frame = None
+
+
 SCENE_CFGS = {
     "bare": BimanualBareSceneCfg,
     "push": BimanualPushSceneCfg,
+    "vial_rack": BimanualVialRackSceneCfg,
 }

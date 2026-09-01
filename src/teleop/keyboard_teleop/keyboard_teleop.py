@@ -56,9 +56,10 @@ parser.add_argument("--task_description", type=str, default="sim keyboard teleop
 parser.add_argument(
     "--scene",
     type=str,
-    choices=("bare", "push"),
+    choices=("bare", "push", "vial_rack"),
     default="bare",
-    help="bare (arm only, default) or push (adds the push-block table, block, ramp-box + lightbox walls)",
+    help="bare (arm only, default), push (push-block table + ramp-box + lightbox) "
+    "or vial_rack (low table + vial rack + 3 loose vials)",
 )
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
@@ -348,6 +349,8 @@ def main():
     sim = sim_utils.SimulationContext(sim_cfg)
     if args_cli.scene == "push":
         sim.set_camera_view([1.4, -1.0, 0.9], [0.35, -0.2, 0.05])
+    elif args_cli.scene == "vial_rack":
+        sim.set_camera_view([1.1, -1.1, 0.4], [0.45, -0.2, -0.2])
     else:
         sim.set_camera_view([2.5, 2.5, 2.0], [0.0, 0.0, 0.8])
 

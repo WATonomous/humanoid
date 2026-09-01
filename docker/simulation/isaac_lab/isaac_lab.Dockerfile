@@ -126,6 +126,7 @@ RUN $PYTHON -m pip install --no-deps "rerun-sdk>=0.24.0,<0.27.0" && \
 # ── Humanoid packages (editable; repo bind-mounted at runtime) ────────────────
 COPY src/il ${HUMANOID_ROOT}/src/il
 COPY src/simulation/so101_vial_task ${HUMANOID_ROOT}/src/simulation/so101_vial_task
+COPY src/simulation/pioneer_vial_task ${HUMANOID_ROOT}/src/simulation/pioneer_vial_task
 COPY src/pioneer_humanoid ${HUMANOID_ROOT}/src/pioneer_humanoid
 
 # Humanoid packages: --no-deps (never [sim]/[lerobot] extras — they pull torch/lerobot with deps)
@@ -134,6 +135,7 @@ COPY src/pioneer_humanoid ${HUMANOID_ROOT}/src/pioneer_humanoid
 RUN $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/il" && \
     $PYTHON -m pip install -c /tmp/constraints.txt psutil && \
     $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/so101_vial_task" && \
+    $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/pioneer_vial_task" && \
     $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/pioneer_humanoid"
 
 RUN mkdir -p /tmp/pycache && chmod 1777 /tmp/pycache
