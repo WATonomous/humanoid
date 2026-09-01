@@ -34,7 +34,7 @@ TAG=${TAG/\//-}
 ##   - perception           :   perception nodes
 ##   - behaviour            :   joint_command, voxel_grid
 ##   - simulation_isaac     :   Isaac Lab (SO101 IL, HumanoidRL, Quest teleop)
-##   - simulation_mj        :   MuJoCo / mjlab (mjlabs service)
+##   - simulation_mj        :   MuJoCo / mjlab
 ACTIVE_MODULES=${ACTIVE_MODULES:-""}
 
 # Docker Registry to pull/push images
@@ -54,6 +54,8 @@ BEHAVIOUR_JOINT_COMMAND_IMAGE=${BEHAVIOUR_JOINT_COMMAND_IMAGE:-"$REGISTRY_URL/be
 PERCEPTION_IMAGE=${PERCEPTION_IMAGE:-"$REGISTRY_URL/perception/perception_module"}
 
 SIMULATION_ISAAC_IMAGE=${SIMULATION_ISAAC_IMAGE:-"$REGISTRY_URL/simulation/isaac_lab"}
+
+SIMULATION_MJ_IMAGE=${SIMULATION_MJ_IMAGE:-"$REGISTRY_URL/simulation/mjlabs"}
 
 ISAAC_SIM_CACHE_DIR=${ISAAC_SIM_CACHE_DIR:-"$HOME/docker/isaac-sim"}
 
@@ -92,6 +94,7 @@ echo "BEHAVIOUR_VOXEL_IMAGE=$BEHAVIOUR_VOXEL_IMAGE" >> "$MODULES_DIR/.env"
 echo "BEHAVIOUR_JOINT_COMMAND_IMAGE=$BEHAVIOUR_JOINT_COMMAND_IMAGE" >> "$MODULES_DIR/.env"
 echo "PERCEPTION_IMAGE=$PERCEPTION_IMAGE" >> "$MODULES_DIR/.env"
 echo "SIMULATION_ISAAC_IMAGE=$SIMULATION_ISAAC_IMAGE" >> "$MODULES_DIR/.env"
+echo "SIMULATION_MJ_IMAGE=$SIMULATION_MJ_IMAGE" >> "$MODULES_DIR/.env"
 echo "ISAAC_SIM_CACHE_DIR=$ISAAC_SIM_CACHE_DIR" >> "$MODULES_DIR/.env"
 echo "HF_HOME=${HF_HOME:-$HOME/.cache/huggingface}" >> "$MODULES_DIR/.env"
 echo "XAUTHORITY=${XAUTHORITY:-$HOME/.Xauthority}" >> "$MODULES_DIR/.env"

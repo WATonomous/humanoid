@@ -173,7 +173,7 @@ ENV LD_LIBRARY_PATH=/opt/ros/humble/lib:${LD_LIBRARY_PATH}
 
 # ament_ws: symlinks into bind-mounted repo, resolved at runtime.
 RUN mkdir -p /root/ament_ws/src && \
-    ln -s /workspace/humanoid/src/wato_msgs/common_msgs /root/ament_ws/src/common_msgs && \
+    ln -s /workspace/humanoid/src/common_msgs /root/ament_ws/src/common_msgs && \
     ln -s /workspace/humanoid/src/teleop /root/ament_ws/src/teleop
 
 COPY docker/simulation/isaac_lab/entrypoint.sh /entrypoint.sh

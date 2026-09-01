@@ -20,11 +20,11 @@ runs:
           !src/**
           !src/embedded/**
     
-    - name: Find changed files inside src/wato_msgs folder
-      id: changed-files-wato-msgs
+    - name: Find changed files inside src/common_msgs folder
+      id: changed-files-common-msgs
       uses: tj-actions/changed-files@v42
       with:
-        files: src/wato_msgs/**
+        files: src/common_msgs/**
 
     - name: Get changed files inside src/interfacing folder
       id: changed-files-interfacing
@@ -59,7 +59,7 @@ runs:
     - name: Create list of changed modules
       id: output-changes
       env:
-        INFRASTRUCTURE_CHANGED: ${{ steps.changed-files-wato-msgs.outputs.any_changed == 'true' || steps.changed-files-outside-development.outputs.any_changed == 'true' }}
+        INFRASTRUCTURE_CHANGED: ${{ steps.changed-files-common-msgs.outputs.any_changed == 'true' || steps.changed-files-outside-development.outputs.any_changed == 'true' }}
         INTERFACING_CHANGED: ${{ steps.changed-files-interfacing.outputs.any_changed }}
         PERCEPTION_CHANGED: ${{ steps.changed-files-perception.outputs.any_changed }}
         BEHAVIOUR_CHANGED: ${{ steps.changed-files-behaviour.outputs.any_changed }}

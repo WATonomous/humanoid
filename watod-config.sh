@@ -14,7 +14,7 @@
 ##   - perception           :   perception nodes
 ##   - behaviour            :   joint_command, voxel_grid
 ##   - simulation_isaac     :   Isaac Lab (SO101 IL, HumanoidRL, Quest teleop)
-##   - simulation_mj        :   MuJoCo / mjlab (mjlabs service)
+##   - simulation_mj        :   MuJoCo / mjlab
 
 ACTIVE_MODULES="interfacing"
 
