@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "humanoid-pioneer-vial"
+version = "0.1.0"
+description = "Pioneer bimanual-arm vial-rack manipulation scene for teleop data collection"
+requires-python = ">=3.11"
+# isaaclab / isaacsim come from the isaac_lab image.
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["humanoid_pioneer_vial*"]
