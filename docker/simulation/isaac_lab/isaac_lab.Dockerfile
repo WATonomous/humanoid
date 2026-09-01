@@ -124,17 +124,17 @@ RUN $PYTHON -m pip install --no-deps "rerun-sdk>=0.24.0,<0.27.0" && \
     $PYTHON -m pip install --upgrade pip
 
 # ── Humanoid packages (editable; repo bind-mounted at runtime) ────────────────
-COPY autonomy/il ${HUMANOID_ROOT}/autonomy/il
-COPY autonomy/simulation/so101_vial_task ${HUMANOID_ROOT}/autonomy/simulation/so101_vial_task
-COPY autonomy/simulation/pioneer_humanoid ${HUMANOID_ROOT}/autonomy/simulation/pioneer_humanoid
+COPY src/il ${HUMANOID_ROOT}/src/il
+COPY src/simulation/so101_vial_task ${HUMANOID_ROOT}/src/simulation/so101_vial_task
+COPY src/simulation/pioneer_humanoid ${HUMANOID_ROOT}/src/simulation/pioneer_humanoid
 
 # Humanoid packages: --no-deps (never [sim]/[lerobot] extras — they pull torch/lerobot with deps)
 # and --no-build-isolation (use the base image's setuptools; pip's PEP-517 isolated build env
 # can't reach an index for setuptools>=61 in this builder).
-RUN $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/autonomy/il" && \
+RUN $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/il" && \
     $PYTHON -m pip install -c /tmp/constraints.txt psutil && \
-    $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/autonomy/simulation/so101_vial_task" && \
-    $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/autonomy/simulation/pioneer_humanoid"
+    $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/so101_vial_task" && \
+    $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/pioneer_humanoid"
 
 RUN mkdir -p /tmp/pycache && chmod 1777 /tmp/pycache
 ENV PYTHONPYCACHEPREFIX=/tmp/pycache
@@ -173,8 +173,8 @@ ENV LD_LIBRARY_PATH=/opt/ros/humble/lib:${LD_LIBRARY_PATH}
 
 # ament_ws: symlinks into bind-mounted repo, resolved at runtime.
 RUN mkdir -p /root/ament_ws/src && \
-    ln -s /workspace/humanoid/autonomy/wato_msgs/common_msgs /root/ament_ws/src/common_msgs && \
-    ln -s /workspace/humanoid/autonomy/teleop /root/ament_ws/src/teleop
+    ln -s /workspace/humanoid/src/wato_msgs/common_msgs /root/ament_ws/src/common_msgs && \
+    ln -s /workspace/humanoid/src/teleop /root/ament_ws/src/teleop
 
 COPY docker/simulation/isaac_lab/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
@@ -182,8 +182,8 @@ RUN chmod +x /entrypoint.sh
 RUN cat >> /root/.bashrc <<'EOF'
 export ISAACLAB=/workspace/isaaclab
 export HUMANOID_ROOT=/workspace/humanoid
-export TASK_ROOT=/workspace/humanoid/autonomy/simulation/so101_vial_task
-export RL_ROOT=/workspace/humanoid/autonomy/simulation/Humanoid_Wato/HumanoidRL
+export TASK_ROOT=/workspace/humanoid/src/simulation/so101_vial_task
+export RL_ROOT=/workspace/humanoid/src/simulation/Humanoid_Wato/HumanoidRL
 alias il-train='$PYTHON -m lerobot.scripts.lerobot_train'
 alias il-record='cd $TASK_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_agent.py'
 alias il-eval='cd $TASK_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_eval.py'

@@ -283,7 +283,7 @@ def handle_spawn_bimanual_arm(cmd: dict) -> dict:
 
     import sys
 
-    pioneer_humanoid_dir = "/workspace/humanoid/autonomy/simulation/pioneer_humanoid"
+    pioneer_humanoid_dir = "/workspace/humanoid/src/simulation/pioneer_humanoid"
     if pioneer_humanoid_dir not in sys.path:
         sys.path.insert(0, pioneer_humanoid_dir)
     from pioneer_humanoid.bimanual_arm import BIMANUAL_ARM_CFG

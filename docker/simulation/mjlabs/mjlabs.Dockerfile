@@ -9,7 +9,7 @@ ENV AMENT_WS=/root/ament_ws
 WORKDIR ${AMENT_WS}/src
 
 # Copy in the required WATO source code (matching the Isaac architecture)
-COPY autonomy/wato_msgs/common_msgs common_msgs
+COPY src/wato_msgs/common_msgs common_msgs
 
 # Scan for rosdeps
 RUN apt-get -qq update && rosdep update && \

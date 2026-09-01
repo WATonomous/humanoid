@@ -5,8 +5,8 @@ FROM ${BASE_IMAGE} AS source
 
 WORKDIR ${AMENT_WS}/src
 
-COPY autonomy/behaviour/joint_command joint_command
-COPY autonomy/wato_msgs/common_msgs common_msgs
+COPY src/behaviour/joint_command joint_command
+COPY src/wato_msgs/common_msgs common_msgs
 
 RUN apt-get -qq update && rosdep update && echo "" > /tmp/colcon_install_list
 

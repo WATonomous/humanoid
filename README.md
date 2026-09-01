@@ -50,17 +50,17 @@ humanoid
 │   └── simulation/
 │       ├── isaac_lab/        # Isaac Lab + LeRobot (primary sim)
 │       └── mjlabs/           # MuJoCo / mjlab
-├── autonomy/
+├── src/
 │   ├── wato_msgs/            # Shared messages (common_msgs)
 │   ├── interfacing/          # CAN, DBC
 │   ├── perception/
 │   ├── behaviour/            # joint_command, voxel_grid
 │   ├── simulation/           # Isaac tasks, teleop, HumanoidRL
 │   ├── teleop/               # Quest WebXR → ROS 2 bridge
-│   └── il/                   # Imitation learning recording
+│   ├── il/                   # Imitation learning recording
+│   └── embedded/             # STM32, ESP32S3 firmware
 ├── assets/lerobot/           # SO101 USD / vial-task assets
 ├── docs/                     # Doc conventions + architecture map
-├── embedded/                 # STM32, ESP32S3 firmware
 ├── utils/                    # Package scaffolding helpers
 └── camera/                   # Host RealSense utility
 ```
@@ -71,9 +71,9 @@ humanoid
 |-------|--------|------|
 | Isaac Lab 2.3.2 / Sim 5.1 (SO101 IL, HumanoidRL, Quest) | `simulation_isaac` | [QUICKSTART](docker/simulation/isaac_lab/QUICKSTART.md) · [full README](docker/simulation/isaac_lab/README.md) |
 | MuJoCo / mjlab | `simulation_mj` | [mjlabs_setup.md](mjlabs_setup.md) |
-| SO101 vial Gym envs | (inside `simulation_isaac`) | [so101_vial_task](autonomy/simulation/so101_vial_task/README.md) |
-| Quest bimanual teleop | (inside `simulation_isaac`) | [quest_isaac_teleop](autonomy/teleop/quest_isaac_teleop/README.md) |
-| Other teleop variants | host or container | [teleop/README.md](autonomy/teleop/README.md) |
+| SO101 vial Gym envs | (inside `simulation_isaac`) | [so101_vial_task](src/simulation/so101_vial_task/README.md) |
+| Quest bimanual teleop | (inside `simulation_isaac`) | [quest_isaac_teleop](src/teleop/quest_isaac_teleop/README.md) |
+| Other teleop variants | host or container | [teleop/README.md](src/teleop/README.md) |
 
 Isaac Lab needs Linux, NVIDIA GPU, Docker GPU passthrough, and X11 (`xhost +local:docker`).
 
@@ -81,25 +81,24 @@ Isaac Lab needs Linux, NVIDIA GPU, Docker GPU passthrough, and X11 (`xhost +loca
 
 | Area | Start here |
 |------|------------|
-| Imitation learning | [autonomy/il/README.md](autonomy/il/README.md) · Isaac [QUICKSTART](docker/simulation/isaac_lab/QUICKSTART.md) |
-| CAN / hardware | [autonomy/interfacing/can/README.md](autonomy/interfacing/can/README.md) |
-| Messages | [autonomy/wato_msgs/common_msgs/README.md](autonomy/wato_msgs/common_msgs/README.md) |
+| Imitation learning | [src/il/README.md](src/il/README.md) · Isaac [QUICKSTART](docker/simulation/isaac_lab/QUICKSTART.md) |
+| CAN / hardware | [src/interfacing/can/README.md](src/interfacing/can/README.md) |
+| Messages | [src/wato_msgs/common_msgs/README.md](src/wato_msgs/common_msgs/README.md) |
 | New ROS package | [utils/README.md](utils/README.md) |
 | Doc conventions | [docs/README.md](docs/README.md) |
-| WATO infra (external) | [wato_monorepo/docs/dev](https://github.com/WATonomous/wato_monorepo/tree/main/docs/dev/) |
 
 ## CAN / arm bring-up
 
 Full checklist (power, CANable udev, calibrate, smoke test):
 
-→ [autonomy/interfacing/can/README.md](autonomy/interfacing/can/README.md)
+→ [src/interfacing/can/README.md](src/interfacing/can/README.md)
 
 For the full **calibrate → visualize → move** sequence: [ARM_BRINGUP.md](ARM_BRINGUP.md)
 
 Open arm work (sim mirror of calibrated joints in Isaac Lab, VR teleop, etc.) is listed there under **Open arm tasks**.
 
 ```bash
-./autonomy/interfacing/can/scripts/can_udev.sh install   # once per host → /dev/canable
+./src/interfacing/can/scripts/can_udev.sh install   # once per host → /dev/canable
 ```
 
 ## Requirements

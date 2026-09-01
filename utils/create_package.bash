@@ -44,7 +44,7 @@ if [ -z "$module_name" ] || [ -z "$package_name" ]; then
 fi
 
 # Variables & helper function to copy and edit boilerplate files
-PACKAGE_DIR="$REPO_ROOT/autonomy/$module_name/$package_name"
+PACKAGE_DIR="$REPO_ROOT/src/$module_name/$package_name"
 replace_foo_variants_in_file() {
     local file="$1"
     local sed_inplace_flag=(-i)
@@ -143,7 +143,7 @@ fi
 
 
 # Update module_names's Dockerfile to copy in package_name into container
-line_to_add="COPY autonomy/$module_name/$package_name $package_name"
+line_to_add="COPY src/$module_name/$package_name $package_name"
 marker='# Copy in source code'
 dockerfile="$DOCKERFILE_DIR/$module_name/$module_name.Dockerfile"
 

@@ -26,5 +26,4 @@ common_msgs/
 The system architecture can be viewed in this [document](Architecture_Map.pdf), along with the .odg file (use libre draw to edit).
 
 ### Infrastructure Documentation
-1. [Project Infrastructure Development Docs](https://github.com/WATonomous/wato_monorepo/tree/main/docs/dev/)
-2. [Messages](../autonomy/wato_msgs/common_msgs/README.md)
+- [Messages](../src/wato_msgs/common_msgs/README.md)

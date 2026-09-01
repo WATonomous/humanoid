@@ -9,7 +9,7 @@
 #   tools/isaac_harness/scenes/bimanual_vial_rack.sh
 #
 # Geometry matches the real pick_place_bimanual task's table
-# (autonomy/simulation/pick_place_gen/task_geometry.py: TABLE_TOP_Z=0.05,
+# (src/simulation/pick_place_gen/task_geometry.py: TABLE_TOP_Z=0.05,
 # TABLE_DIMS=(0.9,1.2,0.05), TABLE_X_MIN=0.18) and the so101_vial_task's
 # rack/vial assets (assets/lerobot/so101_vial_task/usd/).
 #

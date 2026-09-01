@@ -22,7 +22,7 @@ services:
             - driver: nvidia
               capabilities: [gpu]
     volumes:
-      - ${MONO_DIR}/autonomy/behaviour/voxel_grid:/root/ament_ws/src/voxel_grid
+      - ${MONO_DIR}/src/behaviour/voxel_grid:/root/ament_ws/src/voxel_grid
     command: tail -F anything
 
   voxel_grid_dev:
@@ -35,7 +35,7 @@ services:
     profiles: [develop]
     working_dir: /root/ament_ws
     volumes:
-      - ${MONO_DIR}/autonomy/behaviour/voxel_grid:/root/ament_ws/src/voxel_grid
+      - ${MONO_DIR}/src/behaviour/voxel_grid:/root/ament_ws/src/voxel_grid
     command: tail -F anything
 
   joint_command:
@@ -53,7 +53,7 @@ services:
     working_dir: /root/ament_ws
     command: /bin/bash -c "ros2 launch joint_command joint_command.launch.py"
     volumes:
-      - ${MONO_DIR}/autonomy/behaviour/joint_command:/root/ament_ws/src/joint_command
+      - ${MONO_DIR}/src/behaviour/joint_command:/root/ament_ws/src/joint_command
 
   joint_command_dev:
     build: *joint_command_build
@@ -62,5 +62,5 @@ services:
     network_mode: host
     working_dir: /root/ament_ws
     volumes:
-      - ${MONO_DIR}/autonomy/behaviour/joint_command:/root/ament_ws/src/joint_command
+      - ${MONO_DIR}/src/behaviour/joint_command:/root/ament_ws/src/joint_command
     command: tail -F anything

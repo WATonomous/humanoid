@@ -6,8 +6,8 @@ FROM ${BASE_IMAGE} AS source
 WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
-COPY autonomy/perception perception
-COPY autonomy/wato_msgs/common_msgs wato_msgs/common_msgs
+COPY src/perception perception
+COPY src/wato_msgs/common_msgs wato_msgs/common_msgs
 
 # Install rosdep if not present, update package lists
 RUN apt-get update && \

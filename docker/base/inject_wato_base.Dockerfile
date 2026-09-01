@@ -2,7 +2,7 @@ ARG GENERIC_IMAGE
 
 ########### Setup WATO Tools and ENV (eg. AMENT_WS, apt-fast) ###########
 # This stage can be appended on any publicly available base image to make it ready
-# for the wato_monorepo.
+# for this repo.
 FROM ${GENERIC_IMAGE} as wato_base
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
