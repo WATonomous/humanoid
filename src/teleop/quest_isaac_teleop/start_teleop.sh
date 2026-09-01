@@ -8,7 +8,8 @@
 # (image build, SSL certs, Quest developer mode).
 set -e
 
-REPO="$(cd "$(dirname "$0")" && pwd)"
+# Script lives in src/teleop/quest_isaac_teleop/ ; walk up to the repo root.
+REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$REPO"
 
 # Exported so it applies to every ./watod call below, not just the first --
