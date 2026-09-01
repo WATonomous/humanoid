@@ -3,6 +3,11 @@ services:
     build:
       context: ..
       dockerfile: docker/simulation/mjlabs/mjlabs.Dockerfile
+      target: develop
+      args:
+        USER_UID: "${USER_UID}"
+        USER_GID: "${USER_GID}"
+        USERNAME: "${USERNAME}"
       cache_from:
         - "${SIMULATION_MJ_IMAGE:?}:${TAG}"
         - "${SIMULATION_MJ_IMAGE:?}:main"

@@ -3,11 +3,15 @@ services:
     build:
       context: ..
       dockerfile: docker/perception/perception.Dockerfile
+      target: develop
+      args:
+        USER_UID: "${USER_UID}"
+        USER_GID: "${USER_GID}"
+        USERNAME: "${USERNAME}"
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
       cache_from:
         - "${PERCEPTION_IMAGE:?}:${TAG}"
         - "${PERCEPTION_IMAGE:?}:main"
-      args:
-        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
     image: "${PERCEPTION_IMAGE:?}:${TAG}"
     runtime: nvidia
     environment:

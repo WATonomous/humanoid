@@ -3,6 +3,11 @@ services:
     build: &interfacing
       context: ..
       dockerfile: docker/interfacing/interfacing.Dockerfile
+      target: develop
+      args:
+        USER_UID: "${USER_UID}"
+        USER_GID: "${USER_GID}"
+        USERNAME: "${USERNAME}"
       cache_from:
         - "${INTERFACING_IMAGE:?}:${TAG}"
         - "${INTERFACING_IMAGE:?}:main"
