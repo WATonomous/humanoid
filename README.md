@@ -6,22 +6,13 @@ Published docs: https://watonomous.github.io/humanoid-docs/index.html
 
 ## Quick start (watod)
 
-1. Copy config and pick a module:
-
 ```bash
-cp watod-config.sh watod-config.local.sh
-# edit ACTIVE_MODULES, e.g. ACTIVE_MODULES="interfacing simulation_isaac"
-```
-
-2. Build and run:
-
-```bash
-./watod build
+cp watod-config.sh watod-config.local.sh   # set ACTIVE_MODULES
 ./watod up -d
-./watod -t <service>           # e.g. interfacing, simulation_mj, simulation_isaac
+./watod -t <service>                        # shell into a module
 ```
 
-One editable container per module — code is bind-mounted from `src/<module>`, so edits are live. Shell in with `./watod -t <service>` and run/rebuild by hand.
+One editable container per module — code is bind-mounted from `src/<module>`, so edits are live. Full setup and dev workflow: **[DEVELOPING.md](DEVELOPING.md)**.
 
 | `ACTIVE_MODULES` | What it runs |
 |------------------|--------------|
@@ -75,15 +66,9 @@ humanoid
 
 Isaac Lab needs Linux, NVIDIA GPU, Docker GPU passthrough, and X11 (`xhost +local:docker`).
 
-## Development areas
+## Development
 
-| Area | Start here |
-|------|------------|
-| Imitation learning | [src/il/README.md](src/il/README.md) · Isaac [QUICKSTART](docker/simulation/isaac_lab/QUICKSTART.md) |
-| CAN / hardware | [src/interfacing/can/README.md](src/interfacing/can/README.md) |
-| Messages | [src/common_msgs/README.md](src/common_msgs/README.md) |
-| New ROS package | [utils/README.md](utils/README.md) |
-| Doc conventions | [docs/README.md](docs/README.md) |
+Setup, per-module dev loop, CI/linting, and per-area guides: **[DEVELOPING.md](DEVELOPING.md)**.
 
 ## CAN / arm bring-up
 
