@@ -38,12 +38,6 @@ runs:
       with:
         files: src/perception/**
 
-    - name: Get changed files inside src/behaviour folder
-      id: changed-files-behaviour
-      uses: tj-actions/changed-files@v42
-      with:
-        files: src/behaviour/**
-    
     - name: Get changed files inside src/simulation folder
       id: changed-files-simulation
       uses: tj-actions/changed-files@v42
@@ -62,7 +56,6 @@ runs:
         INFRASTRUCTURE_CHANGED: ${{ steps.changed-files-common-msgs.outputs.any_changed == 'true' || steps.changed-files-outside-development.outputs.any_changed == 'true' }}
         INTERFACING_CHANGED: ${{ steps.changed-files-interfacing.outputs.any_changed }}
         PERCEPTION_CHANGED: ${{ steps.changed-files-perception.outputs.any_changed }}
-        BEHAVIOUR_CHANGED: ${{ steps.changed-files-behaviour.outputs.any_changed }}
         SIMULATION_CHANGED: ${{ steps.changed-files-simulation.outputs.any_changed }}
         EMBEDDED_CHANGED: ${{ steps.changed-files-embedded.outputs.any_changed }}
 

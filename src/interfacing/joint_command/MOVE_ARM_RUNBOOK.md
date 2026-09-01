@@ -20,8 +20,8 @@ docker compose --env-file modules/.env -p watod_hy \
 docker rm -f watod_hy-jc-dry 2>/dev/null
 docker run -d --name watod_hy-jc-dry --network host \
   -e ROS_DOMAIN_ID=0 -e FASTDDS_BUILTIN_TRANSPORTS=UDPv4 -e RMW_IMPLEMENTATION=rmw_fastrtps_cpp \
-  -v "$PWD/src/behaviour/joint_command:/root/ament_ws/src/joint_command" \
-  --entrypoint tail ghcr.io/watonomous/humanoid/behaviour/joint_command:dev_main -F /dev/null
+  -v "$PWD/src/interfacing/joint_command:/root/ament_ws/src/joint_command" \
+  --entrypoint tail ghcr.io/watonomous/humanoid/interfacing/joint_command:dev_main -F /dev/null
 
 # build (first time, or after editing C++ / safety_limits.yaml)
 docker exec watod_hy-jc-dry bash -c 'source /opt/ros/humble/setup.bash; source /opt/watonomous/setup.bash; \

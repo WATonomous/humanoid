@@ -26,4 +26,4 @@ python3 src/simulation/Humanoid_Wato/pioneer_bimanual_arm/live_arm_mjviser.py \
 ## 3. Move (optional, real motor control)
 Only after 1–2 look right. Rate-limited, seeds from live feedback (no startup slam).
 
-→ [src/behaviour/joint_command/MOVE_ARM_RUNBOOK.md](src/behaviour/joint_command/MOVE_ARM_RUNBOOK.md)
+→ [src/interfacing/joint_command/MOVE_ARM_RUNBOOK.md](src/interfacing/joint_command/MOVE_ARM_RUNBOOK.md)

@@ -30,9 +30,8 @@ TAG=${TAG/\//-}
 
 # List of active modules (each needs modules/docker-compose.<name>.yaml).
 # Possible values:
-##   - interfacing          :   CAN / hardware interfacing
-##   - perception           :   perception nodes
-##   - behaviour            :   joint_command, voxel_grid
+##   - interfacing          :   CAN / hardware interfacing + joint_command
+##   - perception           :   perception nodes + voxel_grid
 ##   - simulation_isaac     :   Isaac Lab (SO101 IL, HumanoidRL, Quest teleop)
 ##   - simulation_mj        :   MuJoCo / mjlab
 ACTIVE_MODULES=${ACTIVE_MODULES:-""}
@@ -52,9 +51,9 @@ USER_UID=$(id -u)
 USER_GID=$(id -g)
 USERNAME=${USER:-dev}
 
-BEHAVIOUR_VOXEL_IMAGE=${BEHAVIOUR_VOXEL_IMAGE:-"$REGISTRY_URL/behaviour/voxel_grid"}
+PERCEPTION_VOXEL_IMAGE=${PERCEPTION_VOXEL_IMAGE:-"$REGISTRY_URL/perception/voxel_grid"}
 
-BEHAVIOUR_JOINT_COMMAND_IMAGE=${BEHAVIOUR_JOINT_COMMAND_IMAGE:-"$REGISTRY_URL/behaviour/joint_command"}
+INTERFACING_JOINT_COMMAND_IMAGE=${INTERFACING_JOINT_COMMAND_IMAGE:-"$REGISTRY_URL/interfacing/joint_command"}
 
 PERCEPTION_IMAGE=${PERCEPTION_IMAGE:-"$REGISTRY_URL/perception/perception_module"}
 
@@ -98,8 +97,8 @@ echo "USER_GID=$USER_GID" >> "$MODULES_DIR/.env"
 echo "USERNAME=$USERNAME" >> "$MODULES_DIR/.env"
 echo "INTERFACING_IMAGE=$INTERFACING_IMAGE" >> "$MODULES_DIR/.env"
 
-echo "BEHAVIOUR_VOXEL_IMAGE=$BEHAVIOUR_VOXEL_IMAGE" >> "$MODULES_DIR/.env"
-echo "BEHAVIOUR_JOINT_COMMAND_IMAGE=$BEHAVIOUR_JOINT_COMMAND_IMAGE" >> "$MODULES_DIR/.env"
+echo "PERCEPTION_VOXEL_IMAGE=$PERCEPTION_VOXEL_IMAGE" >> "$MODULES_DIR/.env"
+echo "INTERFACING_JOINT_COMMAND_IMAGE=$INTERFACING_JOINT_COMMAND_IMAGE" >> "$MODULES_DIR/.env"
 echo "PERCEPTION_IMAGE=$PERCEPTION_IMAGE" >> "$MODULES_DIR/.env"
 echo "SIMULATION_ISAAC_IMAGE=$SIMULATION_ISAAC_IMAGE" >> "$MODULES_DIR/.env"
 echo "SIMULATION_MJ_IMAGE=$SIMULATION_MJ_IMAGE" >> "$MODULES_DIR/.env"

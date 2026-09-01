@@ -510,7 +510,7 @@ def run(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     default_mapping = (
         Path(__file__).resolve().parents[3]
-        / "behaviour"
+        / "interfacing"
         / "joint_command"
         / "config"
         / "hardware_mapping.yaml"

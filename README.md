@@ -14,9 +14,8 @@ One editable container per module — code is bind-mounted from `src/<module>`, 
 
 | `ACTIVE_MODULES` | What it runs |
 |------------------|--------------|
-| `interfacing` | CAN / hardware interfacing |
-| `perception` | Perception (cameras, GPU) |
-| `behaviour` | `joint_command`, `voxel_grid` |
+| `interfacing` | CAN / hardware interfacing, `joint_command` |
+| `perception` | Perception (cameras, GPU), `voxel_grid` |
 | `simulation_isaac` | **Isaac Lab 2.3.2** — SO101 IL, HumanoidRL, Quest teleop |
 | `simulation_mj` | MuJoCo / mjlab RL |
 
@@ -31,19 +30,17 @@ humanoid
 ├── watod_scripts/            # Dev-env / Docker helpers
 ├── modules/                  # docker-compose.<module>.yaml
 ├── docker/                   # Dockerfiles per stack
-│   ├── base/
 │   ├── interfacing/
 │   ├── perception/
-│   ├── behaviour/
 │   └── simulation/
 │       ├── isaac_lab/        # Isaac Lab + LeRobot (primary sim)
 │       └── mjlabs/           # MuJoCo / mjlab
 ├── src/
 │   ├── common_msgs/         # Shared ROS 2 messages
-│   ├── interfacing/          # CAN, DBC
-│   ├── perception/
-│   ├── behaviour/            # joint_command, voxel_grid
-│   ├── simulation/           # Isaac tasks, teleop, HumanoidRL
+│   ├── interfacing/          # CAN, DBC, joint_command (ArmPose → per-motor CAN)
+│   ├── perception/           # perception nodes, voxel_grid (depth → occupancy)
+│   ├── pioneer_humanoid/     # Shared arm articulation / scene / camera configs
+│   ├── simulation/           # Isaac tasks, HumanoidRL
 │   ├── teleop/               # Quest WebXR → ROS 2 bridge
 │   ├── il/                   # Imitation learning recording
 │   └── embedded/             # STM32, ESP32S3 firmware

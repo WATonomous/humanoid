@@ -10,9 +10,8 @@
 ## List of active modules to run (each needs modules/docker-compose.<name>.yaml).
 ##
 ## Possible values:
-##   - interfacing          :   CAN / hardware interfacing
-##   - perception           :   perception nodes
-##   - behaviour            :   joint_command, voxel_grid
+##   - interfacing          :   CAN / hardware interfacing + joint_command
+##   - perception           :   perception nodes + voxel_grid
 ##   - simulation_isaac     :   Isaac Lab (SO101 IL, HumanoidRL, Quest teleop)
 ##   - simulation_mj        :   MuJoCo / mjlab
 

@@ -17,12 +17,6 @@ if [ "$PERCEPTION_CHANGED" == 'true' ]; then
     MODIFIED_MODULES+="perception "
 fi
 
-# Behaviour
-if [ "$BEHAVIOUR_CHANGED" == 'true' ]; then
-    echo "Detected behaviour changes"
-    MODIFIED_MODULES+="behaviour "
-fi
-
 # Simulation (Isaac skipped in CI; mjlab compose is simulation_mj)
 if [ "$SIMULATION_CHANGED" == 'true' ]; then
     echo "Detected simulation changes"

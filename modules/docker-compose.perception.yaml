@@ -27,5 +27,34 @@ services:
     devices:
       - /dev/bus/usb:/dev/bus/usb
     volumes:
-      - ${MONO_DIR}/src/perception:/root/ament_ws/src/perception
+      - ${MONO_DIR}/src/perception/perception:/root/ament_ws/src/perception
     command: /bin/bash -c "ros2 launch perception perception.launch.py"
+
+  voxel_grid:
+    build:
+      context: ..
+      dockerfile: docker/perception/voxel_grid/voxel_grid.Dockerfile
+      target: develop
+      args:
+        USER_UID: "${USER_UID}"
+        USER_GID: "${USER_GID}"
+        USERNAME: "${USERNAME}"
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
+      cache_from:
+        - "${PERCEPTION_VOXEL_IMAGE:?}:${TAG}"
+        - "${PERCEPTION_VOXEL_IMAGE:?}:main"
+    image: "${PERCEPTION_VOXEL_IMAGE:?}:${TAG}"
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    working_dir: /root/ament_ws
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    volumes:
+      - ${MONO_DIR}/src/perception/voxel_grid:/root/ament_ws/src/voxel_grid
+    command: tail -F anything

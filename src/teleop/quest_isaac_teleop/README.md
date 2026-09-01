@@ -443,7 +443,7 @@ and completely unaffected by this flag.
 
 ### Right arm is NOT supported yet
 
-`src/behaviour/joint_command/config/hardware_mapping.yaml` only has a
+`src/interfacing/joint_command/config/hardware_mapping.yaml` only has a
 `left:` section — there are no CAN IDs documented anywhere in this repo for
 the right arm's motors, and `joint_command_node` is single-arm per instance
 (`arm_side` param, currently hardcoded to `"left"` in

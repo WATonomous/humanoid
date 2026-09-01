@@ -7,7 +7,7 @@ ARG AMENT_WS=/root/ament_ws
 WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
-COPY src/behaviour/voxel_grid voxel_grid
+COPY src/perception/voxel_grid voxel_grid
 COPY src/common_msgs common_msgs
 
 # Scan for rosdeps
