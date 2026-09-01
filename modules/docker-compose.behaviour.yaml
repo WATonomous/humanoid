@@ -3,11 +3,15 @@ services:
     build:
       context: ..
       dockerfile: docker/behaviour/voxel_grid/voxel_grid.Dockerfile
+      target: develop
+      args:
+        USER_UID: "${USER_UID}"
+        USER_GID: "${USER_GID}"
+        USERNAME: "${USERNAME}"
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
       cache_from:
         - "${BEHAVIOUR_VOXEL_IMAGE:?}:${TAG}"
         - "${BEHAVIOUR_VOXEL_IMAGE:?}:main"
-      args:
-        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
     image: "${BEHAVIOUR_VOXEL_IMAGE:?}:${TAG}"
     runtime: nvidia
     environment:
@@ -28,11 +32,15 @@ services:
     build:
       context: ..
       dockerfile: docker/behaviour/joint_command/joint_command.Dockerfile
+      target: develop
+      args:
+        USER_UID: "${USER_UID}"
+        USER_GID: "${USER_GID}"
+        USERNAME: "${USERNAME}"
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
       cache_from:
         - "${BEHAVIOUR_JOINT_COMMAND_IMAGE:?}:${TAG}"
         - "${BEHAVIOUR_JOINT_COMMAND_IMAGE:?}:main"
-      args:
-        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
     image: "${BEHAVIOUR_JOINT_COMMAND_IMAGE:?}:${TAG}"
     network_mode: host
     working_dir: /root/ament_ws

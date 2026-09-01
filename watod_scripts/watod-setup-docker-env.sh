@@ -47,6 +47,11 @@ REPOSITORY=$(echo "$REGISTRY_URL" | sed 's|^.*/\(.*\)$|\1|')
 # NOTE: ALL IMAGE NAMES MUCH BE IN THE FORMAT OF <COMPOSE_FILE>_<SERVICE>
 
 # Images
+# Dev container user — match the host so bind-mounted files are not root-owned
+USER_UID=$(id -u)
+USER_GID=$(id -g)
+USERNAME=${USER:-dev}
+
 BEHAVIOUR_VOXEL_IMAGE=${BEHAVIOUR_VOXEL_IMAGE:-"$REGISTRY_URL/behaviour/voxel_grid"}
 
 BEHAVIOUR_JOINT_COMMAND_IMAGE=${BEHAVIOUR_JOINT_COMMAND_IMAGE:-"$REGISTRY_URL/behaviour/joint_command"}
@@ -88,6 +93,9 @@ echo "TAG=$TAG" >> "$MODULES_DIR/.env"
 echo "BASE_PORT=$BASE_PORT" >> "$MODULES_DIR/.env"
 
 # Images
+echo "USER_UID=$USER_UID" >> "$MODULES_DIR/.env"
+echo "USER_GID=$USER_GID" >> "$MODULES_DIR/.env"
+echo "USERNAME=$USERNAME" >> "$MODULES_DIR/.env"
 echo "INTERFACING_IMAGE=$INTERFACING_IMAGE" >> "$MODULES_DIR/.env"
 
 echo "BEHAVIOUR_VOXEL_IMAGE=$BEHAVIOUR_VOXEL_IMAGE" >> "$MODULES_DIR/.env"
