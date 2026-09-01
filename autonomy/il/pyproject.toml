@@ -23,7 +23,9 @@ sim = ["torch>=2.0", "tqdm>=4.0", "lerobot>=0.3.0"]
 
 [project.scripts]
 humanoid-record = "humanoid_il.record:main"
+humanoid-act-smoke = "humanoid_act.smoke:main"
+humanoid-act-train = "humanoid_act.train:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["humanoid_il*"]
+include = ["humanoid_il*", "humanoid_act*"]
