@@ -56,7 +56,9 @@ BEHAVIOUR_VOXEL_IMAGE=${BEHAVIOUR_VOXEL_IMAGE:-"$REGISTRY_URL/behaviour/voxel_gr
 
 BEHAVIOUR_JOINT_COMMAND_IMAGE=${BEHAVIOUR_JOINT_COMMAND_IMAGE:-"$REGISTRY_URL/behaviour/joint_command"}
 
-PERCEPTION_IMAGE=${PERCEPTION_IMAGE:-"$REGISTRY_URL/perception/perception_module"}
+# Image paths must match CI's <registry>/<repo>/<module>/<service> scheme
+# (.github/templates/docker_context) so `./watod pull` finds the :main images.
+PERCEPTION_IMAGE=${PERCEPTION_IMAGE:-"$REGISTRY_URL/perception/perception"}
 
 SIMULATION_ISAAC_IMAGE=${SIMULATION_ISAAC_IMAGE:-"$REGISTRY_URL/simulation/isaac_lab"}
 
@@ -64,7 +66,7 @@ SIMULATION_MJ_IMAGE=${SIMULATION_MJ_IMAGE:-"$REGISTRY_URL/simulation/mjlabs"}
 
 ISAAC_SIM_CACHE_DIR=${ISAAC_SIM_CACHE_DIR:-"$HOME/docker/isaac-sim"}
 
-INTERFACING_IMAGE=${INTERFACING_IMAGE:-"$REGISTRY_URL/interfacing"}
+INTERFACING_IMAGE=${INTERFACING_IMAGE:-"$REGISTRY_URL/interfacing/interfacing"}
 
 ## --------------------------- Ports ------------------------------
 

@@ -20,8 +20,13 @@ cp watod-config.sh watod-config.local.sh
 
 pre-commit install
 
+./watod pull    # fetch prebuilt :main images for non-GPU modules (optional)
 ./watod up -d
 ```
+
+`./watod pull` grabs the runnable images CI publishes on every merge to `main`,
+so the non-GPU modules start without a cold local build. GPU modules
+(`simulation_*`) are always built locally on first `up`.
 
 `watod-config.sh` is shared defaults and is CI-guarded — never commit personal
 changes to it. Everything local goes in `watod-config.local.sh` (gitignored).

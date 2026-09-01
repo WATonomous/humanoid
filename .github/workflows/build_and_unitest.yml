@@ -116,7 +116,32 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           target: build
 
-      # TODO: Expose the whole profile to the environment and check via compose flags 
+      # On a push to main, publish a runnable image tagged :main built at the
+      # `develop` target -- the same stage watod runs. A fresh checkout can then
+      # `./watod pull && ./watod up -d` instead of a cold local build.
+      # GPU-only modules (simulation_*, embedded) are skipped by docker_context.sh
+      # and are still built locally.
+      - name: Publish runnable image (main only)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ steps.construct-registry-url.outputs.url }}:main
+          build-args: |
+            USER_UID=1000
+            USER_GID=1000
+            USERNAME=dev
+          cache-from: |
+            ${{ steps.construct-registry-url.outputs.url }}:build_${{ env.SOURCE_BRANCH }}
+            ${{ steps.construct-registry-url.outputs.url }}:main
+          cache-to: type=inline
+          builder: ${{ steps.buildx.outputs.name }}
+          target: develop
+
+      # TODO: Expose the whole profile to the environment and check via compose flags
       # - name: Check if deploy stage exists
       #   id: check_deploy_stage
       #   run: |
