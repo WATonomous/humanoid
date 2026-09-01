@@ -50,6 +50,7 @@ humanoid
 │   ├── il/                   # Imitation learning recording
 │   └── embedded/             # STM32, ESP32S3 firmware
 ├── assets/lerobot/           # SO101 USD / vial-task assets
+├── docs/                     # Pointer to the humanoid-docs site
 └── utils/                    # Package scaffolding helpers
 ```
 
