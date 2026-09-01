@@ -20,6 +20,6 @@ services:
       - ROS_DOMAIN_ID=0
     volumes:
       - /dev:/dev # Allow access to host devices
-      - ${MONO_DIR}/autonomy/interfacing:/root/ament_ws/src/interfacing
+      - ${MONO_DIR}/src/interfacing:/root/ament_ws/src/interfacing
       # For calibrate_arm.py --write-mapping
-      - ${MONO_DIR}/autonomy/behaviour/joint_command/config/hardware_mapping.yaml:/calibration/hardware_mapping.yaml
+      - ${MONO_DIR}/src/behaviour/joint_command/config/hardware_mapping.yaml:/calibration/hardware_mapping.yaml

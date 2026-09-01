@@ -2,7 +2,7 @@
 set -e
 
 ################# Sweep for Docker Services and Modules #################
-# Scans for services and modules in the wato_monorepo,
+# Scans for services and modules in this repo,
 # dynamically builds a json matrix for downstream CI build and testing
 
 # Find docker compose files in 'modules' directory

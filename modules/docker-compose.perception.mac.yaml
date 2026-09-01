@@ -18,7 +18,7 @@ services:
       - /dev/bus/usb:/dev/bus/usb
     privileged: true
     volumes:
-      - ${MONO_DIR}/autonomy/perception:/root/ament_ws/src/perception
+      - ${MONO_DIR}/src/perception:/root/ament_ws/src/perception
     command: /bin/bash -c "ros2 launch perception perception.launch.py"
 
   perception_dev:
@@ -31,6 +31,6 @@ services:
     devices:
       - /dev/bus/usb:/dev/bus/usb
     volumes:
-      - ${MONO_DIR}/autonomy/perception:/root/ament_ws/src/perception
+      - ${MONO_DIR}/src/perception:/root/ament_ws/src/perception
     command: /bin/bash -c "ros2 launch perception perception.launch.py"
     # command: tail -f /dev/null

@@ -14,7 +14,7 @@ x-simulation_isaac_volumes: &simulation_isaac_volumes
   - ${ISAAC_SIM_CACHE_DIR}/cache/computecache:/root/.nv/ComputeCache:rw
   - ${ISAAC_SIM_CACHE_DIR}/logs:/root/.nvidia-omniverse/logs:rw
   - ${ISAAC_SIM_CACHE_DIR}/data:/root/.local/share/ov/data:rw
-  - ${MONO_DIR}/autonomy/teleop/quest_teleop/certs:/certs:ro
+  - ${MONO_DIR}/src/teleop/quest_teleop/certs:/certs:ro
 
 x-simulation_isaac_env: &simulation_isaac_env
   - ACCEPT_EULA=Y
@@ -27,8 +27,8 @@ x-simulation_isaac_env: &simulation_isaac_env
   - TELEOP_ID=${TELEOP_ID:-leader_arm_1}
   - ISAACLAB=/workspace/isaaclab
   - HUMANOID_ROOT=/workspace/humanoid
-  - TASK_ROOT=/workspace/humanoid/autonomy/simulation/so101_vial_task
-  - RL_ROOT=/workspace/humanoid/autonomy/simulation/Humanoid_Wato/HumanoidRL
+  - TASK_ROOT=/workspace/humanoid/src/simulation/so101_vial_task
+  - RL_ROOT=/workspace/humanoid/src/simulation/Humanoid_Wato/HumanoidRL
   # Map container-written files back to the host user (Isaac must run as root).
   - HOST_UID=${HOST_UID:-1000}
   - HOST_GID=${HOST_GID:-1000}

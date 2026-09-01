@@ -3,7 +3,7 @@
 Exact workflow used for **HF dataset → ACT train → sim eval** (no physical arm).
 Stack: Isaac Lab 2.3.2 / Sim 5.1 / LeRobot 0.4.3 / ACT / watod `simulation_isaac`.
 
-Full reference: [README.md](README.md). Task/env details: [`autonomy/simulation/so101_vial_task/README.md`](../../../autonomy/simulation/so101_vial_task/README.md).
+Full reference: [README.md](README.md). Task/env details: [`src/simulation/so101_vial_task/README.md`](../../../src/simulation/so101_vial_task/README.md).
 
 ---
 
@@ -132,7 +132,7 @@ Same path on host: `~/Desktop/humanoid/outputs/train/so101_hf_act/...`
 **Must** run from `$TASK_ROOT`. **Do not** pass `--rename_map` for local ACT (cameras already `ego` / `external_D455`).
 
 ```bash
-cd /workspace/humanoid/autonomy/simulation/so101_vial_task
+cd /workspace/humanoid/src/simulation/so101_vial_task
 
 PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_eval.py \
   --task Lerobot-So101-Teleop-Vials-To-Rack-DR-Eval \
@@ -209,7 +209,7 @@ rl-train --task=Isaac-Locomotion-Flat-WatoHumanoid-v0 --headless
 rl-play --task=Isaac-Locomotion-Flat-WatoHumanoid-Play-v0 --num_envs=1
 ```
 
-Task docs: `autonomy/simulation/Humanoid_Wato/HumanoidRL/.../tasks/<task>/*.md`.
+Task docs: `src/simulation/Humanoid_Wato/HumanoidRL/.../tasks/<task>/*.md`.
 
 ---
 

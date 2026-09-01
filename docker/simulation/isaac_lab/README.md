@@ -27,7 +27,7 @@ Based on [NVIDIA SO-101 workshop](https://github.com/isaac-sim/Sim-to-Real-SO-10
 |------|------|
 | `docker/simulation/isaac_lab/isaac_lab.Dockerfile` | Image build |
 | `modules/docker-compose.simulation_isaac.yaml` | watod compose service |
-| `autonomy/simulation/so101_vial_task/` | Gym envs + `lerobot_agent.py` / `lerobot_eval.py` |
+| `src/simulation/so101_vial_task/` | Gym envs + `lerobot_agent.py` / `lerobot_eval.py` |
 | `assets/lerobot/` | Workshop USD/HDRI assets |
 
 ## One-time host setup
@@ -71,8 +71,8 @@ Set automatically in `.bashrc`:
 ```bash
 export ISAACLAB=/workspace/isaaclab
 export HUMANOID_ROOT=/workspace/humanoid
-export TASK_ROOT=/workspace/humanoid/autonomy/simulation/so101_vial_task
-export RL_ROOT=/workspace/humanoid/autonomy/simulation/Humanoid_Wato/HumanoidRL
+export TASK_ROOT=/workspace/humanoid/src/simulation/so101_vial_task
+export RL_ROOT=/workspace/humanoid/src/simulation/Humanoid_Wato/HumanoidRL
 export PYTHON=/workspace/isaaclab/_isaac_sim/python.sh
 ```
 

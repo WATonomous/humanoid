@@ -16,19 +16,19 @@ log/
 
 **/certs/*
 
-autonomy/teleop/quest_teleop_server/certs/*
+src/teleop/quest_teleop_server/certs/*
 datasets/
 outputs/
 
-autonomy/simulation/Humanoid_Wato/HumanoidRL/logs/
-autonomy/simulation/Humanoid_Wato/HumanoidRL/boxing/
+src/simulation/Humanoid_Wato/HumanoidRL/logs/
+src/simulation/Humanoid_Wato/HumanoidRL/boxing/
 
 modules/docker-compose.perception_override.yaml
 
-autonomy/teleop/quest_teleop/static/pov_left.*
-autonomy/teleop/quest_teleop/static/pov_right.*
-autonomy/teleop/quest_teleop/static/wrist_cam.*
-autonomy/teleop/quest_teleop/static/wrist_cam_left.*
-autonomy/teleop/quest_teleop/static/wrist_cam_right.*
-autonomy/teleop/quest_teleop/static/contact_force_hud.*
-autonomy/teleop/quest_teleop/static/marker_uv.json
+src/teleop/quest_teleop/static/pov_left.*
+src/teleop/quest_teleop/static/pov_right.*
+src/teleop/quest_teleop/static/wrist_cam.*
+src/teleop/quest_teleop/static/wrist_cam_left.*
+src/teleop/quest_teleop/static/wrist_cam_right.*
+src/teleop/quest_teleop/static/contact_force_hud.*
+src/teleop/quest_teleop/static/marker_uv.json

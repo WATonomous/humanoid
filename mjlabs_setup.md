@@ -6,7 +6,7 @@ MuJoCo / mjlab runs via the **`simulation_mj`** watod module (`mjlabs` service).
 
 1. **`docker/simulation/mjlabs/mjlabs.Dockerfile`** — ROS 2 Humble base for mjlab (MuJoCo, mjviser, `jax[cuda12]`, brax).
 2. **`modules/docker-compose.simulation_mj.yaml`** — `mjlabs` service with GPU passthrough and port 8080 for mjviser.
-3. Mounts `autonomy/simulation`, `autonomy/teleop`, and `common_msgs` into the container.
+3. Mounts `src/simulation`, `src/teleop`, and `common_msgs` into the container.
 
 ## How to setup and reproduce
 
@@ -35,4 +35,4 @@ python3 -c 'import mujoco; import jax; print(f"Hardware: {jax.devices()[0]}")'
 
 ## Historical note
 
-An early `autonomy/teleop/mojuco_test` folder and a `docker-compose.teleop.yaml` entry were used for CPU/GPU mjlab experiments; both are gone. Use `simulation_mj` / `mjlabs` instead.
+An early `src/teleop/mojuco_test` folder and a `docker-compose.teleop.yaml` entry were used for CPU/GPU mjlab experiments; both are gone. Use `simulation_mj` / `mjlabs` instead.

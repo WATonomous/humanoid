@@ -6,9 +6,9 @@ FROM ${BASE_IMAGE} AS source
 WORKDIR ${AMENT_WS}/src
 
 # Copy source code
-COPY autonomy/interfacing/can can
-COPY autonomy/interfacing/dbc dbc
-COPY autonomy/wato_msgs/common_msgs common_msgs
+COPY src/interfacing/can can
+COPY src/interfacing/dbc dbc
+COPY src/wato_msgs/common_msgs common_msgs
 
 # Install rosdep if not present, update package lists
 RUN apt-get update && \
