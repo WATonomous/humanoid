@@ -3,13 +3,13 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "humanoid-pioneer-vial"
+name = "humanoid-scenes"
 version = "0.1.0"
-description = "Pioneer bimanual-arm vial-rack manipulation scene for teleop data collection"
+description = "Manipulation scenes for pioneer-arm teleop data collection (one folder per scene, auto-discovered)"
 requires-python = ">=3.11"
 # isaaclab / isaacsim come from the isaac_lab image.
 dependencies = []
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["humanoid_pioneer_vial*"]
+include = ["humanoid_scenes*"]
