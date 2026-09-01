@@ -5,8 +5,9 @@ viewport is the absolute gripper-tip pose target — drag/rotate it and the arm 
 Differential IK (DLS).
 
 ```bash
-# sim only (default)
-./run.sh   # or: <isaaclab.sh> -p task_space_ik.py
+# inside the simulation_isaac watod container (sim only, default):
+cd /workspace/humanoid/autonomy/teleop/task_space_controller
+/workspace/isaaclab/isaaclab.sh -p task_space_ik.py
 ```
 
 ## Sim-to-real (`--publish-real-left-arm`)
@@ -34,8 +35,9 @@ the sim/cube target until a sim↔real calibration exists.
 
 ### Bring-up
 
-Prereqs: ROS 2 workspace built (`cd autonomy && colcon build`), CANable on `/dev/canable`,
-e-stop + arm power on.
+Prereqs: CANable on `/dev/canable`, e-stop + arm power on. Terminals 1–2 run in the
+ROS 2 stack (`interfacing` / `behaviour` watod modules); terminal 3 in `simulation_isaac`
+(it has ROS 2 built for Isaac's Python, so it publishes `/behaviour/arm_pose` directly).
 
 ```bash
 # Terminal 1 — CAN
@@ -44,8 +46,9 @@ ros2 launch can can.launch.py
 # Terminal 2 — joint_command (the safety node)
 ros2 launch joint_command joint_command.launch.py
 
-# Terminal 3 — the sim, in the simulation_isaac container (has ROS 2 built for Isaac's Python)
-<isaaclab.sh> -p autonomy/teleop/task_space_controller/task_space_ik.py \
+# Terminal 3 — simulation_isaac container
+/workspace/isaaclab/isaaclab.sh -p \
+  /workspace/humanoid/autonomy/teleop/task_space_controller/task_space_ik.py \
   --publish-real-left-arm
 ```
 
