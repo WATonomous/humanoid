@@ -76,6 +76,20 @@ def main() -> None:
     # the face rotates during the swing, so a plane-crossing test is useless).
     # For misses the closest approach says where the racket would have had
     # to be. Also kept: the closest-approach distance itself.
+    shuttle = uenv.scene["shuttle"]
+    sidx = shuttle.data.indexing
+    cork_z = float(aero.load_params()["shuttle"]["cork_center_z"])
+
+    def cork_pos():
+        # cork collision-sphere centre: the shuttle origin is ~7 cm up the
+        # skirt, so with the shuttle oblique to the face the origin's
+        # in-plane offset is not where the cork struck
+        q = shuttle.data.data.qpos[:, sidx.free_joint_q_adr]
+        pos, w, x, y, z = q[:, :3], q[:, 3], q[:, 4], q[:, 5], q[:, 6]
+        zaxis = torch.stack([2 * (x * z + w * y), 2 * (y * z - w * x),
+                             1 - 2 * (x * x + y * y)], dim=-1)
+        return pos + cork_z * zaxis
+
     near_uv = torch.full((n, 2), float("nan"), device=dev)
     near_d = torch.full((n,), float("inf"), device=dev)
 
@@ -94,8 +108,8 @@ def main() -> None:
             done = dones.bool()
             # closest approach so far; stop updating once the face has hit
             fpos, fmat = face_pose()
-            spos, _ = mdp._shuttle_state(uenv)
-            local = torch.einsum("nij,ni->nj", fmat, spos - fpos)
+            cpos = cork_pos()
+            local = torch.einsum("nij,ni->nj", fmat, cpos - fpos)
             d = local.norm(dim=-1)
             closer = (d < near_d) & (~prev_hit) & (~done)
             near_d = torch.where(closer, d, near_d)
