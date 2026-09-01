@@ -59,6 +59,8 @@ args_cli = parser.parse_args()
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
+import carb
+import omni.appwindow
 import torch
 
 import isaaclab.sim as sim_utils
@@ -68,7 +70,7 @@ from isaaclab.devices import Se3Keyboard, Se3KeyboardCfg
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.utils import configclass
-from isaaclab.utils.math import subtract_frame_transforms
+from isaaclab.utils.math import compute_pose_error, quat_from_angle_axis, quat_mul, subtract_frame_transforms
 
 # This script actuates the L-suffixed chain (physical LEFT arm) and holds the unsuffixed
 # one. Canonical names it LEFT_*; the aliases below keep this file's RIGHT_*/GRIPPER_* local
@@ -177,8 +179,17 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     print(f"[INFO] Left arm joints: {right_arm_names}")
     print(f"[INFO] Right arm hold joints: {left_arm_names}")
 
-    diff_ik_cfg = DifferentialIKControllerCfg(command_type="pose", use_relative_mode=True, ik_method="dls")
+    # Absolute-pose IK against a persistent target (like task_space_ik.py), NOT
+    # relative mode. Relative mode re-anchors to the measured tip every step, so a
+    # held key makes the arm chase a moving carrot -> laggy/mushy near limits. Here
+    # the target is integrated from the keyboard deltas and leashed to stay within
+    # _MAX_LEAD_* of the actual tip, so a held key = arm moves at the speed it can
+    # sustain, no runaway, and releasing stops it immediately.
+    diff_ik_cfg = DifferentialIKControllerCfg(command_type="pose", use_relative_mode=False, ik_method="dls")
     diff_ik_controller = DifferentialIKController(diff_ik_cfg, num_envs=scene.num_envs, device=sim.device)
+    _MAX_LEAD_M = 0.06
+    _MAX_LEAD_RAD = 0.35
+    target = {"pos": None, "quat": None}  # persistent EE target in base frame
 
     robot_entity_cfg = SceneEntityCfg("robot", joint_names=right_arm_names, body_names=[RIGHT_EE_BODY])
     robot_entity_cfg.resolve(scene)
@@ -206,7 +217,27 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         device=sim.device,
     )
 
-    teleop = Se3Keyboard(Se3KeyboardCfg(pos_sensitivity=0.005, rot_sensitivity=0.05, gripper_term=True))
+    # Fast by default; hold Shift for fine control. Se3Keyboard has no built-in
+    # modifier, so the base sensitivity is set high and Shift scales the command
+    # down via a carb keyboard subscription (add_callback is press-only, can't
+    # detect release).
+    teleop = Se3Keyboard(Se3KeyboardCfg(pos_sensitivity=0.011, rot_sensitivity=0.09, gripper_term=True))
+    _FINE_SCALE = 0.2
+    fine = {"active": False}
+    _shift_keys = {carb.input.KeyboardInput.LEFT_SHIFT, carb.input.KeyboardInput.RIGHT_SHIFT}
+
+    def _on_kb_event(event, *args):
+        if event.input in _shift_keys:
+            if event.type == carb.input.KeyboardEventType.KEY_PRESS:
+                fine["active"] = True
+            elif event.type == carb.input.KeyboardEventType.KEY_RELEASE:
+                fine["active"] = False
+        return True
+
+    _appwin = omni.appwindow.get_default_app_window()
+    _kb_sub = carb.input.acquire_input_interface().subscribe_to_keyboard_events(
+        _appwin.get_keyboard(), _on_kb_event
+    )
     should_reset = False
 
     def reset_left_arm():
@@ -217,7 +248,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     teleop.reset()
     print(teleop)
     print("[INFO] Teleoperating left arm only. Right arm is held at default pose.")
-    print("[INFO] Click the 3D viewport window, then press W/A/S/D/Q/E to move.")
+    print("[INFO] Click the 3D viewport window, then W/A/S/D/Q/E to move. Hold SHIFT for fine control.")
 
     debug_steps = 0
     while simulation_app.is_running():
@@ -232,11 +263,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             robot.reset()
             diff_ik_controller.reset()
             teleop.reset()
+            target["pos"] = None  # re-seed the persistent target from the tip
             should_reset = False
 
         # Se3Keyboard.advance() returns a 7-vec tensor: [dx,dy,dz,drx,dry,drz, gripper(+1 open/-1 close)].
         cmd = teleop.advance()
         command = cmd[:6].to(dtype=torch.float32, device=sim.device).unsqueeze(0)
+        if fine["active"]:
+            command = command * _FINE_SCALE
         close_gripper = bool(cmd[6].item() < 0.0) if cmd.numel() > 6 else False
 
         if debug_steps < 5 and torch.any(command.abs() > 1e-4):
@@ -254,10 +288,36 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             robot, root_pose_w, wrist_body_id, finger_body_ids
         )
 
-        # Relative mode: target = current_tip + delta (stays close, no runaway).
-        # Se3Keyboard outputs [dx,dy,dz, drx,dry,drz] all in base frame.
-        # pos_sensitivity=0.005 keeps the IK step small enough for the linearization to hold.
-        diff_ik_controller.set_command(command, ee_pos=tip_pos_b, ee_quat=tip_quat_b)
+        # Persistent absolute target: seed from the tip once, then integrate the
+        # keyboard deltas. Position deltas are base-frame; rotation deltas are
+        # post-multiplied so Z/X/T/G/C/V spin about the *tool* axes, not base axes.
+        if target["pos"] is None:
+            target["pos"] = tip_pos_b.clone()
+            target["quat"] = tip_quat_b.clone()
+
+        target["pos"] = target["pos"] + command[:, 0:3]
+        rot_vec = command[:, 3:6]
+        angle = torch.linalg.vector_norm(rot_vec, dim=-1)
+        if float(angle) > 1e-9:
+            axis = rot_vec / angle.unsqueeze(-1)
+            target["quat"] = quat_mul(target["quat"], quat_from_angle_axis(angle, axis))
+
+        # Leash the target to stay near the actual tip: a held key then moves the
+        # arm at whatever speed it can sustain and stops the instant the key lifts.
+        pos_err, rot_err = compute_pose_error(
+            tip_pos_b, tip_quat_b, target["pos"], target["quat"], rot_error_type="axis_angle"
+        )
+        target["pos"] = tip_pos_b + pos_err.clamp(-_MAX_LEAD_M, _MAX_LEAD_M)
+        rot_mag = torch.linalg.vector_norm(rot_err, dim=-1)
+        if float(rot_mag) > _MAX_LEAD_RAD:
+            clamped = rot_err * (_MAX_LEAD_RAD / rot_mag).unsqueeze(-1)
+            c_ang = torch.linalg.vector_norm(clamped, dim=-1)
+            c_axis = clamped / c_ang.unsqueeze(-1)
+            target["quat"] = quat_mul(quat_from_angle_axis(c_ang, c_axis), tip_quat_b)
+
+        diff_ik_controller.set_command(
+            torch.cat([target["pos"], target["quat"]], dim=-1), ee_quat=tip_quat_b
+        )
 
         jacobian = compute_tip_ik_jacobian(
             robot,
