@@ -69,16 +69,17 @@ def main() -> None:
 
     n = uenv.num_envs
     dev = uenv.device
-    # where the shuttle meets the face plane, in the face frame (u, v):
-    # captured at the first plane crossing of the episode (hits and misses)
-    cross_uv = torch.full((n, 2), float("nan"), device=dev)
-    crossed = torch.zeros(n, dtype=torch.bool, device=dev)
-    fpos, fmat = face_pose()
-    spos, _ = mdp._shuttle_state(uenv)
-    d_prev = ((spos - fpos) * fmat[:, :, 2]).sum(-1)
-    s_prev = spos.clone()
+    # where the shuttle passes the racket, in the face frame (u, v): the
+    # shuttle position at its closest approach to the face centre, frozen at
+    # the contact tick for hits (a hit rebounds before it can cross the face
+    # plane, and the infinite plane is crossed far from the racket whenever
+    # the face rotates during the swing, so a plane-crossing test is useless).
+    # For misses the closest approach says where the racket would have had
+    # to be. Also kept: the closest-approach distance itself.
+    near_uv = torch.full((n, 2), float("nan"), device=dev)
+    near_d = torch.full((n,), float("inf"), device=dev)
 
-    rows = []  # (front_dist, z, x, hit, u, v)
+    rows = []  # (front_dist, z, x, hit, u, v, d_min)
     qv_rows, tau_rows, duty_rows = [], [], []  # per-episode, per-joint
     with torch.no_grad():
         while len(rows) < args.episodes:
@@ -87,37 +88,36 @@ def main() -> None:
             prev_qv = feas._qvel_peak.clone()
             prev_tau = feas._tau_peak.clone()
             prev_duty = (feas._over / feas._ticks.clamp_min(1.0)).clone()
-            prev_uv = cross_uv.clone()
+            prev_uv = near_uv.clone()
+            prev_d = near_d.clone()
             obs, _, dones, _ = env.step(policy(obs))
             done = dones.bool()
-            # plane crossing this tick (linear interpolation inside the tick)
+            # closest approach so far; stop updating once the face has hit
             fpos, fmat = face_pose()
             spos, _ = mdp._shuttle_state(uenv)
-            d_now = ((spos - fpos) * fmat[:, :, 2]).sum(-1)
-            new_cross = (~crossed) & (~done) & ((d_prev > 0) != (d_now > 0))
-            if bool(new_cross.any()):
-                t = (d_prev / (d_prev - d_now)).clamp(0.0, 1.0).unsqueeze(-1)
-                pc = s_prev + t * (spos - s_prev)
-                local = torch.einsum("nij,ni->nj", fmat, pc - fpos)
-                cross_uv[new_cross] = local[new_cross, :2]
-                crossed |= new_cross
-            d_prev, s_prev = d_now, spos.clone()
+            local = torch.einsum("nij,ni->nj", fmat, spos - fpos)
+            d = local.norm(dim=-1)
+            closer = (d < near_d) & (~prev_hit) & (~done)
+            near_d = torch.where(closer, d, near_d)
+            near_uv[closer] = local[closer, :2]
             done_ids = done.nonzero(as_tuple=False).squeeze(-1)
             for i in done_ids.tolist():
                 p = prev_p[i].cpu().numpy()
                 uv = prev_uv[i].cpu().numpy()
                 rows.append((p[1] - base_y, p[2], p[0], bool(prev_hit[i]),
-                             float(uv[0]), float(uv[1])))
-            cross_uv[done] = float("nan")
-            crossed[done] = False
+                             float(uv[0]), float(uv[1]), float(prev_d[i])))
+            near_uv[done] = float("nan")
+            near_d[done] = float("inf")
             if len(done_ids):
                 qv_rows.append(prev_qv[done_ids].cpu().numpy())
                 tau_rows.append(prev_tau[done_ids].cpu().numpy())
                 duty_rows.append(prev_duty[done_ids].cpu().numpy())
     r = np.array(rows[: args.episodes], dtype=float)
     front, z, x, hit = r[:, 0], r[:, 1], r[:, 2], r[:, 3].astype(bool)
-    uv = r[:, 4:6]
-    print(f"plane crossings captured: {np.isfinite(uv[:, 0]).mean():.3f} of episodes")
+    uv, dmin = r[:, 4:6], r[:, 6]
+    print(f"closest approach to face centre, hits: median {np.median(dmin[hit]) * 100:.1f} cm"
+          f"   misses: median {np.median(dmin[~hit]) * 100:.1f} cm,"
+          f" p90 {np.percentile(dmin[~hit], 90) * 100:.1f} cm")
     print(f"\nepisodes: {len(r)}   overall hit rate: {hit.mean():.3f}")
 
     def table(label, v, edges):
@@ -146,7 +146,7 @@ def main() -> None:
         print(f"  j{j + 1}    {q[0]:5.1f} / {q[1]:5.1f} / {q[2]:5.1f}"
               f"    {t[0]:5.2f} / {t[1]:5.2f} / {t[2]:5.2f} ({peak[j]:5.2f})"
               f"   {at_clamp:5.1%}        {duty[:, j].mean():5.1%} (rated {rated[j]})")
-    np.save("runs/eval_pstar_hits.npy", r)  # cols: front,z,x,hit,u,v
+    np.save("runs/eval_pstar_hits.npy", r)  # cols: front,z,x,hit,u,v,d_min
     np.savez("runs/eval_feasibility.npz", qvel_peak=qv, tau_peak=tau, duty=duty)
     print("\nraw rows saved to runs/eval_pstar_hits.npy")
 
