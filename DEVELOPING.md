@@ -71,8 +71,8 @@ ros2 launch joint_command joint_command.launch.py
   machine or subnet at once, set a unique `ROS_DOMAIN_ID` (0–232) in your
   `watod-config.local.sh`. Otherwise your ROS graphs merge and you'll see each
   other's topics.
-- **New ROS package** — scaffold it with `utils/create_package.bash` (see
-  [utils/README.md](utils/README.md)).
+- **New ROS package** — copy an existing one (`src/interfacing/joint_command/`
+  for C++, `src/perception/voxel_grid/` for Python) and rename.
 
 ## Per-area guides
 
