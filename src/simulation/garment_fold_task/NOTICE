@@ -1,0 +1,79 @@
+humanoid-garment-fold
+=====================
+
+This package is DERIVED FROM the LeHome Challenge:
+
+    https://github.com/lehome-official/lehome-challenge
+    @ commit a805ad2f7ab52a4583066fc4ee5180459a7f9d15
+    Copyright the LeHome Challenge authors.
+    Licensed under the Apache License, Version 2.0 (see ./LICENSE).
+
+Per section 4 of the Apache License, the vendored files and their modifications
+are listed below. Every vendored file carries a header pointing here.
+
+------------------------------------------------------------------------------
+VENDORED  (copied near-verbatim; `lehome.*` imports rebased to
+           `humanoid_garment_fold.*`; a console-only logger shim swapped in)
+------------------------------------------------------------------------------
+
+humanoid_garment_fold/assets/garment_object.py
+    <- source/lehome/lehome/assets/object/Garment.py
+       MODIFIED: `_get_asset_path()` / `_apply_visual_material()` now honour a
+       real absolute filesystem path before falling back to upstream's
+       "/-prefixed == git-root-relative" rule (2 lines, marked inline). No other
+       change.
+
+humanoid_garment_fold/utils/success_checker_garment.py
+    <- source/lehome/lehome/utils/success_checker_chanllege.py      (unchanged)
+
+humanoid_garment_fold/tasks/challenge_garment_loader.py
+    <- source/lehome/lehome/tasks/bedroom/challenge_garment_loader.py  (unchanged)
+
+humanoid_garment_fold/config/particle_garment_cfg.yaml
+    <- source/lehome/lehome/tasks/bedroom/config_file/particle_garment_cfg.yaml
+       (unchanged)
+
+humanoid_garment_fold/tasks/garment_env.py
+    <- source/lehome/lehome/tasks/bedroom/garment_bi_v2.py
+       MODIFIED: removed `_get_workspace_pointcloud()` (drops the
+       `lehome.utils.depth_to_pointcloud` dep: scipy + plotly) and
+       `preprocess_device_action()` (drops the `lehome.devices.action_process`
+       dep: SO101-leader / keyboard teleop). Both marked inline. No logic change
+       to scene / reward / success / reset.
+
+humanoid_garment_fold/tasks/garment_env_cfg.py
+    <- source/lehome/lehome/tasks/bedroom/garment_bi_cfg_v2.py
+       MODIFIED: removed the `lehome.assets.robots.lerobot` import and the two
+       `SO101_FOLLOWER_CFG`-based `left_robot` / `right_robot` fields -- a
+       concrete subclass now supplies the robot. Asset paths point at this
+       package's `vendor_assets/` and `config/`.
+
+humanoid_garment_fold/assets/scene.py
+    <- source/lehome/lehome/assets/scenes/bedroom.py + utils/constant.py
+       MODIFIED: resolves the scene USD from `vendor_assets/` instead of a
+       git-root `Assets/` tree.
+
+------------------------------------------------------------------------------
+NOT DERIVED FROM LEHOME  (WATonomous original / this repo)
+------------------------------------------------------------------------------
+
+humanoid_garment_fold/tasks/garment_pioneer_cfg.py    -- pioneer env config
+humanoid_garment_fold/tasks/garment_pioneer_env.py    -- pioneer env (subclass)
+humanoid_garment_fold/assets/robots/bimanual_arm.py   -- re-export of this repo's
+    src/pioneer_humanoid/pioneer_humanoid/bimanual_arm.py
+humanoid_garment_fold/utils/logger.py                 -- console-only shim
+
+------------------------------------------------------------------------------
+ASSETS
+------------------------------------------------------------------------------
+
+vendor_assets/garments/Release/{Top_Long,Top_Short,Pant_Long,Pant_Short}/*
+    One sample garment per category from the LeHome `asset_challenge` set,
+    redistributed here (Apache-2.0) for local testing. Full set (48 variants):
+    `hf download lehome/asset_challenge`.
+
+vendor_assets/scenes/Table038/
+    Standalone table from the same asset set (Apache-2.0), used as a fallback
+    work surface when the apartment USD is absent.
+
+Scene_00_Apartment.usd -- NOT redistributed here (~19 MB, .gitignore'd).
