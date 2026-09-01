@@ -1,0 +1,17 @@
+# Build / cache
+__pycache__/
+*.egg-info/
+.venv/
+
+# Large scene assets — NOT committed. Copy the WHOLE marble/ folder from the
+# LeHome challenge `Assets/scenes/marble/` (or `hf download lehome/asset_challenge`):
+#   Scene_00_Apartment.usd   (~19 MB)  — the .usd references the .usdz beside it
+#   Scene_00_Apartment.usdz  (~226 MB) — NuRec backdrop; the .usd won't load without it
+vendor_assets/scenes/marble/
+*.nurec
+*.usdz
+*.glb
+
+# Full garment set — only 4 samples (one per category) are committed under
+# vendor_assets/garments/Release/. Everything else comes from the HF download.
+vendor_assets/garments/Holdout/
