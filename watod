@@ -25,12 +25,17 @@ function usage {
 
 function run_compose {
     cd $MONO_DIR
-    if [ ! -z "$(source $MODULES_DIR/.env && echo $ACTIVE_MODULES)" ] && [ -z "$MODULES" ]; then 
-        MODULES="$(source $MODULES_DIR/.env && printf -- " -f $MODULES_DIR/docker-compose.%s.yaml" ${ACTIVE_MODULES[@]})"
-    fi
 
-    echo "Running docker compose --profile ${MODE_OF_OPERATION}${MODULES[@]} $@"
-    DOCKER_BUILDKIT=${DOCKER_BUILDKIT:-1} docker compose --profile ${MODE_OF_OPERATION[@]}${MODULES[@]} "$@"
+    # ACTIVE_MODULES is a space-separated list of module names; each maps to
+    # modules/docker-compose.<module>.yaml. One editable container per module.
+    local active; active="$(source $MODULES_DIR/.env && echo $ACTIVE_MODULES)"
+    local compose_args=()
+    for name in $active; do
+        compose_args+=( -f "$MODULES_DIR/docker-compose.${name}.yaml" )
+    done
+
+    echo "Running docker compose ${compose_args[*]} $@"
+    DOCKER_BUILDKIT=${DOCKER_BUILDKIT:-1} docker compose "${compose_args[@]}" "$@"
 }
 
 # in case you need help
@@ -96,7 +101,6 @@ elif [ -f "$MONO_DIR/watod-config.sh" ]; then
 	source "$MONO_DIR/watod-config.sh"
 fi
 
-MODE_OF_OPERATION=${MODE_OF_OPERATION:-"deploy"}
 PLATFORM=${PLATFORM:-"amd64"}
 
 # generate .env file from watod_scripts/watod-setup-docker-env.sh

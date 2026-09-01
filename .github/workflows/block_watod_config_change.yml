@@ -4,6 +4,8 @@ on: [pull_request]
 
 jobs:
   guard:
+    # Skip for deliberate shared-defaults changes: label the PR `watod-config`.
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'watod-config') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -13,6 +15,6 @@ jobs:
         run: |
           base_sha="${{ github.event.pull_request.base.sha }}"
           if git diff --name-only "$base_sha"...HEAD | grep -qx 'watod-config.sh'; then
-            echo "::error file=watod-config.sh::watod-config.sh is shared defaults — put personal settings in watod-config.local.sh instead."
+            echo "::error file=watod-config.sh::watod-config.sh is shared defaults — put personal settings in watod-config.local.sh instead. (Deliberate change? Add the 'watod-config' label.)"
             exit 1
           fi
