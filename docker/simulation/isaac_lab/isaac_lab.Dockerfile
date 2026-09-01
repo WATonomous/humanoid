@@ -128,11 +128,13 @@ COPY autonomy/il ${HUMANOID_ROOT}/autonomy/il
 COPY autonomy/simulation/so101_vial_task ${HUMANOID_ROOT}/autonomy/simulation/so101_vial_task
 COPY autonomy/simulation/pioneer_humanoid ${HUMANOID_ROOT}/autonomy/simulation/pioneer_humanoid
 
-# Humanoid packages: --no-deps only (never [sim]/[lerobot] extras — they pull torch/lerobot with deps).
-RUN $PYTHON -m pip install --no-deps -e "${HUMANOID_ROOT}/autonomy/il" && \
+# Humanoid packages: --no-deps (never [sim]/[lerobot] extras — they pull torch/lerobot with deps)
+# and --no-build-isolation (use the base image's setuptools; pip's PEP-517 isolated build env
+# can't reach an index for setuptools>=61 in this builder).
+RUN $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/autonomy/il" && \
     $PYTHON -m pip install -c /tmp/constraints.txt psutil && \
-    $PYTHON -m pip install --no-deps -e "${HUMANOID_ROOT}/autonomy/simulation/so101_vial_task" && \
-    $PYTHON -m pip install --no-deps -e "${HUMANOID_ROOT}/autonomy/simulation/pioneer_humanoid"
+    $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/autonomy/simulation/so101_vial_task" && \
+    $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/autonomy/simulation/pioneer_humanoid"
 
 RUN mkdir -p /tmp/pycache && chmod 1777 /tmp/pycache
 ENV PYTHONPYCACHEPREFIX=/tmp/pycache
