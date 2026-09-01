@@ -10,7 +10,8 @@ Published docs: https://watonomous.github.io/humanoid-docs/index.html
 
 ```bash
 cp watod-config.sh watod-config.local.sh
-# edit ACTIVE_MODULES and MODE_OF_OPERATION="develop"
+# edit ACTIVE_MODULES — append :dev for an editable dev container,
+# e.g. ACTIVE_MODULES="interfacing simulation_isaac:dev"
 ```
 
 2. Build and run:
@@ -22,7 +23,7 @@ cp watod-config.sh watod-config.local.sh
 ./watod -t <service>_dev        # when the module defines a _dev service
 ```
 
-Most modules expose `<name>_dev` under `MODE_OF_OPERATION=develop`. **`interfacing`** and **`mjlabs`** do not — shell into `interfacing` / `mjlabs` directly.
+`ACTIVE_MODULES="foo:dev"` runs `foo`'s editable `sleep infinity` dev container; without `:dev` you get its deploy container. Shell in with `./watod -t <service>` (the `_dev` suffix on the service name for dev containers).
 
 | `ACTIVE_MODULES` | What it runs |
 |------------------|--------------|

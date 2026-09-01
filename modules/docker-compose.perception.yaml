@@ -13,7 +13,7 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-    profiles: [deploy]
+    profiles: [perception]
     deploy:
       resources:
         reservations:
@@ -34,7 +34,7 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-    profiles: [develop]
+    profiles: [perception_dev]
     privileged: true
     devices:
       - /dev/bus/usb:/dev/bus/usb

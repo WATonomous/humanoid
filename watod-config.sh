@@ -17,14 +17,7 @@
 ##   - simulation_mj        :   MuJoCo / mjlab (mjlabs service)
 
 ACTIVE_MODULES="interfacing"
-
-################################# MODE OF OPERATION #################################
-## Possible modes of operation when running watod.
-## Possible values:
-##	 - deploy (default)		:	runs production-grade containers (non-editable)
-##	 - develop   		    :	runs developer containers (editable)
-
-# MODE_OF_OPERATION=""
+## Append ":dev" to a module for its editable dev container: "interfacing perception:dev"
 
 ############################## ADVANCED CONFIGURATIONS ##############################
 ## Name to append to docker containers. DEFAULT = "<your_watcloud_username>"

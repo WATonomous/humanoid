@@ -46,7 +46,7 @@ services:
     privileged: true
     gpus: all
     environment: *simulation_isaac_env
-    profiles: [deploy]
+    profiles: [simulation_isaac]
     deploy:
       resources:
         reservations:
@@ -65,7 +65,7 @@ services:
     privileged: true
     gpus: all
     environment: *simulation_isaac_env
-    profiles: [develop]
+    profiles: [simulation_isaac_dev]
     volumes: *simulation_isaac_volumes
     network_mode: host
     stdin_open: true

@@ -13,7 +13,7 @@ services:
     image: "${PERCEPTION_IMAGE:?}:${TAG}"
     # NVIDIA runtime removed for macOS compatibility. Set NVIDIA_RUNTIME and
     # related env vars in modules/.env on an NVIDIA host if needed.
-    profiles: [ deploy ]
+    profiles: [perception]
     devices:
       - /dev/bus/usb:/dev/bus/usb
     privileged: true
@@ -26,7 +26,7 @@ services:
     image: "${PERCEPTION_IMAGE:?}:dev_${TAG}"
     # NVIDIA runtime removed for macOS compatibility. Set NVIDIA_RUNTIME and
     # related env vars in modules/.env on an NVIDIA host if needed.
-    profiles: [ develop ]
+    profiles: [perception_dev]
     privileged: true
     devices:
       - /dev/bus/usb:/dev/bus/usb
