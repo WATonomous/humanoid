@@ -5,7 +5,7 @@ FROM ${BASE_IMAGE} AS source
 
 WORKDIR ${AMENT_WS}/src
 
-COPY src/behaviour/joint_command joint_command
+COPY src/interfacing/joint_command joint_command
 COPY src/common_msgs common_msgs
 
 RUN apt-get -qq update && rosdep update && echo "" > /tmp/colcon_install_list

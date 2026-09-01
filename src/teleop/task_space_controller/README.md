@@ -17,7 +17,7 @@ Adds a direct rclpy publisher on `/behaviour/arm_pose`:
 ```
 task_space_ik.py --publish-real-left-arm
   -> /behaviour/arm_pose
-  -> joint_command_node   (seed-from-feedback + velocity/delta/low-pass; src/behaviour/joint_command)
+  -> joint_command_node   (seed-from-feedback + velocity/delta/low-pass; src/interfacing/joint_command)
   -> /interfacing/motorCMD
   -> can_node
   -> AK motors (0x0A-0x0E, POSITION_LOOP)
@@ -36,7 +36,7 @@ the sim/cube target until a sim↔real calibration exists.
 ### Bring-up
 
 Prereqs: CANable on `/dev/canable`, e-stop + arm power on. Terminals 1–2 run in the
-ROS 2 stack (`interfacing` / `behaviour` watod modules); terminal 3 in `simulation_isaac`
+ROS 2 stack (`interfacing` watod module); terminal 3 in `simulation_isaac`
 (it has ROS 2 built for Isaac's Python, so it publishes `/behaviour/arm_pose` directly).
 
 ```bash

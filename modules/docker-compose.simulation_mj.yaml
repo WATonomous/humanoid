@@ -33,4 +33,4 @@ services:
       - ${MONO_DIR}/src/simulation:/root/ament_ws/src/simulation
       - ${MONO_DIR}/src/teleop:/root/ament_ws/src/teleop
       - ${MONO_DIR}/src/common_msgs:/root/ament_ws/src/common_msgs
-      - ${MONO_DIR}/src/behaviour:/root/ament_ws/src/behaviour
+      - ${MONO_DIR}/src/interfacing/joint_command:/root/ament_ws/src/joint_command

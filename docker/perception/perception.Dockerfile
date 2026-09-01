@@ -6,7 +6,7 @@ FROM ${BASE_IMAGE} AS source
 WORKDIR ${AMENT_WS}/src
 
 # Copy in source code 
-COPY src/perception perception
+COPY src/perception/perception perception
 COPY src/common_msgs common_msgs
 
 # Install rosdep if not present, update package lists
