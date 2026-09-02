@@ -1,5 +1,5 @@
-asset_path: /workspace/humanoid/src/pioneer_humanoid/assets/pioneer_bimanual_arm/urdf/pioneer_bimanual_arm.urdf
-usd_dir: /workspace/humanoid/src/pioneer_humanoid/assets/pioneer_bimanual_arm/usd
+asset_path: /workspace/humanoid/assets/pioneer_bimanual_arm/urdf/pioneer_bimanual_arm.urdf
+usd_dir: /workspace/humanoid/assets/pioneer_bimanual_arm/usd
 usd_file_name: pioneer_bimanual_arm.usd
 force_usd_conversion: true
 make_instanceable: true

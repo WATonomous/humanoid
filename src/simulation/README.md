@@ -16,10 +16,12 @@ src/simulation/
 ├── humanoid_scenes/        # teleop data-collection scenes — @scene-discovered
 │   └── humanoid_scenes/    #   bare/  vial_rack/  push_block/
 ├── pick_place_gen/         # Isaac Lab Mimic datagen wrappers for pick_place
-├── so101_vial_task/        # SO101 imitation-learning task
-├── assets/                 # shared USD props — block.usd, box.usd, table.usd
-└── Humanoid_Wato/          # LEGACY — hand + V1-humanoid meshes/URDF, being folded into pioneer_humanoid/
+└── so101_vial_task/        # SO101 imitation-learning task
 ```
+
+Robot URDF/USD/meshes and scene props live at the repo-root **`assets/`** (backend-neutral —
+not tied to an Isaac Lab package): `assets/{pioneer_bimanual_arm, pioneer_hand,
+whole_body_humanoid, props, lerobot}/`. RL checkpoints go to `outputs/rl/`.
 
 ## RL task vs teleop scene — where does new work go?
 

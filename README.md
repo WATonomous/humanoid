@@ -44,7 +44,8 @@ humanoid
 │   ├── teleop/              # Drive the arm (sim or real): keyboard, Quest WebXR, task-space IK
 │   ├── il/                  # Imitation-learning dataset recording (LeRobot)
 │   └── embedded/            # STM32 / ESP32S3 motor-controller firmware
-├── assets/lerobot/          # SO101 USD + vial-task assets
+├── assets/                  # robot URDF/USD/meshes + scene props (backend-neutral); lerobot/ = SO101
+├── outputs/                 # training runs / checkpoints (gitignored) — rl/ , train/
 └── docs/                    # Pointer to the humanoid-docs site
 ```
 

@@ -13,8 +13,8 @@ which write these values onto the spawned prims -- keep both call sites.
 import os
 import xml.etree.ElementTree as ET
 
-_THIS_DIR = os.path.abspath(os.path.dirname(__file__))
-URDF_PATH = os.path.join(_THIS_DIR, "urdf", "pioneer_bimanual_arm.urdf")
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+URDF_PATH = os.path.join(_REPO_ROOT, "assets", "pioneer_bimanual_arm", "urdf", "pioneer_bimanual_arm.urdf")
 
 # Joint types whose <limit lower/upper> describe a real position range. A
 # "continuous" joint has no limits by definition and "fixed" has no DOF.

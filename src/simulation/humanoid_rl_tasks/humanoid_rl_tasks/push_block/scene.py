@@ -34,10 +34,10 @@ from isaaclab.utils import configclass
 from .mdp.utils import BLOCK_HALF_SIZE
 
 # ── shared USD props (src/simulation/assets/) ───────────────────────────────
-_ASSETS = Path(__file__).resolve().parents[3] / "assets"  # -> .../src/simulation/assets
-BLOCK_USD = str(_ASSETS / "block.usd")
-BOX_USD = str(_ASSETS / "box.usd")
-TABLE_USD = str(_ASSETS / "table.usd")
+_PROPS = Path(__file__).resolve().parents[5] / "assets" / "props"  # -> <repo>/assets/props
+BLOCK_USD = str(_PROPS / "block.usd")
+BOX_USD = str(_PROPS / "box.usd")
+TABLE_USD = str(_PROPS / "table.usd")
 
 # ── grounding (teleop-verified; see module docstring) ────────────────────────
 ROBOT_STAND_LIFT_Z = 1.1997   # base_link lift so the stand's feet reach floor level
