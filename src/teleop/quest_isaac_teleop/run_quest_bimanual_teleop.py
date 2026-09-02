@@ -293,7 +293,7 @@ _ENCLOSURE_BACK_X = _ENCLOSURE_X_MAX
 # STEP source is not tracked here; re-export from CAD if the geometry changes. Its origin sits
 # at the table-TOP surface, so no Z offset is needed. Real size ~1.39 x 0.75 x 0.62m.
 _TABLE_USD_PATH = str(
-    _SIM_DIR / "Humanoid_Wato" / "Table" / "table.usd"
+    _SIM_DIR / "assets" / "table.usd"
 )
 _TABLE_SCALE = (0.0254, 0.0254, 0.0254)
 # GUI-verified pose. The rotation is needed because the STEP conversion's native axes do not
@@ -304,7 +304,7 @@ _TABLE_ROT = (0.5000000000000001, 0.5, 0.5, 0.49999999999999994)  # wxyz
 # Box (to grasp) and container (to place it in). Both assets have their local origin at a
 # bottom corner, so matching X/Y/Z rests the box flush on the container floor.
 _BOX_USD_PATH = str(
-    _SIM_DIR / "Humanoid_Wato" / "UsdModelAssets" / "block.usd"
+    _SIM_DIR / "assets" / "block.usd"
 )  # 5.08cm cube -- box.usd (25x25x3cm flat pad) is too flat/wide for this gripper to grasp
 _CONTAINER_USD_PATH = str(
     _SIM_DIR.parent.parent / "assets" / "lerobot" / "so101_vial_task" / "usd" / "tray.usda"
