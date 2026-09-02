@@ -1,26 +1,11 @@
-"""Import bridge for the pioneer_humanoid config and pick_place_gen modules.
+"""Robot-config + datagen re-exports for the pick_place task.
 
-The canonical robot config (pioneer_humanoid) and pick_place_gen live outside this task
-package's import tree, so they go on sys.path here — the ONLY place in the task
-package that touches those paths. pioneer_humanoid is editable-installed in the image;
-the sys.path entry is a fallback for a bare bind-mounted checkout.
+`pioneer_humanoid` is editable-installed in the isaac_lab image; `datagen/` is a
+sub-package here. No `sys.path` juggling needed.
 """
-import sys
-from pathlib import Path
-
-_SIM_DIR = Path(__file__).resolve().parents[3]  # .../src/simulation
-assert (_SIM_DIR / "pick_place_gen").is_dir(), f"unexpected repo layout at {_SIM_DIR}"
-
-for _p in (
-    _SIM_DIR / "pioneer_humanoid",
-    _SIM_DIR / "pick_place_gen",
-):
-    if str(_p) not in sys.path:
-        sys.path.insert(0, str(_p))
-
 # The pick task drives the L-suffixed chain (physical LEFT arm), which the canonical config
 # names LEFT_*; aliased to RIGHT_* here so downstream "RIGHT_* = the picking arm" is unchanged.
-from pioneer_humanoid.bimanual_arm import (  # noqa: E402,F401
+from pioneer_humanoid.bimanual_arm import (  # noqa: F401
     BIMANUAL_ARM_CFG,
     LEFT_GRIPPER_CLOSED as GRIPPER_CLOSED,
     LEFT_GRIPPER_OPEN as GRIPPER_OPEN,
@@ -33,8 +18,9 @@ from pioneer_humanoid.bimanual_arm import (  # noqa: E402,F401
     compute_tip_ik_jacobian,
     resolve_body_ids,
 )
-import task_geometry  # noqa: E402,F401
-from task_params import PickPlaceTaskParams  # noqa: E402,F401
+
+from .datagen import task_geometry  # noqa: F401
+from .datagen.task_params import PickPlaceTaskParams  # noqa: F401
 
 # Recorded joint order for the dataset (arm 6 + gripper pair).
 RIGHT_JOINTS_ALL = RIGHT_ARM_JOINTS + RIGHT_GRIPPER_JOINTS

@@ -14,7 +14,7 @@ lives only in `pioneer_humanoid/pioneer_humanoid/bimanual_arm.py`.
 import math  # noqa: F401  (kept for downstream configs that do trig on these)
 import os
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", ".."))
 
 # --- Gripper approach frame ------------------------------------------------
 # Fingertip-center offset in the link6l (wrist) frame. Constant for a

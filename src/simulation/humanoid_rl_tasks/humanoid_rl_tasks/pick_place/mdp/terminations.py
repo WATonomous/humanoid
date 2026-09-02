@@ -40,7 +40,7 @@ def object_placed_success(
     """Object is within tolerance of its place target and has (instantaneously)
     settled.
 
-    Mirrors pick_place_gen/generate_demos.py:check_success, minus the
+    Mirrors datagen/ (generate_demos.py, archived):check_success, minus the
     multi-step settle-step counter -- that debounce lives in the standalone
     driver's post-release hold loop; here we do a single-instant check (the
     velocity threshold already makes this robust to a still-bouncing object).

@@ -1,4 +1,4 @@
-# pick_place_gen — Archived: cuRobo scripted demo generator
+# datagen — Archived: cuRobo scripted demo generator
 
 The cuRobo-based scripted demonstration generator that used to live in this
 directory (`generate_demos.py`, `orchestrator.py`, `curobo_expert.py`,
