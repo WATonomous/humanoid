@@ -97,8 +97,8 @@ $PYTHON -c "import lerobot; print('ok')"
 
 ```bash
 cd $HUMANOID_ROOT
-rl-train --task=Isaac-Repose-Cube-WatoHand-v0 --headless
-rl-play --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1
+rl-train --task=Isaac-Repose-Cube-PioneerHand-v0 --headless
+rl-play --task=Isaac-Repose-Cube-PioneerHand-Play-v0 --num_envs=1
 ```
 
 Checkpoints: `logs/rsl_rl/<experiment>/` (same path on host under `~/Desktop/humanoid/...`).

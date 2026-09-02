@@ -4,11 +4,11 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, R
 
 
 @configclass
-class WatoHumanoidRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+class PioneerHumanoidRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 3000
     save_interval = 50
-    experiment_name = "wato_humanoid_rough"
+    experiment_name = "pioneer_humanoid_rough"
     # Was False (matching G1's rough default) until rough_terrain_tilt_term_fresh_001
     # crashed once episode length reached 600-750/1000 steps: Mean action noise std
     # froze around 2.17 instead of adapting, then diverged into
@@ -73,12 +73,12 @@ class WatoHumanoidRoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 
 
 @configclass
-class WatoHumanoidFlatPPORunnerCfg(WatoHumanoidRoughPPORunnerCfg):
+class PioneerHumanoidFlatPPORunnerCfg(PioneerHumanoidRoughPPORunnerCfg):
     def __post_init__(self):
         super().__post_init__()
 
         self.max_iterations = 10000
-        self.experiment_name = "wato_humanoid_flat"
+        self.experiment_name = "pioneer_humanoid_flat"
         # Raised from 0.5 to match G1's flat config: G1FlatPPORunnerCfg never overrides
         # init_noise_std, so it inherits G1RoughPPORunnerCfg's 1.0 -- Wato's flat config
         # had been sitting at half that (0.5) since before this session, unexamined.

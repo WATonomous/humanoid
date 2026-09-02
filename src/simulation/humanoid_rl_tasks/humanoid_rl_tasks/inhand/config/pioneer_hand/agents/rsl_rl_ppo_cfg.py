@@ -3,11 +3,11 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, R
 
 
 @configclass
-class WatoHandCubePPORunnerCfg(RslRlOnPolicyRunnerCfg):
+class PioneerHandCubePPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 48
     max_iterations = 5000
     save_interval = 50
-    experiment_name = "wato_hand_cube"
+    experiment_name = "pioneer_hand_cube"
     empirical_normalization = True
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
@@ -32,5 +32,5 @@ class WatoHandCubePPORunnerCfg(RslRlOnPolicyRunnerCfg):
 
 
 @configclass
-class WatoHandCubeNoVelObsPPORunnerCfg(WatoHandCubePPORunnerCfg):
-    experiment_name = "wato_hand_cube_no_vel_obs"
+class PioneerHandCubeNoVelObsPPORunnerCfg(PioneerHandCubePPORunnerCfg):
+    experiment_name = "pioneer_hand_cube_no_vel_obs"

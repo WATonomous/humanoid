@@ -5,11 +5,11 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 from ... import mdp
 from ...locomotion_env_cfg import TerminationsCfg
-from .rough_env_cfg import WATO_LEG_JOINTS, WatoHumanoidRewards, WatoHumanoidRoughEnvCfg
+from .rough_env_cfg import LEG_JOINTS, PioneerHumanoidRewards, PioneerHumanoidRoughEnvCfg
 
 
 @configclass
-class WatoHumanoidFlatRewards(WatoHumanoidRewards):
+class PioneerHumanoidFlatRewards(PioneerHumanoidRewards):
     """Kept close to official Isaac Lab G1 flat: no gait-phase clock, no swing-direction
     shaping, no body-spacing constraints. Those custom terms let the policy satisfy reward
     with a stepping *pattern* that produced no net forward displacement (verified: episodes
@@ -24,20 +24,20 @@ class WatoHumanoidFlatRewards(WatoHumanoidRewards):
     scheduled to activate) -- removed as unnecessary once that was confirmed live.
 
     feet_crossing_penalty (anti leg-crossing) now lives in the shared
-    WatoHumanoidRewards base class in rough_env_cfg.py, inherited here -- it applies
+    PioneerHumanoidRewards base class in rough_env_cfg.py, inherited here -- it applies
     to both terrains equally, not just flat."""
 
 
 @configclass
-class WatoHumanoidFlatTerminations(TerminationsCfg):
+class PioneerHumanoidFlatTerminations(TerminationsCfg):
     base_tilt = None
     low_base = DoneTerm(func=mdp.root_height_below_minimum, params={"minimum_height": 0.30})
 
 
 @configclass
-class WatoHumanoidFlatEnvCfg(WatoHumanoidRoughEnvCfg):
-    rewards: WatoHumanoidFlatRewards = WatoHumanoidFlatRewards()
-    terminations: WatoHumanoidFlatTerminations = WatoHumanoidFlatTerminations()
+class PioneerHumanoidFlatEnvCfg(PioneerHumanoidRoughEnvCfg):
+    rewards: PioneerHumanoidFlatRewards = PioneerHumanoidFlatRewards()
+    terminations: PioneerHumanoidFlatTerminations = PioneerHumanoidFlatTerminations()
 
     def __post_init__(self):
         super().__post_init__()
@@ -49,7 +49,7 @@ class WatoHumanoidFlatEnvCfg(WatoHumanoidRoughEnvCfg):
         self.curriculum.terrain_levels = None
         # base_height_l2 (rough-only) depends on the height_scanner sensor removed
         # above -- flat solves the same sitting/frozen-stance risk via the low_base
-        # termination in WatoHumanoidFlatTerminations instead.
+        # termination in PioneerHumanoidFlatTerminations instead.
         self.rewards.base_height_l2 = None
 
         self.actions.joint_pos.scale = {
@@ -68,7 +68,7 @@ class WatoHumanoidFlatEnvCfg(WatoHumanoidRoughEnvCfg):
 
         # joint_vel observation noise is inherited from the base ObservationsCfg at a
         # flat +-1.5 rad/s (copied from Isaac Lab's G1-scale default). Hip_F/Knee here
-        # have velocity_limit_sim=3.6652 rad/s (see wato_humanoid_v1.py) -- that noise
+        # have velocity_limit_sim=3.6652 rad/s (see pioneer_humanoid_v1.py) -- that noise
         # is ~41% of their full range, versus a small fraction for G1's much
         # faster-rated joints. diagnose_spawn.py proved zero-action survives 60+ steps
         # under full physical randomization while every trained policy (even near-zero
@@ -96,7 +96,7 @@ class WatoHumanoidFlatEnvCfg(WatoHumanoidRoughEnvCfg):
         self.rewards.feet_air_time.weight = 2.0
         self.rewards.feet_air_time.params["threshold"] = 0.2
         self.rewards.dof_torques_l2.weight = -2.0e-6
-        self.rewards.dof_torques_l2.params["asset_cfg"] = SceneEntityCfg("robot", joint_names=WATO_LEG_JOINTS)
+        self.rewards.dof_torques_l2.params["asset_cfg"] = SceneEntityCfg("robot", joint_names=LEG_JOINTS)
         self.rewards.termination_penalty.weight = -100.0
         # Reverted to the original std=0.5: both 0.25 and 0.4 overcorrected and
         # produced too weak a gradient (stepping_fix_fresh_002/003 both plateaued
@@ -138,7 +138,7 @@ class WatoHumanoidFlatEnvCfg(WatoHumanoidRoughEnvCfg):
 
 
 @configclass
-class WatoHumanoidFlatEnvCfg_PLAY(WatoHumanoidFlatEnvCfg):
+class PioneerHumanoidFlatEnvCfg_PLAY(PioneerHumanoidFlatEnvCfg):
     def __post_init__(self) -> None:
         super().__post_init__()
 

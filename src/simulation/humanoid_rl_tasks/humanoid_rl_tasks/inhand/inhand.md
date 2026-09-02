@@ -1,6 +1,6 @@
-# In-Hand: Wato hand cube reorientation
+# In-Hand: pioneer hand cube reorientation
 
-In-hand dexterous manipulation for the 20-DOF Wato hand (`hand_urdf.usd`) in Isaac Lab. The policy reorients a DexCube held in the palm toward a commanded goal orientation. **Play** shows a ghost goal cube marker (enabled via `WatoHandCubeEnvCfg_PLAY`).
+In-hand dexterous manipulation for the 20-DOF pioneer hand (`hand_urdf.usd`) in Isaac Lab. The policy reorients a DexCube held in the palm toward a commanded goal orientation. **Play** shows a ghost goal cube marker (enabled via `PioneerHandCubeEnvCfg_PLAY`).
 
 Task setup and MDP code are adapted from [Isaac Lab](https://github.com/isaac-sim/IsaacLab) in-hand manipulation examples. Experimentation history: `TRAINING_LOG.md`.
 
@@ -8,10 +8,10 @@ Task setup and MDP code are adapted from [Isaac Lab](https://github.com/isaac-si
 
 | Task ID | Scene | Mode |
 | :--- | :--- | :--- |
-| `Isaac-Repose-Cube-WatoHand-v0` | Palm + DexCube | Train |
-| `Isaac-Repose-Cube-WatoHand-Play-v0` | Palm + DexCube | Play |
-| `Isaac-Repose-Cube-WatoHand-NoVelObs-v0` | Palm + DexCube | Train (no velocity obs) |
-| `Isaac-Repose-Cube-WatoHand-NoVelObs-Play-v0` | Palm + DexCube | Play (no velocity obs) |
+| `Isaac-Repose-Cube-PioneerHand-v0` | Palm + DexCube | Train |
+| `Isaac-Repose-Cube-PioneerHand-Play-v0` | Palm + DexCube | Play |
+| `Isaac-Repose-Cube-PioneerHand-NoVelObs-v0` | Palm + DexCube | Train (no velocity obs) |
+| `Isaac-Repose-Cube-PioneerHand-NoVelObs-Play-v0` | Palm + DexCube | Play (no velocity obs) |
 
 ## Train & play
 
@@ -26,21 +26,21 @@ cd $HUMANOID_ROOT
 
 # Train (default 2048 envs; try 1024 or 512 if OOM)
 $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/train.py \
-  --task=Isaac-Repose-Cube-WatoHand-v0 --headless
+  --task=Isaac-Repose-Cube-PioneerHand-v0 --headless
 
 # Play — omit --headless to see goal-orientation marker
 $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py \
-  --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1
+  --task=Isaac-Repose-Cube-PioneerHand-Play-v0 --num_envs=1
 
 # Play — specific checkpoint
 $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py \
-  --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1 \
-  --checkpoint outputs/rl/wato_hand_cube/<run>/model_<iter>.pt
+  --task=Isaac-Repose-Cube-PioneerHand-Play-v0 --num_envs=1 \
+  --checkpoint outputs/rl/pioneer_hand_cube/<run>/model_<iter>.pt
 ```
 
 Shorthand aliases (after image rebuild): `rl-train --task=...` / `rl-play --task=... --num_envs=1`.
 
-Checkpoints: `outputs/rl/wato_hand_cube/`. PPO defaults: `max_iterations=5000`, `experiment_name=wato_hand_cube` (`config/wato_hand/agents/rsl_rl_ppo_cfg.py`).
+Checkpoints: `outputs/rl/pioneer_hand_cube/`. PPO defaults: `max_iterations=5000`, `experiment_name=pioneer_hand_cube` (`config/pioneer_hand/agents/rsl_rl_ppo_cfg.py`).
 
 ## Scene & command
 
@@ -51,14 +51,14 @@ Checkpoints: `outputs/rl/wato_hand_cube/`. PPO defaults: `max_iterations=5000`, 
 | Goal command | `InHandReOrientationCommand` — resampled **on success** (not on a timer) |
 | Goal position | Default cube spawn + `init_pos_offset = (0, 0, -0.04)` m (hold-in-palm target) |
 | Goal orientation | Sampled on allowed `rotation_axes`; success when error **< 0.4 rad** |
-| Curriculum (current) | `rotation_axes = ["z"]` — palm-normal spin only (`wato_hand_env_cfg.py`) |
+| Curriculum (current) | `rotation_axes = ["z"]` — palm-normal spin only (`pioneer_hand_env_cfg.py`) |
 | Startup event | `expand_abduction_limits` — overrides USD-baked MCP_A limits to ±27° |
 
-`replicate_physics=True` on Wato hand (instanceable-friendly).
+`replicate_physics=True` on pioneer hand (instanceable-friendly).
 
 ## Reward
 
-All base reward terms are defined in `RewardsCfg` (`inhand_env_cfg.py`). Implementations live in `mdp/rewards.py` (task-specific) and Isaac Lab `mdp` (generic penalties). `WatoHandCubeEnvCfg` adds one extra term — `spread_activity` — in `config/wato_hand/wato_hand_env_cfg.py`.
+All base reward terms are defined in `RewardsCfg` (`inhand_env_cfg.py`). Implementations live in `mdp/rewards.py` (task-specific) and Isaac Lab `mdp` (generic penalties). `PioneerHandCubeEnvCfg` adds one extra term — `spread_activity` — in `config/pioneer_hand/pioneer_hand_env_cfg.py`.
 
 | Category | Reward Function | Weight | Description |
 | :--- | :--- | :--- | :--- |
