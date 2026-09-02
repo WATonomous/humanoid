@@ -5,7 +5,7 @@ from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
 _ASSET_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "..", "simulation", "assets", "whole_body_humanoid"
+    os.path.dirname(__file__), "..", "..", "..", "assets", "whole_body_humanoid"
 )
 _URDF_PATH = os.path.join(_ASSET_DIR, "whole_body_humanoid.urdf")
 _USD_DIR = os.path.join(_ASSET_DIR, "usd")

@@ -36,23 +36,17 @@ Actuator groups were tuned for holding a static pose -- recheck stiffness/dampin
 if an arm feels sluggish tracking a moving IK target.
 """
 import math
-import sys
 from pathlib import Path
 
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
-# .../src/pioneer_humanoid/pioneer_humanoid/bimanual_arm.py -> .../src/pioneer_humanoid
-_PKG_DIR = Path(__file__).resolve().parents[1]
-_ARM_ROOT = str(_PKG_DIR / "assets" / "pioneer_bimanual_arm")
-_ARM_USD_PATH = str(Path(_ARM_ROOT) / "usd" / "pioneer_bimanual_arm.usd")
+from .urdf_joint_limits import JOINT_POS_LIMITS
 
-# urdf_joint_limits.py is stdlib-only and deliberately co-located with the URDF it parses
-# (assets/pioneer_bimanual_arm/), so it stays outside the importable package.
-if _ARM_ROOT not in sys.path:
-    sys.path.insert(0, _ARM_ROOT)
-from urdf_joint_limits import JOINT_POS_LIMITS  # noqa: E402  (needs the path insert above)
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_ARM_ROOT = str(_REPO_ROOT / "assets" / "pioneer_bimanual_arm")
+_ARM_USD_PATH = str(Path(_ARM_ROOT) / "usd" / "pioneer_bimanual_arm.usd")
 
 
 def _deg(degrees: float) -> float:
