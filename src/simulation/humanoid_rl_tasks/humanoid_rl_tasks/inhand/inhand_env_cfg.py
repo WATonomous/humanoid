@@ -320,6 +320,6 @@ class InHandObjectEnvCfg(ManagerBasedRLEnvCfg):
         # change viewer settings
         self.viewer.eye = (2.0, 2.0, 2.0)
 
-# Inside simulation_isaac container (cd $RL_ROOT first):
+# Inside simulation_isaac container (cd $HUMANOID_ROOT first):
 # $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/train.py --task=Isaac-Repose-Cube-WatoHand-v0 --headless
 # $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1

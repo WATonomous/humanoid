@@ -6,7 +6,7 @@
 Example:
   PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play_distill_push.py \\
     --task Isaac-Bimanual-Push-Block-Distill-Play-v0 --enable_cameras \\
-    --checkpoint logs/rsl_rl/push_distill/<run>/nn/student_1000.pt --num_envs 16
+    --checkpoint outputs/rl/push_distill/<run>/nn/student_1000.pt --num_envs 16
 """
 
 from __future__ import annotations

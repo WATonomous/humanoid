@@ -10,7 +10,7 @@ teacher actions while the student rolls out in the env (DAgger-style).
 Example:
   PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/distill_push.py \\
     --task Isaac-Bimanual-Push-Block-Distill-v0 --headless --enable_cameras \\
-    --teacher logs/rsl_rl/push_bimanual/<run>/model_1499.pt \\
+    --teacher outputs/rl/push_bimanual/<run>/model_1499.pt \\
     --num_envs 64 --max_iterations 2000
 """
 
@@ -129,7 +129,8 @@ def main():
     unwrapped = env.unwrapped
     device = unwrapped.device
 
-    log_root = os.path.abspath(os.path.join("logs", "rsl_rl", "push_distill"))
+    _out_root = os.environ.get("HUMANOID_ROOT") or os.getcwd()
+    log_root = os.path.abspath(os.path.join(_out_root, "outputs", "rl", "push_distill"))
     run_dir = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     if args_cli.run_name:
         run_dir += f"_{args_cli.run_name}"

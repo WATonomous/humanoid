@@ -49,7 +49,7 @@ will move onto the same `--scene` registry next.
 ## Training
 
 ```bash
-cd $RL_ROOT          # = src/simulation/humanoid_rl ; logs/ and outputs/ land here
+cd $HUMANOID_ROOT     # checkpoints land in $HUMANOID_ROOT/outputs/rl/
 rl-train --task=Isaac-Locomotion-Flat-WatoHumanoid-v0 --headless
 rl-play  --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1
 ```

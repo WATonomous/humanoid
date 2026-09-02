@@ -28,7 +28,6 @@ x-simulation_isaac_env: &simulation_isaac_env
   - ISAACLAB=/workspace/isaaclab
   - HUMANOID_ROOT=/workspace/humanoid
   - TASK_ROOT=/workspace/humanoid/src/simulation/so101_vial_task
-  - RL_ROOT=/workspace/humanoid/src/simulation/humanoid_rl
   - RL_RUNNERS=/workspace/humanoid/src/simulation/humanoid_rl/humanoid_rl/scripts
   # Map container-written files back to the host user (Isaac must run as root).
   - HOST_UID=${HOST_UID:-1000}
