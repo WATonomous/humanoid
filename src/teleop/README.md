@@ -19,7 +19,6 @@ The repo is bind-mounted at `/workspace/humanoid`. Shared arm config + IK helper
 | **`keyboard_teleop/`** | keyboard + IK | pioneer bimanual, left arm | see below |
 | [`task_space_controller/`](task_space_controller/) | viewport pose gizmo + IK | pioneer bimanual, left arm | `--publish-real-left-arm` drives the real arm — **its README covers the CAN pipeline + e-stop** |
 | [`so101_leader_teleop/`](so101_leader_teleop/) | SO101 Leader (USB) or keyboard | SO101 follower | see its README (vial scene, DR, cameras) |
-| [`camera_teleop/`](camera_teleop/) | webcam hand landmarks | pioneer hand | not wired yet |
 | `humanoid-record` (CLI) | ROS topics | real pioneer arm | `src/il` |
 
 ## keyboard_teleop
