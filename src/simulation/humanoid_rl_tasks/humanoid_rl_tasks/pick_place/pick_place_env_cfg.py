@@ -3,9 +3,9 @@
 Joint-space action env (cuRobo expert streams joint targets); the right arm
 has no action term and holds its default pose via the implicit actuators.
 Scene geometry (table slab, workspace) matches the cuRobo world model in
-pick_place_gen/ exactly.
+the datagen/ params exactly.
 
-Configure via pick_place_gen/task_params.py: build with
+Configure via datagen/task_params.py: build with
     env_cfg = make_env_cfg(PickPlaceTaskParams.from_yaml(path))
     env = gym.make("Isaac-PickPlace-BimanualLeft-v0", cfg=env_cfg)
 """

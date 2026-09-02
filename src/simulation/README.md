@@ -15,7 +15,6 @@ src/simulation/
 │       └── push_block/     # PPO + vision distillation; also a teleop scene
 ├── humanoid_scenes/        # teleop data-collection scenes — @scene-discovered
 │   └── humanoid_scenes/    #   bare/  vial_rack/  push_block/
-├── pick_place_gen/         # Isaac Lab Mimic datagen wrappers for pick_place
 └── so101_vial_task/        # SO101 imitation-learning task
 ```
 

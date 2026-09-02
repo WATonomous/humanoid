@@ -44,7 +44,6 @@ humanoid
 │   │   ├── humanoid_rl/         #   RL runners: train / play / distill / diagnose  ($RL_RUNNERS)
 │   │   ├── humanoid_rl_tasks/   #   RL tasks, flat — inhand, locomotion, push_block, pick_place
 │   │   ├── humanoid_scenes/     #   teleop data-collection scenes (@scene-discovered) — bare, vial_rack, push_block
-│   │   ├── pick_place_gen/      #   Isaac Lab Mimic datagen wrappers
 │   │   └── so101_vial_task/     #   SO101 imitation-learning task
 │   ├── teleop/              # Drive the arm (sim or real): keyboard, Quest WebXR, task-space IK — resolve --scene via humanoid_scenes
 │   ├── il/                  # Imitation-learning dataset recording (LeRobot)

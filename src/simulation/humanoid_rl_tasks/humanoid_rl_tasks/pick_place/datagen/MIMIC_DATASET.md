@@ -2,7 +2,7 @@
 
 State-only IL dataset for the **wato_bimanual_arm (left arm)** pick-and-place task:
 20 seed demos (originally cuRobo-planned via the now-removed
-`record_mimic_source_demos.py` — see `pick_place_gen/README.md`) → grasp-subtask
+`record_mimic_source_demos.py` — see `datagen/README.md`) → grasp-subtask
 annotation (`annotate_demos.py`) → scaled to 530 by **Isaac Lab Mimic**
 (`generate_dataset.py`). It's the *input* to training — no policy has been trained.
 
@@ -83,12 +83,12 @@ expect this layout. Build obs from `joint_pos`, `joint_vel`, `object_pose`
 (+ `obs/actions` for a previous-action channel); regress `actions`.
 
 ```bash
-cd /workspace/humanoid/src/simulation/humanoid_rl
+cd /workspace/humanoid
 export PYTHONPATH=$(pwd)
 
 $ISAACLAB/isaaclab.sh -p /workspace/isaaclab/scripts/imitation_learning/robomimic/train.py \
     --task Isaac-PickPlace-BimanualLeft-Mimic-v0 \
-    --dataset datasets/scaled_big.hdf5 --algo bc
+    --dataset outputs/rl/datasets/scaled_big.hdf5 --algo bc
 ```
 
 Not run end-to-end here — check `train.py --help`, the algo/config flags vary by
@@ -100,7 +100,7 @@ Seed + annotated intermediates were deleted, so more demos means re-running all
 three stages (~10 min for stages 1–2).
 
 ```bash
-cd /workspace/humanoid/src/simulation/humanoid_rl
+cd /workspace/humanoid
 export PYTHONPATH=$(pwd)
 export PYTHONUNBUFFERED=1        # Isaac Sim buffers stdout; without this you see no progress
 MIMIC=/workspace/isaaclab/scripts/imitation_learning/isaaclab_mimic
@@ -111,12 +111,12 @@ MIMIC=/workspace/isaaclab/scripts/imitation_learning/isaaclab_mimic
 #    below can run.
 
 # 2) annotate the grasp subtask (~3 min)
-$ISAACLAB/isaaclab.sh -p ../../pick_place_gen/run_isaaclab_mimic_script.py $MIMIC/annotate_demos.py \
+$ISAACLAB/isaaclab.sh -p src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/pick_place/datagen/run_isaaclab_mimic_script.py $MIMIC/annotate_demos.py \
     --task Isaac-PickPlace-BimanualLeft-Mimic-v0 --headless --auto \
     --input_file datasets/source.hdf5 --output_file datasets/annotated.hdf5
 
 # 3) scale up (~10 attempts/min, ~20% yield; writes incrementally — Ctrl-C anytime)
-$ISAACLAB/isaaclab.sh -p ../../pick_place_gen/run_isaaclab_mimic_script.py $MIMIC/generate_dataset.py \
+$ISAACLAB/isaaclab.sh -p src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/pick_place/datagen/run_isaaclab_mimic_script.py $MIMIC/generate_dataset.py \
     --task Isaac-PickPlace-BimanualLeft-Mimic-v0 --headless \
     --input_file datasets/annotated.hdf5 --output_file datasets/scaled_big.hdf5 \
     --generation_num_trials 2000

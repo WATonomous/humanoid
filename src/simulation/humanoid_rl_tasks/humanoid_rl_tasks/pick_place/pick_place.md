@@ -15,10 +15,10 @@ pose (no action term).
 | Cameras | optional TiledCameras `external` + `wrist` (480×640 RGB) |
 | Sim | dt 0.01, decimation 2 (50 Hz control) |
 
-Everything is parameterized by `pick_place_gen/task_params.py`
+Everything is parameterized by `pick_place/datagen/task_params.py`
 (`PickPlaceTaskParams`); build the env with `make_env_cfg(params)` and pass
 via `gym.make(..., cfg=env_cfg)`. Full docs + data generation:
-`src/simulation/pick_place_gen/README.md`.
+`pick_place/datagen/README.md`.
 
 Smoke test (inside simulation_il container, from $HUMANOID_ROOT):
 

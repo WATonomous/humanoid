@@ -1,7 +1,7 @@
 """Configuration surface for the generalized pick-and-place task.
 
 One dataclass consumed by the Isaac Lab env cfg (scene/events), loaded from a
-YAML file. See pick_place_gen/README.md for a field-by-field guide and
+YAML file. See datagen/README.md for a field-by-field guide and
 worked examples (plain pick-place, stacking, camera-less fast mode).
 
 All poses/ranges are in the robot base frame (== env-local frame; the robot
@@ -14,7 +14,7 @@ from typing import Optional
 
 import yaml
 
-import task_geometry as tg
+from . import task_geometry as tg
 
 
 @dataclass
