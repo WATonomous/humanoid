@@ -1,4 +1,4 @@
-"""20-DOF Wato hand articulation config."""
+"""20-DOF pioneer hand articulation config."""
 import math
 import os
 
@@ -6,9 +6,9 @@ import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
-_THIS_DIR = os.path.abspath(os.path.dirname(__file__))
-_HAND_USD_PATH = os.path.join(_THIS_DIR, "urdf", "hand_urdf", "hand_urdf.usd")
-_HAND_URDF_PATH = os.path.join(_THIS_DIR, "urdf", "hand_urdf.urdf")
+_ASSET_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "hand")
+_HAND_USD_PATH = os.path.join(_ASSET_DIR, "urdf", "hand_urdf", "hand_urdf.usd")
+_HAND_URDF_PATH = os.path.join(_ASSET_DIR, "urdf", "hand_urdf.urdf")
 
 
 def _deg(degrees: float) -> float:
@@ -105,7 +105,7 @@ def apply_joint_limits(robot) -> None:
         print(f"[INFO] Applied joint limits for {len(updated)} joints.")
 
 
-WATO_HAND_CFG = ArticulationCfg(
+HAND_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
         usd_path=_HAND_USD_PATH,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(

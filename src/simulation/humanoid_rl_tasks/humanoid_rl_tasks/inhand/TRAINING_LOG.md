@@ -65,7 +65,7 @@
 ### 7. Instanceable USD + scaling to 1024 envs (WORKS)
 `replicate_physics = True` was already set. The existing `hand_urdf.usd` has no companion `_meshes.usd` but runs at 1024 envs without OOM — effectively sufficient.
 
-**To make fully instanceable (not yet done):** Isaac Sim GUI → URDF Importer → "Create Instanceable Asset" → produces `hand_urdf.usd` + `instanceable_meshes.usd`. Update `_HAND_USD_PATH` in `wato_hand_cfg.py`.
+**To make fully instanceable (not yet done):** Isaac Sim GUI → URDF Importer → "Create Instanceable Asset" → produces `hand_urdf.usd` + `instanceable_meshes.usd`. Update `_HAND_USD_PATH` in `pioneer_humanoid/hand_cfg.py`.
 
 **Throughput:**
 - 256 envs: ~11k steps/s

@@ -1,22 +1,11 @@
 import math
-import os
-import sys
 
 import isaaclab.sim as sim_utils
 from isaaclab.assets.articulation import ArticulationCfg
 
-# Robot meshes/USD still live under src/simulation/Humanoid_Wato/ (asset
-# consolidation is a separate step).
-_HUMANOID_WATO_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "simulation", "Humanoid_Wato")
-)
-_HAND_ASSET_DIR = os.path.join(_HUMANOID_WATO_ROOT, "wato_hand")
-if _HAND_ASSET_DIR not in sys.path:
-    sys.path.insert(0, _HAND_ASSET_DIR)
-
-from wato_hand_cfg import (  # noqa: E402
+from .hand_cfg import (
+    HAND_CFG,
     JOINT_POS_LIMITS,
-    WATO_HAND_CFG,
     apply_joint_limits,
 )
 
@@ -74,8 +63,8 @@ _INHAND_INIT_JOINT_POS = dict(_INHAND_GRASP_JOINT_POS)
 for _mcp_a in ("MCP_A_1", "MCP_A_2", "MCP_A_3", "MCP_A_4"):
     _INHAND_INIT_JOINT_POS[_mcp_a] = min(_INHAND_SPREAD_RAD, _USD_MCP_A_MAX)
 
-INHAND_HAND_CFG = WATO_HAND_CFG.replace(
-    spawn=WATO_HAND_CFG.spawn.replace(
+INHAND_HAND_CFG = HAND_CFG.replace(
+    spawn=HAND_CFG.spawn.replace(
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=True,
             retain_accelerations=False,

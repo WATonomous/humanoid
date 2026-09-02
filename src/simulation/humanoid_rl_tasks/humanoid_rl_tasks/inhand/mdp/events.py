@@ -170,7 +170,7 @@ def apply_wato_hand_joint_limits(
     env_ids: torch.Tensor,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> None:
-    """Push expanded JOINT_POS_LIMITS from wato_hand_cfg into PhysX at startup.
+    """Push expanded JOINT_POS_LIMITS from pioneer_humanoid.hand_cfg into PhysX at startup.
 
     The USD has the original hardware limits baked in (±8.6 deg for MCP_A).
     This overwrites them so the RL policy can explore a larger abduction range.
