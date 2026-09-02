@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "humanoid-rl-tasks"
+version = "0.1.0"
+description = "RSL-RL training tasks for the Pioneer humanoid (locomotion, in-hand, ...) — flat, one folder per task"
+requires-python = ">=3.10"
+# isaaclab / isaacsim are provided by the Isaac Sim environment, not pip-installable here.
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["humanoid_rl_tasks*"]

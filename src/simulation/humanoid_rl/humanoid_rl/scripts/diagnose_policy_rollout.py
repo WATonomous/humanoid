@@ -38,7 +38,11 @@ from isaaclab.utils.assets import retrieve_file_path
 from isaaclab.utils.math import quat_rotate_inverse, yaw_quat
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper
 
-import HumanoidRLPackage.HumanoidRLSetup.tasks  # noqa: F401
+import humanoid_rl_tasks  # noqa: F401  (inhand, locomotion)
+try:
+    import HumanoidRLPackage.HumanoidRLSetup.tasks  # noqa: F401  (badminton/push/pick_place - still pre-flatten)
+except ModuleNotFoundError:
+    pass
 from isaaclab_tasks.utils import parse_env_cfg
 
 

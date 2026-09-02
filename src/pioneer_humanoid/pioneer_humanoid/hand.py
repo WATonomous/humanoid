@@ -14,7 +14,11 @@ _HAND_ASSET_DIR = os.path.join(_HUMANOID_WATO_ROOT, "wato_hand")
 if _HAND_ASSET_DIR not in sys.path:
     sys.path.insert(0, _HAND_ASSET_DIR)
 
-from wato_hand_cfg import JOINT_POS_LIMITS, WATO_HAND_CFG  # noqa: E402
+from wato_hand_cfg import (  # noqa: E402
+    JOINT_POS_LIMITS,
+    WATO_HAND_CFG,
+    apply_joint_limits,
+)
 
 # Partial grasp pose for in-hand cube reorientation (~50% of flex range).
 # MCP_A splay limit is ±27 deg (expanded in JOINT_POS_LIMITS); keep default at mid-spread.

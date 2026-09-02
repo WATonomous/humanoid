@@ -16,7 +16,7 @@ from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveGaussianNoiseCfg as Gnoise
 
-import HumanoidRLPackage.HumanoidRLSetup.tasks.inhand.mdp as mdp
+import humanoid_rl_tasks.inhand.mdp as mdp
 from pioneer_humanoid.hand import INHAND_CUBE_POS, INHAND_HAND_CFG
 
 
@@ -321,5 +321,5 @@ class InHandObjectEnvCfg(ManagerBasedRLEnvCfg):
         self.viewer.eye = (2.0, 2.0, 2.0)
 
 # Inside simulation_isaac container (cd $RL_ROOT first):
-# PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py --task=Isaac-Repose-Cube-WatoHand-v0 --headless
-# PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1
+# $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/train.py --task=Isaac-Repose-Cube-WatoHand-v0 --headless
+# $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1

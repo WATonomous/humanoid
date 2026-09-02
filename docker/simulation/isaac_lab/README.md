@@ -73,6 +73,7 @@ export ISAACLAB=/workspace/isaaclab
 export HUMANOID_ROOT=/workspace/humanoid
 export TASK_ROOT=/workspace/humanoid/src/simulation/so101_vial_task
 export RL_ROOT=/workspace/humanoid/src/simulation/Humanoid_Wato/HumanoidRL
+export RL_RUNNERS=/workspace/humanoid/src/simulation/humanoid_rl/humanoid_rl/scripts
 export PYTHON=/workspace/isaaclab/_isaac_sim/python.sh
 ```
 

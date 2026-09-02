@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "humanoid-rl"
+version = "0.1.0"
+description = "RSL-RL train / play / diagnostic runners for the Pioneer humanoid RL tasks"
+requires-python = ">=3.10"
+# isaaclab / isaacsim / rsl_rl come from the Isaac Sim environment, not pip-installable here.
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["humanoid_rl*"]

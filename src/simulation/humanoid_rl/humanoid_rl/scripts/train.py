@@ -67,7 +67,11 @@ from isaaclab.utils.io import dump_yaml
 
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper
 
-import HumanoidRLPackage.HumanoidRLSetup.tasks  # noqa: F401
+import humanoid_rl_tasks  # noqa: F401  (inhand, locomotion)
+try:
+    import HumanoidRLPackage.HumanoidRLSetup.tasks  # noqa: F401  (badminton/push/pick_place - still pre-flatten)
+except ModuleNotFoundError:
+    pass
 from isaaclab_tasks.utils import get_checkpoint_path
 from isaaclab_tasks.utils.hydra import hydra_task_config
 

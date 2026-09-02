@@ -1,8 +1,8 @@
 from isaaclab.managers import EventTermCfg as EventTerm, RewardTermCfg as RewTerm, SceneEntityCfg
 from isaaclab.utils import configclass
 
-import HumanoidRLPackage.HumanoidRLSetup.tasks.inhand.inhand_env_cfg as inhand_env_cfg
-import HumanoidRLPackage.HumanoidRLSetup.tasks.inhand.mdp as inhand_mdp
+import humanoid_rl_tasks.inhand.inhand_env_cfg as inhand_env_cfg
+import humanoid_rl_tasks.inhand.mdp as inhand_mdp
 from pioneer_humanoid.hand import INHAND_SPREAD_RAD
 
 

@@ -23,15 +23,15 @@ cd ~/Desktop/humanoid && ./watod up -d && ./watod -t simulation_isaac_dev
 cd $RL_ROOT
 
 # Train
-PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py \
+$ISAACLAB/isaaclab.sh -p $RL_RUNNERS/train.py \
   --task=Isaac-Badminton-Intercept-Humanoid-Arm-v0 --headless
 
 # Play — omit --headless to see intercept rings
-PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
+$ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py \
   --task=Isaac-Badminton-Intercept-Humanoid-Arm-Play-v0 --num_envs=1
 
 # Play — specific checkpoint
-PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
+$ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py \
   --task=Isaac-Badminton-Intercept-Humanoid-Arm-Play-v0 --num_envs=1 \
   --checkpoint logs/rsl_rl/badminton_intercept_humanoid_arm/<run>/model_<iter>.pt
 ```
