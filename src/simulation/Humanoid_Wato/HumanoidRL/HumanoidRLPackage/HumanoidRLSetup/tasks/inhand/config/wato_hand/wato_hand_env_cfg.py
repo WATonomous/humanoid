@@ -3,7 +3,7 @@ from isaaclab.utils import configclass
 
 import HumanoidRLPackage.HumanoidRLSetup.tasks.inhand.inhand_env_cfg as inhand_env_cfg
 import HumanoidRLPackage.HumanoidRLSetup.tasks.inhand.mdp as inhand_mdp
-from HumanoidRLPackage.HumanoidRLSetup.modelCfg.wato_hand import INHAND_SPREAD_RAD
+from pioneer_humanoid.hand import INHAND_SPREAD_RAD
 
 
 @configclass

@@ -17,13 +17,13 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveGaussianNoiseCfg as Gnoise
 
 import HumanoidRLPackage.HumanoidRLSetup.tasks.inhand.mdp as mdp
-from HumanoidRLPackage.HumanoidRLSetup.modelCfg.wato_hand import INHAND_CUBE_POS, INHAND_WATO_HAND_CFG
+from pioneer_humanoid.hand import INHAND_CUBE_POS, INHAND_HAND_CFG
 
 
 
 @configclass
 class InHandObjectSceneCfg(InteractiveSceneCfg):
-    robot: ArticulationCfg = INHAND_WATO_HAND_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    robot: ArticulationCfg = INHAND_HAND_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
     cube: RigidObjectCfg = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/cube",

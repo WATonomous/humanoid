@@ -11,7 +11,7 @@ _HUMANOID_WATO_ROOT = Path(__file__).resolve().parents[2] / "simulation" / "Huma
 if str(_HUMANOID_WATO_ROOT) not in sys.path:
     sys.path.insert(0, str(_HUMANOID_WATO_ROOT))
 
-from HumanoidRL.HumanoidRLPackage.HumanoidRLSetup.modelCfg.humanoid_arm_hand import (  # noqa: E402
+from pioneer_humanoid.arm_hand import (  # noqa: E402
     ARM_CFG,
 )
 

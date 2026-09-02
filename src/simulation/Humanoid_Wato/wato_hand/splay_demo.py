@@ -38,7 +38,7 @@ from wato_hand_cfg import JOINT_POS_LIMITS, apply_joint_limits
 _HUMANOID_RL_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "HumanoidRL"))
 if _HUMANOID_RL_ROOT not in sys.path:
     sys.path.insert(0, _HUMANOID_RL_ROOT)
-from HumanoidRLPackage.HumanoidRLSetup.modelCfg.wato_hand import INHAND_WATO_HAND_CFG  # noqa: E402
+from pioneer_humanoid.hand import INHAND_HAND_CFG  # noqa: E402
 
 # Finger splay ±8.594 deg; thumb abduction 0..114.592 deg (each uses its own limits).
 SPREAD_JOINTS = ["MCP_A_1", "MCP_A_2", "MCP_A_3", "MCP_A_4", "MCP_A_thumb"]
@@ -64,11 +64,11 @@ class SplayDemoSceneCfg(InteractiveSceneCfg):
         prim_path="/World/Light",
         spawn=sim_utils.DomeLightCfg(intensity=2500.0, color=(0.85, 0.85, 0.85)),
     )
-    robot = INHAND_WATO_HAND_CFG.replace(
+    robot = INHAND_HAND_CFG.replace(
         prim_path="{ENV_REGEX_NS}/Robot",
         init_state=ArticulationCfg.InitialStateCfg(
-            pos=INHAND_WATO_HAND_CFG.init_state.pos,
-            rot=INHAND_WATO_HAND_CFG.init_state.rot,
+            pos=INHAND_HAND_CFG.init_state.pos,
+            rot=INHAND_HAND_CFG.init_state.rot,
             joint_pos=_NEUTRAL_JOINT_POS,
         ),
     )

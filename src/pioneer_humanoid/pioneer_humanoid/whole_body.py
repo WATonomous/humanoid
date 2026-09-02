@@ -4,16 +4,18 @@ import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
+# Robot meshes/USD still live under src/simulation/Humanoid_Wato/ (asset
+# consolidation is a separate step).
 _HUMANOID_WATO_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
+    os.path.join(os.path.dirname(__file__), "..", "..", "simulation", "Humanoid_Wato")
 )
-_WATO_HUMANOID_V1_URDF_PATH = os.path.join(
+_URDF_PATH = os.path.join(
     _HUMANOID_WATO_ROOT,
     "Wato Humanoid Simultion Model V1",
     "urdf",
     "Wato_Humanoid_V1_isaac.urdf",
 )
-_WATO_HUMANOID_V1_USD_DIR = os.path.join(
+_USD_DIR = os.path.join(
     _HUMANOID_WATO_ROOT,
     "Wato Humanoid Simultion Model V1",
     "urdf",
@@ -24,10 +26,10 @@ _WATO_HUMANOID_V1_USD_DIR = os.path.join(
 _SPAWN_HEIGHT = 0.75
 
 
-WATO_HUMANOID_V1_CFG = ArticulationCfg(
+WHOLE_BODY_HUMANOID_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(
-        asset_path=_WATO_HUMANOID_V1_URDF_PATH,
-        usd_dir=_WATO_HUMANOID_V1_USD_DIR,
+        asset_path=_URDF_PATH,
+        usd_dir=_USD_DIR,
         usd_file_name="Wato_Humanoid_V1.usd",
         force_usd_conversion=False,
         make_instanceable=True,

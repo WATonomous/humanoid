@@ -62,4 +62,4 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/diag
 | Knee | `Knee_L`, `Knee_R` |
 | Ankle pitch / roll | `Ankle_P_*`, `Ankle_R_*` |
 
-Config: `modelCfg/wato_humanoid_v1.py`, tasks under `config/wato_humanoid_v1/`.
+Config: `pioneer_humanoid/whole_body.py`, tasks under `config/wato_humanoid_v1/`.

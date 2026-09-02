@@ -189,7 +189,7 @@ def snap_inhand_grasp_pose(
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> None:
     """Apply the tuned in-hand grasp pose after MCP_A limits are expanded at startup."""
-    from HumanoidRLPackage.HumanoidRLSetup.modelCfg.wato_hand import INHAND_GRASP_JOINT_POS
+    from pioneer_humanoid.hand import INHAND_GRASP_JOINT_POS
 
     robot: Articulation = env.scene[asset_cfg.name]
 
