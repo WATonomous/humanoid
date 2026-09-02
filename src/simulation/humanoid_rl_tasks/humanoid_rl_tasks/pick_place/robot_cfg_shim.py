@@ -8,7 +8,7 @@ the sys.path entry is a fallback for a bare bind-mounted checkout.
 import sys
 from pathlib import Path
 
-_SIM_DIR = Path(__file__).resolve().parents[6]  # .../src/simulation
+_SIM_DIR = Path(__file__).resolve().parents[3]  # .../src/simulation
 assert (_SIM_DIR / "Humanoid_Wato").is_dir(), f"unexpected repo layout at {_SIM_DIR}"
 
 for _p in (
@@ -38,3 +38,7 @@ from task_params import PickPlaceTaskParams  # noqa: E402,F401
 
 # Recorded joint order for the dataset (arm 6 + gripper pair).
 RIGHT_JOINTS_ALL = RIGHT_ARM_JOINTS + RIGHT_GRIPPER_JOINTS
+
+# pick_place_env_cfg.py refers to this by its physical-arm name; the rest of the
+# task uses the RIGHT_* alias (see the picking-arm note above). Keep both.
+LEFT_JOINTS_ALL = RIGHT_JOINTS_ALL

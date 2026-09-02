@@ -44,7 +44,7 @@ for _p in (str(_GEN_DIR), str(_HRL_DIR)):
 
 namespace = runpy.run_path(target_script, run_name="isaaclab_mimic_wrapper")
 
-import HumanoidRLPackage.HumanoidRLSetup.tasks  # noqa: E402,F401  (registers Isaac-PickPlace-BimanualLeft-Mimic-v0)
+import humanoid_rl_tasks  # noqa: E402,F401  (registers Isaac-PickPlace-BimanualLeft-Mimic-v0)
 
 try:
     result = namespace["main"]()

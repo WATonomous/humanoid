@@ -6,7 +6,7 @@ left arm holds its default pose under the joint-position action term, and
 
 Run from the HumanoidRL directory inside the simulation_il container:
     PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p \
-        HumanoidRLPackage/HumanoidRLSetup/tasks/pick_place_bimanual/scripts/smoke_hold_pose.py \
+        src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/pick_place/scripts/smoke_hold_pose.py \
         --headless --enable_cameras
 """
 import argparse
@@ -25,9 +25,9 @@ simulation_app = app_launcher.app
 import gymnasium as gym  # noqa: E402
 import torch  # noqa: E402
 
-import HumanoidRLPackage.HumanoidRLSetup.tasks  # noqa: E402,F401
-from HumanoidRLPackage.HumanoidRLSetup.tasks.pick_place_bimanual import robot_cfg_shim as shim  # noqa: E402
-from HumanoidRLPackage.HumanoidRLSetup.tasks.pick_place_bimanual.pick_place_env_cfg import (  # noqa: E402
+import humanoid_rl_tasks  # noqa: E402,F401
+from humanoid_rl_tasks.pick_place import robot_cfg_shim as shim  # noqa: E402
+from humanoid_rl_tasks.pick_place.pick_place_env_cfg import (  # noqa: E402
     make_env_cfg,
 )
 
