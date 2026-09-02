@@ -66,6 +66,8 @@ _SIM_DIR = _AUTONOMY / "simulation"
 # pioneer_humanoid package (canonical arm config). Editable-installed in the image; this fallback
 # keeps a bare bind-mounted checkout working.
 sys.path.insert(0, str(_AUTONOMY / "pioneer_humanoid"))
+# src/teleop/ for the shared teleop_cameras module
+sys.path.insert(0, str(_AUTONOMY / "teleop"))
 _IL_PKG = _AUTONOMY / "il"
 
 
@@ -136,7 +138,7 @@ from isaaclab.utils.math import (  # noqa: E402
 
 # No aliasing: LEFT_* is the L-suffixed chain (physical left = left Quest wrist), RIGHT_* the
 # unsuffixed one. This block used to swap them to undo a reversed upstream; don't bring that back.
-from pioneer_humanoid.teleop_cameras import (  # noqa: E402
+from teleop_cameras import (  # noqa: E402
     WRIST_CAM_POS,
     make_ego_cam_cfg,
     make_wrist_cam_cfg,
@@ -700,7 +702,7 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
 
     # Data-collection / HUD cameras, not the headset display (the RSD455 pair, attached at
     # runtime). wrist_cam is on link6l (LEFT arm), wrist_cam_right its mirror on link6. Pose and
-    # lens live in pioneer_humanoid/teleop_cameras.py -- adjust there, not here. wrist_cam keeps its
+    # lens live in src/teleop/teleop_cameras.py -- adjust there, not here. wrist_cam keeps its
     # unsuffixed name because _capture_record_images, the dataset schema, and the keyboard
     # teleop scenes all bind that key.
     ego_cam = make_ego_cam_cfg()

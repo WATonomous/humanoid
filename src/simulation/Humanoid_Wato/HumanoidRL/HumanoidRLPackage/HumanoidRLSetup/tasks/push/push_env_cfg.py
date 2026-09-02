@@ -336,7 +336,7 @@ class PushBlockEnvCfg(ManagerBasedRLEnvCfg):
     """Push-block env: pioneer bimanual arm (left arm) drives a block up the ramp.
 
     Scene, geometry and grounding come from ``scene.PushBlockSceneCfg`` (the
-    teleop-verified placement, shared with ``pioneer_humanoid.teleop_scenes``).
+    teleop-verified placement, shared with ``humanoid_scenes``).
     Only the arm is actuated; the closed gripper is the pushing tool.
     """
 

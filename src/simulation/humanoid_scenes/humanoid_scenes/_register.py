@@ -7,7 +7,7 @@ Adding a manipulation scene for teleop data collection is **one folder**:
         __init__.py      # empty
         scene.py         # @scene("my_scene") class MySceneCfg(InteractiveSceneCfg): ...
 
-Nothing else -- no edits to ``pioneer_humanoid.teleop_scenes``, ``keyboard_teleop``
+Nothing else -- no edits to ``humanoid_scenes``, ``keyboard_teleop``
 or the Dockerfile. The scene declares ``robot = MISSING``; a teleop script plugs
 its own arm in via ``make_scene_cfg``.
 """
@@ -50,12 +50,17 @@ def _discover() -> None:
     global _DISCOVERED
     if _DISCOVERED:
         return
+    import warnings
+
     import humanoid_scenes
 
     for m in pkgutil.iter_modules(humanoid_scenes.__path__):
         if m.name.startswith("_"):
             continue
-        importlib.import_module(f"humanoid_scenes.{m.name}.scene")
+        try:
+            importlib.import_module(f"humanoid_scenes.{m.name}.scene")
+        except Exception as e:  # noqa: BLE001 -- one broken scene must not hide the rest
+            warnings.warn(f"humanoid_scenes: skipping {m.name!r} -- {type(e).__name__}: {e}", stacklevel=2)
     _DISCOVERED = True
 
 

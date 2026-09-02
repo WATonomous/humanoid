@@ -34,7 +34,7 @@ class MySceneCfg(InteractiveSceneCfg):
 - **`camera`** — optional `(eye, target)` for the teleop initial view.
 
 That's it. `keyboard_teleop --scene my_scene` now works — no edits to
-`pioneer_humanoid.teleop_scenes`, `keyboard_teleop`, or the Dockerfile.
+`keyboard_teleop`, or the Dockerfile.
 
 ## Use a scene
 

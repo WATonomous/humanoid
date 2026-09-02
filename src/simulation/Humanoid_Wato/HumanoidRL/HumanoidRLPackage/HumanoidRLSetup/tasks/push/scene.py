@@ -1,7 +1,7 @@
 """Single source of truth for the push-block scene: geometry + placement.
 
 Placement is the **teleop-verified grounding** (measured via isaac_harness bbox,
-see pioneer_humanoid.teleop_scenes): the arm on its floor stand (``base_link``
+see humanoid_scenes): the arm on its floor stand (``base_link``
 lifted ``ROBOT_STAND_LIFT_Z``, feet at floor level), a real work table whose top
 sits at ``TABLE_TOP_Z``, and the ramp-box + block on that table top. This
 replaces the SO101-inherited grounding (arm at the origin, table top at z=0)
@@ -10,7 +10,7 @@ that the RL push env used through mid-2026.
 Imported by:
   - ``push_env_cfg.py`` -- the RL env fills ``scene.robot`` / ``scene.ee_frame``
     and layers the MDP on top.
-  - ``pioneer_humanoid.teleop_scenes`` -- the teleop registry fills
+  - ``humanoid_scenes`` -- the teleop registry fills
     ``scene.robot`` and drops ``ee_frame``.
 
 Every world-Z-dependent MDP constant (``FLOOR_Z``, ``FLOOR_Z_COLLISION``,
