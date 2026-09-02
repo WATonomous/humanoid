@@ -8,7 +8,7 @@ trains a CNN+MLP student that sees RGB + proprio only, via behavior cloning on
 teacher actions while the student rolls out in the env (DAgger-style).
 
 Example:
-  PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/distill_push.py \\
+  PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/distill_push.py \\
     --task Isaac-Bimanual-Push-Block-Distill-v0 --headless --enable_cameras \\
     --teacher logs/rsl_rl/push_bimanual/<run>/model_1499.pt \\
     --num_envs 64 --max_iterations 2000
@@ -50,8 +50,8 @@ import torch.nn as nn
 from rsl_rl.modules import ActorCritic
 from torch.utils.tensorboard import SummaryWriter
 
-import HumanoidRLPackage.HumanoidRLSetup.tasks  # noqa: F401
-from HumanoidRLPackage.HumanoidRLSetup.tasks.push.student_policy import StudentVisionPolicy
+import humanoid_rl_tasks  # noqa: F401
+from humanoid_rl_tasks.push_block.student_policy import StudentVisionPolicy
 from isaaclab_tasks.utils import parse_env_cfg
 
 

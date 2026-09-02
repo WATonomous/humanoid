@@ -190,7 +190,7 @@ not RSL-RL's MLP-only DistillationRunner.
 **Train** (from `HumanoidRL/` with Isaac Lab env):
 
 ```bash
-PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/distill_push.py \
+PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/distill_push.py \
   --task Isaac-SO-ARM101-Push-Block-Distill-v0 --headless --enable_cameras \
   --teacher logs/rsl_rl/push_so101/<run>/model_XXXX.pt \
   --num_envs 64 --max_iterations 2000
@@ -199,7 +199,7 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/dist
 **Play:**
 
 ```bash
-PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play_distill_push.py \
+PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play_distill_push.py \
   --task Isaac-SO-ARM101-Push-Block-Distill-Play-v0 --enable_cameras \
   --checkpoint logs/rsl_rl/push_distill/<run>/nn/student_XXXX.pt --num_envs 16
 ```

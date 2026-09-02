@@ -59,7 +59,7 @@ $PYTHON -c "import torch; print(torch.__version__)"   # expect 2.7.0+cu128
 $PYTHON -c "import lerobot; print('ok')"
 ```
 
-Container env (from `.bashrc`): `$ISAACLAB`, `$TASK_ROOT` (SO101 IL), `$RL_ROOT` (HumanoidRL logs/legacy tasks), `$RL_RUNNERS` (RSL-RL train/play scripts).
+Container env (from `.bashrc`): `$ISAACLAB`, `$TASK_ROOT` (SO101 IL), `$RL_ROOT` (RL working dir: logs/, outputs/), `$RL_RUNNERS` (RSL-RL train/play scripts).
 
 Aliases: `il-train`, `il-eval`, `il-record`, `rl-train`, `rl-play`.
 
@@ -209,7 +209,7 @@ rl-train --task=Isaac-Locomotion-Flat-WatoHumanoid-v0 --headless
 rl-play --task=Isaac-Locomotion-Flat-WatoHumanoid-Play-v0 --num_envs=1
 ```
 
-Task docs: `src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md` (push: still `src/simulation/Humanoid_Wato/HumanoidRL/.../tasks/push/`).
+Task docs: `src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md` .
 
 ---
 
@@ -218,5 +218,5 @@ Task docs: `src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md` (pus
 | Workload | Where |
 |----------|-------|
 | SO101 IL train + sim eval | `simulation_isaac` docker |
-| HumanoidRL (all tasks) | `simulation_isaac` docker (`$RL_ROOT`) |
+| RL tasks (all) | `simulation_isaac` docker; `humanoid_rl_tasks/` + runners in `$RL_RUNNERS` |
 | Quest / Wato teleop | `simulation_isaac` docker |

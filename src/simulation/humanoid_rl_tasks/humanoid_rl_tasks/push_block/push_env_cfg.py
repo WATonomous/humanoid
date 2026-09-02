@@ -56,7 +56,7 @@ from .scene import (  # noqa: F401  (BOX_* / FLOOR_TARGET re-exported for distil
 
 # The canonical pioneer bimanual-arm config (editable-installed in the isaac_lab
 # image; the sys.path entry is a fallback for a bare bind-mounted checkout).
-_PIONEER = Path(__file__).resolve().parents[7] / "pioneer_humanoid"
+_PIONEER = Path(__file__).resolve().parents[4] / "pioneer_humanoid"
 if str(_PIONEER) not in sys.path:
     sys.path.insert(0, str(_PIONEER))
 from pioneer_humanoid.bimanual_arm import (  # noqa: E402

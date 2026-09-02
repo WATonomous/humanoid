@@ -48,10 +48,10 @@ keyboard_teleop --scene <name>      # pass an unknown name to list them
 
 - **Here:** lightweight teleop/data-collection scenes — mostly a `scene.py`.
 - **Not here:** full task packages with training/eval/recording infra
-  (`so101_vial_task`), pure-RL tasks with no teleop story (`locomotion`,
-  `badminton`). The `push` scene *will* move here once it's extracted from
-  `HumanoidRLPackage` (it currently carries an RL env + gym registration wired
-  into that tree); until then teleop reaches it via a legacy shim.
+  (`so101_vial_task`) and the RL tasks (`humanoid_rl_tasks/` — `locomotion`,
+  `badminton`, `inhand`, `pick_place`, `push_block`). A scene that doubles as an
+  RL task keeps its geometry in `humanoid_rl_tasks/<task>/scene.py`; the folder
+  here is just a one-liner that registers it for teleop (see `push_block/`).
 
 ## Scenes
 

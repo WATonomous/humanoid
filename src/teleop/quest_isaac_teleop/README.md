@@ -267,7 +267,7 @@ how far the arm moves per metre of real wrist motion.
 
 The scene always includes a white lightbox enclosure + table around the arm
 stand — same geometry as `BimanualPushBlockSceneCfg` in
-`HumanoidRLSetup/tasks/push/bimanual_env_cfg.py` (plain emissive-white
+`humanoid_rl_tasks/push_block/push_env_cfg.py` (plain emissive-white
 `CuboidCfg` walls, lit by the scene's existing dome light; no RectLight, no
 external USD/asset dependency; no CLI flag needed). This replaced the older
 `bimanual_arm_lightbox.usd` stage (Ramy's, removed in

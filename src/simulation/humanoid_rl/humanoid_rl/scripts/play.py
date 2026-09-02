@@ -68,11 +68,7 @@ from isaaclab_rl.rsl_rl import (
 )
 from isaaclab_rl.utils.pretrained_checkpoint import get_published_pretrained_checkpoint
 
-import humanoid_rl_tasks  # noqa: F401  (inhand, locomotion)
-try:
-    import HumanoidRLPackage.HumanoidRLSetup.tasks  # noqa: F401  (push - still pre-flatten)
-except ModuleNotFoundError:
-    pass
+import humanoid_rl_tasks  # noqa: F401  (registers every RL task)
 from isaaclab_tasks.utils import get_checkpoint_path, parse_env_cfg
 
 installed_rsl_rl_version = metadata.version("rsl-rl-lib")

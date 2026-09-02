@@ -41,11 +41,7 @@ simulation_app = app_launcher.app
 import gymnasium as gym
 import torch
 
-import humanoid_rl_tasks  # noqa: F401  (inhand, locomotion)
-try:
-    import HumanoidRLPackage.HumanoidRLSetup.tasks  # noqa: F401  (push - still pre-flatten)
-except ModuleNotFoundError:
-    pass
+import humanoid_rl_tasks  # noqa: F401  (registers every RL task)
 from isaaclab_tasks.utils import parse_env_cfg
 
 
