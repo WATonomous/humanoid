@@ -4,8 +4,10 @@ import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
+# Robot meshes/USD still live under src/simulation/Humanoid_Wato/ (asset
+# consolidation is a separate step).
 _HUMANOID_WATO_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
+    os.path.join(os.path.dirname(__file__), "..", "..", "simulation", "Humanoid_Wato")
 )
 _MODEL_ASSETS = os.path.join(_HUMANOID_WATO_ROOT, "UsdModelAssets")
 

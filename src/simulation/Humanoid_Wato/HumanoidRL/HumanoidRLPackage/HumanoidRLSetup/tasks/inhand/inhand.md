@@ -46,7 +46,7 @@ Checkpoints: `logs/rsl_rl/wato_hand_cube/`. PPO defaults: `max_iterations=5000`,
 
 | Item | Value |
 | :--- | :--- |
-| Robot | `INHAND_WATO_HAND_CFG` (`modelCfg/wato_hand.py`) — palm-up, 20 DOF |
+| Robot | `INHAND_HAND_CFG` (`pioneer_humanoid/hand.py`) — palm-up, 20 DOF |
 | Cube | Isaac Nucleus DexCube (instanceable), scale `(0.8, 0.8, 0.8)`, spawn `INHAND_CUBE_POS` |
 | Goal command | `InHandReOrientationCommand` — resampled **on success** (not on a timer) |
 | Goal position | Default cube spawn + `init_pos_offset = (0, 0, -0.04)` m (hold-in-palm target) |

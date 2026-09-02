@@ -3,7 +3,7 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils import configclass
 
-from HumanoidRLPackage.HumanoidRLSetup.modelCfg.wato_humanoid_v1 import WATO_HUMANOID_V1_CFG
+from pioneer_humanoid.whole_body import WHOLE_BODY_HUMANOID_CFG
 
 from ... import mdp
 from ...locomotion_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg, TerminationsCfg
@@ -115,7 +115,7 @@ class WatoHumanoidRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
-        self.scene.robot = WATO_HUMANOID_V1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = WHOLE_BODY_HUMANOID_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = f"{{ENV_REGEX_NS}}/Robot/{WATO_BASE_BODY}"
 
         # Ported from flat_env_cfg.py: G1 never customizes per-joint action scale (it
