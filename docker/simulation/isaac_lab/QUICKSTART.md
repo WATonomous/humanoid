@@ -191,9 +191,12 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_agent.py \
 
 ---
 
-## 8. HumanoidRL — in-hand / locomotion / etc. (inside container)
+## 8. RL tasks — in-hand / locomotion / push / etc. (inside container)
 
-Same `simulation_isaac` stack (Lab 2.3.2 / Sim 5.1). Repo is bind-mounted — checkpoints under `logs/rsl_rl/` on host.
+Same `simulation_isaac` stack (Lab 2.3.2 / Sim 5.1). Tasks live in
+`src/simulation/humanoid_rl_tasks/`, runners in `$RL_RUNNERS` — see
+[src/simulation/README.md](../../../src/simulation/README.md). Repo is
+bind-mounted; checkpoints under `$RL_ROOT/logs/rsl_rl/` on host.
 
 ```bash
 cd $RL_ROOT
@@ -209,7 +212,7 @@ rl-train --task=Isaac-Locomotion-Flat-WatoHumanoid-v0 --headless
 rl-play --task=Isaac-Locomotion-Flat-WatoHumanoid-Play-v0 --num_envs=1
 ```
 
-Task docs: `src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md` .
+Task docs: `src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md`.
 
 ---
 

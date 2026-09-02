@@ -18,7 +18,7 @@ Based on [NVIDIA SO-101 workshop](https://github.com/isaac-sim/Sim-to-Real-SO-10
 
 | Environment | Use |
 |-------------|-----|
-| **`simulation_isaac`** (this) | SO101 IL + **HumanoidRL** + Quest / Wato teleop |
+| **`simulation_isaac`** (this) | SO101 IL + RL tasks + Quest / Wato teleop |
 | **`simulation_mj`** | MuJoCo / mjlab |
 
 ## Files
@@ -94,7 +94,7 @@ $PYTHON -c "import lerobot; print('ok')"
 
 ## Workflows
 
-### A. HumanoidRL — RSL-RL train / play
+### A. RL tasks — RSL-RL train / play
 
 ```bash
 cd $RL_ROOT

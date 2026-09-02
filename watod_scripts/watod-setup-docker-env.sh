@@ -32,7 +32,7 @@ TAG=${TAG/\//-}
 # Possible values:
 ##   - interfacing          :   CAN / hardware interfacing + joint_command
 ##   - perception           :   perception nodes + voxel_grid
-##   - simulation_isaac     :   Isaac Lab (SO101 IL, HumanoidRL, Quest teleop)
+##   - simulation_isaac     :   Isaac Lab (SO101 IL, RL tasks, Quest teleop)
 ##   - simulation_mj        :   MuJoCo / mjlab
 ACTIVE_MODULES=${ACTIVE_MODULES:-""}
 

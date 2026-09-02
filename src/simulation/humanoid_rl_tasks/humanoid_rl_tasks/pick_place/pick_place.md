@@ -20,7 +20,7 @@ Everything is parameterized by `pick_place_gen/task_params.py`
 via `gym.make(..., cfg=env_cfg)`. Full docs + data generation:
 `src/simulation/pick_place_gen/README.md`.
 
-Smoke test (inside simulation_il container, from the HumanoidRL dir):
+Smoke test (inside simulation_il container, from $RL_ROOT):
 
 ```bash
 PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p \

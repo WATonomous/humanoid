@@ -21,7 +21,7 @@ Run inside the **`simulation_isaac`** container (Isaac Lab 2.3.2 / Sim 5.1). Hos
 # Host: start container
 cd ~/Desktop/humanoid && ./watod up -d && ./watod -t simulation_isaac_dev
 
-# Inside container — run from $RL_ROOT (HumanoidRL/)
+# Inside container — run from $RL_ROOT (src/simulation/humanoid_rl/)
 cd $RL_ROOT
 
 # Train (default 2048 envs; try 1024 or 512 if OOM)

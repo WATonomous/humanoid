@@ -4,7 +4,7 @@ Checks: env builds, resets randomize objects with separation, no NaNs, the
 left arm holds its default pose under the joint-position action term, and
 (if enabled) cameras produce frames.
 
-Run from the HumanoidRL directory inside the simulation_il container:
+Run from $RL_ROOTectory inside the simulation_il container:
     PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p \
         src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/pick_place/scripts/smoke_hold_pose.py \
         --headless --enable_cameras

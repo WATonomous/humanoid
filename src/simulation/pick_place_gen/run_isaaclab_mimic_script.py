@@ -36,11 +36,9 @@ from pathlib import Path
 target_script = sys.argv[1]
 sys.argv = [sys.argv[0]] + sys.argv[2:]  # target script only ever sees its own expected argv
 
-_GEN_DIR = Path(__file__).resolve().parent
-_HRL_DIR = _GEN_DIR.parents[1] / "Humanoid_Wato" / "HumanoidRL"
-for _p in (str(_GEN_DIR), str(_HRL_DIR)):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+_GEN_DIR = Path(__file__).resolve().parent  # task_params / task_geometry live here
+if str(_GEN_DIR) not in sys.path:
+    sys.path.insert(0, str(_GEN_DIR))
 
 namespace = runpy.run_path(target_script, run_name="isaaclab_mimic_wrapper")
 

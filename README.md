@@ -16,7 +16,7 @@ One editable container per module — code is bind-mounted from `src/<module>`, 
 |------------------|--------------|
 | `interfacing` | CAN / hardware interfacing, `joint_command` |
 | `perception` | Perception (cameras, GPU), `voxel_grid` |
-| `simulation_isaac` | **Isaac Lab 2.3.2** — SO101 IL, HumanoidRL, Quest teleop |
+| `simulation_isaac` | **Isaac Lab 2.3.2** — SO101 IL, RL tasks, Quest teleop |
 | `simulation_mj` | MuJoCo / mjlab RL |
 
 **Isaac Lab sim (recommended):** see [docker/simulation/isaac_lab/QUICKSTART.md](docker/simulation/isaac_lab/QUICKSTART.md).
@@ -40,7 +40,7 @@ humanoid
 │   ├── interfacing/          # CAN, DBC, joint_command (ArmPose → per-motor CAN)
 │   ├── perception/           # perception nodes, voxel_grid (depth → occupancy)
 │   ├── pioneer_humanoid/     # Shared arm articulation / scene / camera configs
-│   ├── simulation/           # Isaac tasks, HumanoidRL
+│   ├── simulation/           # Isaac RL tasks, teleop scenes, datagen (see src/simulation/README.md)
 │   ├── teleop/               # Quest WebXR → ROS 2 bridge
 │   ├── il/                   # Imitation learning recording
 │   └── embedded/             # STM32, ESP32S3 firmware
@@ -52,7 +52,7 @@ humanoid
 
 | Stack | Module | Docs |
 |-------|--------|------|
-| Isaac Lab 2.3.2 / Sim 5.1 (SO101 IL, HumanoidRL, Quest) | `simulation_isaac` | [QUICKSTART](docker/simulation/isaac_lab/QUICKSTART.md) · [full README](docker/simulation/isaac_lab/README.md) |
+| Isaac Lab 2.3.2 / Sim 5.1 (SO101 IL, RL tasks, Quest) | `simulation_isaac` | [QUICKSTART](docker/simulation/isaac_lab/QUICKSTART.md) · [full README](docker/simulation/isaac_lab/README.md) |
 | MuJoCo / mjlab | `simulation_mj` | [README](docker/simulation/mjlabs/README.md) |
 | SO101 vial Gym envs | (inside `simulation_isaac`) | [so101_vial_task](src/simulation/so101_vial_task/README.md) |
 | Quest bimanual teleop | (inside `simulation_isaac`) | [quest_isaac_teleop](src/teleop/quest_isaac_teleop/README.md) |
