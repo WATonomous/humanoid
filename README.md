@@ -39,19 +39,33 @@ humanoid
 │   ├── common_msgs/         # Shared ROS 2 message definitions
 │   ├── interfacing/         # CAN ⇄ ROS 2 bridge, DBC, joint_command (ArmPose → per-motor CAN); real-arm bring-up
 │   ├── perception/          # Perception nodes + voxel_grid (depth → occupancy grid)
-│   ├── pioneer_humanoid/    # THE arm/robot definition — articulation, joint limits, IK helpers, cameras (imported everywhere)
-│   ├── simulation/          # Isaac Lab: RL tasks, teleop scenes, training runners, datagen — see src/simulation/README.md
-│   ├── teleop/              # Drive the arm (sim or real): keyboard, Quest WebXR, task-space IK
+│   ├── pioneer_humanoid/    # THE robot definition — arm/hand/whole-body articulation, joint limits, IK, cameras (imported everywhere)
+│   ├── simulation/          # Isaac Lab sim & learning — see src/simulation/README.md
+│   │   ├── humanoid_rl/         #   RL runners: train / play / distill / diagnose  ($RL_RUNNERS)
+│   │   ├── humanoid_rl_tasks/   #   RL tasks, flat — inhand, locomotion, push_block, pick_place
+│   │   ├── humanoid_scenes/     #   teleop data-collection scenes (@scene-discovered) — bare, vial_rack, push_block
+│   │   ├── pick_place_gen/      #   Isaac Lab Mimic datagen wrappers
+│   │   └── so101_vial_task/     #   SO101 imitation-learning task
+│   ├── teleop/              # Drive the arm (sim or real): keyboard, Quest WebXR, task-space IK — resolve --scene via humanoid_scenes
 │   ├── il/                  # Imitation-learning dataset recording (LeRobot)
 │   └── embedded/            # STM32 / ESP32S3 motor-controller firmware
-├── assets/                  # robot URDF/USD/meshes + scene props (backend-neutral); lerobot/ = SO101
+├── assets/                  # robot URDF/USD/meshes + scene props (backend-neutral, not tied to Isaac)
+│   ├── pioneer_bimanual_arm/  pioneer_hand/  whole_body_humanoid/
+│   ├── props/                  #   block.usd, box.usd, table.usd
+│   └── lerobot/                #   SO101 arm + vial-task USDs + HDRIs (external-synced)
 ├── outputs/                 # training runs / checkpoints (gitignored) — rl/ , train/
 └── docs/                    # Pointer to the humanoid-docs site
 ```
 
-Deeper structure and "where does new work go" live in each area's own `README.md`
-(notably [src/simulation/README.md](src/simulation/README.md) for the RL-task vs
-teleop-scene split).
+**RL task vs teleop scene** — the split a contributor needs first:
+
+| adding… | goes in | how it registers |
+|---|---|---|
+| an RL task (has a reward, gets PPO-trained) | `src/simulation/humanoid_rl_tasks/<task>/` | auto (`import_packages`) |
+| a teleop-only scene (collect demos, no reward) | `src/simulation/humanoid_scenes/<name>/scene.py` + `@scene("<name>")` | auto (discovery) |
+| a scene that is **both** (e.g. `push_block`) | task owns the geometry in its `scene.py`; add a 1-line shim in `humanoid_scenes/` | both |
+
+Full detail — [src/simulation/README.md](src/simulation/README.md). Other areas: each has its own `README.md`.
 
 ## Simulation
 
