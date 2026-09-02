@@ -187,7 +187,7 @@ Distills a privileged PPO teacher into a camera student (RGB 64×64 + proprio, n
 block state). Uses a small custom DAgger-style loop (`rsl_rl_scripts/distill_push.py`),
 not RSL-RL's MLP-only DistillationRunner.
 
-**Train** (from `HumanoidRL/` with Isaac Lab env):
+**Train** (from `$RL_ROOT` with Isaac Lab env):
 
 ```bash
 PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/distill_push.py \

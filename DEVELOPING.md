@@ -79,6 +79,7 @@ ros2 launch joint_command joint_command.launch.py
 | Area | Start here |
 |------|------------|
 | Isaac Lab sim / imitation learning | [docker/simulation/isaac_lab/QUICKSTART.md](docker/simulation/isaac_lab/QUICKSTART.md) · [src/il/README.md](src/il/README.md) |
+| RL tasks / teleop scenes (what goes where) | [src/simulation/README.md](src/simulation/README.md) |
 | MuJoCo / mjlab | [docker/simulation/mjlabs/README.md](docker/simulation/mjlabs/README.md) |
 | Teleop | [src/teleop/README.md](src/teleop/README.md) |
 | CAN / hardware, arm bring-up | [src/interfacing/can/README.md](src/interfacing/can/README.md) · [ARM_BRINGUP.md](ARM_BRINGUP.md) |

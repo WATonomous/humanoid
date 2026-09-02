@@ -51,6 +51,7 @@ _INHAND_GRASP_JOINT_POS = {
 
 INHAND_GRASP_JOINT_POS = _INHAND_GRASP_JOINT_POS
 
+
 def _quat_y_deg(deg: float) -> tuple[float, float, float, float]:
     """Quaternion (w, x, y, z) for a pure rotation about world Y."""
     half = math.radians(deg) * 0.5

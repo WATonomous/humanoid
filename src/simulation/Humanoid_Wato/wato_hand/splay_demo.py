@@ -35,10 +35,8 @@ from isaaclab.utils import configclass
 from wato_hand_cfg import JOINT_POS_LIMITS, apply_joint_limits
 
 # Same hand asset/physics as in-hand RL (self-collision off, palm-up, etc.).
-_HUMANOID_RL_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "HumanoidRL"))
-if _HUMANOID_RL_ROOT not in sys.path:
-    sys.path.insert(0, _HUMANOID_RL_ROOT)
-from pioneer_humanoid.hand import INHAND_HAND_CFG  # noqa: E402
+# pioneer_humanoid is pip-installed (editable) in the isaac_lab image.
+from pioneer_humanoid.hand import INHAND_HAND_CFG
 
 # Finger splay ±8.594 deg; thumb abduction 0..114.592 deg (each uses its own limits).
 SPREAD_JOINTS = ["MCP_A_1", "MCP_A_2", "MCP_A_3", "MCP_A_4", "MCP_A_thumb"]

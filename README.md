@@ -16,43 +16,47 @@ One editable container per module — code is bind-mounted from `src/<module>`, 
 |------------------|--------------|
 | `interfacing` | CAN / hardware interfacing, `joint_command` |
 | `perception` | Perception (cameras, GPU), `voxel_grid` |
-| `simulation_isaac` | **Isaac Lab 2.3.2** — SO101 IL, HumanoidRL, Quest teleop |
+| `simulation_isaac` | **Isaac Lab 2.3.2** — SO101 IL, RL tasks, Quest teleop |
 | `simulation_mj` | MuJoCo / mjlab RL |
 
 **Isaac Lab sim (recommended):** see [docker/simulation/isaac_lab/QUICKSTART.md](docker/simulation/isaac_lab/QUICKSTART.md).
 
 ## Repo map
 
+Two workflows share this repo:
+
+- **Real robot:** `embedded` firmware ⇄ `interfacing` (CAN ⇄ ROS 2) ⇄ `perception` — driven live by `teleop`, or by a policy.
+- **Sim / learning:** `teleop` collects demos in `simulation` scenes → `il` records datasets → train (imitation) or `simulation/humanoid_rl` (RL) → deploy back through `interfacing`.
+
 ```
 humanoid
-├── watod                     # Compose orchestrator
-├── watod-config.sh           # Defaults (copy → watod-config.local.sh)
-├── watod_scripts/            # Dev-env / Docker helpers
-├── modules/                  # docker-compose.<module>.yaml
-├── docker/                   # Dockerfiles per stack
-│   ├── interfacing/
-│   ├── perception/
-│   └── simulation/
-│       ├── isaac_lab/        # Isaac Lab + LeRobot (primary sim)
-│       └── mjlabs/           # MuJoCo / mjlab
+├── watod                    # Compose orchestrator (one editable container per module)
+├── watod-config.sh          # Module defaults — copy → watod-config.local.sh
+├── watod_scripts/           # Dev-env / Docker helpers
+├── modules/                 # docker-compose.<module>.yaml (one per ACTIVE_MODULE)
+├── docker/                  # Dockerfiles per stack (interfacing, perception, simulation/{isaac_lab,mjlabs})
 ├── src/
-│   ├── common_msgs/         # Shared ROS 2 messages
-│   ├── interfacing/          # CAN, DBC, joint_command (ArmPose → per-motor CAN)
-│   ├── perception/           # perception nodes, voxel_grid (depth → occupancy)
-│   ├── pioneer_humanoid/     # Shared arm articulation / scene / camera configs
-│   ├── simulation/           # Isaac tasks, HumanoidRL
-│   ├── teleop/               # Quest WebXR → ROS 2 bridge
-│   ├── il/                   # Imitation learning recording
-│   └── embedded/             # STM32, ESP32S3 firmware
-├── assets/lerobot/           # SO101 USD / vial-task assets
-└── docs/                     # Pointer to the humanoid-docs site
+│   ├── common_msgs/         # Shared ROS 2 message definitions
+│   ├── interfacing/         # CAN ⇄ ROS 2 bridge, DBC, joint_command (ArmPose → per-motor CAN); real-arm bring-up
+│   ├── perception/          # Perception nodes + voxel_grid (depth → occupancy grid)
+│   ├── pioneer_humanoid/    # THE arm/robot definition — articulation, joint limits, IK helpers, cameras (imported everywhere)
+│   ├── simulation/          # Isaac Lab: RL tasks, teleop scenes, training runners, datagen — see src/simulation/README.md
+│   ├── teleop/              # Drive the arm (sim or real): keyboard, Quest WebXR, task-space IK
+│   ├── il/                  # Imitation-learning dataset recording (LeRobot)
+│   └── embedded/            # STM32 / ESP32S3 motor-controller firmware
+├── assets/lerobot/          # SO101 USD + vial-task assets
+└── docs/                    # Pointer to the humanoid-docs site
 ```
+
+Deeper structure and "where does new work go" live in each area's own `README.md`
+(notably [src/simulation/README.md](src/simulation/README.md) for the RL-task vs
+teleop-scene split).
 
 ## Simulation
 
 | Stack | Module | Docs |
 |-------|--------|------|
-| Isaac Lab 2.3.2 / Sim 5.1 (SO101 IL, HumanoidRL, Quest) | `simulation_isaac` | [QUICKSTART](docker/simulation/isaac_lab/QUICKSTART.md) · [full README](docker/simulation/isaac_lab/README.md) |
+| Isaac Lab 2.3.2 / Sim 5.1 (SO101 IL, RL tasks, Quest) | `simulation_isaac` | [QUICKSTART](docker/simulation/isaac_lab/QUICKSTART.md) · [full README](docker/simulation/isaac_lab/README.md) |
 | MuJoCo / mjlab | `simulation_mj` | [README](docker/simulation/mjlabs/README.md) |
 | SO101 vial Gym envs | (inside `simulation_isaac`) | [so101_vial_task](src/simulation/so101_vial_task/README.md) |
 | Quest bimanual teleop | (inside `simulation_isaac`) | [quest_isaac_teleop](src/teleop/quest_isaac_teleop/README.md) |
