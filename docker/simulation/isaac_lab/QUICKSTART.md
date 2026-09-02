@@ -59,7 +59,7 @@ $PYTHON -c "import torch; print(torch.__version__)"   # expect 2.7.0+cu128
 $PYTHON -c "import lerobot; print('ok')"
 ```
 
-Container env (from `.bashrc`): `$ISAACLAB`, `$TASK_ROOT` (SO101 IL), `$RL_ROOT` (HumanoidRL).
+Container env (from `.bashrc`): `$ISAACLAB`, `$TASK_ROOT` (SO101 IL), `$RL_ROOT` (HumanoidRL logs/legacy tasks), `$RL_RUNNERS` (RSL-RL train/play scripts).
 
 Aliases: `il-train`, `il-eval`, `il-record`, `rl-train`, `rl-play`.
 
@@ -209,7 +209,7 @@ rl-train --task=Isaac-Locomotion-Flat-WatoHumanoid-v0 --headless
 rl-play --task=Isaac-Locomotion-Flat-WatoHumanoid-Play-v0 --num_envs=1
 ```
 
-Task docs: `src/simulation/Humanoid_Wato/HumanoidRL/.../tasks/<task>/*.md`.
+Task docs: `src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md` (badminton/push/pick_place: still `src/simulation/Humanoid_Wato/HumanoidRL/.../tasks/<task>/`).
 
 ---
 

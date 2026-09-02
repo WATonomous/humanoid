@@ -7,11 +7,7 @@ from isaaclab.assets import Articulation
 from isaaclab.managers import EventTermCfg, ManagerTermBase, SceneEntityCfg
 from isaaclab.utils.math import sample_uniform
 
-import sys, os as _os
-_WATO_HAND_DIR = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), "../../../../../../wato_hand"))
-if _WATO_HAND_DIR not in sys.path:
-    sys.path.insert(0, _WATO_HAND_DIR)
-from wato_hand_cfg import apply_joint_limits as _apply_joint_limits  # noqa: E402
+from pioneer_humanoid.hand import apply_joint_limits as _apply_joint_limits
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv

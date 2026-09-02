@@ -127,6 +127,8 @@ RUN $PYTHON -m pip install --no-deps "rerun-sdk>=0.24.0,<0.27.0" && \
 COPY src/il ${HUMANOID_ROOT}/src/il
 COPY src/simulation/so101_vial_task ${HUMANOID_ROOT}/src/simulation/so101_vial_task
 COPY src/simulation/humanoid_scenes ${HUMANOID_ROOT}/src/simulation/humanoid_scenes
+COPY src/simulation/humanoid_rl ${HUMANOID_ROOT}/src/simulation/humanoid_rl
+COPY src/simulation/humanoid_rl_tasks ${HUMANOID_ROOT}/src/simulation/humanoid_rl_tasks
 COPY src/pioneer_humanoid ${HUMANOID_ROOT}/src/pioneer_humanoid
 
 # Humanoid packages: --no-deps (never [sim]/[lerobot] extras — they pull torch/lerobot with deps)
@@ -136,6 +138,8 @@ RUN $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/s
     $PYTHON -m pip install -c /tmp/constraints.txt psutil && \
     $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/so101_vial_task" && \
     $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/humanoid_scenes" && \
+    $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/humanoid_rl" && \
+    $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/humanoid_rl_tasks" && \
     $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/pioneer_humanoid"
 
 RUN mkdir -p /tmp/pycache && chmod 1777 /tmp/pycache
@@ -186,11 +190,14 @@ export ISAACLAB=/workspace/isaaclab
 export HUMANOID_ROOT=/workspace/humanoid
 export TASK_ROOT=/workspace/humanoid/src/simulation/so101_vial_task
 export RL_ROOT=/workspace/humanoid/src/simulation/Humanoid_Wato/HumanoidRL
+export RL_RUNNERS=/workspace/humanoid/src/simulation/humanoid_rl/humanoid_rl/scripts
 alias il-train='$PYTHON -m lerobot.scripts.lerobot_train'
 alias il-record='cd $TASK_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_agent.py'
 alias il-eval='cd $TASK_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_eval.py'
-alias rl-train='cd $RL_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py'
-alias rl-play='cd $RL_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py'
+# humanoid_rl / humanoid_rl_tasks are pip-installed (editable). $RL_ROOT stays on
+# PYTHONPATH so the not-yet-flattened tasks (badminton/push/pick_place) still register.
+alias rl-train='cd $RL_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/train.py'
+alias rl-play='cd $RL_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py'
 EOF
 
 RUN cat >> /root/.bashrc <<'EOF'

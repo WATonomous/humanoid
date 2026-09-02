@@ -25,15 +25,15 @@ cd ~/Desktop/humanoid && ./watod up -d && ./watod -t simulation_isaac_dev
 cd $RL_ROOT
 
 # Train (default 2048 envs; try 1024 or 512 if OOM)
-PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py \
+$ISAACLAB/isaaclab.sh -p $RL_RUNNERS/train.py \
   --task=Isaac-Repose-Cube-WatoHand-v0 --headless
 
 # Play — omit --headless to see goal-orientation marker
-PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
+$ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py \
   --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1
 
 # Play — specific checkpoint
-PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py \
+$ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py \
   --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1 \
   --checkpoint logs/rsl_rl/wato_hand_cube/<run>/model_<iter>.pt
 ```

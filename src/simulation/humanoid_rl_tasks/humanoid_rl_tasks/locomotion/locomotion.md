@@ -43,10 +43,10 @@ Rough-terrain variants: replace `Flat` with `Rough` and use `logs/rsl_rl/wato_hu
 **Spawn / joint smoke checks**
 
 ```bash
-PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/diagnose_spawn.py \
+$ISAACLAB/isaaclab.sh -p $RL_RUNNERS/diagnose_spawn.py \
   --task=Isaac-Locomotion-Flat-WatoHumanoid-v0 --headless --num_envs=1 --steps=10
 
-PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/diagnose_joints.py \
+$ISAACLAB/isaaclab.sh -p $RL_RUNNERS/diagnose_joints.py \
   --task=Isaac-Locomotion-Flat-WatoHumanoid-v0 --headless --num_envs=1
 ```
 
