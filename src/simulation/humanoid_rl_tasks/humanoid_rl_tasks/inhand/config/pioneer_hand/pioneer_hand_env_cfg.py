@@ -7,8 +7,8 @@ from pioneer_humanoid.hand import INHAND_SPREAD_RAD
 
 
 @configclass
-class WatoHandCubeEnvCfg(inhand_env_cfg.InHandObjectEnvCfg):
-    """In-hand cube reorientation for the 20-DOF Wato hand."""
+class PioneerHandCubeEnvCfg(inhand_env_cfg.InHandObjectEnvCfg):
+    """In-hand cube reorientation for the 20-DOF pioneer hand."""
 
     def __post_init__(self):
         super().__post_init__()
@@ -18,7 +18,7 @@ class WatoHandCubeEnvCfg(inhand_env_cfg.InHandObjectEnvCfg):
 
         # Push expanded MCP_A limits (±27 deg) into PhysX, overriding the ±8.6 deg baked in the USD.
         self.events.expand_abduction_limits = EventTerm(
-            func=inhand_mdp.apply_wato_hand_joint_limits,
+            func=inhand_mdp.apply_hand_joint_limits,
             mode="startup",
         )
         # Lab 2.3.2 init uses USD-safe MCP_A defaults; restore the trained grasp pose here.
@@ -70,7 +70,7 @@ class WatoHandCubeEnvCfg(inhand_env_cfg.InHandObjectEnvCfg):
 
 
 @configclass
-class WatoHandCubeEnvCfg_PLAY(WatoHandCubeEnvCfg):
+class PioneerHandCubeEnvCfg_PLAY(PioneerHandCubeEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.scene.num_envs = 16
@@ -83,14 +83,14 @@ class WatoHandCubeEnvCfg_PLAY(WatoHandCubeEnvCfg):
 
 # Version with no velocity observation as input because in a real deployment, measuring velocity is noisy / unavailable
 @configclass
-class WatoHandCubeNoVelObsEnvCfg(WatoHandCubeEnvCfg):
+class PioneerHandCubeNoVelObsEnvCfg(PioneerHandCubeEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.observations.policy = inhand_env_cfg.ObservationsCfg.NoVelocityKinematicObsGroupCfg()
 
 
 @configclass
-class WatoHandCubeNoVelObsEnvCfg_PLAY(WatoHandCubeNoVelObsEnvCfg):
+class PioneerHandCubeNoVelObsEnvCfg_PLAY(PioneerHandCubeNoVelObsEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.scene.num_envs = 16

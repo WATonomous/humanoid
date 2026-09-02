@@ -165,7 +165,7 @@ class reset_joints_within_limits_range(ManagerTermBase):
         self._asset.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids)
 
 
-def apply_wato_hand_joint_limits(
+def apply_hand_joint_limits(
     env: "ManagerBasedEnv",
     env_ids: torch.Tensor,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),

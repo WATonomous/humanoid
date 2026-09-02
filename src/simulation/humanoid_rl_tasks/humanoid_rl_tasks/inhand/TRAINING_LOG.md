@@ -4,7 +4,7 @@
 > [Isaac Lab](https://github.com/isaac-sim/IsaacLab) in-hand manipulation examples.
 
 ## Task
-20-DOF Wato hand, in-hand cube reorientation (Isaac-Repose-Cube-WatoHand-v0).
+20-DOF pioneer hand, in-hand cube reorientation (Isaac-Repose-Cube-PioneerHand-v0).
 
 ---
 
@@ -12,7 +12,7 @@
 
 ### 1. MCP_A abduction range expansion (WORKS — kept)
 **Problem:** USD bakes ±8.6° abduction limits; fingers could barely splay.
-**Fix:** Expanded `_MCP_A_LIMIT` to ±27° (AllegroHand level). `expand_abduction_limits` startup event calls `apply_wato_hand_joint_limits()` to override USD-baked values in PhysX at runtime.
+**Fix:** Expanded `_MCP_A_LIMIT` to ±27° (AllegroHand level). `expand_abduction_limits` startup event calls `apply_hand_joint_limits()` to override USD-baked values in PhysX at runtime.
 **Result:** Fingers now have meaningful splay range.
 
 ---

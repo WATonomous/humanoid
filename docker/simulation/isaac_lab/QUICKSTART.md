@@ -202,14 +202,14 @@ bind-mounted; checkpoints under `$HUMANOID_ROOT/outputs/rl/` on host.
 cd $HUMANOID_ROOT
 
 # In-hand cube reorientation — train
-rl-train --task=Isaac-Repose-Cube-WatoHand-v0 --headless
+rl-train --task=Isaac-Repose-Cube-PioneerHand-v0 --headless
 
 # Play (GUI; omit --headless)
-rl-play --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1
+rl-play --task=Isaac-Repose-Cube-PioneerHand-Play-v0 --num_envs=1
 
-# Locomotion — Wato Humanoid V1 (flat)
-rl-train --task=Isaac-Locomotion-Flat-WatoHumanoid-v0 --headless
-rl-play --task=Isaac-Locomotion-Flat-WatoHumanoid-Play-v0 --num_envs=1
+# Locomotion — Pioneer humanoid V1 (flat)
+rl-train --task=Isaac-Locomotion-Flat-PioneerHumanoid-v0 --headless
+rl-play --task=Isaac-Locomotion-Flat-PioneerHumanoid-Play-v0 --num_envs=1
 ```
 
 Task docs: `src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md`.

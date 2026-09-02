@@ -9,15 +9,15 @@ from ... import mdp
 from ...locomotion_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg, TerminationsCfg
 
 
-WATO_BASE_BODY = "base"
-WATO_FOOT_BODIES = ["Foot_L", "Foot_R"]
-WATO_LEG_JOINTS = ["Hip_.*", "Knee_.*", "Ankle_.*"]
-WATO_ANKLE_JOINTS = ["Ankle_R_.*", "Ankle_P_.*"]
+BASE_BODY = "base"
+FOOT_BODIES = ["Foot_L", "Foot_R"]
+LEG_JOINTS = ["Hip_.*", "Knee_.*", "Ankle_.*"]
+ANKLE_JOINTS = ["Ankle_R_.*", "Ankle_P_.*"]
 
 
 @configclass
-class WatoHumanoidRewards(RewardsCfg):
-    """Reward terms for the Wato Humanoid V1 locomotion MDP."""
+class PioneerHumanoidRewards(RewardsCfg):
+    """Reward terms for the Pioneer humanoid V1 locomotion MDP."""
 
     termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.0)
     track_lin_vel_xy_exp = RewTerm(
@@ -33,7 +33,7 @@ class WatoHumanoidRewards(RewardsCfg):
         weight=0.25,
         params={
             "command_name": "base_velocity",
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=WATO_FOOT_BODIES),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=FOOT_BODIES),
             "threshold": 0.4,
         },
     )
@@ -41,14 +41,14 @@ class WatoHumanoidRewards(RewardsCfg):
         func=mdp.feet_slide,
         weight=-0.1,
         params={
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=WATO_FOOT_BODIES),
-            "asset_cfg": SceneEntityCfg("robot", body_names=WATO_FOOT_BODIES),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=FOOT_BODIES),
+            "asset_cfg": SceneEntityCfg("robot", body_names=FOOT_BODIES),
         },
     )
     dof_pos_limits = RewTerm(
         func=mdp.joint_pos_limits,
         weight=-1.0,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=WATO_ANKLE_JOINTS)},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=ANKLE_JOINTS)},
     )
     joint_deviation_hip = RewTerm(
         func=mdp.joint_deviation_l1,
@@ -63,17 +63,17 @@ class WatoHumanoidRewards(RewardsCfg):
     # gradient at a hard margin boundary).
     # preserve_order=True: feet_crossing_l2 assumes body_ids[0]=left foot,
     # body_ids[1]=right foot -- SceneEntityCfg defaults to asset body index order
-    # otherwise, which isn't guaranteed to match WATO_FOOT_BODIES = ["Foot_L", "Foot_R"].
+    # otherwise, which isn't guaranteed to match FOOT_BODIES = ["Foot_L", "Foot_R"].
     feet_crossing_penalty = RewTerm(
         func=mdp.feet_crossing_l2,
         weight=-40.0,
         params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=WATO_FOOT_BODIES, preserve_order=True),
+            "asset_cfg": SceneEntityCfg("robot", body_names=FOOT_BODIES, preserve_order=True),
             "margin": 0.08,
         },
     )
     # Rough-only (disabled on flat, which has no height_scanner -- see
-    # WatoHumanoidFlatEnvCfg.__post_init__): rough_terrain_fresh_001 plateaued with
+    # PioneerHumanoidFlatEnvCfg.__post_init__): rough_terrain_fresh_001 plateaued with
     # the robot spawning and immediately sitting/crouching down and staying there for
     # the whole episode -- it turns out the shared TerminationsCfg (locomotion_env_cfg.py)
     # only has time_out and base_contact (a contact-force check on the base link), with
@@ -81,7 +81,7 @@ class WatoHumanoidRewards(RewardsCfg):
     # override), so a seated pose that doesn't put contact force through the base link
     # itself survives indefinitely with zero risk. mdp.base_height_l2 penalizes
     # deviation from a target standing height (matching _SPAWN_HEIGHT=0.75 in
-    # wato_humanoid_v1.py) using the height scanner to stay terrain-relative -- a hard
+    # pioneer_humanoid_v1.py) using the height scanner to stay terrain-relative -- a hard
     # world-Z threshold (like flat's low_base) isn't safe on uneven terrain, per
     # Isaac Lab's own root_height_below_minimum docstring ("currently only supported
     # for flat terrains").
@@ -93,7 +93,7 @@ class WatoHumanoidRewards(RewardsCfg):
 
 
 @configclass
-class WatoHumanoidRoughTerminations(TerminationsCfg):
+class PioneerHumanoidRoughTerminations(TerminationsCfg):
     # base_height_l2 (reward-only) didn't change the sitting/collapsed behavior after
     # ~200 iterations -- live play confirmed every env still ends up down, and since
     # it's only a per-step cost (not a termination), a fallen robot can just lie there
@@ -108,15 +108,15 @@ class WatoHumanoidRoughTerminations(TerminationsCfg):
 
 
 @configclass
-class WatoHumanoidRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
-    rewards: WatoHumanoidRewards = WatoHumanoidRewards()
-    terminations: WatoHumanoidRoughTerminations = WatoHumanoidRoughTerminations()
+class PioneerHumanoidRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
+    rewards: PioneerHumanoidRewards = PioneerHumanoidRewards()
+    terminations: PioneerHumanoidRoughTerminations = PioneerHumanoidRoughTerminations()
 
     def __post_init__(self):
         super().__post_init__()
 
         self.scene.robot = WHOLE_BODY_HUMANOID_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        self.scene.height_scanner.prim_path = f"{{ENV_REGEX_NS}}/Robot/{WATO_BASE_BODY}"
+        self.scene.height_scanner.prim_path = f"{{ENV_REGEX_NS}}/Robot/{BASE_BODY}"
 
         # Ported from flat_env_cfg.py: G1 never customizes per-joint action scale (it
         # uses the framework's uniform 0.5 default in both rough and flat), but these
@@ -136,7 +136,7 @@ class WatoHumanoidRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.events.push_robot = None
         self.events.add_base_mass = None
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
-        self.events.base_external_force_torque.params["asset_cfg"].body_names = [WATO_BASE_BODY]
+        self.events.base_external_force_torque.params["asset_cfg"].body_names = [BASE_BODY]
         self.events.reset_base.params = {
             "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
             "velocity_range": {
@@ -154,9 +154,9 @@ class WatoHumanoidRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.rewards.flat_orientation_l2.weight = -1.0
         self.rewards.action_rate_l2.weight = -0.005
         self.rewards.dof_acc_l2.weight = -1.25e-7
-        self.rewards.dof_acc_l2.params["asset_cfg"] = SceneEntityCfg("robot", joint_names=WATO_LEG_JOINTS)
+        self.rewards.dof_acc_l2.params["asset_cfg"] = SceneEntityCfg("robot", joint_names=LEG_JOINTS)
         self.rewards.dof_torques_l2.weight = -1.5e-7
-        self.rewards.dof_torques_l2.params["asset_cfg"] = SceneEntityCfg("robot", joint_names=WATO_LEG_JOINTS)
+        self.rewards.dof_torques_l2.params["asset_cfg"] = SceneEntityCfg("robot", joint_names=LEG_JOINTS)
 
         # rough_terrain_fresh_001 plateaued on this exact symptom flat terrain hit
         # early this session: survival solid (94% time_out), turning tracks well, but
@@ -232,11 +232,11 @@ class WatoHumanoidRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
 
-        self.terminations.base_contact.params["sensor_cfg"].body_names = [WATO_BASE_BODY]
+        self.terminations.base_contact.params["sensor_cfg"].body_names = [BASE_BODY]
 
 
 @configclass
-class WatoHumanoidRoughEnvCfg_PLAY(WatoHumanoidRoughEnvCfg):
+class PioneerHumanoidRoughEnvCfg_PLAY(PioneerHumanoidRoughEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
@@ -249,7 +249,7 @@ class WatoHumanoidRoughEnvCfg_PLAY(WatoHumanoidRoughEnvCfg):
             self.scene.terrain.terrain_generator.num_cols = 5
             self.scene.terrain.terrain_generator.curriculum = False
 
-        # Mirror the actual training ranges (WatoHumanoidRoughEnvCfg.__post_init__ above) --
+        # Mirror the actual training ranges (PioneerHumanoidRoughEnvCfg.__post_init__ above) --
         # this was previously hardcoded to lin_vel_x=(0.5,0.5)/ang_vel_z=(0,0), silently
         # never updated when training's ranges changed, so every play view was forcing
         # zero turning + fixed forward speed regardless of what the policy was trained on.

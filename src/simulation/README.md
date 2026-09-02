@@ -51,8 +51,8 @@ will move onto the same `--scene` registry next.
 
 ```bash
 cd $HUMANOID_ROOT     # checkpoints land in $HUMANOID_ROOT/outputs/rl/
-rl-train --task=Isaac-Locomotion-Flat-WatoHumanoid-v0 --headless
-rl-play  --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1
+rl-train --task=Isaac-Locomotion-Flat-PioneerHumanoid-v0 --headless
+rl-play  --task=Isaac-Repose-Cube-PioneerHand-Play-v0 --num_envs=1
 ```
 
 Per-task notes: `humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md`. Full walkthrough:
