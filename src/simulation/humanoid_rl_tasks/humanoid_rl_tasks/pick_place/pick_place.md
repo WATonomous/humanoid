@@ -24,6 +24,6 @@ Smoke test (inside simulation_il container, from the HumanoidRL dir):
 
 ```bash
 PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p \
-    HumanoidRLPackage/HumanoidRLSetup/tasks/pick_place_bimanual/scripts/smoke_hold_pose.py \
+    src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/pick_place/scripts/smoke_hold_pose.py \
     --headless --enable_cameras
 ```
