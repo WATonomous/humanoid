@@ -9,7 +9,7 @@ from isaaclab.assets import Articulation
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.math import combine_frame_transforms, quat_apply, quat_error_magnitude, quat_mul
 
-from HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp.intercept_layout import (
+from humanoid_rl_tasks.badminton.mdp.intercept_layout import (
     COMMAND_HIT_SLICE,
     COMMAND_POS_SLICE,
     COMMAND_QUAT_SLICE,

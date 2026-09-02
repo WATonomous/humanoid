@@ -5,7 +5,7 @@ from dataclasses import MISSING
 from isaaclab.managers import CommandTermCfg
 from isaaclab.utils import configclass
 
-from HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp.ring_marker_utils import (
+from humanoid_rl_tasks.badminton.mdp.ring_marker_utils import (
     build_intercept_target_visualizer_cfg,
 )
 

@@ -12,10 +12,10 @@ from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
-import HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp as mdp
+import humanoid_rl_tasks.badminton.mdp as mdp
 from pioneer_humanoid.arm_hand import ARM_CFG
-from HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp.events import ARM_JOINT_NAMES
-from HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp.rewards import DEFAULT_RACKET_BODY_NAMES
+from humanoid_rl_tasks.badminton.mdp.events import ARM_JOINT_NAMES
+from humanoid_rl_tasks.badminton.mdp.rewards import DEFAULT_RACKET_BODY_NAMES
 
 
 @configclass
