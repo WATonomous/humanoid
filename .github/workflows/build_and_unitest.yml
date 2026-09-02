@@ -48,6 +48,10 @@ jobs:
     name: Build/Test
     runs-on: ubuntu-latest
     needs: setup-environment
+    # A zero-entry matrix (diff only touched skipped modules -- simulation, embedded)
+    # otherwise runs as one "failure" job and reddens the whole workflow. Skip it;
+    # confirm-build-and-unittest-complete treats the empty matrix as a pass.
+    if: ${{ fromJSON(needs.setup-environment.outputs.docker_matrix).include[0] }}
 
     env:
       DOCKER_REGISTRY: ${{ needs.setup-environment.outputs.registry }}
