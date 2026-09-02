@@ -1,8 +1,6 @@
-asset_path: /workspace/humanoid/src/simulation/Humanoid_Wato/Wato Humanoid Simultion
-  Model V1/urdf/Wato_Humanoid_V1_isaac.urdf
-usd_dir: /workspace/humanoid/src/simulation/Humanoid_Wato/Wato Humanoid Simultion
-  Model V1/urdf/Wato_Humanoid_V1_isaac_usd
-usd_file_name: Wato_Humanoid_V1.usd
+asset_path: /workspace/humanoid/src/simulation/assets/whole_body_humanoid/whole_body_humanoid.urdf
+usd_dir: /workspace/humanoid/src/simulation/assets/whole_body_humanoid/usd
+usd_file_name: whole_body_humanoid.usd
 force_usd_conversion: false
 make_instanceable: true
 fix_base: false

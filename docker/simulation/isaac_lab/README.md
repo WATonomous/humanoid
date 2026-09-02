@@ -72,7 +72,6 @@ Set automatically in `.bashrc`:
 export ISAACLAB=/workspace/isaaclab
 export HUMANOID_ROOT=/workspace/humanoid
 export TASK_ROOT=/workspace/humanoid/src/simulation/so101_vial_task
-export RL_ROOT=/workspace/humanoid/src/simulation/humanoid_rl
 export RL_RUNNERS=/workspace/humanoid/src/simulation/humanoid_rl/humanoid_rl/scripts
 export PYTHON=/workspace/isaaclab/_isaac_sim/python.sh
 ```
@@ -97,7 +96,7 @@ $PYTHON -c "import lerobot; print('ok')"
 ### A. RL tasks — RSL-RL train / play
 
 ```bash
-cd $RL_ROOT
+cd $HUMANOID_ROOT
 rl-train --task=Isaac-Repose-Cube-WatoHand-v0 --headless
 rl-play --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1
 ```

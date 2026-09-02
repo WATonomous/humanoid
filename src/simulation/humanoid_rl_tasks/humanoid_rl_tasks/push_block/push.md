@@ -76,7 +76,7 @@ Useful flags (provided by the host project's RSL-RL training entry point):
 - `--max_iterations N` — override the 1500-iteration default
 - `--seed N`, `--video` — reproducibility / record rollout videos
 
-Checkpoints are written to `logs/rsl_rl/push_block/<timestamp>[_<run_name>]/`
+Checkpoints are written to `outputs/rl/push_block/<timestamp>[_<run_name>]/`
 (`save_interval = 50`).
 
 **Resume / finetune** from an existing checkpoint:
@@ -187,12 +187,12 @@ Distills a privileged PPO teacher into a camera student (RGB 64×64 + proprio, n
 block state). Uses a small custom DAgger-style loop (`rsl_rl_scripts/distill_push.py`),
 not RSL-RL's MLP-only DistillationRunner.
 
-**Train** (from `$RL_ROOT` with Isaac Lab env):
+**Train** (from `$HUMANOID_ROOT` with Isaac Lab env):
 
 ```bash
 PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/distill_push.py \
   --task Isaac-SO-ARM101-Push-Block-Distill-v0 --headless --enable_cameras \
-  --teacher logs/rsl_rl/push_so101/<run>/model_XXXX.pt \
+  --teacher outputs/rl/push_so101/<run>/model_XXXX.pt \
   --num_envs 64 --max_iterations 2000
 ```
 
@@ -201,10 +201,10 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/distill_push.py \
 ```bash
 PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play_distill_push.py \
   --task Isaac-SO-ARM101-Push-Block-Distill-Play-v0 --enable_cameras \
-  --checkpoint logs/rsl_rl/push_distill/<run>/nn/student_XXXX.pt --num_envs 16
+  --checkpoint outputs/rl/push_distill/<run>/nn/student_XXXX.pt --num_envs 16
 ```
 
-Checkpoints land in `logs/rsl_rl/push_distill/<timestamp>/nn/`.
+Checkpoints land in `outputs/rl/push_distill/<timestamp>/nn/`.
 
 ### Vision domain randomization (sim2real template)
 

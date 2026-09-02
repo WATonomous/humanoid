@@ -20,8 +20,7 @@ fix_host_ownership() {
   fi
   # Prefer fast paths that training writes most; fall back to whole mount.
   local targets=(
-    "$HUMANOID_ROOT/src/simulation/humanoid_rl/logs"
-    "$HUMANOID_ROOT/src/simulation/humanoid_rl/outputs"
+    "$HUMANOID_ROOT/outputs"
     "$HUMANOID_ROOT"
   )
   local t

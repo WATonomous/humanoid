@@ -24,21 +24,21 @@ Run inside the **`simulation_isaac`** container (Isaac Lab 2.3.2 / Sim 5.1). Hos
 # Host
 cd ~/Desktop/humanoid && ./watod up -d && ./watod -t simulation_isaac_dev
 
-# Inside container — from $RL_ROOT
-cd $RL_ROOT
+# Inside container — from $HUMANOID_ROOT
+cd $HUMANOID_ROOT
 
 # Train — flat terrain
 rl-train --task=Isaac-Locomotion-Flat-WatoHumanoid-v0 --headless
 
-# Play — loads latest under logs/rsl_rl/wato_humanoid_flat/
+# Play — loads latest under outputs/rl/wato_humanoid_flat/
 rl-play --task=Isaac-Locomotion-Flat-WatoHumanoid-Play-v0 --num_envs=1
 
 # Play — specific checkpoint
 rl-play --task=Isaac-Locomotion-Flat-WatoHumanoid-Play-v0 --num_envs=1 \
-  --checkpoint logs/rsl_rl/wato_humanoid_flat/<run>/model_<iter>.pt
+  --checkpoint outputs/rl/wato_humanoid_flat/<run>/model_<iter>.pt
 ```
 
-Rough-terrain variants: replace `Flat` with `Rough` and use `logs/rsl_rl/wato_humanoid_rough/`.
+Rough-terrain variants: replace `Flat` with `Rough` and use `outputs/rl/wato_humanoid_rough/`.
 
 **Spawn / joint smoke checks**
 

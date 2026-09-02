@@ -59,7 +59,7 @@ $PYTHON -c "import torch; print(torch.__version__)"   # expect 2.7.0+cu128
 $PYTHON -c "import lerobot; print('ok')"
 ```
 
-Container env (from `.bashrc`): `$ISAACLAB`, `$TASK_ROOT` (SO101 IL), `$RL_ROOT` (RL working dir: logs/, outputs/), `$RL_RUNNERS` (RSL-RL train/play scripts).
+Container env (from `.bashrc`): `$ISAACLAB`, `$TASK_ROOT` (SO101 IL), `$RL_RUNNERS` (RSL-RL train/play scripts).
 
 Aliases: `il-train`, `il-eval`, `il-record`, `rl-train`, `rl-play`.
 
@@ -196,10 +196,10 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_agent.py \
 Same `simulation_isaac` stack (Lab 2.3.2 / Sim 5.1). Tasks live in
 `src/simulation/humanoid_rl_tasks/`, runners in `$RL_RUNNERS` — see
 [src/simulation/README.md](../../../src/simulation/README.md). Repo is
-bind-mounted; checkpoints under `$RL_ROOT/logs/rsl_rl/` on host.
+bind-mounted; checkpoints under `$HUMANOID_ROOT/outputs/rl/` on host.
 
 ```bash
-cd $RL_ROOT
+cd $HUMANOID_ROOT
 
 # In-hand cube reorientation — train
 rl-train --task=Isaac-Repose-Cube-WatoHand-v0 --headless

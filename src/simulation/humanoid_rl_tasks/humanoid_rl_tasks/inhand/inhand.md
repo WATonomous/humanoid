@@ -21,8 +21,8 @@ Run inside the **`simulation_isaac`** container (Isaac Lab 2.3.2 / Sim 5.1). Hos
 # Host: start container
 cd ~/Desktop/humanoid && ./watod up -d && ./watod -t simulation_isaac_dev
 
-# Inside container — run from $RL_ROOT (src/simulation/humanoid_rl/)
-cd $RL_ROOT
+# Inside container — run from $HUMANOID_ROOT (src/simulation/humanoid_rl/)
+cd $HUMANOID_ROOT
 
 # Train (default 2048 envs; try 1024 or 512 if OOM)
 $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/train.py \
@@ -35,12 +35,12 @@ $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py \
 # Play — specific checkpoint
 $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py \
   --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1 \
-  --checkpoint logs/rsl_rl/wato_hand_cube/<run>/model_<iter>.pt
+  --checkpoint outputs/rl/wato_hand_cube/<run>/model_<iter>.pt
 ```
 
 Shorthand aliases (after image rebuild): `rl-train --task=...` / `rl-play --task=... --num_envs=1`.
 
-Checkpoints: `logs/rsl_rl/wato_hand_cube/`. PPO defaults: `max_iterations=5000`, `experiment_name=wato_hand_cube` (`config/wato_hand/agents/rsl_rl_ppo_cfg.py`).
+Checkpoints: `outputs/rl/wato_hand_cube/`. PPO defaults: `max_iterations=5000`, `experiment_name=wato_hand_cube` (`config/wato_hand/agents/rsl_rl_ppo_cfg.py`).
 
 ## Scene & command
 

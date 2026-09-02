@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 _SIM_DIR = Path(__file__).resolve().parents[3]  # .../src/simulation
-assert (_SIM_DIR / "Humanoid_Wato").is_dir(), f"unexpected repo layout at {_SIM_DIR}"
+assert (_SIM_DIR / "pick_place_gen").is_dir(), f"unexpected repo layout at {_SIM_DIR}"
 
 for _p in (
     _SIM_DIR / "pioneer_humanoid",
