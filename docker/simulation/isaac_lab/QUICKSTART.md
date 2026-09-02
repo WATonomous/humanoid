@@ -209,7 +209,7 @@ rl-train --task=Isaac-Locomotion-Flat-WatoHumanoid-v0 --headless
 rl-play --task=Isaac-Locomotion-Flat-WatoHumanoid-Play-v0 --num_envs=1
 ```
 
-Task docs: `src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md` (badminton/push/pick_place: still `src/simulation/Humanoid_Wato/HumanoidRL/.../tasks/<task>/`).
+Task docs: `src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md` (push/pick_place: still `src/simulation/Humanoid_Wato/HumanoidRL/.../tasks/<task>/`).
 
 ---
 

@@ -6,7 +6,7 @@ import torch
 
 from isaaclab.managers import SceneEntityCfg
 
-from HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp.ee_tracking import (
+from humanoid_rl_tasks.badminton.mdp.ee_tracking import (
     DEFAULT_RACKET_BODY_NAMES,
     best_racket_tracking_errors_from_env,
     parse_intercept_command,

@@ -69,7 +69,7 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper
 
 import humanoid_rl_tasks  # noqa: F401  (inhand, locomotion)
 try:
-    import HumanoidRLPackage.HumanoidRLSetup.tasks  # noqa: F401  (badminton/push/pick_place - still pre-flatten)
+    import HumanoidRLPackage.HumanoidRLSetup.tasks  # noqa: F401  (push/pick_place - still pre-flatten)
 except ModuleNotFoundError:
     pass
 from isaaclab_tasks.utils import get_checkpoint_path

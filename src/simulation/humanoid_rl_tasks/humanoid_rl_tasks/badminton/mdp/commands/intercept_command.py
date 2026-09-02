@@ -9,8 +9,8 @@ from isaaclab.managers import CommandTerm
 from isaaclab.markers import VisualizationMarkers
 from isaaclab.utils.math import combine_frame_transforms, quat_from_euler_xyz, quat_mul, quat_rotate_inverse
 
-from HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp.ee_tracking import best_racket_tracking_errors
-from HumanoidRLPackage.HumanoidRLSetup.tasks.badminton.mdp.ring_marker_utils import NUM_INTERCEPT_MARKERS
+from humanoid_rl_tasks.badminton.mdp.ee_tracking import best_racket_tracking_errors
+from humanoid_rl_tasks.badminton.mdp.ring_marker_utils import NUM_INTERCEPT_MARKERS
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
