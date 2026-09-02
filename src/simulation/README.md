@@ -17,7 +17,8 @@ src/simulation/
 │   └── humanoid_scenes/    #   bare/  vial_rack/  push_block/
 ├── pick_place_gen/         # Isaac Lab Mimic datagen wrappers for pick_place
 ├── so101_vial_task/        # SO101 imitation-learning task
-└── Humanoid_Wato/          # USD assets (Table, UsdModelAssets, hand, arm) — being consolidated
+├── assets/                 # shared USD props — block.usd, box.usd, table.usd
+└── Humanoid_Wato/          # LEGACY — hand + V1-humanoid meshes/URDF, being folded into pioneer_humanoid/
 ```
 
 ## RL task vs teleop scene — where does new work go?
