@@ -52,7 +52,8 @@ humanoid
 │   ├── pioneer_bimanual_arm/  pioneer_hand/  whole_body_humanoid/
 │   ├── props/                  #   block.usd, box.usd, table.usd
 │   └── lerobot/                #   SO101 arm + vial-task USDs + HDRIs (external-synced)
-├── outputs/                 # training runs / checkpoints (gitignored) — rl/ , train/
+├── models/                  # frozen RL policy baselines (checked in) — see models/README.md
+├── outputs/                 # live training runs / checkpoints (gitignored) — rl/ , train/
 └── docs/                    # Pointer to the humanoid-docs site
 ```
 
