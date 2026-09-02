@@ -4,7 +4,7 @@
 """Play a distilled vision student on the push-block task.
 
 Example:
-  PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play_distill_push.py \\
+  PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play_distill_push.py \\
     --task Isaac-Bimanual-Push-Block-Distill-Play-v0 --enable_cameras \\
     --checkpoint logs/rsl_rl/push_distill/<run>/nn/student_1000.pt --num_envs 16
 """
@@ -32,8 +32,8 @@ simulation_app = app_launcher.app
 import gymnasium as gym
 import torch
 
-import HumanoidRLPackage.HumanoidRLSetup.tasks  # noqa: F401
-from HumanoidRLPackage.HumanoidRLSetup.tasks.push.student_policy import StudentVisionPolicy
+import humanoid_rl_tasks  # noqa: F401
+from humanoid_rl_tasks.push_block.student_policy import StudentVisionPolicy
 from isaaclab_tasks.utils import parse_env_cfg
 
 

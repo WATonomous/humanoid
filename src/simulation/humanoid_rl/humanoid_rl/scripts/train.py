@@ -67,11 +67,7 @@ from isaaclab.utils.io import dump_yaml
 
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper
 
-import humanoid_rl_tasks  # noqa: F401  (inhand, locomotion)
-try:
-    import HumanoidRLPackage.HumanoidRLSetup.tasks  # noqa: F401  (push - still pre-flatten)
-except ModuleNotFoundError:
-    pass
+import humanoid_rl_tasks  # noqa: F401  (registers every RL task)
 from isaaclab_tasks.utils import get_checkpoint_path
 from isaaclab_tasks.utils.hydra import hydra_task_config
 

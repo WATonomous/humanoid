@@ -34,7 +34,7 @@ from isaaclab.utils import configclass
 from .mdp.utils import BLOCK_HALF_SIZE
 
 # ── shared USD props (Humanoid_Wato/) ────────────────────────────────────────
-_HW = Path(__file__).resolve().parents[5]  # -> .../src/simulation/Humanoid_Wato
+_HW = Path(__file__).resolve().parents[3] / "Humanoid_Wato"  # -> .../src/simulation/Humanoid_Wato
 BLOCK_USD = str(_HW / "UsdModelAssets" / "block.usd")
 BOX_USD = str(_HW / "UsdModelAssets" / "box.usd")
 TABLE_USD = str(_HW / "Table" / "table.usd")

@@ -15,7 +15,7 @@ the same Isaac Lab native recorder wiring `record_mimic_source_demos.py` used
 
 | | |
 |---|---|
-| Path | `src/simulation/Humanoid_Wato/HumanoidRL/datasets/scaled_big.hdf5` (~147 MiB, **gitignored**) |
+| Path | `src/simulation/humanoid_rl/datasets/scaled_big.hdf5` (~147 MiB, **gitignored**) |
 | Demos | **530**, all `success=True`, 375,474 samples |
 | Episode length | 611–926 steps (mean 708) |
 | Task | Pick the cube, place it on the `place_target` marker (**table** mode) |
@@ -83,7 +83,7 @@ expect this layout. Build obs from `joint_pos`, `joint_vel`, `object_pose`
 (+ `obs/actions` for a previous-action channel); regress `actions`.
 
 ```bash
-cd /workspace/humanoid/src/simulation/Humanoid_Wato/HumanoidRL
+cd /workspace/humanoid/src/simulation/humanoid_rl
 export PYTHONPATH=$(pwd)
 
 $ISAACLAB/isaaclab.sh -p /workspace/isaaclab/scripts/imitation_learning/robomimic/train.py \
@@ -100,7 +100,7 @@ Seed + annotated intermediates were deleted, so more demos means re-running all
 three stages (~10 min for stages 1–2).
 
 ```bash
-cd /workspace/humanoid/src/simulation/Humanoid_Wato/HumanoidRL
+cd /workspace/humanoid/src/simulation/humanoid_rl
 export PYTHONPATH=$(pwd)
 export PYTHONUNBUFFERED=1        # Isaac Sim buffers stdout; without this you see no progress
 MIMIC=/workspace/isaaclab/scripts/imitation_learning/isaaclab_mimic

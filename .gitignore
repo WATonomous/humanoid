@@ -20,8 +20,11 @@ src/teleop/quest_teleop_server/certs/*
 datasets/
 outputs/
 
-src/simulation/Humanoid_Wato/HumanoidRL/logs/
-src/simulation/Humanoid_Wato/HumanoidRL/boxing/
+src/simulation/humanoid_rl/logs/
+src/simulation/humanoid_rl/outputs/
+src/simulation/humanoid_rl/datasets/
+# pre-flatten location — still holds local run artifacts on existing checkouts
+src/simulation/Humanoid_Wato/HumanoidRL/
 
 modules/docker-compose.perception_override.yaml
 

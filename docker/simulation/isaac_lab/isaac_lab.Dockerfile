@@ -189,15 +189,15 @@ RUN cat >> /root/.bashrc <<'EOF'
 export ISAACLAB=/workspace/isaaclab
 export HUMANOID_ROOT=/workspace/humanoid
 export TASK_ROOT=/workspace/humanoid/src/simulation/so101_vial_task
-export RL_ROOT=/workspace/humanoid/src/simulation/Humanoid_Wato/HumanoidRL
+export RL_ROOT=/workspace/humanoid/src/simulation/humanoid_rl
 export RL_RUNNERS=/workspace/humanoid/src/simulation/humanoid_rl/humanoid_rl/scripts
 alias il-train='$PYTHON -m lerobot.scripts.lerobot_train'
 alias il-record='cd $TASK_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_agent.py'
 alias il-eval='cd $TASK_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_eval.py'
-# humanoid_rl / humanoid_rl_tasks are pip-installed (editable). $RL_ROOT stays on
-# PYTHONPATH so the not-yet-flattened tasks (badminton/push/pick_place) still register.
-alias rl-train='cd $RL_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/train.py'
-alias rl-play='cd $RL_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py'
+# humanoid_rl / humanoid_rl_tasks are pip-installed (editable); $RL_ROOT is just the
+# working dir where train/play write logs/ and outputs/.
+alias rl-train='cd $RL_ROOT && $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/train.py'
+alias rl-play='cd $RL_ROOT && $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py'
 EOF
 
 RUN cat >> /root/.bashrc <<'EOF'
