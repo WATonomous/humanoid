@@ -6,10 +6,9 @@
 Launched by path rather than by package name, so it needs no ament workspace built.
 
 This is deliberately the SAME graph as the real-hardware procedure in
-src/perception/perception/slam/slam-quickstart.md -- camera -> madgwick -> rtabmap, with
-the same odometry tuning -- so that a fix proven here is a fix for the real rig. The
-Isaac version had to drop the IMU half of that graph because nothing in it published
-gyro or accel; this one publishes both, so the sim exercises the whole pipeline.
+../slam-quickstart.md -- camera -> madgwick -> rtabmap, with the same odometry tuning
+-- so that a fix proven here is a fix for the real rig. The publisher synthesises gyro
+and accel, so the IMU half of that graph is exercised rather than stubbed out.
 """
 
 from pathlib import Path
@@ -93,9 +92,10 @@ def generate_launch_description() -> LaunchDescription:
             #   RangeMax           long depth rays are the noisiest and cause most of
             #                      the streaking.
             #
-            # These are VERIFIED CORRECT and recorded in the database's Info.parameters.
-            # If the 2D map looks wrong, measure odometry z-drift before touching them:
-            # three tuning attempts were wasted on this before anyone did.
+            # These are verified correct and are recorded in the database's
+            # Info.parameters. If the 2D map looks wrong, measure odometry z-drift
+            # with check_map.py before touching them -- the usual cause is the datum
+            # they measure against, not these thresholds.
             default_value=(
                 "-d "
                 "--Grid/RayTracing true "
@@ -162,8 +162,7 @@ def generate_launch_description() -> LaunchDescription:
                 "frame_id": "base_link",
                 "imu_topic": "/imu/data_filtered",
                 # Safe here BECAUSE there is an IMU. With no IMU publishing this
-                # blocks forever and presents as a hang rather than an error -- which
-                # is why the Isaac version had to leave it off.
+                # blocks forever and presents as a hang rather than an error.
                 "wait_imu_to_init": "true",
                 # Colour, depth and camera_info come from one render of one camera and
                 # carry identical stamps, so there is nothing to approximately match.

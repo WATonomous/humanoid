@@ -1,18 +1,17 @@
 """Synthetic IMU derived from the scripted camera trajectory.
 
 This exists because of a measured failure, not for completeness. Running RGB-D
-RTAB-Map with no IMU drifted 0.75 m in z over 4.5 laps of a path that is flat by
-construction. `Grid/MaxGroundHeight` is 0.15 m, so the drift swamps the
-ground/obstacle threshold by 5x and the 2D occupancy map degenerates into a blob
-with no border. A real D455 has an IMU; the sim needs one too, and RTAB-Map uses it
-as a gravity prior that pins roll and pitch.
+RTAB-Map with no IMU drifts steadily in z on a path that is flat by construction.
+`Grid/MaxGroundHeight` is 0.15 m, so that drift swamps the ground/obstacle threshold
+and the 2D occupancy map degenerates into a blob with no border. A real D455 has an
+IMU; the sim needs one too, and RTAB-Map uses it as a gravity prior that pins roll
+and pitch.
 
 Sim-specific note: this is synthesised from the trajectory rather than read off a
 simulated sensor. MuJoCo *has* accelerometer/gyro sensors, but they read from
 physics state, and this camera is kinematically posed (a mocap body) rather than
-dynamically simulated -- so those sensors would read zero. The same constraint
-blocked the Isaac version. Differentiating the path we already know is exact and
-does not require faking a physics body.
+dynamically simulated -- so those sensors would read zero. Differentiating the path
+we already know is exact and does not require faking a physics body.
 
 Pure numpy, no MuJoCo, no ROS -- so the sign conventions are testable in
 milliseconds. Getting a sign wrong here is invisible at runtime and surfaces hours

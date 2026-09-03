@@ -1,10 +1,10 @@
 """Scripted camera trajectory for the SLAM sandbox scene.
 
-Deliberately free of Isaac imports: the rotation conventions here are easy to get
-backwards, and a wrong sign is invisible in a headless run — it shows up much later
-as a map that is silently upside down or mirrored. Keeping this module pure numpy
-means `tests/test_orbit_path.py` proves it on any machine in milliseconds, instead
-of behind a ~75s Isaac Sim startup on a metered GPU.
+Deliberately free of simulator imports: the rotation conventions here are easy to
+get backwards, and a wrong sign is invisible in a headless run — it shows up much
+later as a map that is silently upside down or mirrored. Keeping this module pure
+numpy means `tests/test_orbit_path.py` proves it on any machine in milliseconds,
+rather than behind a renderer and a full pipeline run.
 
 Everything here uses the ROS optical convention, matching what
 `Camera.set_world_poses(..., convention="ros")` expects and what the images are
@@ -18,7 +18,7 @@ Note this is NOT the ROS body convention (x-forward, y-left, z-up) that
 `camera_link` uses — the fixed rotation between the two is published by
 `src/perception/perception/slam/slam_sim_mj/launch/slam_sim_mj.launch.py`, not applied here.
 
-Quaternions are (w, x, y, z), which is Isaac Lab's ordering.
+Quaternions are (w, x, y, z), matching MuJoCo's ordering.
 """
 
 from __future__ import annotations

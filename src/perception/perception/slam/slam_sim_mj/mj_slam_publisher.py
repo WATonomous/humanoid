@@ -10,9 +10,9 @@ against either.
     source /opt/ros/jazzy/setup.bash
     MUJOCO_GL=egl .venv/bin/python mj_slam_publisher.py --path corridor
 
-Everything runs in ONE process here. Unlike the Isaac version there is no interpreter
-split to work around: ROS 2 Jazzy and the MuJoCo wheel are both Python 3.12, so the
-renderer and rclpy live together and no DDS traffic has to cross a container boundary.
+Everything runs in ONE process: ROS 2 Jazzy and the MuJoCo wheel are both Python
+3.12, so the renderer and rclpy live in the same interpreter and no image data has to
+cross a process or container boundary.
 """
 
 from __future__ import annotations
@@ -59,10 +59,10 @@ def parse_args() -> argparse.Namespace:
                         "SLAM test trajectory, loop closure fires every lap.")
     p.add_argument("--period", type=float, default=100.0,
                    help="Seconds per lap. Higher is slower and easier on odometry. "
-                        "100 s over the 37.9 m loop is 0.38 m/s, which is what runs "
-                        "reliably -- see the speed table in README.md before lowering "
-                        "it. Odometry quality falls off sharply above ~0.5 m/s and "
-                        "the run-to-run spread widens with it.")
+                        "100 s over the 37.9 m loop is 0.38 m/s, which runs "
+                        "reliably. Odometry quality falls off sharply above ~0.5 m/s, "
+                        "and does so without logging obvious errors, so lower this "
+                        "only deliberately.")
     p.add_argument("--laps", type=float, default=1.0,
                    help="Stop after this many laps. One lap is what a person walking "
                         "a building actually does, and one solid loop is enough.")
