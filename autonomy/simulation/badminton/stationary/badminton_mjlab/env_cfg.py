@@ -178,6 +178,14 @@ def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             params={"std": 0.15, "asset_cfg": FACE_SITE}),
         "return_flight": RewardTermCfg(
             func=mdp.return_flight, weight=2.0, params={}),
+        # run 12: land the return on the episode's launch origin. Sparse,
+        # once per hit; weight 100 = effective 2.0 for a perfect landing,
+        # matching the contact bonus. sigma 1.5 m: wide enough to grade the
+        # whole far court, so the warm-started policy gets gradient from its
+        # existing returns. Zero if the predicted flight misses the net
+        # window (physical validity, not a style preference).
+        "return_landing": RewardTermCfg(
+            func=mdp.return_landing, weight=100.0, params={"sigma": 1.5}),
         "action_rate": RewardTermCfg(func=rew_mdp.action_rate_l2, weight=-0.01),
         "joint_limits": RewardTermCfg(
             func=rew_mdp.joint_pos_limits, weight=-5.0,

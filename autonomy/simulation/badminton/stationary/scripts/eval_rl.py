@@ -92,8 +92,12 @@ def main() -> None:
 
     near_uv = torch.full((n, 2), float("nan"), device=dev)
     near_d = torch.full((n,), float("inf"), device=dev)
+    # predicted landing of the return, at the hit tick: distance to the
+    # launch origin (the run-12 target zone) and net-clearance flag
+    land_err = torch.full((n,), float("nan"), device=dev)
+    land_ok = torch.zeros(n, dtype=torch.bool, device=dev)
 
-    rows = []  # (front_dist, z, x, hit, u, v, d_min)
+    rows = []  # (front_dist, z, x, hit, u, v, d_min, land_err, land_ok)
     qv_rows, tau_rows, duty_rows = [], [], []  # per-episode, per-joint
     with torch.no_grad():
         while len(rows) < args.episodes:
@@ -104,6 +108,8 @@ def main() -> None:
             prev_duty = (feas._over / feas._ticks.clamp_min(1.0)).clone()
             prev_uv = near_uv.clone()
             prev_d = near_d.clone()
+            prev_land = land_err.clone()
+            prev_ok = land_ok.clone()
             obs, _, dones, _ = env.step(policy(obs))
             done = dones.bool()
             # closest approach so far; stop updating once the face has hit
@@ -114,14 +120,24 @@ def main() -> None:
             closer = (d < near_d) & (~prev_hit) & (~done)
             near_d = torch.where(closer, d, near_d)
             near_uv[closer] = local[closer, :2]
+            first = store["first"] & (~done)
+            if bool(first.any()):
+                spos, svel = mdp._shuttle_state(uenv)
+                xy, ok = mdp.predict_landing(spos[first], svel[first])
+                land_err[first] = (
+                    (xy - store["p0_xy"][first]).norm(dim=-1))
+                land_ok[first] = ok
             done_ids = done.nonzero(as_tuple=False).squeeze(-1)
             for i in done_ids.tolist():
                 p = prev_p[i].cpu().numpy()
                 uv = prev_uv[i].cpu().numpy()
                 rows.append((p[1] - base_y, p[2], p[0], bool(prev_hit[i]),
-                             float(uv[0]), float(uv[1]), float(prev_d[i])))
+                             float(uv[0]), float(uv[1]), float(prev_d[i]),
+                             float(prev_land[i]), float(prev_ok[i])))
             near_uv[done] = float("nan")
             near_d[done] = float("inf")
+            land_err[done] = float("nan")
+            land_ok[done] = False
             if len(done_ids):
                 qv_rows.append(prev_qv[done_ids].cpu().numpy())
                 tau_rows.append(prev_tau[done_ids].cpu().numpy())
@@ -129,6 +145,14 @@ def main() -> None:
     r = np.array(rows[: args.episodes], dtype=float)
     front, z, x, hit = r[:, 0], r[:, 1], r[:, 2], r[:, 3].astype(bool)
     uv, dmin = r[:, 4:6], r[:, 6]
+    land, lok = r[:, 7], r[:, 8].astype(bool)
+    has_land = np.isfinite(land)
+    if has_land.any():
+        print(f"return lands on far court with net clearance: "
+              f"{lok[has_land].mean():.3f} of hits; landing error to launch "
+              f"origin, cleared returns: median "
+              f"{np.median(land[has_land & lok]):.2f} m, p90 "
+              f"{np.percentile(land[has_land & lok], 90):.2f} m")
     print(f"closest approach to face centre, hits: median {np.median(dmin[hit]) * 100:.1f} cm"
           f"   misses: median {np.median(dmin[~hit]) * 100:.1f} cm,"
           f" p90 {np.percentile(dmin[~hit], 90) * 100:.1f} cm")
@@ -160,7 +184,7 @@ def main() -> None:
         print(f"  j{j + 1}    {q[0]:5.1f} / {q[1]:5.1f} / {q[2]:5.1f}"
               f"    {t[0]:5.2f} / {t[1]:5.2f} / {t[2]:5.2f} ({peak[j]:5.2f})"
               f"   {at_clamp:5.1%}        {duty[:, j].mean():5.1%} (rated {rated[j]})")
-    np.save("runs/eval_pstar_hits.npy", r)  # cols: front,z,x,hit,u,v,d_min
+    np.save("runs/eval_pstar_hits.npy", r)  # cols: front,z,x,hit,u,v,d_min,land_err,land_ok
     np.savez("runs/eval_feasibility.npz", qvel_peak=qv, tau_peak=tau, duty=duty)
     print("\nraw rows saved to runs/eval_pstar_hits.npy")
 

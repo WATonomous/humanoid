@@ -51,6 +51,8 @@ def _state(env: "ManagerBasedRlEnv") -> dict:
             "p_star": torch.zeros(n, 3, device=dev),
             "t_star": torch.zeros(n, device=dev),
             "hit": torch.zeros(n, dtype=torch.bool, device=dev),
+            "first": torch.zeros(n, dtype=torch.bool, device=dev),
+            "p0_xy": torch.zeros(n, 2, device=dev),
             "tau_rated": t(aero.load_params()["arm"]["torque_rated"]),
         }
         env._badminton = store
@@ -75,6 +77,7 @@ def reset_badminton_episode(env: "ManagerBasedRlEnv",
     store["p_star"][env_ids] = store["bank_p_star"][idx]
     store["t_star"][env_ids] = store["bank_t_star"][idx]
     store["hit"][env_ids] = False
+    store["p0_xy"][env_ids] = p0[:, :2]
 
 
 # -- helpers --------------------------------------------------------------
@@ -153,6 +156,7 @@ def face_contact(env: "ManagerBasedRlEnv", sensor_name: str) -> torch.Tensor:
     hit_now = _sensor_hit(env, sensor_name)
     first = hit_now & ~store["hit"]
     store["hit"] |= hit_now
+    store["first"] = first          # this tick only; return_landing reads it
     return first.float()
 
 
@@ -174,6 +178,68 @@ def return_flight(env: "ManagerBasedRlEnv", v_scale: float = 6.0) -> torch.Tenso
     _, v = _shuttle_state(env)
     quality = (v[:, 1] + 0.5 * v[:, 2]).clamp(0.0) / v_scale
     return quality.clamp(max=1.0) * store["hit"].float()
+
+
+def predict_landing(p: torch.Tensor, v: torch.Tensor,
+                    sub_dt: float = 0.05, max_steps: int = 80
+                    ) -> tuple[torch.Tensor, torch.Tensor]:
+    """Roll (B,3) shuttle states through the drag model to the floor.
+
+    Returns (landing_xy, ok): ok = the flight crosses the net line going
+    forward with clearance above the net top, and lands in the far court.
+    Positions where the flight never lands within the horizon get ok False.
+    """
+    import perception_torch as pt
+    prm = aero.load_params()
+    g = prm["gravity"]
+    k = g / prm["shuttle"]["v_t"] ** 2
+    net_top = prm["net"]["height_top"]
+    land_xy = p[:, :2].clone()
+    landed = torch.zeros(p.shape[0], dtype=torch.bool, device=p.device)
+    cleared = torch.zeros_like(landed)
+    for _ in range(max_steps):
+        p_next, v_next = pt.rk4_step(p, v, k, sub_dt, g)
+        # net-line crossing inside this step: interpolate z at y = 0
+        crossing = (~landed) & (p[:, 1] < 0.0) & (p_next[:, 1] >= 0.0)
+        if bool(crossing.any()):
+            t = (-p[crossing, 1] / (p_next[crossing, 1] - p[crossing, 1]
+                                    ).clamp_min(1e-9)).clamp(0.0, 1.0)
+            z_at_net = p[crossing, 2] + t * (p_next[crossing, 2]
+                                             - p[crossing, 2])
+            cleared[crossing] = z_at_net > net_top
+        # floor contact inside this step: interpolate xy at z = 0
+        touch = (~landed) & (p_next[:, 2] <= 0.0)
+        if bool(touch.any()):
+            t = (p[touch, 2] / (p[touch, 2] - p_next[touch, 2]
+                                ).clamp_min(1e-9)).clamp(0.0, 1.0)
+            land_xy[touch] = (p[touch, :2]
+                              + t.unsqueeze(-1) * (p_next[touch, :2]
+                                                   - p[touch, :2]))
+            landed |= touch
+        p, v = p_next, v_next
+        if bool(landed.all()):
+            break
+    ok = landed & cleared & (land_xy[:, 1] > 0.0)
+    return land_xy, ok
+
+
+def return_landing(env: "ManagerBasedRlEnv", sigma: float = 1.5
+                   ) -> torch.Tensor:
+    """Sparse, paid once at the hit tick: gaussian in the predicted landing
+    point's distance to the episode's launch origin (the target zone), zero
+    if the predicted flight does not clear the net into the far court. The
+    prediction rolls the post-contact shuttle state through the same drag
+    model the launcher bank was built with, so the reward needs no extra
+    sim time beyond the hit tick."""
+    store = _state(env)
+    out = torch.zeros(env.num_envs, device=env.device)
+    first = store["first"]
+    if bool(first.any()):
+        pos, vel = _shuttle_state(env)
+        land_xy, ok = predict_landing(pos[first], vel[first])
+        d2 = ((land_xy - store["p0_xy"][first]) ** 2).sum(dim=-1)
+        out[first] = torch.exp(-d2 / (2.0 * sigma**2)) * ok.float()
+    return out
 
 
 def torque_over_rated(env: "ManagerBasedRlEnv",
