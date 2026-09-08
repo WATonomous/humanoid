@@ -54,6 +54,11 @@ private:
   // Decode() returns raw bits; RawToPhys applies sign + DBC scale/offset.
   static double decodeSignalPhysical(const dbcppp::ISignal* signal, const uint8_t* data);
 
+  // Kept at classic CAN's 8 bytes even with CAN-FD enabled on the bus (see
+  // CanConfig::fd_enabled): the CubeMars AK-series MIT/servo protocol these messages encode
+  // is fixed at 8-byte frames by the motor firmware itself, which does not understand FD
+  // frames. FD on this bus buys arbitration/throughput headroom for more motors polling at
+  // higher rates -- it does not let us grow individual motor messages.
   static constexpr size_t max_payload_per_frame = 8; // CAN frame max bytes
   static constexpr size_t data_chunk_size = 8;
 

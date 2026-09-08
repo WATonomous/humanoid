@@ -77,30 +77,49 @@ bool CanCore::sendMessage(const CanMessage& message) {
   ssize_t bytes_written = -1;
   size_t expected_frame_size = 0;
 
-  // Classic CAN frame only
-  struct can_frame frame;
-  std::memset(&frame, 0, sizeof(frame));
+  if (config_.fd_enabled) {
+    // CAN-FD frame: up to 64 bytes, no RTR support (FD dropped RTR frames from the spec).
+    struct canfd_frame frame;
+    std::memset(&frame, 0, sizeof(frame));
 
-  frame.can_id = message.id;
-  if (message.is_extended_id) {
-    frame.can_id |= CAN_EFF_FLAG;
-  }
-  if (message.is_remote_frame) {
-    frame.can_id |= CAN_RTR_FLAG;
-  }
+    frame.can_id = message.id;
+    if (message.is_extended_id) {
+      frame.can_id |= CAN_EFF_FLAG;
+    }
+    frame.flags = CANFD_BRS; // bit-rate switching: use data_bitrate for the payload phase
 
-  if (message.data.size() > CAN_MAX_DLEN) {
-    frame.can_dlc = CAN_MAX_DLEN;
+    size_t len = message.data.size() > CANFD_MAX_DLEN ? CANFD_MAX_DLEN : message.data.size();
+    frame.len = static_cast<uint8_t>(len);
+    std::memcpy(frame.data, message.data.data(), len);
+
+    expected_frame_size = sizeof(struct canfd_frame);
+    bytes_written = write(socket_fd_, &frame, expected_frame_size);
   } else {
-    frame.can_dlc = static_cast<__u8>(message.data.size());
-  }
+    // Classic CAN frame only
+    struct can_frame frame;
+    std::memset(&frame, 0, sizeof(frame));
 
-  if (!message.is_remote_frame) {
-    std::memcpy(frame.data, message.data.data(), frame.can_dlc);
-  }
+    frame.can_id = message.id;
+    if (message.is_extended_id) {
+      frame.can_id |= CAN_EFF_FLAG;
+    }
+    if (message.is_remote_frame) {
+      frame.can_id |= CAN_RTR_FLAG;
+    }
 
-  expected_frame_size = sizeof(struct can_frame);
-  bytes_written = write(socket_fd_, &frame, expected_frame_size);
+    if (message.data.size() > CAN_MAX_DLEN) {
+      frame.can_dlc = CAN_MAX_DLEN;
+    } else {
+      frame.can_dlc = static_cast<__u8>(message.data.size());
+    }
+
+    if (!message.is_remote_frame) {
+      std::memcpy(frame.data, message.data.data(), frame.can_dlc);
+    }
+
+    expected_frame_size = sizeof(struct can_frame);
+    bytes_written = write(socket_fd_, &frame, expected_frame_size);
+  }
 
   if (bytes_written < 0) {
     RCLCPP_ERROR(logger_, "Failed to write CAN frame to socket: %s", strerror(errno));
@@ -123,8 +142,11 @@ bool CanCore::receiveMessage(CanMessage& message) {
     return false;
   }
 
-  struct can_frame frame;
-  ssize_t bytes_read = read(socket_fd_, &frame, sizeof(struct can_frame));
+  // When fd_enabled, CAN_RAW_FD_FRAMES lets the kernel deliver either a classic
+  // CAN_MTU-sized frame or a CANFD_MTU-sized frame on the same socket -- read into a
+  // buffer big enough for the larger of the two and branch on the returned size.
+  struct canfd_frame fd_frame;
+  ssize_t bytes_read = read(socket_fd_, &fd_frame, sizeof(struct canfd_frame));
 
   if (bytes_read < 0) {
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -144,29 +166,37 @@ bool CanCore::receiveMessage(CanMessage& message) {
     return false;
   }
 
-  if (static_cast<size_t>(bytes_read) < sizeof(struct can_frame)) {
-    RCLCPP_WARN(logger_, "Incomplete CAN frame received. Read %zd bytes, expected %zu bytes.",
-                bytes_read, sizeof(struct can_frame));
+  if (static_cast<size_t>(bytes_read) == sizeof(struct canfd_frame)) {
+    // Genuine CAN-FD frame
+    message.is_extended_id = (fd_frame.can_id & CAN_EFF_FLAG) ? true : false;
+    message.is_remote_frame = false; // FD has no RTR frames
+    message.id = message.is_extended_id ? (fd_frame.can_id & CAN_EFF_MASK)
+                                         : (fd_frame.can_id & CAN_SFF_MASK);
+    message.dlc = fd_frame.len;
+    message.data.resize(fd_frame.len);
+    std::memcpy(message.data.data(), fd_frame.data, fd_frame.len);
+  } else if (static_cast<size_t>(bytes_read) == sizeof(struct can_frame)) {
+    // Classic frame delivered on the (possibly FD-enabled) socket
+    const auto* frame = reinterpret_cast<const struct can_frame*>(&fd_frame);
+
+    message.is_extended_id = (frame->can_id & CAN_EFF_FLAG) ? true : false;
+    message.is_remote_frame = (frame->can_id & CAN_RTR_FLAG) ? true : false;
+    message.id = message.is_extended_id ? (frame->can_id & CAN_EFF_MASK)
+                                         : (frame->can_id & CAN_SFF_MASK);
+
+    message.dlc = frame->can_dlc;
+    if (!message.is_remote_frame) {
+      message.data.resize(frame->can_dlc);
+      std::memcpy(message.data.data(), frame->data, frame->can_dlc);
+    } else {
+      // For RTR frames, data field is irrelevant but dlc indicates requested data
+      // length
+      message.data.clear();
+    }
+  } else {
+    RCLCPP_WARN(logger_, "Unexpected CAN read size: %zd bytes (neither classic nor FD frame).",
+                bytes_read);
     return false;
-  }
-
-  message.is_extended_id = (frame.can_id & CAN_EFF_FLAG) ? true : false;
-  message.is_remote_frame = (frame.can_id & CAN_RTR_FLAG) ? true : false;
-
-  if (message.is_extended_id) {
-    message.id = frame.can_id & CAN_EFF_MASK;
-  } else {
-    message.id = frame.can_id & CAN_SFF_MASK;
-  }
-
-  message.dlc = frame.can_dlc;
-  message.data.resize(frame.can_dlc);
-  if (!message.is_remote_frame) {
-    std::memcpy(message.data.data(), frame.data, frame.can_dlc);
-  } else {
-    // For RTR frames, data field is irrelevant but dlc indicates requested data
-    // length
-    message.data.clear();
   }
 
   // This is to log received message details for debugging
@@ -214,6 +244,24 @@ bool CanCore::setupSocketCan() {
     return false;
   }
 
+  if (config_.fd_enabled) {
+    // Ask the kernel to accept/deliver CAN-FD frames on this socket. This does NOT
+    // configure the link's data-phase bitrate -- that must already be set on the
+    // interface (e.g. `ip link set <iface> up type can bitrate <arb> dbitrate
+    // <data> fd on`) by a native SocketCAN-FD-capable adapter before we bind here.
+    int enable_fd = 1;
+    if (setsockopt(socket_fd_, SOL_CAN_RAW, CAN_RAW_FD_FRAMES, &enable_fd, sizeof(enable_fd)) <
+        0) {
+      RCLCPP_ERROR(logger_,
+                   "Failed to enable CAN_RAW_FD_FRAMES on %s: %s. Does this adapter/interface "
+                   "actually support CAN-FD?",
+                   config_.interface_name.c_str(), strerror(errno));
+      close(socket_fd_);
+      socket_fd_ = -1;
+      return false;
+    }
+  }
+
   // Bind socket to the CAN interface
   struct sockaddr_can addr;
   addr.can_family = AF_CAN;
@@ -230,12 +278,25 @@ bool CanCore::setupSocketCan() {
   initialized_ = true;
   connected_ = true;
 
-  RCLCPP_INFO(logger_, "SocketCAN interface %s setup completed successfully (Classic CAN mode).",
-              config_.interface_name.c_str());
+  RCLCPP_INFO(logger_, "SocketCAN interface %s setup completed successfully (%s mode).",
+              config_.interface_name.c_str(), config_.fd_enabled ? "CAN-FD" : "Classic CAN");
   return true;
 }
 
 bool CanCore::setupSlcan() {
+  if (config_.fd_enabled) {
+    // The Lawicel/slcand ASCII protocol is classic-CAN only -- there is no FD framing
+    // or data-phase bitrate negotiation in the protocol. FD requires swapping the
+    // CANable/slcan dongle for a native SocketCAN-FD adapter (e.g. a gs_usb/candleLight
+    // -firmware device or a PCAN-USB FD) and using bustype "socketcan" directly, with the
+    // interface already brought up in FD mode (see setupSocketCan()).
+    RCLCPP_ERROR(logger_,
+                 "CAN-FD was requested (fd_enabled=true) but bustype is 'slcan'. slcand does "
+                 "not support CAN-FD. Use a native SocketCAN-FD adapter and bustype "
+                 "'socketcan' instead.");
+    return false;
+  }
+
   RCLCPP_INFO(logger_, "Setting up SLCAN interface '%s' via external script.",
               config_.interface_name.c_str());
   RCLCPP_INFO(logger_, "  Device path for script: %s", config_.device_path.c_str());

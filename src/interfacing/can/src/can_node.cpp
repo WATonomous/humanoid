@@ -34,7 +34,9 @@ CanNode::CanNode() : Node("can_node"), can_core(this->get_logger()) {
   this->declare_parameter("can_interface", "can0");
   this->declare_parameter("device_path", "/dev/canable");
   this->declare_parameter("bustype", "slcan");
-  this->declare_parameter("bitrate", 500000);
+  this->declare_parameter("bitrate", 1000000);
+  this->declare_parameter("fd_enabled", false);
+  this->declare_parameter("data_bitrate", 5000000);
   this->declare_parameter("receive_poll_interval_ms", 10);
   this->declare_parameter("receive_timeout_ms", 10000);
 
@@ -43,13 +45,24 @@ CanNode::CanNode() : Node("can_node"), can_core(this->get_logger()) {
   std::string device_path = this->get_parameter("device_path").as_string();
   std::string bustype = this->get_parameter("bustype").as_string();
   int bitrate = this->get_parameter("bitrate").as_int();
+  bool fd_enabled = this->get_parameter("fd_enabled").as_bool();
+  int data_bitrate = this->get_parameter("data_bitrate").as_int();
 
   int receive_poll_interval_ms = this->get_parameter("receive_poll_interval_ms").as_int();
 
   RCLCPP_INFO(this->get_logger(),
-              "Loaded parameters: interface=%s, bustype=%s, bitrate=%d, "
-              "poll_interval_ms=%d",
-              can_interface.c_str(), bustype.c_str(), bitrate, receive_poll_interval_ms);
+              "Loaded parameters: interface=%s, bustype=%s, bitrate=%d, fd_enabled=%d, "
+              "data_bitrate=%d, poll_interval_ms=%d",
+              can_interface.c_str(), bustype.c_str(), bitrate, fd_enabled, data_bitrate,
+              receive_poll_interval_ms);
+
+  if (fd_enabled && bustype != "socketcan") {
+    RCLCPP_WARN(this->get_logger(),
+                "fd_enabled=true requires bustype='socketcan' on a native CAN-FD adapter "
+                "brought up with the data-phase bitrate already set (slcan cannot do FD). "
+                "CAN Core will refuse to initialize with bustype='%s'.",
+                bustype.c_str());
+  }
 
   // Configure CanCore
   CanConfig config;
@@ -57,6 +70,8 @@ CanNode::CanNode() : Node("can_node"), can_core(this->get_logger()) {
   config.device_path = device_path;
   config.bustype = bustype;
   config.bitrate = bitrate;
+  config.fd_enabled = fd_enabled;
+  config.data_bitrate = static_cast<uint32_t>(data_bitrate);
   config.receive_timeout_ms = 10000;
 
   // Initialize the CAN interface
