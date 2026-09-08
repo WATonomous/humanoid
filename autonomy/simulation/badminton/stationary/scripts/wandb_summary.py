@@ -12,6 +12,7 @@ nb = int(sys.argv[2]) if len(sys.argv) > 2 else 8
 cols = [("Train/mean_reward", "mean_rew", "{:8.3f}"),
         ("Episode_Reward/face_contact", "contact", "{:8.4f}"),
         ("Episode_Reward/return_flight", "retflt", "{:7.4f}"),
+        ("Episode_Reward/return_landing", "landing", "{:7.4f}"),
         ("Policy/mean_std", "std", "{:6.3f}"),
         ("Metrics/perception/face_pstar_dist_at_tstar", "d@t*", "{:6.3f}"),
         ("Metrics/feasibility/tau_duty_j6", "duty_j6", "{:7.3f}"),
