@@ -303,3 +303,24 @@ Ops note: the first attempt (job 599012) died in the Warp kernel build with
 "No space left on device" — a `--wrap` submission without `tmpdisk` uses the
 node's shared /tmp, which was full on trpro-slurm1. Always request
 `--gres=shard:4096,tmpdisk:20480` (the sbatch script already does).
+
+## Run 12 — return_landing: land the return on the launch origin (jbdualac)
+
+Launched 2026-09-08, SLURM job 616244 on thor-slurm1 (trpro nodes down:
+"GPU fell off PCIe bus", cluster was CUDA-dead Sep 2–8 after a driver
+update). Warm start from run-11 model_1499.pt (`--agent.resume True
+--agent.load-run 2026-08-26_04-39-41`), 1024 envs, 1500 more iterations
+(numbering continues 1500→3000), log dir 2026-09-08_21-46-20.
+
+Change vs run 11: + `return_landing` w100 (σ 1.5 m gaussian on predicted
+landing distance to the episode's launch origin, once per hit, zero if the
+predicted flight misses the net window). Everything else identical.
+
+Run-11 baseline for this metric (eval 616227, 8192 episodes): hit rate
+0.993; only **45.9%** of returns clear the net into the far court; cleared
+returns land median **2.30 m** (p90 3.79 m) from the launch origin. So the
+reward starts in its gradient-rich zone (exp(-2.3²/4.5) ≈ 0.31).
+
+Watch for: Episode_Reward/return_landing rising from ~0.3·0.46·2.0 ≈ 0.3
+effective; face_contact holding ≥ 0.66 (hit rate must not pay for landing
+accuracy); d@t* stable.
