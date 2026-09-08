@@ -324,3 +324,24 @@ reward starts in its gradient-rich zone (exp(-2.3²/4.5) ≈ 0.31).
 Watch for: Episode_Reward/return_landing rising from ~0.3·0.46·2.0 ≈ 0.3
 effective; face_contact holding ≥ 0.66 (hit rate must not pay for landing
 accuracy); d@t* stable.
+
+### Run-12 result (eval 616319, model_2998.pt, 8192 episodes)
+
+|                        | run 11 | run 12 |
+|------------------------|--------|--------|
+| hit rate               | 0.993  | **0.997** |
+| returns clearing net   | 45.9%  | **72.7%** |
+| landing err (cleared)  | 2.30 m median / 3.79 p90 | **0.99 m / 2.87** |
+| chest-height bin hit   | 0.961  | 0.993 |
+| misses (of 8192)       | 60     | 28    |
+
+The body-line miss cluster is gone (misses now scattered, mostly timing
+misses on the right edge); contact points tightened well inside the face
+(`runs/hits_run12.png`). Cost: swings are harder — duty above rated j4
+8.4→16.2%, j3 8.5→11.6%, j6 64.7→74.3% (wrist still clamped every
+episode). AK motors still in transient territory; wrist unchanged story.
+
+`landing` was still climbing at iteration 2998 (0.31 of 0.667 ceiling),
+so the run continues: job 616320 resumes from model_2998 for 1500 more
+iterations (target ~4498). Note rsl_rl saves the final checkpoint at
+start-iteration+1499, hence model_2998 not model_2999.
