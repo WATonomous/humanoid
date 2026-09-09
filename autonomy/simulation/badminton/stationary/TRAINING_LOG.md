@@ -423,3 +423,26 @@ than an imitation failure. `runs/hits_student.png`.
 Eval-tooling gotchas fixed on the way: rsl_rl `Distillation.load` ignores
 an `{"actor": True}` load_cfg silently (evaluated a random net -> 1%);
 landing-stat print crashed on zero cleared returns.
+
+## Student distillation 2 (kpt87419) — + EKF uncertainty observation
+
+2026-09-09, job 616508, identical to distillation 1 except 7 extra student
+inputs: EKF position/velocity std and the tick-to-tick jump of the prior's
+last point (`shuttle_uncertainty`, perception_command.py). Hypothesis: the
+student misses left/high because it cannot tell a settling estimate from a
+converged one.
+
+Eval 616555 (model_1499.pt, log dir 2026-09-09_20-51-43): **73.4%** hits
+(distillation 1: 76.6%), clearance 68.0%, landing 0.88 m. Same miss map:
+left x < -0.4 m 50.7%, high > 1.7 m 61.5%. Training plateaued 73-75%.
+
+**Negative result.** The uncertainty signal is present but behavior
+cloning cannot use it: the teacher's label is the same true-state action
+regardless of how uncertain the student is, so the MSE-optimal student
+action under an ambiguous estimate is the *average* of the swings the
+teacher would make for each plausible shuttle state — which reaches none
+of them. Knowing it is uncertain does not tell the student what to do
+about it; only a loss that scores its own outcomes can. Next: fine-tune
+the distilled student with PPO on student observations (asymmetric
+actor-critic: critic on the privileged teacher group), so it optimises
+hitting under noise instead of matching a clairvoyant teacher.
