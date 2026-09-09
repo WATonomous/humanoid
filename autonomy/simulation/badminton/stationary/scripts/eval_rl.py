@@ -29,26 +29,28 @@ from mjlab.envs import ManagerBasedRlEnv
 from mjlab.rl import MjlabOnPolicyRunner, RslRlVecEnvWrapper
 from mjlab.tasks.registry import load_env_cfg, load_rl_cfg, load_runner_cls
 
-TASK = "Mjlab-Badminton-Receive-Teacher"
-
-
 def main() -> None:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--task", default="Mjlab-Badminton-Receive-Teacher")
     ap.add_argument("--checkpoint-file", required=True)
     ap.add_argument("--episodes", type=int, default=4096)
     ap.add_argument("--num-envs", type=int, default=1024)
     ap.add_argument("--device", default="cuda:0")
     args = ap.parse_args()
 
-    env_cfg = load_env_cfg(TASK)
+    env_cfg = load_env_cfg(args.task)
     env_cfg.scene.num_envs = args.num_envs
-    agent_cfg = load_rl_cfg(TASK)
+    agent_cfg = load_rl_cfg(args.task)
     env = ManagerBasedRlEnv(cfg=env_cfg, device=args.device)
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
-    runner_cls = load_runner_cls(TASK) or MjlabOnPolicyRunner
+    runner_cls = load_runner_cls(args.task) or MjlabOnPolicyRunner
     runner = runner_cls(env, asdict(agent_cfg), device=args.device)
-    runner.load(args.checkpoint_file, load_cfg={"actor": True}, strict=True,
-                map_location=args.device)
+    try:
+        runner.load(args.checkpoint_file, load_cfg={"actor": True},
+                    strict=True, map_location=args.device)
+    except (KeyError, TypeError):
+        # distillation checkpoints store student/teacher, not actor/critic
+        runner.load(args.checkpoint_file, map_location=args.device)
     policy = runner.get_inference_policy(device=args.device)
 
     base_y = aero.load_params()["arm"]["base_y"]
