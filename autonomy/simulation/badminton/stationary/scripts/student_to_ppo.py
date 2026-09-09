@@ -12,10 +12,12 @@ optimiser fresh, and saves in rsl_rl PPO format so training can
 
 import argparse
 import os
+import sys
 from dataclasses import asdict
 
 import torch
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import badminton_mjlab  # noqa: F401  (registers the tasks)
 from mjlab.envs import ManagerBasedRlEnv
 from mjlab.rl import MjlabOnPolicyRunner, RslRlVecEnvWrapper
