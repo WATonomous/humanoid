@@ -364,3 +364,31 @@ eval. Stopping the teacher here: landing gains per 1500 iters fell 10x
 while duty keeps creeping. model_4497 is the reference teacher candidate
 (better returns, marginally hotter motors); model_2998 is the fallback if
 the team weighs duty over aim.
+
+### 2026-09-08 — run 12: return_landing (target = launch origin), iters 1500-4497
+
+Warm-started from run-11 model_1499.pt with the new `return_landing` reward
+(sigma-1.5 m gaussian on predicted landing vs the episode's launch origin,
+once per hit, zero without net clearance). Sean ran both stages on thor
+(W&B jbdualac, then g0sy21a7 chained from model_2998.pt); final checkpoint
+`logs/rsl_rl/badminton_teacher/2026-09-08_23-13-30/model_4497.pt`.
+Bank eval 8192 episodes (job 616323), vs the run-11 baseline:
+
+- hit rate 99.3% -> **99.7%** (60 -> 28 misses); every bin >= 98.6%
+- returns clearing the net into the far court: 45.9% -> **79.0%** of hits
+- landing error to launch origin (cleared): median 2.29 -> **0.87 m**,
+  p90 3.85 -> 2.52 m
+- the run-11 body-line miss cluster (chest height, under the face) is
+  gone; remaining misses sit at the far-right reach edge (x_rel ~1.1 m)
+  and pass right of the face. Contact blob tighter (median closest
+  approach 5.8 cm), no vertical bias. `runs/hits_r12.png`.
+- cost: actuator load up — wrist duty>rated 64.7 -> 80.0%, elbow j4
+  8.4 -> 18.4%, j3 8.5 -> 11.4%. The GL40 wrist remains the hardware
+  blocker. Training std kept inflating (0.53 at the end) and train-time
+  d@t* drifted 0.30->0.34, but the deterministic eval improved anyway.
+
+Landing reward stats plateaued ~0.32 over the last ~700 iters; further
+gains want a tighter sigma or a fresh entropy schedule, but the teacher
+is good enough to distill. Ops: delta-slurm1 was the only healthy node
+for evals (2080 Ti, cuInit ok) — trpro-slurm1/2 still broken post
+driver-update; jobs there must fit 1 CPU / 5 GB while the chess job runs.
