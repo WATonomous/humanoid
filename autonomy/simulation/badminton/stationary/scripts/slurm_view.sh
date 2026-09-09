@@ -20,7 +20,7 @@ echo "checkpoint: $ckpt"
 
 jid=$(sbatch --parsable --job-name=viser-view --gres=shard:4096 --exclude=tr-slurm2 \
     --cpus-per-task=4 --mem=16G --time=03:00:00 --output=runs/viser-%j.out \
-    --wrap="uv run scripts/play_rl.py Mjlab-Badminton-Receive-Teacher --viewer viser --device cuda:0 --num-envs 1 --checkpoint-file $ckpt")
+    --wrap="uv run scripts/play_rl.py ${TASK:-Mjlab-Badminton-Receive-Teacher} --viewer viser --device cuda:0 --num-envs 1 --checkpoint-file $ckpt")
 echo "submitted job $jid; waiting for it to start..."
 for _ in $(seq 1 120); do
     node=$(squeue -j "$jid" -h -o "%N" -t R 2>/dev/null || true)
