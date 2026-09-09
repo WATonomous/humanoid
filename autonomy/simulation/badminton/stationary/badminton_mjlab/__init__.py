@@ -30,6 +30,27 @@ from rsl_rl.runners import DistillationRunner
 from badminton_mjlab.env_cfg import make_env_cfg
 from badminton_mjlab.rl_cfg import make_distill_cfg, make_teacher_ppo_cfg
 
+
+class BadmintonDistillationRunner(DistillationRunner):
+    """rsl_rl DistillationRunner with mjlab's None-option stripping.
+
+    MjlabOnPolicyRunner pops None-valued cnn_cfg/distribution_cfg/rnn_*
+    from the "actor"/"critic" model dicts before rsl_rl sees them, but the
+    distillation cfg names its models "student"/"teacher", so the raw
+    runner passes cnn_cfg=None into MLPModel and crashes."""
+
+    def __init__(self, env, train_cfg, log_dir=None, device="cpu"):
+        for key in ("student", "teacher"):
+            if key in train_cfg:
+                for opt in ("cnn_cfg", "distribution_cfg"):
+                    if train_cfg[key].get(opt) is None:
+                        train_cfg[key].pop(opt, None)
+                if train_cfg[key].get("rnn_type") is None:
+                    for opt in ("rnn_type", "rnn_hidden_dim",
+                                "rnn_num_layers"):
+                        train_cfg[key].pop(opt, None)
+        super().__init__(env, train_cfg, log_dir, device)
+
 register_mjlab_task(
     "Mjlab-Badminton-Receive-Teacher",
     env_cfg=make_env_cfg(),
@@ -42,5 +63,5 @@ register_mjlab_task(
     env_cfg=make_env_cfg(),
     play_env_cfg=make_env_cfg(play=True),
     rl_cfg=make_distill_cfg(),
-    runner_cls=DistillationRunner,
+    runner_cls=BadmintonDistillationRunner,
 )
