@@ -46,7 +46,7 @@ def main() -> None:
     whiff = miss & ~near
 
     fig, (ax, bx) = plt.subplots(1, 2, figsize=(13, 6.2), facecolor=SURFACE)
-    fig.suptitle(f"run-12 teacher, {n} episodes: {nh} hits ({nh / n:.1%}), "
+    fig.suptitle(f"run-11 teacher, {n} episodes: {nh} hits ({nh / n:.1%}), "
                  f"{int(clip.sum())} near misses, {int(whiff.sum())} whiffs (> {NEAR_M * 100:.0f} cm off)",
                  color=INK, fontsize=12, x=0.5, y=0.98)
 

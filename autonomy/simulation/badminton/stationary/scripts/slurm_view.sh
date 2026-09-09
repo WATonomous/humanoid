@@ -18,7 +18,7 @@ ckpt="${1:-$(ls -v "$(ls -td wandb/run-*/ | head -1)"files/model_*.pt | tail -1)
 [ -f "$ckpt" ] || { echo "checkpoint not found: $ckpt" >&2; exit 1; }
 echo "checkpoint: $ckpt"
 
-jid=$(sbatch --parsable --job-name=viser-view --gres=shard:4096 --exclude=tr-slurm2 \
+jid=$(sbatch --parsable --job-name=viser-view --gres=shard:4096 --exclude="${EXCLUDE:-tr-slurm2}" \
     --cpus-per-task=4 --mem=16G --time=03:00:00 --output=runs/viser-%j.out \
     --wrap="uv run scripts/play_rl.py ${TASK:-Mjlab-Badminton-Receive-Teacher} --viewer viser --device cuda:0 --num-envs 1 --checkpoint-file $ckpt")
 echo "submitted job $jid; waiting for it to start..."
