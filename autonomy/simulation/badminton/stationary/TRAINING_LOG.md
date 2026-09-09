@@ -392,3 +392,34 @@ gains want a tighter sigma or a fresh entropy schedule, but the teacher
 is good enough to distill. Ops: delta-slurm1 was the only healthy node
 for evals (2080 Ti, cuInit ok) — trpro-slurm1/2 still broken post
 driver-update; jobs there must fit 1 CPU / 5 GB while the chess job runs.
+
+## Student distillation 1 (tw7yyp8y) — run-12b teacher, EKF observations
+
+2026-09-09, job 616488 on trpro-slurm1, 1024 envs, 1500 iterations, 1:06.
+`BadmintonDistillationRunner` (strips None model options for the
+student/teacher keys — mjlab only does it for actor/critic), teacher found
+via symlink `logs/rsl_rl/badminton_student/badminton_teacher_run12b ->
+../badminton_teacher/2026-09-08_23-13-30` (load_run regex resolves inside
+the student log root). Training hit% plateaued 77.4 -> 77.5 over the last
+300 iterations, so more iterations alone will not close the gap.
+
+Bank eval (616506, model_1499.pt, 8192 episodes, deterministic):
+
+|                          | teacher 12b | student |
+|--------------------------|-------------|---------|
+| hit rate                 | 0.997       | **0.766** |
+| returns clearing net     | 79.0%       | 69.7% (of hits) |
+| landing err (cleared)    | 0.87 m      | 0.95 m  |
+| miss closest approach    | 9.6 cm      | 12.5 cm |
+
+Once it hits, the student returns almost like the teacher; the loss is in
+getting to the shuttle. Miss pattern is NOT the teacher's: worst on the
+robot's LEFT (x < -0.2: 62-64%) and HIGH (1.5-1.7 m: 68%), best on the
+right (84-89%). Those are the intercepts farthest from the ready pose, i.e.
+the ones that need the earliest commitment — exactly when the EKF estimate
+is worst. Consistent with an information limit at decision time rather
+than an imitation failure. `runs/hits_student.png`.
+
+Eval-tooling gotchas fixed on the way: rsl_rl `Distillation.load` ignores
+an `{"actor": True}` load_cfg silently (evaluated a random net -> 1%);
+landing-stat print crashed on zero cleared returns.
