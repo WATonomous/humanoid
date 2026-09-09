@@ -345,3 +345,22 @@ episode). AK motors still in transient territory; wrist unchanged story.
 so the run continues: job 616320 resumes from model_2998 for 1500 more
 iterations (target ~4498). Note rsl_rl saves the final checkpoint at
 start-iteration+1499, hence model_2998 not model_2999.
+
+### Run-12b extension result (g0sy21a7, model_4497.pt, eval 616325)
+
+1500 more iterations (2998→4497, new log dir 2026-09-08_23-13-30 — rsl_rl
+opens a fresh timestamped dir per launch, even on resume). Diminishing
+returns, mild feasibility drift:
+
+|                        | model_2998 | model_4497 |
+|------------------------|------------|------------|
+| hit rate               | 0.997      | 0.997      |
+| returns clearing net   | 72.7%      | 79.0%      |
+| landing err (cleared)  | 0.99 m / 2.87 p90 | 0.87 m / 2.52 p90 |
+| duty>rated j4 / j6     | 16.2% / 74.3% | 18.4% / 80.1% |
+
+Training std kept widening (0.39→0.51) without hurting the deterministic
+eval. Stopping the teacher here: landing gains per 1500 iters fell 10x
+while duty keeps creeping. model_4497 is the reference teacher candidate
+(better returns, marginally hotter motors); model_2998 is the fallback if
+the team weighs duty over aim.
