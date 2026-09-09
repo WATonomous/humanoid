@@ -45,12 +45,13 @@ def main() -> None:
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
     runner_cls = load_runner_cls(args.task) or MjlabOnPolicyRunner
     runner = runner_cls(env, asdict(agent_cfg), device=args.device)
-    try:
-        runner.load(args.checkpoint_file, load_cfg={"actor": True},
-                    strict=True, map_location=args.device)
-    except (KeyError, TypeError):
-        # distillation checkpoints store student/teacher, not actor/critic
-        runner.load(args.checkpoint_file, map_location=args.device)
+    # rsl_rl's Distillation.load silently ignores unknown load_cfg keys, so
+    # the student must be asked for by name (an "actor" request loads
+    # nothing and evals a random policy)
+    student = "Student" in args.task
+    runner.load(args.checkpoint_file,
+                load_cfg={"student": True} if student else {"actor": True},
+                strict=True, map_location=args.device)
     policy = runner.get_inference_policy(device=args.device)
 
     base_y = aero.load_params()["arm"]["base_y"]
