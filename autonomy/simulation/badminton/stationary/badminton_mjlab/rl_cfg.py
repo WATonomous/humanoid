@@ -45,6 +45,37 @@ def make_teacher_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
     )
 
 
+def make_student_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
+    """Phase 3: PPO fine-tune of the distilled student. Asymmetric
+    actor-critic — the actor sees the noisy "student" group (what the robot
+    has), the critic the privileged "teacher" group (training-only, so it
+    may cheat). Distillation cannot teach hedging under an ambiguous
+    estimate (the label is the clairvoyant action); optimising the
+    student's own return can. Warm-start the actor with
+    scripts/student_to_ppo.py, then --agent.resume True."""
+    return RslRlOnPolicyRunnerCfg(
+        num_steps_per_env=24,
+        max_iterations=1500,
+        save_interval=100,
+        experiment_name="badminton_student_ppo",
+        obs_groups={"actor": ("student",), "critic": ("teacher",)},
+        actor=RslRlModelCfg(
+            hidden_dims=HIDDEN,
+            obs_normalization=True,
+            # init_std is overwritten by the distilled student's std (0.1)
+            distribution_cfg={"class_name": "GaussianDistribution",
+                              "init_std": 0.1, "std_type": "scalar"}),
+        critic=RslRlModelCfg(hidden_dims=HIDDEN, obs_normalization=True),
+        algorithm=RslRlPpoAlgorithmCfg(
+            # fine-tune: a third of the teacher's lr so the first updates
+            # (fresh critic, meaningless advantages) do not wreck the init
+            learning_rate=1e-4,
+            entropy_coef=0.005,
+            num_learning_epochs=5,
+            num_mini_batches=4),
+    )
+
+
 @dataclass
 class RslRlDistillationAlgorithmCfg:
     num_learning_epochs: int = 1

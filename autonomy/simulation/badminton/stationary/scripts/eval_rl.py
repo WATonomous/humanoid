@@ -48,9 +48,10 @@ def main() -> None:
     # rsl_rl's Distillation.load silently ignores unknown load_cfg keys, so
     # the student must be asked for by name (an "actor" request loads
     # nothing and evals a random policy)
-    student = "Student" in args.task
+    from rsl_rl.runners import DistillationRunner
+    distilled = isinstance(runner, DistillationRunner)
     runner.load(args.checkpoint_file,
-                load_cfg={"student": True} if student else {"actor": True},
+                load_cfg={"student": True} if distilled else {"actor": True},
                 strict=True, map_location=args.device)
     policy = runner.get_inference_policy(device=args.device)
 
