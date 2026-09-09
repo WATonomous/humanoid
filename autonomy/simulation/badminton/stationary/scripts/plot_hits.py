@@ -1,6 +1,6 @@
 """Strike-zone and racket-face maps from scripts/eval_rl.py output.
 
-  uv run scripts/plot_hits.py [runs/eval_pstar_hits.npy] [runs/hits.png]
+  uv run scripts/plot_hits.py [runs/eval_pstar_hits.npy] [runs/hits.png] [title label]
 
 Left: front-on view relative to the body (like a pitch chart) — where each
 episode's intercept point sat, hits vs misses. Right: where the shuttle
@@ -30,6 +30,7 @@ NEAR_M = 0.30   # a miss closer than this to the face centre is a near miss
 def main() -> None:
     src = sys.argv[1] if len(sys.argv) > 1 else "runs/eval_pstar_hits.npy"
     out = sys.argv[2] if len(sys.argv) > 2 else "runs/hits.png"
+    label = sys.argv[3] if len(sys.argv) > 3 else "teacher"
     r = np.load(src)
     p = aero.load_params()
     base_x, base_y = p["arm"]["base_x"], p["arm"]["base_y"]
@@ -46,7 +47,7 @@ def main() -> None:
     whiff = miss & ~near
 
     fig, (ax, bx) = plt.subplots(1, 2, figsize=(13, 6.2), facecolor=SURFACE)
-    fig.suptitle(f"run-11 teacher, {n} episodes: {nh} hits ({nh / n:.1%}), "
+    fig.suptitle(f"{label}, {n} episodes: {nh} hits ({nh / n:.1%}), "
                  f"{int(clip.sum())} near misses, {int(whiff.sum())} whiffs (> {NEAR_M * 100:.0f} cm off)",
                  color=INK, fontsize=12, x=0.5, y=0.98)
 
