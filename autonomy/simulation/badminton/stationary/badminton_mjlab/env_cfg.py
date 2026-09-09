@@ -110,6 +110,12 @@ def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         **proprio,
         "shuttle": ObservationTermCfg(
             func=mdp.student_perception, params={"command_name": "perception"}),
+        # distillation 1 missed the left/high (early-commit) shots: the
+        # student had no way to tell a settling estimate from a converged
+        # one. EKF std + prior jump give it that (a real filter has both).
+        "shuttle_uncertainty": ObservationTermCfg(
+            func=mdp.student_uncertainty,
+            params={"command_name": "perception"}),
     }
     teacher_terms = {
         **proprio,

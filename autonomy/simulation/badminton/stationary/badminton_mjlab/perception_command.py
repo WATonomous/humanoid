@@ -61,6 +61,13 @@ class PerceptionCommand(CommandTerm):
         dim = 6 + 3 * self._n_traj
         self.student_features = torch.zeros(n, dim, device=dev)
         self.teacher_features = torch.zeros(n, dim, device=dev)
+        # student-only: how much to trust the estimate. [EKF position std
+        # (3), velocity std (3), tick-to-tick jump of the prior's last
+        # point (1)]. A real EKF exposes its covariance the same way; the
+        # jump is what a human watching the prior would call "still
+        # settling". Without it the memoryless student cannot tell an early
+        # (unreliable) estimate from a converged one and commits equally.
+        self.student_uncertainty = torch.zeros(n, 7, device=dev)
         # ground-truth task geometry (logged via metrics): per-episode min
         # face->p* distance and the distance at the tick nearest t*
         self._face_cfg = None
@@ -107,9 +114,16 @@ class PerceptionCommand(CommandTerm):
                 self._x[ids] = x
                 self._P[ids] = P
             self._just_reset[:] = False
+        prev_last = self.student_features[:, -3:].clone()
         self.student_features[:] = pt.feature_layout(
             self._x[:, :3], self._x[:, 3:], self._k, self._n_traj,
             self._traj_dt, self._sub_dt, self._g)
+        jump = (self.student_features[:, -3:] - prev_last).norm(dim=-1)
+        if env_ids is not None:
+            jump[env_ids] = 0.0     # fresh episode: no previous prior
+        std = torch.diagonal(self._P, dim1=-2, dim2=-1).clamp_min(0.0).sqrt()
+        self.student_uncertainty[:] = torch.cat([std, jump.unsqueeze(-1)],
+                                                dim=-1)
         self.teacher_features[:] = pt.feature_layout(
             p_true, v_true, self._k, self._n_traj,
             self._traj_dt, self._sub_dt, self._g)

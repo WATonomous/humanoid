@@ -126,6 +126,13 @@ def student_perception(env: "ManagerBasedRlEnv",
     return term.student_features
 
 
+def student_uncertainty(env: "ManagerBasedRlEnv",
+                        command_name: str) -> torch.Tensor:
+    term = env.command_manager.get_term(command_name)
+    assert isinstance(term, PerceptionCommand)
+    return term.student_uncertainty
+
+
 def teacher_perception(env: "ManagerBasedRlEnv",
                        command_name: str) -> torch.Tensor:
     term = env.command_manager.get_term(command_name)
