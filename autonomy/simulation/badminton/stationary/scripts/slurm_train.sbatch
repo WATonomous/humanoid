@@ -48,7 +48,7 @@ uv sync --extra train
 # so the run shows as crashed no matter what python does. The USR1 trap
 # SIGINTs just the python process; its wandb service child stays alive to
 # sync, and train_rl.py finishes the run on KeyboardInterrupt.
-uv run scripts/train_rl.py Mjlab-Badminton-Receive-Teacher \
+uv run scripts/train_rl.py "${TASK:-Mjlab-Badminton-Receive-Teacher}" \
     --env.scene.num-envs "${NUM_ENVS:-1024}" ${EXTRA_ARGS:-} &
 TRAIN_PID=$!
 # uv run does not reliably forward SIGINT to its python child: signal the
