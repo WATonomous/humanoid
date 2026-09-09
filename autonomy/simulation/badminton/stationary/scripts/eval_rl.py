@@ -150,11 +150,16 @@ def main() -> None:
     land, lok = r[:, 7], r[:, 8].astype(bool)
     has_land = np.isfinite(land)
     if has_land.any():
-        print(f"return lands on far court with net clearance: "
-              f"{lok[has_land].mean():.3f} of hits; landing error to launch "
-              f"origin, cleared returns: median "
-              f"{np.median(land[has_land & lok]):.2f} m, p90 "
-              f"{np.percentile(land[has_land & lok], 90):.2f} m")
+        cleared = has_land & lok
+        line = (f"return lands on far court with net clearance: "
+                f"{lok[has_land].mean():.3f} of hits")
+        if cleared.any():
+            line += (f"; landing error to launch origin, cleared returns: "
+                     f"median {np.median(land[cleared]):.2f} m, "
+                     f"p90 {np.percentile(land[cleared], 90):.2f} m")
+        line += (f"; landing error, all hits with data: "
+                 f"median {np.median(land[has_land]):.2f} m")
+        print(line)
     print(f"closest approach to face centre, hits: median {np.median(dmin[hit]) * 100:.1f} cm"
           f"   misses: median {np.median(dmin[~hit]) * 100:.1f} cm,"
           f" p90 {np.percentile(dmin[~hit], 90) * 100:.1f} cm")
