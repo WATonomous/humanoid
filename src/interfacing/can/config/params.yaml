@@ -5,8 +5,15 @@ can_node:
     can_interface: "can0"              # CAN interface name (can0, can1, etc.)
     device_path: "/dev/canable"        # Serial device path for SLCAN
     bustype: "slcan"                   # Bus type to create a CAN interface: "socketcan" or "slcan"
-    bitrate: 1000000                   # CAN bitrate in bps (125000, 250000, 500000, 1000000)
-    
+    bitrate: 1000000                   # Arbitration-phase bitrate in bps (125000, 250000, 500000, 1000000)
+
+    # CAN-FD (off by default). slcan/CANable does NOT support FD -- fd_enabled requires
+    # bustype: "socketcan" on a native FD-capable adapter (e.g. gs_usb/candleLight,
+    # PCAN-USB FD) whose interface has already been brought up with the data bitrate set,
+    # e.g.: `ip link set can0 up type can bitrate 1000000 dbitrate 5000000 fd on`
+    fd_enabled: false
+    data_bitrate: 5000000              # Data-phase bitrate in bps, used only when fd_enabled: true
+
     # Communication Settings
     publish_rate_hz: 50                # Rate for checking incoming CAN messages
     receive_timeout_ms: 10000          # Timeout for receiving CAN messages

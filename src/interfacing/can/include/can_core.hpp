@@ -23,7 +23,14 @@ struct CanConfig {
   std::string device_path;     // Device path for SLCAN (e.g., "/dev/ttyACM0")
   std::string bustype;         // Bus type: "socketcan" or "slcan"
   uint32_t bitrate;            // Bitrate in bps for arbitration phase
-  uint32_t data_bitrate;       // Data bitrate in bps for CAN-FD data phase
+  bool fd_enabled = false;     // Enable CAN-FD (CAN_RAW_FD_FRAMES). Requires bustype
+                                // "socketcan" on a native FD-capable adapter/link brought
+                                // up with `fd on` -- NOT supported over "slcan"
+                                // (the Lawicel/slcand protocol is classic-CAN only).
+  uint32_t data_bitrate;       // Data-phase bitrate in bps, used only when fd_enabled.
+                                // Must be set on the link (e.g. `dbitrate <n> fd on`)
+                                // before this node binds to it -- this class does not
+                                // configure the adapter's data-phase rate itself.
   uint32_t receive_timeout_ms; // Receive timeout in milliseconds
 };
 

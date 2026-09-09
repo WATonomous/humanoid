@@ -50,6 +50,30 @@ Live joint mirror, mjlab sim parity, and interactive calibration are done — se
 
 `/interfacing/motorCMD` (`MotorCmd`, ROS→CAN) · `/interfacing/motorFeedback` (`MotorFeedback`, CAN→ROS)
 
-`config/params.yaml` defaults: `can_interface=can0` `device_path=/dev/canable` `bustype=slcan` `bitrate=1000000`
+`config/params.yaml` defaults: `can_interface=can0` `device_path=/dev/canable` `bustype=slcan` `bitrate=1000000` `fd_enabled=false`
 
 DBC: `src/interfacing/dbc/humanoid.dbc` · Debug: `candump can0`
+
+### CAN-FD
+
+Off by default (`fd_enabled: false`). To use it:
+
+- **Adapter**: the CANable dongle running `slcand` is classic-CAN only — the Lawicel/slcan
+  ASCII protocol has no FD framing or data-phase negotiation. FD requires swapping it for a
+  native SocketCAN-FD-capable adapter (e.g. a gs_usb/candleLight-firmware device, or a
+  PCAN-USB FD) and setting `bustype: "socketcan"` directly (not `"slcan"`).
+- **Bring-up**: bring the interface up with the data-phase bitrate set *before* `can_node`
+  starts, e.g.:
+  ```bash
+  ip link set can0 up type can bitrate 1000000 dbitrate 5000000 fd on
+  ```
+  `can_core` only enables `CAN_RAW_FD_FRAMES` on its socket (`fd_enabled: true` +
+  `data_bitrate` in `params.yaml`) — it does not configure the adapter's data-phase rate
+  itself.
+- **Frame size stays 8 bytes**: the CubeMars AK10-9/AK80-9 MIT/servo protocol
+  (`config/mit_profiles.yaml`, `humanoid.dbc`) is a fixed 8-byte-frame format defined by the
+  motor firmware, which doesn't understand FD frames. Enabling FD here buys bus
+  arbitration/throughput headroom (more motors polling at higher rates, lower latency) — it
+  does not let individual motor messages grow past 8 bytes. If a future device on this bus
+  (e.g. a custom FD-native motor controller) needs bigger payloads, that's a DBC/message
+  redesign on top of this, not required by FD itself.
