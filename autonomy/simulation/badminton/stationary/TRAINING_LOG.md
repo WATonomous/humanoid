@@ -446,3 +446,39 @@ about it; only a loss that scores its own outcomes can. Next: fine-tune
 the distilled student with PPO on student observations (asymmetric
 actor-critic: critic on the privileged teacher group), so it optimises
 hitting under noise instead of matching a clairvoyant teacher.
+
+## Student PPO fine-tune 1 (anmceav2) — asymmetric actor-critic on the distilled student
+
+2026-09-09, job 616579 on trpro-slurm1, 1024 envs, 1500 iterations, 1:20.
+Task `Mjlab-Badminton-Receive-Student-PPO`: actor on the "student" group
+(EKF obs + uncertainty), critic on the privileged "teacher" group, lr 1e-4,
+run-12 rewards. Actor warm-started from distillation 2's student via
+`scripts/student_to_ppo.py` (log dir init_from_distill2/model_0.pt), then
+`--agent.resume True --agent.load-run init_from_distill2`.
+
+Training hit% jumped 73 -> 94 within 400 iterations and stayed flat while
+exploration std drifted 0.12 -> 0.50 (as in run 12b). The std drift did not
+hurt the deterministic policy — the final checkpoint is the best one:
+
+|                        | teacher 12b | distilled 1 | ft model_400 | **ft model_1499** |
+|------------------------|-------------|-------------|--------------|-------------------|
+| hit rate               | 0.997       | 0.766       | 0.957        | **0.982** |
+| returns clearing net   | 79.0%       | 69.7%       | 77.4%        | **84.2%** |
+| landing err (cleared)  | 0.87 m      | 0.95 m      | 0.91 m       | 1.06 m |
+| worst lateral bin      | 0.991       | 0.617       | 0.862        | **0.961** |
+| duty>rated j4 / j6     | 18.4/80.1%  | 20.5/80.5%  | 22.0/81.2%   | 25.4/81.2% |
+
+Evals 616589 (model_400) and 616651 (model_1499, log dir
+2026-09-09_22-48-00), 8192 episodes each. Every lateral and height bin
+>= 0.961. Net clearance is now *above* the teacher's (the student swings
+higher/harder — the duty numbers say the same), at a small cost in landing
+precision (1.06 vs 0.87 m).
+
+Takeaway for the pipeline: distillation alone lost 23 points to
+perception noise and could not recover them by seeing its uncertainty;
+letting the student optimise its own reward under noise recovered 21.6 of
+them. **Reference student: model_1499.pt in
+logs/rsl_rl/badminton_student_ppo/2026-09-09_22-48-00/.**
+
+Open: wrist duty 81% above rated (hardware decision), elbow now 25% (the
+fine-tuned student swings hardest of all policies so far).
