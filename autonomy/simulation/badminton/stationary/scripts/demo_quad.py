@@ -57,12 +57,12 @@ WORLD = ViewerConfig.OriginType.WORLD
 # -x sideline. The arm stands at y = -2, the net at y = 0, serves come from
 # y = 3..6.
 CAMERAS = {
-    "broadcast":    dict(azimuth=180.0, elevation=-13.0, distance=8.0,
-                         lookat=(0.0, 0.8, 1.0)),
-    "behind robot": dict(azimuth=90.0, elevation=-13.0, distance=4.2,
-                         lookat=(-0.2, -0.9, 1.35)),
+    "broadcast":    dict(azimuth=180.0, elevation=-12.0, distance=7.4,
+                         lookat=(0.0, 0.9, 0.55)),
+    "behind robot": dict(azimuth=90.0, elevation=-13.0, distance=4.6,
+                         lookat=(-0.2, -0.9, 1.45)),
     "opponent":     dict(azimuth=270.0, elevation=-12.0, distance=5.2,
-                         lookat=(-0.2, -1.6, 1.15)),
+                         lookat=(-0.2, -1.6, 0.95)),
     "high":         dict(azimuth=90.0, elevation=-58.0, distance=9.0,
                          lookat=(0.0, 0.9, 0.0)),
 }
@@ -247,11 +247,14 @@ def make_renderers(uenv, width: int, height: int, ss: int) -> list[OffscreenRend
 
 
 def label(frame: np.ndarray, text: str, font) -> np.ndarray:
+    """Camera name, bottom-left (the status bar owns the top-left)."""
     img = Image.fromarray(frame)
-    draw = ImageDraw.Draw(img)
-    box = draw.textbbox((6, 4), text, font=font)
-    draw.rectangle((0, 0, box[2] + 6, box[3] + 4), fill=PANEL)
-    draw.text((6, 4), text, fill=INK, font=font)
+    draw = ImageDraw.Draw(img, "RGBA")
+    h = frame.shape[0]
+    box = draw.textbbox((0, 0), text, font=font)
+    th = box[3] - box[1] + 10
+    draw.rectangle((0, h - th, box[2] + 14, h), fill=PANEL + (200,))
+    draw.text((7, h - th + 4), text, fill=INK, font=font)
     return np.asarray(img)
 
 
