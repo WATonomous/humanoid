@@ -11,7 +11,8 @@ video). The page keeps the picture's aspect ratio at any window size.
 
 How it runs: a batch of rallies (--batch, default 128) is simulated first
 with the policy in the loop, each a fresh random serve from the launcher
-bank, and their joint states are recorded. Playback then draws those
+bank, and their joint states are recorded (each env's next natural episode,
+never the one right after a global reset - see simulate_batch). Playback then draws those
 recorded states at real time (or --speed times it) with full-quality
 rendering. Stepping a single Warp environment costs ~60 ms per 20 ms
 control tick, so simulating live would play at 1/3 speed; recording the
@@ -176,26 +177,36 @@ def load_policy(task: str, checkpoint: str, device: str, num_envs: int):
 
 @torch.no_grad()
 def simulate_batch(env, policy) -> list[Rally]:
-    """Run every env through one full rally and record it."""
+    """Record one full rally per env.
+
+    Recording starts at each env's next *natural* reset rather than after a
+    global env.reset(): the first episode after a synchronous global reset
+    hits measurably less (92-97% vs 99% in continuous stepping, see
+    TRAINING_LOG), so the demo records the same conditions the bank eval
+    measures. Envs whose recording has finished keep stepping (their
+    later episodes are ignored) until the slowest env is done."""
     uenv = env.unwrapped
     store = uenv._badminton
     n = uenv.num_envs
-    env.reset()
     obs = env.get_observations()
-    origin = store["p0_xy"].clone()
+    dev = uenv.device
+    started = torch.zeros(n, dtype=torch.bool, device=dev)
+    start_tick = torch.full((n,), -1, dtype=torch.long, device=dev)
+    done_tick = torch.full((n,), -1, dtype=torch.long, device=dev)
+    hit_tick = torch.full((n,), -1, dtype=torch.long, device=dev)
+    origin = torch.zeros(n, 2, device=dev)
+    landing = torch.zeros(n, 2, device=dev)
+    landing_ok = torch.zeros(n, dtype=torch.bool, device=dev)
+    err = torch.zeros(n, device=dev)
     qpos_hist, qvel_hist = [], []
-    done_tick = torch.full((n,), -1, dtype=torch.long, device=uenv.device)
-    hit_tick = torch.full((n,), -1, dtype=torch.long, device=uenv.device)
-    landing = torch.zeros(n, 2, device=uenv.device)
-    landing_ok = torch.zeros(n, dtype=torch.bool, device=uenv.device)
-    err = torch.zeros(n, device=uenv.device)
     t = 0
     while bool((done_tick < 0).any()):
         prev_hit = store["hit"].clone()
         qpos_hist.append(uenv.sim.data.qpos.clone())
         qvel_hist.append(uenv.sim.data.qvel.clone())
         obs, _, dones, _ = env.step(policy(obs))
-        live = done_tick < 0
+        d = dones.bool()
+        live = started & (done_tick < 0)
         first = store["first"] & ~prev_hit & live
         if bool(first.any()):
             pos, vel = mdp._shuttle_state(uenv)
@@ -204,10 +215,14 @@ def simulate_batch(env, policy) -> list[Rally]:
             landing_ok[first] = ok
             err[first] = (xy - origin[first]).norm(dim=-1)
             hit_tick[first] = t
-        newly = dones.bool() & live
-        done_tick[newly] = t
+        done_tick[d & live] = t
+        # an env's recording begins on the tick after its reset: the state
+        # captured at the top of the next loop iteration is the new episode
+        begin = d & ~started
+        started |= begin
+        start_tick[begin] = t + 1
+        origin[begin] = store["p0_xy"][begin]
         t += 1
-    # one more frame so a rally ends on its final state
     qpos_hist.append(uenv.sim.data.qpos.clone())
     qvel_hist.append(uenv.sim.data.qvel.clone())
     Q = torch.stack(qpos_hist)          # (T+1, n, nq)
@@ -215,13 +230,15 @@ def simulate_batch(env, policy) -> list[Rally]:
     mp, mq = uenv.sim.data.mocap_pos.clone(), uenv.sim.data.mocap_quat.clone()
     out = []
     for i in range(n):
-        T = int(done_tick[i]) + 1
+        # the state captured after the done step is already the next
+        # episode (reset happens inside that step), so stop one tick short
+        a, b = int(start_tick[i]), int(done_tick[i])
         h = int(hit_tick[i])
         out.append(Rally(
-            qpos=Q[:T + 1, i].contiguous(), qvel=V[:T + 1, i].contiguous(),
+            qpos=Q[a:b + 1, i].contiguous(), qvel=V[a:b + 1, i].contiguous(),
             mocap_pos=mp[i:i + 1], mocap_quat=mq[i:i + 1],
             origin=tuple(origin[i].tolist()),
-            hit_tick=h if h >= 0 else None,
+            hit_tick=(h - a) if h >= 0 else None,
             landing=tuple(landing[i].tolist()) if h >= 0 else None,
             landing_ok=bool(landing_ok[i]), err=float(err[i])))
     return out
