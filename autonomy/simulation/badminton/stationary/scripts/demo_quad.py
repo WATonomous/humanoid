@@ -126,7 +126,7 @@ def main() -> None:
             "Each screen is an independent simulation drawing a new random "
             "serve every rally. Caption: rally count, hit/miss, predicted "
             "landing distance from the serve origin.")
-        print(f"[demo] viser on port {args.port}")
+        print(f"[demo] viser on port {args.port}", flush=True)
     writer = None
     if args.record:
         import imageio
