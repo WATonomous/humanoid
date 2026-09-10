@@ -1,17 +1,19 @@
-"""Four-screen demo: four independent random rallies, each rendered from its
-own environment and tiled 2x2 into one picture that streams to a viser page
-(and can be recorded to a video file).
+"""Four-camera demo: one receive at a time, seen from four angles at once,
+tiled 2x2 and streamed to a viser page (and/or recorded to a video).
 
   MUJOCO_GL=egl uv run scripts/demo_quad.py --checkpoint-file <model.pt> \\
       [--task Mjlab-Badminton-Receive-Student-PPO] [--port 8080] \\
-      [--record runs/demo.mp4 --seconds 40]
-  # then open http://localhost:8080 (SSH-tunnel the port from the cluster;
-  # scripts/slurm_demo.sh does the job + tunnel line for you)
+      [--speed 0.5] [--record runs/demo.mp4 --seconds 40] \\
+      [--preview runs/preview.png]
+  # live: open http://localhost:8080 through an SSH tunnel;
+  # scripts/slurm_demo.sh submits the job and prints the tunnel line.
 
-Every screen is a separate env drawing its own launcher-bank row on every
-reset, so the four rallies are always different and change every ~3 s.
-Each panel is captioned with its rally count, hit/miss, and where the
-return is predicted to land relative to the launch origin.
+Every rally is a fresh random serve from the launcher bank, so a run shows a
+steady stream of different receives. Cameras: broadcast side view (whole
+flight, serve to landing), behind the robot (the approach), the opponent's
+view (the return coming over), and a high view (where it lands vs the serve
+origin, marked on the floor). A status bar carries rally count, time,
+hit/miss and the predicted landing error.
 """
 
 import argparse
@@ -26,21 +28,38 @@ from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import aero
 import badminton_mjlab  # noqa: F401  (registers the tasks)
 from badminton_mjlab import mdp
 from mjlab.envs import ManagerBasedRlEnv
 from mjlab.rl import MjlabOnPolicyRunner, RslRlVecEnvWrapper
 from mjlab.tasks.registry import load_env_cfg, load_rl_cfg, load_runner_cls
 from mjlab.viewer.offscreen_renderer import OffscreenRenderer
+from mjlab.viewer.viewer_config import ViewerConfig
 
-N_SCREENS = 4
 GOOD, BAD, WARN = (12, 163, 12), (208, 59, 59), (230, 160, 30)
-INK, PANEL = (252, 252, 251), (11, 11, 11)
+INK, PANEL, GAP = (252, 252, 251), (11, 11, 11), (40, 40, 40)
+WORLD = ViewerConfig.OriginType.WORLD
+
+# MuJoCo free camera: azimuth 90 = looking along +y (from behind the robot
+# toward the net), 270 = from the far court back at the robot, 180 = from the
+# -x sideline. The arm stands at y = -2, the net at y = 0, serves come from
+# y = 3..6.
+CAMERAS = {
+    "broadcast":    dict(azimuth=180.0, elevation=-16.0, distance=9.5,
+                         lookat=(0.0, 1.2, 1.0)),
+    "behind robot": dict(azimuth=90.0, elevation=-10.0, distance=4.2,
+                         lookat=(-0.2, -1.2, 1.3)),
+    "opponent":     dict(azimuth=270.0, elevation=-14.0, distance=7.0,
+                         lookat=(0.0, -1.0, 1.1)),
+    "high":         dict(azimuth=90.0, elevation=-62.0, distance=11.0,
+                         lookat=(0.0, 1.0, 0.0)),
+}
 
 
 def load_policy(task: str, checkpoint: str, device: str):
     env_cfg = load_env_cfg(task)
-    env_cfg.scene.num_envs = N_SCREENS
+    env_cfg.scene.num_envs = 1
     agent_cfg = load_rl_cfg(task)
     env = ManagerBasedRlEnv(cfg=env_cfg, device=device)
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
@@ -55,14 +74,15 @@ def load_policy(task: str, checkpoint: str, device: str):
 
 
 def make_renderers(uenv, width: int, height: int) -> list[OffscreenRenderer]:
-    # one renderer per env; max_extra_envs=0 so each screen shows only its
-    # own robot even though all four share the court in the sim world
+    # shadows/reflections off: four renders per frame must fit in one
+    # control tick to keep the live page at real time
     base = replace(uenv.cfg.viewer, width=width, height=height,
-                   max_extra_envs=0, distance=4.5)
+                   origin_type=WORLD, entity_name=None, body_name=None,
+                   max_extra_envs=0, enable_shadows=False,
+                   enable_reflections=False)
     out = []
-    for i in range(N_SCREENS):
-        r = OffscreenRenderer(model=uenv.sim.mj_model,
-                              cfg=replace(base, env_idx=i),
+    for cam in CAMERAS.values():
+        r = OffscreenRenderer(model=uenv.sim.mj_model, cfg=replace(base, **cam),
                               scene=uenv.scene, sim_model=uenv.sim.model,
                               expanded_fields=uenv.sim.expanded_fields)
         r.initialize()
@@ -70,24 +90,29 @@ def make_renderers(uenv, width: int, height: int) -> list[OffscreenRenderer]:
     return out
 
 
-def caption(frame: np.ndarray, text: str, colour, font) -> np.ndarray:
+def label(frame: np.ndarray, text: str, font) -> np.ndarray:
     img = Image.fromarray(frame)
     draw = ImageDraw.Draw(img)
-    pad = 6
-    box = draw.textbbox((pad, pad), text, font=font)
-    draw.rectangle((0, 0, box[2] + pad, box[3] + pad), fill=PANEL)
-    draw.text((pad, pad), text, fill=colour, font=font)
+    box = draw.textbbox((6, 4), text, font=font)
+    draw.rectangle((0, 0, box[2] + 6, box[3] + 4), fill=PANEL)
+    draw.text((6, 4), text, fill=INK, font=font)
     return np.asarray(img)
 
 
-def tile(frames: list[np.ndarray], gap: int = 4) -> np.ndarray:
+def wall(frames: list[np.ndarray], status: str, colour, font, bar: int) -> np.ndarray:
     h, w = frames[0].shape[:2]
-    wall = np.full((2 * h + gap, 2 * w + gap, 3), 40, dtype=np.uint8)
+    gap = 4
+    out = np.zeros((bar + 2 * h + gap, 2 * w + gap, 3), dtype=np.uint8)
+    out[:] = GAP
     for i, f in enumerate(frames):
         r, c = divmod(i, 2)
-        y, x = r * (h + gap), c * (w + gap)
-        wall[y:y + h, x:x + w] = f
-    return wall
+        y, x = bar + r * (h + gap), c * (w + gap)
+        out[y:y + h, x:x + w] = f
+    img = Image.fromarray(out)
+    draw = ImageDraw.Draw(img)
+    draw.rectangle((0, 0, out.shape[1], bar), fill=PANEL)
+    draw.text((10, (bar - font.size) // 2 - 1), status, fill=colour, font=font)
+    return np.asarray(img)
 
 
 def main() -> None:
@@ -96,36 +121,46 @@ def main() -> None:
     ap.add_argument("--checkpoint-file", required=True)
     ap.add_argument("--device", default="cuda:0")
     ap.add_argument("--port", type=int, default=8080)
-    ap.add_argument("--panel-width", type=int, default=480)
-    ap.add_argument("--panel-height", type=int, default=360)
+    ap.add_argument("--panel-width", type=int, default=448)
+    ap.add_argument("--panel-height", type=int, default=336)
     ap.add_argument("--fps", type=int, default=25)
+    ap.add_argument("--speed", type=float, default=1.0,
+                    help="playback speed for the live page (0.5 = slow motion)")
     ap.add_argument("--record", default=None, help="video path (mp4)")
     ap.add_argument("--seconds", type=float, default=None,
                     help="stop after this much sim time (default: run "
                          "until killed; with --record defaults to 40)")
     ap.add_argument("--no-viser", action="store_true",
                     help="record only, do not start the web page")
+    ap.add_argument("--preview", default=None,
+                    help="write one frame per camera at two moments of a "
+                         "rally to this PNG and exit (camera tuning)")
     args = ap.parse_args()
     if args.record and args.seconds is None:
         args.seconds = 40.0
+    if args.preview:
+        args.no_viser, args.seconds = True, 2.4
 
     env, policy = load_policy(args.task, args.checkpoint_file, args.device)
     uenv = env.unwrapped
     store = uenv._badminton
     renderers = make_renderers(uenv, args.panel_width, args.panel_height)
-    font = ImageFont.load_default(size=max(14, args.panel_height // 22))
+    font = ImageFont.load_default(size=max(14, args.panel_height // 24))
+    bar = font.size + 14
     step_dt = uenv.step_dt
     render_every = max(1, round(1.0 / (args.fps * step_dt)))
+    prm = aero.load_params()
 
     server = None
     if not args.no_viser:
         import viser
         server = viser.ViserServer(host="0.0.0.0", port=args.port)
         server.gui.add_markdown(
-            "**Badminton receive - four random rallies**  \n"
-            "Each screen is an independent simulation drawing a new random "
-            "serve every rally. Caption: rally count, hit/miss, predicted "
-            "landing distance from the serve origin.")
+            "**Badminton receive - one rally, four cameras**  \n"
+            "Broadcast side view, behind the robot, the opponent's view, "
+            "and a high view. Blue disc = serve origin (the aim point); "
+            "green ball = where the return is predicted to land. Every "
+            "rally is a new random serve.")
         print(f"[demo] viser on port {args.port}", flush=True)
     writer = None
     if args.record:
@@ -133,56 +168,69 @@ def main() -> None:
         writer = imageio.get_writer(args.record, fps=args.fps,
                                     macro_block_size=1)
 
-    rally = np.zeros(N_SCREENS, dtype=int)
-    status = ["serving..."] * N_SCREENS
-    colour = [INK] * N_SCREENS
+    # markers drawn into every camera: serve origin on the floor, and the
+    # predicted landing point once the return is in the air
+    marks = {"origin": None, "landing": None, "landing_ok": True}
+
+    def draw_marks(vis) -> None:
+        if marks["origin"] is not None:
+            x, y = marks["origin"]
+            vis.add_cylinder(np.array([x, y, 0.0]), np.array([x, y, 0.02]),
+                             0.25, (0.2, 0.45, 1.0, 0.9))
+        if marks["landing"] is not None:
+            x, y = marks["landing"]
+            c = (0.05, 0.75, 0.05, 0.9) if marks["landing_ok"] else (0.9, 0.6, 0.1, 0.9)
+            vis.add_sphere(np.array([x, y, 0.08]), 0.08, c)
+
+    rally, status, colour = 1, "serving...", INK
     obs = env.get_observations()
+    marks["origin"] = tuple(store["p0_xy"][0].tolist())
     t_sim, tick, t_wall0 = 0.0, 0, time.perf_counter()
+    previews = []
     try:
         with torch.no_grad():
             while args.seconds is None or t_sim < args.seconds:
-                prev_hit = store["hit"].clone()
+                prev_hit = bool(store["hit"][0])
                 obs, _, dones, _ = env.step(policy(obs))
-                first = store["first"] & ~prev_hit
-                if bool(first.any()):
+                if bool(store["first"][0]) and not prev_hit:
                     pos, vel = mdp._shuttle_state(uenv)
-                    xy, ok = mdp.predict_landing(pos[first], vel[first])
-                    err = (xy - store["p0_xy"][first]).norm(dim=-1)
-                    for j, i in enumerate(first.nonzero().flatten().tolist()):
-                        if bool(ok[j]):
-                            status[i] = (f"HIT  return lands {float(err[j]):.1f} m "
-                                         f"from origin")
-                            colour[i] = GOOD
-                        else:
-                            status[i], colour[i] = "HIT  return short / into net", WARN
-                for i in dones.nonzero().flatten().tolist():
-                    if not bool(prev_hit[i]):
-                        status[i], colour[i] = "MISS", BAD
-                    status[i] = "last rally: " + status[i]
-                    rally[i] += 1
+                    xy, ok = mdp.predict_landing(pos[:1], vel[:1])
+                    err = float((xy[0] - store["p0_xy"][0]).norm())
+                    marks["landing"] = tuple(xy[0].tolist())
+                    marks["landing_ok"] = bool(ok[0])
+                    if bool(ok[0]):
+                        status, colour = f"HIT   return lands {err:.1f} m from the serve origin", GOOD
+                    else:
+                        status, colour = "HIT   return short / into the net", WARN
+                if bool(dones[0]):
+                    if not prev_hit and not bool(store["hit"][0]):
+                        status, colour = "MISS", BAD
+                    status = f"last rally: {status}"
+                    rally += 1
+                    marks["origin"] = tuple(store["p0_xy"][0].tolist())
+                    marks["landing"] = None
                 t_sim += step_dt
                 tick += 1
+                ep_t = float(uenv.episode_length_buf[0]) * step_dt
+                if 0.3 < ep_t < 0.4 and not bool(store["hit"][0]):
+                    status, colour = "serving...", INK
                 if tick % render_every == 0:
                     frames = []
-                    for i, r in enumerate(renderers):
-                        r.update(uenv.sim.data)
-                        f = r.render()
-                        ep_t = float(uenv.episode_length_buf[i]) * step_dt
-                        # the last verdict stays up until the next serve is
-                        # clearly in flight, then the caption resets
-                        if 0.3 < ep_t < 0.4 and not bool(store["hit"][i]):
-                            status[i], colour[i] = "serving...", INK
-                        frames.append(caption(
-                            f, f"screen {i + 1}   rally {rally[i] + 1}   "
-                            f"{ep_t:4.1f} s   {status[i]}", colour[i], font))
-                    wall = tile(frames)
+                    for name, r in zip(CAMERAS, renderers):
+                        r.update(uenv.sim.data, debug_vis_callback=draw_marks)
+                        frames.append(label(r.render(), name, font))
+                    img = wall(frames, f"rally {rally}   {ep_t:4.1f} s   {status}",
+                               colour, font, bar)
                     if server is not None:
                         server.scene.set_background_image(
-                            wall, format="jpeg", jpeg_quality=80)
+                            img, format="jpeg", jpeg_quality=80)
                     if writer is not None:
-                        writer.append_data(wall)
-                if server is not None:  # real-time pacing for the live page
-                    lag = t_sim - (time.perf_counter() - t_wall0)
+                        writer.append_data(img)
+                    if args.preview and abs(ep_t - 1.0) < step_dt / 2 or \
+                            args.preview and abs(ep_t - 2.0) < step_dt / 2:
+                        previews.append(img)
+                if server is not None:  # pace the live page to wall clock
+                    lag = t_sim / args.speed - (time.perf_counter() - t_wall0)
                     if lag > 0:
                         time.sleep(lag)
     except KeyboardInterrupt:
@@ -190,7 +238,10 @@ def main() -> None:
     finally:
         if writer is not None:
             writer.close()
-            print(f"[demo] wrote {args.record}")
+            print(f"[demo] wrote {args.record}", flush=True)
+        if args.preview and previews:
+            Image.fromarray(np.concatenate(previews, axis=0)).save(args.preview)
+            print(f"[demo] wrote {args.preview}", flush=True)
         for r in renderers:
             r.close()
         env.close()
