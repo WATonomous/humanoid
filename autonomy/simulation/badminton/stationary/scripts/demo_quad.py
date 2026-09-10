@@ -57,14 +57,14 @@ WORLD = ViewerConfig.OriginType.WORLD
 # -x sideline. The arm stands at y = -2, the net at y = 0, serves come from
 # y = 3..6.
 CAMERAS = {
-    "broadcast":    dict(azimuth=180.0, elevation=-14.0, distance=7.0,
-                         lookat=(0.0, 0.6, 1.0)),
-    "behind robot": dict(azimuth=90.0, elevation=-14.0, distance=4.0,
-                         lookat=(-0.2, -1.0, 1.4)),
-    "opponent":     dict(azimuth=270.0, elevation=-12.0, distance=5.0,
-                         lookat=(-0.2, -1.6, 1.2)),
-    "high":         dict(azimuth=90.0, elevation=-60.0, distance=9.5,
-                         lookat=(0.0, 0.8, 0.0)),
+    "broadcast":    dict(azimuth=180.0, elevation=-13.0, distance=8.0,
+                         lookat=(0.0, 0.8, 1.0)),
+    "behind robot": dict(azimuth=90.0, elevation=-13.0, distance=4.2,
+                         lookat=(-0.2, -0.9, 1.35)),
+    "opponent":     dict(azimuth=270.0, elevation=-12.0, distance=5.2,
+                         lookat=(-0.2, -1.6, 1.15)),
+    "high":         dict(azimuth=90.0, elevation=-58.0, distance=9.0,
+                         lookat=(0.0, 0.9, 0.0)),
 }
 
 
@@ -229,8 +229,10 @@ def simulate_batch(env, policy) -> list[Rally]:
 
 # -- rendering --------------------------------------------------------------
 
-def make_renderers(uenv, width: int, height: int) -> list[OffscreenRenderer]:
-    base = replace(uenv.cfg.viewer, width=width, height=height,
+def make_renderers(uenv, width: int, height: int, ss: int) -> list[OffscreenRenderer]:
+    # rendered at ss x the panel size and downscaled (Lanczos) for
+    # antialiased edges and lines
+    base = replace(uenv.cfg.viewer, width=width * ss, height=height * ss,
                    origin_type=WORLD, entity_name=None, body_name=None,
                    max_extra_envs=0, enable_shadows=True,
                    enable_reflections=True)
@@ -253,19 +255,21 @@ def label(frame: np.ndarray, text: str, font) -> np.ndarray:
     return np.asarray(img)
 
 
-def wall(frames: list[np.ndarray], status: str, colour, font, bar: int) -> np.ndarray:
+def wall(frames: list[np.ndarray], status: str, colour, font) -> np.ndarray:
+    """2x2 tile with the status bar drawn over the top-left panel, so the
+    output is exactly (2h, 2w) - 16:9 when the panels are."""
     h, w = frames[0].shape[:2]
-    gap = 4
-    out = np.zeros((bar + 2 * h + gap, 2 * w + gap, 3), dtype=np.uint8)
-    out[:] = GAP
+    out = np.zeros((2 * h, 2 * w, 3), dtype=np.uint8)
     for i, f in enumerate(frames):
         r, c = divmod(i, 2)
-        y, x = bar + r * (h + gap), c * (w + gap)
-        out[y:y + h, x:x + w] = f
+        out[r * h:(r + 1) * h, c * w:(c + 1) * w] = f
+    out[h - 1:h + 1, :] = GAP
+    out[:, w - 1:w + 1] = GAP
     img = Image.fromarray(out)
-    draw = ImageDraw.Draw(img)
-    draw.rectangle((0, 0, out.shape[1], bar), fill=PANEL)
-    draw.text((10, (bar - font.size) // 2 - 1), status, fill=colour, font=font)
+    draw = ImageDraw.Draw(img, "RGBA")
+    box = draw.textbbox((14, 8), status, font=font)
+    draw.rectangle((0, 0, box[2] + 14, box[3] + 8), fill=PANEL + (200,))
+    draw.text((14, 8), status, fill=colour, font=font)
     return np.asarray(img)
 
 
@@ -278,7 +282,13 @@ def main() -> None:
     ap.add_argument("--batch", type=int, default=128,
                     help="rallies simulated per batch (all in parallel)")
     ap.add_argument("--panel-width", type=int, default=640)
-    ap.add_argument("--panel-height", type=int, default=480)
+    ap.add_argument("--panel-height", type=int, default=360)
+    ap.add_argument("--supersample", type=int, default=1,
+                    help="render panels at this multiple and downscale "
+                         "(2 for a recording; costs ~4x render time)")
+    ap.add_argument("--crf", type=int, default=18,
+                    help="x264 quality for --record (lower = better; 16 is "
+                         "visually lossless)")
     ap.add_argument("--fps", type=int, default=25,
                     help="frame rate of the page / the recording")
     ap.add_argument("--jpeg-quality", type=int, default=80)
@@ -306,9 +316,10 @@ def main() -> None:
     env, policy = load_policy(args.task, args.checkpoint_file, args.device,
                               args.batch)
     uenv = env.unwrapped
-    renderers = make_renderers(uenv, args.panel_width, args.panel_height)
-    font = ImageFont.load_default(size=max(14, args.panel_height // 24))
-    bar = font.size + 14
+    renderers = make_renderers(uenv, args.panel_width, args.panel_height,
+                               args.supersample)
+    panel = (args.panel_width, args.panel_height)
+    font = ImageFont.load_default(size=max(14, args.panel_height // 22))
     step_dt = uenv.step_dt
 
     feed, httpd = None, None
@@ -319,8 +330,10 @@ def main() -> None:
     writer = None
     if args.record:
         import imageio
-        writer = imageio.get_writer(args.record, fps=args.fps,
-                                    macro_block_size=1)
+        writer = imageio.get_writer(
+            args.record, fps=args.fps, codec="libx264", quality=None,
+            pixelformat="yuv420p", macro_block_size=1,
+            ffmpeg_params=["-crf", str(args.crf), "-preset", "slow"])
 
     marks = {"origin": None, "landing": None, "landing_ok": True}
 
@@ -338,8 +351,11 @@ def main() -> None:
         frames = []
         for name, r in zip(CAMERAS, renderers):
             r.update(data, debug_vis_callback=draw_marks)
-            frames.append(label(r.render(), name, font))
-        return wall(frames, status, colour, font, bar)
+            f = r.render()
+            if args.supersample > 1:
+                f = np.asarray(Image.fromarray(f).resize(panel, Image.LANCZOS))
+            frames.append(label(f, name, font))
+        return wall(frames, status, colour, font)
 
     def emit(img: np.ndarray, t_play: float) -> None:
         nonlocal n_frames, last_render_wall
@@ -358,7 +374,8 @@ def main() -> None:
     n_frames, last_render_wall = 0, 0.0
     last_frame_wall = time.perf_counter()
     frame_dt = 1.0 / args.fps           # playback seconds per frame
-    t_play, rally_no = 0.0, 0
+    t_play, rally_no, hits = 0.0, 0, 0
+    prev_hit_flag = False
     previews = []
     t_wall0 = time.perf_counter()
     try:
@@ -380,6 +397,9 @@ def main() -> None:
                 if args.seconds is not None and t_play >= args.seconds:
                     break
                 rally_no += 1
+                if rally_no > 1 and prev_hit_flag:
+                    hits += 1
+                prev_hit_flag = rl.hit_tick is not None
                 marks["origin"], marks["landing"] = rl.origin, None
                 status, colour = "serving...", INK
                 T = rl.qpos.shape[0]
@@ -399,7 +419,9 @@ def main() -> None:
                     data = RecordedData(rl.qpos[k:k + 1], rl.qvel[k:k + 1],
                                         rl.mocap_pos, rl.mocap_quat)
                     tr0 = time.perf_counter()
-                    img = render_wall(data, f"rally {rally_no}   {min(t_r, (T - 1) * step_dt):4.1f} s   {status}",
+                    done_rallies = rally_no - 1
+                    tally = f"   |   {hits}/{done_rallies} hit" if done_rallies else ""
+                    img = render_wall(data, f"rally {rally_no}   {min(t_r, (T - 1) * step_dt):4.1f} s   {status}{tally}",
                                       colour)
                     tr1 = time.perf_counter()
                     if args.preview and (abs(t_r - 1.0) < frame_dt / 2 or abs(t_r - 2.0) < frame_dt / 2):
