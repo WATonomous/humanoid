@@ -301,13 +301,14 @@ def main() -> None:
                                              or abs(ep_t - 2.0) < step_dt / 2):
                             previews.append(img)
                 if feed is not None:
-                    # live: keep the sim at real time (x speed); render a
-                    # frame whenever the fps cap allows and we are not
-                    # behind schedule, so the page gets as many frames as
-                    # the GPU can draw
+                    # live: pace the sim to real time (x speed) when it is
+                    # fast enough, and render whenever the fps cap allows.
+                    # (A single env steps ~20 Warp substeps per tick, so
+                    # the sim itself may run below real time; never gate
+                    # rendering on that or the page goes blank.)
                     now = time.perf_counter()
                     lag = t_sim / args.speed - (now - t_wall0)
-                    if now - last_render_wall >= 1.0 / args.fps and lag > -0.05:
+                    if now - last_render_wall >= 1.0 / args.fps:
                         t0 = time.perf_counter()
                         img = render_wall()
                         t1 = time.perf_counter()
