@@ -261,20 +261,20 @@ def label(frame: np.ndarray, text: str, font) -> np.ndarray:
 
 
 def wall(frames: list[np.ndarray], status: str, colour, font) -> np.ndarray:
-    """2x2 tile with the status bar drawn over the top-left panel, so the
-    output is exactly (2h, 2w) - 16:9 when the panels are."""
+    """2x2 tile under a status strip: output is (bar + 2h, 2w)."""
     h, w = frames[0].shape[:2]
-    out = np.zeros((2 * h, 2 * w, 3), dtype=np.uint8)
+    bar = font.size + 18
+    out = np.zeros((bar + 2 * h, 2 * w, 3), dtype=np.uint8)
+    out[:bar] = PANEL
     for i, f in enumerate(frames):
         r, c = divmod(i, 2)
-        out[r * h:(r + 1) * h, c * w:(c + 1) * w] = f
-    out[h - 1:h + 1, :] = GAP
-    out[:, w - 1:w + 1] = GAP
+        y0 = bar + r * h
+        out[y0:y0 + h, c * w:(c + 1) * w] = f
+    out[bar + h - 1:bar + h + 1, :] = GAP
+    out[bar:, w - 1:w + 1] = GAP
     img = Image.fromarray(out)
-    draw = ImageDraw.Draw(img, "RGBA")
-    box = draw.textbbox((14, 8), status, font=font)
-    draw.rectangle((0, 0, box[2] + 14, box[3] + 8), fill=PANEL + (200,))
-    draw.text((14, 8), status, fill=colour, font=font)
+    draw = ImageDraw.Draw(img)
+    draw.text((14, (bar - font.size) // 2 - 2), status, fill=colour, font=font)
     return np.asarray(img)
 
 
