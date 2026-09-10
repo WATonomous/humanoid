@@ -174,12 +174,18 @@ control:
   # AK10-9 235 rpm, AK80-9 390 rpm, GL40 430 rpm) and the configured
   # low_pass_alpha 0.85. Copy the team's operational velocity_max here when
   # it is decided; it can only be lower.
-  # Operational value (2026-09-10): 3 rad/s (~170 deg/s) on every joint.
-  # The datasheet ceilings (24.6/40.8/45 rad/s) let the policy whip the arm
-  # at 4-8 rad/s with every joint at its torque clamp - unnatural and far
-  # beyond anything the arm has run (bring-up crawl: 0.7 rad/s). 3 rad/s
-  # is a brisk human arm; raise it when the team commissions a higher value.
-  target_velocity_max: [3.0, 3.0, 3.0, 3.0, 3.0, 3.0]   # rad/s, per joint
+  # NOTE the hardware semantics (joint_command_core.cpp armPoseToMotorCmds):
+  # the step clamp AND the low-pass are both taken relative to the previous
+  # low-passed output, so the arm's steady-state speed is
+  #   (1 - low_pass_alpha) * velocity_max = 0.15 * velocity_max,
+  # not velocity_max. The sim mirrors that exactly. Hence the old datasheet
+  # values (24.6/40.8/45) gave effective caps of 3.7/6.1/6.8 rad/s - the
+  # peaks every trained policy sat at - and the hardware's 40 deg/s bring-up
+  # value moves the arm at 6 deg/s.
+  # Operational value (2026-09-10): raw 20 rad/s = EFFECTIVE 3 rad/s
+  # (~170 deg/s, a brisk human arm) on every joint. Raise when the team
+  # commissions a higher value - in these same raw units.
+  target_velocity_max: [20.0, 20.0, 20.0, 20.0, 20.0, 20.0]   # rad/s raw; x0.15 effective
   low_pass_alpha: 0.85
   # weak-wrist planning: IK joint weights (weight w -> joint moves 1/w^2 as
   # readily) push stroke motion onto the 53/22 Nm shoulder/elbow motors;

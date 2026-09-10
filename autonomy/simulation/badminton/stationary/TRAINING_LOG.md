@@ -537,8 +537,15 @@ the datasheet ceilings (24–45 rad/s) and the speed costs were token
 (joint_vel −1e-4, action_rate −0.01). Hardware has never exceeded a
 0.7 rad/s bring-up crawl. Changes (no posture preference anywhere):
 
-- `control.target_velocity_max` 3.0 rad/s on every joint (~170 deg/s, a
-  brisk human arm; raise when the team commissions a higher value).
+- `control.target_velocity_max` raw 20 rad/s on every joint = **effective
+  3 rad/s** (~170 deg/s). Found on the first attempt (job 616854, cancelled
+  at 54% hits / zero landing reward / j1 peak 0.73 rad/s): the hardware's
+  `joint_command_core.cpp` applies the step clamp and the low-pass both
+  relative to the previous low-passed output, so steady-state speed is
+  (1-alpha)*velocity_max = 15%. The sim mirrors it; the old datasheet caps
+  were therefore effective 3.7/6.1/6.8 rad/s — exactly the measured peaks —
+  and the hardware's 40 deg/s bring-up value actually crawls at 6 deg/s.
+  Flagged to the team: velocity_max on hardware means 15% of itself.
 - `arm.torque_limits` AK motors at RATED torque (18/18/9/9/9 Nm); the GL40
   wrist keeps its 0.73 Nm peak (rated 0.25 Nm cannot hold the racket
   horizontal — the pending hardware decision). Scene XML rebuilt.
@@ -550,8 +557,7 @@ the datasheet ceilings (24–45 rad/s) and the speed costs were token
   hit-tick rewards (landing) are unaffected since the shuttle is in free
   flight.
 
-Run: SLURM job 616854 on trpro-slurm1 — PPO fine-tune of the student from
-model_1499 (2026-09-09_22-48-00), 1024 envs, 2000 iterations, under the new
-envelope (the warm start is far from feasible now — its
+Run: PPO fine-tune of the student from model_1499 (2026-09-09_22-48-00),
+1024 envs, 2000 iterations, under the new envelope (job id below) (the warm start is far from feasible now — its
 commanded steps get clipped 10x — so expect an initial hit-rate dip and a
 longer climb), bank eval, demo re-render.
