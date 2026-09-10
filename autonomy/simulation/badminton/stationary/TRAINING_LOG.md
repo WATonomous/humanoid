@@ -527,3 +527,31 @@ and the eval no longer measure this condition, and on hardware the real
 perception stack replaces this EKF init anyway. If the first serve after
 boot matters on the robot, revisit with a velocity prior from the bank's
 mean serve velocity instead of 0 (needs a student re-eval).
+
+## Operational envelope + post-hit rest (2026-09-10)
+
+Trigger: the demo video — "movements are unnatural and way too fast". The
+fine-tuned student peaks at 4–8 rad/s (230–460 deg/s) with torque at the
+peak clamp in ~90% of rallies, because the sim's only speed limits were
+the datasheet ceilings (24–45 rad/s) and the speed costs were token
+(joint_vel −1e-4, action_rate −0.01). Hardware has never exceeded a
+0.7 rad/s bring-up crawl. Changes (no posture preference anywhere):
+
+- `control.target_velocity_max` 3.0 rad/s on every joint (~170 deg/s, a
+  brisk human arm; raise when the team commissions a higher value).
+- `arm.torque_limits` AK motors at RATED torque (18/18/9/9/9 Nm); the GL40
+  wrist keeps its 0.73 Nm peak (rated 0.25 Nm cannot hold the racket
+  horizontal — the pending hardware decision). Scene XML rebuilt.
+- smoothness: joint_vel −2e-3, action_rate −0.05 (energy-style costs).
+- `arm.rest_joint_pos` [0,0,0,0.5,0,0]: after the hit `BadmintonAction`
+  overrides the policy target with the rest pose through the same
+  velocity cap / low-pass, so the arm returns to hanging straight down at
+  ≤3 rad/s. Deterministic — a deployment wrapper would do the same; the
+  hit-tick rewards (landing) are unaffected since the shuttle is in free
+  flight.
+
+Run: SLURM job 616854 on trpro-slurm1 — PPO fine-tune of the student from
+model_1499 (2026-09-09_22-48-00), 1024 envs, 2000 iterations, under the new
+envelope (the warm start is far from feasible now — its
+commanded steps get clipped 10x — so expect an initial hit-rate dip and a
+longer climb), bank eval, demo re-render.
