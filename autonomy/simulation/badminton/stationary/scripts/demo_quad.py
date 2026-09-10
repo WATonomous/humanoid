@@ -139,6 +139,8 @@ def serve(feed: FrameFeed, port: int) -> ThreadingHTTPServer:
 class Rally:
     qpos: torch.Tensor       # (T, nq) on the sim device
     qvel: torch.Tensor       # (T, nv)
+    mocap_pos: torch.Tensor  # (1, nmocap, 3)
+    mocap_quat: torch.Tensor # (1, nmocap, 4)
     origin: tuple            # serve origin (x, y): the aim point
     hit_tick: int | None     # first face contact, or None (miss)
     landing: tuple | None    # predicted landing (x, y) of the return
@@ -147,13 +149,13 @@ class Rally:
 
 
 class RecordedData:
-    """Stand-in for sim.data that the offscreen renderer can read."""
+    """Stand-in for sim.data that the offscreen renderer can read. Mocap
+    bodies are static in this scene, so one snapshot per rally suffices."""
     nworld = 1
 
-    def __init__(self, qpos: torch.Tensor, qvel: torch.Tensor) -> None:
+    def __init__(self, qpos, qvel, mocap_pos, mocap_quat) -> None:
         self.qpos, self.qvel = qpos, qvel
-        self.mocap_pos = torch.zeros(1, 0, 3)
-        self.mocap_quat = torch.zeros(1, 0, 4)
+        self.mocap_pos, self.mocap_quat = mocap_pos, mocap_quat
 
 
 def load_policy(task: str, checkpoint: str, device: str, num_envs: int):
@@ -210,12 +212,14 @@ def simulate_batch(env, policy) -> list[Rally]:
     qvel_hist.append(uenv.sim.data.qvel.clone())
     Q = torch.stack(qpos_hist)          # (T+1, n, nq)
     V = torch.stack(qvel_hist)
+    mp, mq = uenv.sim.data.mocap_pos.clone(), uenv.sim.data.mocap_quat.clone()
     out = []
     for i in range(n):
         T = int(done_tick[i]) + 1
         h = int(hit_tick[i])
         out.append(Rally(
             qpos=Q[:T + 1, i].contiguous(), qvel=V[:T + 1, i].contiguous(),
+            mocap_pos=mp[i:i + 1], mocap_quat=mq[i:i + 1],
             origin=tuple(origin[i].tolist()),
             hit_tick=h if h >= 0 else None,
             landing=tuple(landing[i].tolist()) if h >= 0 else None,
@@ -359,8 +363,9 @@ def main() -> None:
     try:
         while args.seconds is None or t_play < args.seconds:
             if feed is not None:
-                emit(render_wall(RecordedData(uenv.sim.data.qpos[:1],
-                                              uenv.sim.data.qvel[:1]),
+                sd = uenv.sim.data
+                emit(render_wall(RecordedData(sd.qpos[:1], sd.qvel[:1],
+                                              sd.mocap_pos[:1], sd.mocap_quat[:1]),
                                  f"simulating {args.batch} new rallies...", INK),
                      t_play)
             t0 = time.perf_counter()
@@ -389,7 +394,8 @@ def main() -> None:
                             status, colour = "HIT   return short / into the net", WARN
                     if k == T - 1 and rl.hit_tick is None:
                         status, colour = "MISS", BAD
-                    data = RecordedData(rl.qpos[k:k + 1], rl.qvel[k:k + 1])
+                    data = RecordedData(rl.qpos[k:k + 1], rl.qvel[k:k + 1],
+                                        rl.mocap_pos, rl.mocap_quat)
                     tr0 = time.perf_counter()
                     img = render_wall(data, f"rally {rally_no}   {min(t_r, (T - 1) * step_dt):4.1f} s   {status}",
                                       colour)
