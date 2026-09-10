@@ -508,3 +508,22 @@ Mechanism (mjlab `CommandTerm._resample` calls `_resample_command` but not
 the previous episode's converged shuttle features; after `env.reset()` mjlab
 recomputes them from the fresh EKF init, whose velocity prior is 0 — "a
 shuttle dropping straight down at the far court". Tested both ways below.
+
+Two-sided test (256 envs, same policy):
+
+| condition                                          | hit rate |
+|----------------------------------------------------|----------|
+| global reset, first episode (stock)                | 0.930 |
+| global reset, first observation kept stale         | 0.961 |
+| natural reset, next episode (stock)                | 0.984 |
+| natural reset, first observation = fresh v=0 init  | 0.980 |
+
+Verdict: the zero-velocity EKF prior in the first observation explains
+about half of the gap; injecting it into natural resets does not
+reproduce the drop, so a synchronous global reset differs in some other
+way too (not identified; candidates: sensor/contact history state after
+`sim.reset`, or all 256 episodes running in lockstep). Parked: the demo
+and the eval no longer measure this condition, and on hardware the real
+perception stack replaces this EKF init anyway. If the first serve after
+boot matters on the robot, revisit with a velocity prior from the bank's
+mean serve velocity instead of 0 (needs a student re-eval).
