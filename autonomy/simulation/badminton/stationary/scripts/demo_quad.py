@@ -46,14 +46,14 @@ WORLD = ViewerConfig.OriginType.WORLD
 # -x sideline. The arm stands at y = -2, the net at y = 0, serves come from
 # y = 3..6.
 CAMERAS = {
-    "broadcast":    dict(azimuth=180.0, elevation=-16.0, distance=9.5,
-                         lookat=(0.0, 1.2, 1.0)),
-    "behind robot": dict(azimuth=90.0, elevation=-10.0, distance=4.2,
-                         lookat=(-0.2, -1.2, 1.3)),
-    "opponent":     dict(azimuth=270.0, elevation=-14.0, distance=7.0,
-                         lookat=(0.0, -1.0, 1.1)),
-    "high":         dict(azimuth=90.0, elevation=-62.0, distance=11.0,
-                         lookat=(0.0, 1.0, 0.0)),
+    "broadcast":    dict(azimuth=180.0, elevation=-14.0, distance=7.0,
+                         lookat=(0.0, 0.6, 1.0)),
+    "behind robot": dict(azimuth=90.0, elevation=-14.0, distance=4.0,
+                         lookat=(-0.2, -1.0, 1.4)),
+    "opponent":     dict(azimuth=270.0, elevation=-12.0, distance=5.0,
+                         lookat=(-0.2, -1.6, 1.2)),
+    "high":         dict(azimuth=90.0, elevation=-60.0, distance=9.5,
+                         lookat=(0.0, 0.8, 0.0)),
 }
 
 
