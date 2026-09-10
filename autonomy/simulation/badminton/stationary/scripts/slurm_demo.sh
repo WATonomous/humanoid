@@ -1,6 +1,6 @@
 #!/bin/bash
 # Four-screen demo on the cluster: four random rallies tiled 2x2, streamed to
-# a viser page through an SSH tunnel (and/or recorded to a video).
+# a web page (MJPEG) through an SSH tunnel (and/or recorded to a video).
 #   scripts/slurm_demo.sh [model.pt] [extra demo_quad.py args...]
 #   scripts/slurm_demo.sh stop
 # Defaults to the fine-tuned student. Examples:
@@ -32,7 +32,7 @@ for _ in $(seq 1 120); do
     sleep 5
 done
 [ -n "${node:-}" ] || { echo "job $jid not running after 10 min (queued); check squeue" >&2; exit 1; }
-echo "running on $node. Loads in ~1-2 min, then:"
+echo "running on $node. Loads in ~2-5 min (Warp JIT), then:"
 echo "  ssh -L 8080:$node.cluster.watonomous.ca:8080 wato-login1"
 echo "  open http://localhost:8080"
 echo "log: runs/demo-$jid.out   stop with: scripts/slurm_demo.sh stop"

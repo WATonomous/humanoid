@@ -1,5 +1,6 @@
 """Four-camera demo: one receive at a time, seen from four angles at once,
-tiled 2x2 and streamed to a viser page (and/or recorded to a video).
+tiled 2x2 and streamed as MJPEG to a plain web page (and/or recorded to a
+video). The page keeps the picture's aspect ratio at any window size.
 
   MUJOCO_GL=egl uv run scripts/demo_quad.py --checkpoint-file <model.pt> \\
       [--task Mjlab-Badminton-Receive-Student-PPO] [--port 8080] \\
@@ -7,6 +8,8 @@ tiled 2x2 and streamed to a viser page (and/or recorded to a video).
       [--preview runs/preview.png]
   # live: open http://localhost:8080 through an SSH tunnel;
   # scripts/slurm_demo.sh submits the job and prints the tunnel line.
+  # Live frame rate adapts to the GPU (up to --fps) while the sim stays at
+  # real time (or --speed times it); --record renders at a fixed rate.
 
 Every rally is a fresh random serve from the launcher bank, so a run shows a
 steady stream of different receives. Cameras: broadcast side view (whole
@@ -17,10 +20,13 @@ hit/miss and the predicted landing error.
 """
 
 import argparse
+import io
 import os
 import sys
+import threading
 import time
 from dataclasses import asdict, replace
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import numpy as np
 import torch
@@ -57,6 +63,69 @@ CAMERAS = {
 }
 
 
+class FrameFeed:
+    """Latest JPEG frame, handed to every connected browser as MJPEG."""
+
+    def __init__(self) -> None:
+        self._jpeg = b""
+        self._seq = 0
+        self._cv = threading.Condition()
+
+    def publish(self, jpeg: bytes) -> None:
+        with self._cv:
+            self._jpeg, self._seq = jpeg, self._seq + 1
+            self._cv.notify_all()
+
+    def wait_next(self, seen: int, timeout: float = 1.0):
+        with self._cv:
+            self._cv.wait_for(lambda: self._seq != seen, timeout=timeout)
+            return self._jpeg, self._seq
+
+
+PAGE = b"""<!doctype html><html><head><meta charset="utf-8">
+<title>badminton receive demo</title><style>
+html,body{margin:0;height:100%;background:#0b0b0b;overflow:hidden}
+img{width:100vw;height:100vh;object-fit:contain;display:block}
+</style></head><body><img src="/stream"></body></html>"""
+
+
+def serve(feed: FrameFeed, port: int) -> ThreadingHTTPServer:
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *a):  # quiet
+            pass
+
+        def do_GET(self):
+            if self.path == "/stream":
+                self.send_response(200)
+                self.send_header("Content-Type",
+                                 "multipart/x-mixed-replace; boundary=frame")
+                self.send_header("Cache-Control", "no-cache")
+                self.end_headers()
+                seen = -1
+                try:
+                    while True:
+                        jpeg, seen = feed.wait_next(seen)
+                        if not jpeg:
+                            continue
+                        self.wfile.write(b"--frame\r\nContent-Type: image/jpeg\r\n"
+                                         + f"Content-Length: {len(jpeg)}\r\n\r\n".encode()
+                                         + jpeg + b"\r\n")
+                        self.wfile.flush()
+                except (BrokenPipeError, ConnectionResetError):
+                    return
+            else:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.send_header("Content-Length", str(len(PAGE)))
+                self.end_headers()
+                self.wfile.write(PAGE)
+
+    httpd = ThreadingHTTPServer(("0.0.0.0", port), Handler)
+    httpd.daemon_threads = True
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return httpd
+
+
 def load_policy(task: str, checkpoint: str, device: str):
     env_cfg = load_env_cfg(task)
     env_cfg.scene.num_envs = 1
@@ -74,12 +143,10 @@ def load_policy(task: str, checkpoint: str, device: str):
 
 
 def make_renderers(uenv, width: int, height: int) -> list[OffscreenRenderer]:
-    # shadows/reflections off: four renders per frame must fit in one
-    # control tick to keep the live page at real time
     base = replace(uenv.cfg.viewer, width=width, height=height,
                    origin_type=WORLD, entity_name=None, body_name=None,
-                   max_extra_envs=0, enable_shadows=False,
-                   enable_reflections=False)
+                   max_extra_envs=0, enable_shadows=True,
+                   enable_reflections=True)
     out = []
     for cam in CAMERAS.values():
         r = OffscreenRenderer(model=uenv.sim.mj_model, cfg=replace(base, **cam),
@@ -121,16 +188,19 @@ def main() -> None:
     ap.add_argument("--checkpoint-file", required=True)
     ap.add_argument("--device", default="cuda:0")
     ap.add_argument("--port", type=int, default=8080)
-    ap.add_argument("--panel-width", type=int, default=448)
-    ap.add_argument("--panel-height", type=int, default=336)
-    ap.add_argument("--fps", type=int, default=25)
+    ap.add_argument("--panel-width", type=int, default=640)
+    ap.add_argument("--panel-height", type=int, default=480)
+    ap.add_argument("--fps", type=int, default=30,
+                    help="frame-rate cap for the live page (the sim ticks at "
+                         "50 Hz); the recording rate for --record")
+    ap.add_argument("--jpeg-quality", type=int, default=80)
     ap.add_argument("--speed", type=float, default=1.0,
                     help="playback speed for the live page (0.5 = slow motion)")
     ap.add_argument("--record", default=None, help="video path (mp4)")
     ap.add_argument("--seconds", type=float, default=None,
                     help="stop after this much sim time (default: run "
                          "until killed; with --record defaults to 40)")
-    ap.add_argument("--no-viser", action="store_true",
+    ap.add_argument("--no-viser", "--no-web", dest="no_web", action="store_true",
                     help="record only, do not start the web page")
     ap.add_argument("--preview", default=None,
                     help="write one frame per camera at two moments of a "
@@ -139,7 +209,7 @@ def main() -> None:
     if args.record and args.seconds is None:
         args.seconds = 40.0
     if args.preview:
-        args.no_viser, args.seconds = True, 2.4
+        args.no_web, args.seconds = True, 2.4
 
     env, policy = load_policy(args.task, args.checkpoint_file, args.device)
     uenv = env.unwrapped
@@ -151,17 +221,11 @@ def main() -> None:
     render_every = max(1, round(1.0 / (args.fps * step_dt)))
     prm = aero.load_params()
 
-    server = None
-    if not args.no_viser:
-        import viser
-        server = viser.ViserServer(host="0.0.0.0", port=args.port)
-        server.gui.add_markdown(
-            "**Badminton receive - one rally, four cameras**  \n"
-            "Broadcast side view, behind the robot, the opponent's view, "
-            "and a high view. Blue disc = serve origin (the aim point); "
-            "green ball = where the return is predicted to land. Every "
-            "rally is a new random serve.")
-        print(f"[demo] viser on port {args.port}", flush=True)
+    feed, httpd = None, None
+    if not args.no_web:
+        feed = FrameFeed()
+        httpd = serve(feed, args.port)
+        print(f"[demo] web page on port {args.port}", flush=True)
     writer = None
     if args.record:
         import imageio
@@ -186,7 +250,17 @@ def main() -> None:
     obs = env.get_observations()
     marks["origin"] = tuple(store["p0_xy"][0].tolist())
     t_sim, tick, t_wall0 = 0.0, 0, time.perf_counter()
+    last_render_wall = -1.0
     previews = []
+
+    def render_wall() -> np.ndarray:
+        frames = []
+        for name, r in zip(CAMERAS, renderers):
+            r.update(uenv.sim.data, debug_vis_callback=draw_marks)
+            frames.append(label(r.render(), name, font))
+        return wall(frames, f"rally {rally}   {ep_t:4.1f} s   {status}",
+                    colour, font, bar)
+
     try:
         with torch.no_grad():
             while args.seconds is None or t_sim < args.seconds:
@@ -214,22 +288,28 @@ def main() -> None:
                 ep_t = float(uenv.episode_length_buf[0]) * step_dt
                 if 0.3 < ep_t < 0.4 and not bool(store["hit"][0]):
                     status, colour = "serving...", INK
-                if tick % render_every == 0:
-                    frames = []
-                    for name, r in zip(CAMERAS, renderers):
-                        r.update(uenv.sim.data, debug_vis_callback=draw_marks)
-                        frames.append(label(r.render(), name, font))
-                    img = wall(frames, f"rally {rally}   {ep_t:4.1f} s   {status}",
-                               colour, font, bar)
-                    if server is not None:
-                        server.scene.set_background_image(
-                            img, format="jpeg", jpeg_quality=80)
-                    if writer is not None:
-                        writer.append_data(img)
-                    if args.preview and abs(ep_t - 1.0) < step_dt / 2 or \
-                            args.preview and abs(ep_t - 2.0) < step_dt / 2:
-                        previews.append(img)
-                if server is not None:  # pace the live page to wall clock
+                if writer is not None or args.preview:
+                    # fixed cadence for files
+                    if tick % render_every == 0:
+                        img = render_wall()
+                        if writer is not None:
+                            writer.append_data(img)
+                        if args.preview and (abs(ep_t - 1.0) < step_dt / 2
+                                             or abs(ep_t - 2.0) < step_dt / 2):
+                            previews.append(img)
+                if feed is not None:
+                    # live: keep the sim at real time (x speed); render a
+                    # frame whenever the fps cap allows and we are not
+                    # behind schedule, so the page gets as many frames as
+                    # the GPU can draw
+                    now = time.perf_counter()
+                    lag = t_sim / args.speed - (now - t_wall0)
+                    if now - last_render_wall >= 1.0 / args.fps and lag > -0.05:
+                        buf = io.BytesIO()
+                        Image.fromarray(render_wall()).save(
+                            buf, "JPEG", quality=args.jpeg_quality)
+                        feed.publish(buf.getvalue())
+                        last_render_wall = time.perf_counter()
                     lag = t_sim / args.speed - (time.perf_counter() - t_wall0)
                     if lag > 0:
                         time.sleep(lag)
@@ -244,6 +324,8 @@ def main() -> None:
             print(f"[demo] wrote {args.preview}", flush=True)
         for r in renderers:
             r.close()
+        if httpd is not None:
+            httpd.shutdown()
         env.close()
 
 
