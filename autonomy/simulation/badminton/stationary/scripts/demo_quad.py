@@ -8,24 +8,30 @@ video). The page keeps the picture's aspect ratio at any window size.
       [--preview runs/preview.png]
   # live: open http://localhost:8080 through an SSH tunnel;
   # scripts/slurm_demo.sh submits the job and prints the tunnel line.
-  # Live frame rate adapts to the GPU (up to --fps) while the sim stays at
-  # real time (or --speed times it); --record renders at a fixed rate.
 
-Every rally is a fresh random serve from the launcher bank, so a run shows a
-steady stream of different receives. Cameras: broadcast side view (whole
-flight, serve to landing), behind the robot (the approach), the opponent's
-view (the return coming over), and a high view (where it lands vs the serve
-origin, marked on the floor). A status bar carries rally count, time,
-hit/miss and the predicted landing error.
+How it runs: a batch of rallies (--batch, default 128) is simulated first
+with the policy in the loop, each a fresh random serve from the launcher
+bank, and their joint states are recorded. Playback then draws those
+recorded states at real time (or --speed times it) with full-quality
+rendering. Stepping a single Warp environment costs ~60 ms per 20 ms
+control tick, so simulating live would play at 1/3 speed; recording the
+batch (all rallies in parallel, ~10 s) and replaying gives smooth real
+time. When the batch is used up a new one is simulated.
+
+Cameras: broadcast side view (whole flight, serve to landing), behind the
+robot (the approach), the opponent's view (the return coming over), and a
+high view (where it lands vs the serve origin, marked on the floor). A
+status bar carries rally count, time, hit/miss and predicted landing error.
 """
 
 import argparse
 import io
 import os
+import random
 import sys
 import threading
 import time
-from dataclasses import asdict, replace
+from dataclasses import asdict, dataclass, replace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import numpy as np
@@ -34,7 +40,6 @@ from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import aero
 import badminton_mjlab  # noqa: F401  (registers the tasks)
 from badminton_mjlab import mdp
 from mjlab.envs import ManagerBasedRlEnv
@@ -62,6 +67,8 @@ CAMERAS = {
                          lookat=(0.0, 0.8, 0.0)),
 }
 
+
+# -- web page ---------------------------------------------------------------
 
 class FrameFeed:
     """Latest JPEG frame, handed to every connected browser as MJPEG."""
@@ -126,9 +133,32 @@ def serve(feed: FrameFeed, port: int) -> ThreadingHTTPServer:
     return httpd
 
 
-def load_policy(task: str, checkpoint: str, device: str):
+# -- simulation -------------------------------------------------------------
+
+@dataclass
+class Rally:
+    qpos: torch.Tensor       # (T, nq) on the sim device
+    qvel: torch.Tensor       # (T, nv)
+    origin: tuple            # serve origin (x, y): the aim point
+    hit_tick: int | None     # first face contact, or None (miss)
+    landing: tuple | None    # predicted landing (x, y) of the return
+    landing_ok: bool         # clears the net into the far court
+    err: float               # landing distance to the origin (m)
+
+
+class RecordedData:
+    """Stand-in for sim.data that the offscreen renderer can read."""
+    nworld = 1
+
+    def __init__(self, qpos: torch.Tensor, qvel: torch.Tensor) -> None:
+        self.qpos, self.qvel = qpos, qvel
+        self.mocap_pos = torch.zeros(1, 0, 3)
+        self.mocap_quat = torch.zeros(1, 0, 4)
+
+
+def load_policy(task: str, checkpoint: str, device: str, num_envs: int):
     env_cfg = load_env_cfg(task)
-    env_cfg.scene.num_envs = 1
+    env_cfg.scene.num_envs = num_envs
     agent_cfg = load_rl_cfg(task)
     env = ManagerBasedRlEnv(cfg=env_cfg, device=device)
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
@@ -141,6 +171,59 @@ def load_policy(task: str, checkpoint: str, device: str):
                 strict=True, map_location=device)
     return env, runner.get_inference_policy(device=device)
 
+
+@torch.no_grad()
+def simulate_batch(env, policy) -> list[Rally]:
+    """Run every env through one full rally and record it."""
+    uenv = env.unwrapped
+    store = uenv._badminton
+    n = uenv.num_envs
+    env.reset()
+    obs = env.get_observations()
+    origin = store["p0_xy"].clone()
+    qpos_hist, qvel_hist = [], []
+    done_tick = torch.full((n,), -1, dtype=torch.long, device=uenv.device)
+    hit_tick = torch.full((n,), -1, dtype=torch.long, device=uenv.device)
+    landing = torch.zeros(n, 2, device=uenv.device)
+    landing_ok = torch.zeros(n, dtype=torch.bool, device=uenv.device)
+    err = torch.zeros(n, device=uenv.device)
+    t = 0
+    while bool((done_tick < 0).any()):
+        prev_hit = store["hit"].clone()
+        qpos_hist.append(uenv.sim.data.qpos.clone())
+        qvel_hist.append(uenv.sim.data.qvel.clone())
+        obs, _, dones, _ = env.step(policy(obs))
+        live = done_tick < 0
+        first = store["first"] & ~prev_hit & live
+        if bool(first.any()):
+            pos, vel = mdp._shuttle_state(uenv)
+            xy, ok = mdp.predict_landing(pos[first], vel[first])
+            landing[first] = xy
+            landing_ok[first] = ok
+            err[first] = (xy - origin[first]).norm(dim=-1)
+            hit_tick[first] = t
+        newly = dones.bool() & live
+        done_tick[newly] = t
+        t += 1
+    # one more frame so a rally ends on its final state
+    qpos_hist.append(uenv.sim.data.qpos.clone())
+    qvel_hist.append(uenv.sim.data.qvel.clone())
+    Q = torch.stack(qpos_hist)          # (T+1, n, nq)
+    V = torch.stack(qvel_hist)
+    out = []
+    for i in range(n):
+        T = int(done_tick[i]) + 1
+        h = int(hit_tick[i])
+        out.append(Rally(
+            qpos=Q[:T + 1, i].contiguous(), qvel=V[:T + 1, i].contiguous(),
+            origin=tuple(origin[i].tolist()),
+            hit_tick=h if h >= 0 else None,
+            landing=tuple(landing[i].tolist()) if h >= 0 else None,
+            landing_ok=bool(landing_ok[i]), err=float(err[i])))
+    return out
+
+
+# -- rendering --------------------------------------------------------------
 
 def make_renderers(uenv, width: int, height: int) -> list[OffscreenRenderer]:
     base = replace(uenv.cfg.viewer, width=width, height=height,
@@ -188,19 +271,22 @@ def main() -> None:
     ap.add_argument("--checkpoint-file", required=True)
     ap.add_argument("--device", default="cuda:0")
     ap.add_argument("--port", type=int, default=8080)
+    ap.add_argument("--batch", type=int, default=128,
+                    help="rallies simulated per batch (all in parallel)")
     ap.add_argument("--panel-width", type=int, default=640)
     ap.add_argument("--panel-height", type=int, default=480)
-    ap.add_argument("--fps", type=int, default=30,
-                    help="frame-rate cap for the live page (the sim ticks at "
-                         "50 Hz); the recording rate for --record")
+    ap.add_argument("--fps", type=int, default=25,
+                    help="frame rate of the page / the recording")
     ap.add_argument("--jpeg-quality", type=int, default=80)
     ap.add_argument("--speed", type=float, default=1.0,
-                    help="playback speed for the live page (0.5 = slow motion)")
+                    help="playback speed (0.5 = slow motion)")
+    ap.add_argument("--hold", type=float, default=0.8,
+                    help="seconds the final frame of a rally stays up")
     ap.add_argument("--record", default=None, help="video path (mp4)")
     ap.add_argument("--seconds", type=float, default=None,
-                    help="stop after this much sim time (default: run "
+                    help="stop after this much playback time (default: run "
                          "until killed; with --record defaults to 40)")
-    ap.add_argument("--no-viser", "--no-web", dest="no_web", action="store_true",
+    ap.add_argument("--no-web", "--no-viser", dest="no_web", action="store_true",
                     help="record only, do not start the web page")
     ap.add_argument("--debug", action="store_true",
                     help="print render/encode timings to stderr")
@@ -211,17 +297,15 @@ def main() -> None:
     if args.record and args.seconds is None:
         args.seconds = 40.0
     if args.preview:
-        args.no_web, args.seconds = True, 2.4
+        args.no_web, args.seconds, args.batch = True, 3.0, 4
 
-    env, policy = load_policy(args.task, args.checkpoint_file, args.device)
+    env, policy = load_policy(args.task, args.checkpoint_file, args.device,
+                              args.batch)
     uenv = env.unwrapped
-    store = uenv._badminton
     renderers = make_renderers(uenv, args.panel_width, args.panel_height)
     font = ImageFont.load_default(size=max(14, args.panel_height // 24))
     bar = font.size + 14
     step_dt = uenv.step_dt
-    render_every = max(1, round(1.0 / (args.fps * step_dt)))
-    prm = aero.load_params()
 
     feed, httpd = None, None
     if not args.no_web:
@@ -234,8 +318,6 @@ def main() -> None:
         writer = imageio.get_writer(args.record, fps=args.fps,
                                     macro_block_size=1)
 
-    # markers drawn into every camera: serve origin on the floor, and the
-    # predicted landing point once the return is in the air
     marks = {"origin": None, "landing": None, "landing_ok": True}
 
     def draw_marks(vis) -> None:
@@ -248,85 +330,80 @@ def main() -> None:
             c = (0.05, 0.75, 0.05, 0.9) if marks["landing_ok"] else (0.9, 0.6, 0.1, 0.9)
             vis.add_sphere(np.array([x, y, 0.08]), 0.08, c)
 
-    rally, status, colour = 1, "serving...", INK
-    obs = env.get_observations()
-    marks["origin"] = tuple(store["p0_xy"][0].tolist())
-    t_sim, tick, t_wall0 = 0.0, 0, time.perf_counter()
-    last_render_wall = -1.0
-    n_frames = 0
-    previews = []
-
-    def render_wall() -> np.ndarray:
+    def render_wall(data, status: str, colour) -> np.ndarray:
         frames = []
         for name, r in zip(CAMERAS, renderers):
-            r.update(uenv.sim.data, debug_vis_callback=draw_marks)
+            r.update(data, debug_vis_callback=draw_marks)
             frames.append(label(r.render(), name, font))
-        return wall(frames, f"rally {rally}   {ep_t:4.1f} s   {status}",
-                    colour, font, bar)
+        return wall(frames, status, colour, font, bar)
 
+    def emit(img: np.ndarray, t_play: float) -> None:
+        nonlocal n_frames, last_render_wall
+        if writer is not None:
+            writer.append_data(img)
+        if feed is not None:
+            buf = io.BytesIO()
+            Image.fromarray(img).save(buf, "JPEG", quality=args.jpeg_quality)
+            feed.publish(buf.getvalue())
+            # pace playback to wall clock
+            lag = t_play / args.speed - (time.perf_counter() - t_wall0)
+            if lag > 0:
+                time.sleep(lag)
+        n_frames += 1
+
+    n_frames, last_render_wall = 0, 0.0
+    frame_dt = 1.0 / args.fps           # playback seconds per frame
+    t_play, rally_no = 0.0, 0
+    previews = []
+    t_wall0 = time.perf_counter()
     try:
-        with torch.no_grad():
-            while args.seconds is None or t_sim < args.seconds:
-                prev_hit = bool(store["hit"][0])
-                obs, _, dones, _ = env.step(policy(obs))
-                if bool(store["first"][0]) and not prev_hit:
-                    pos, vel = mdp._shuttle_state(uenv)
-                    xy, ok = mdp.predict_landing(pos[:1], vel[:1])
-                    err = float((xy[0] - store["p0_xy"][0]).norm())
-                    marks["landing"] = tuple(xy[0].tolist())
-                    marks["landing_ok"] = bool(ok[0])
-                    if bool(ok[0]):
-                        status, colour = f"HIT   return lands {err:.1f} m from the serve origin", GOOD
-                    else:
-                        status, colour = "HIT   return short / into the net", WARN
-                if bool(dones[0]):
-                    if not prev_hit and not bool(store["hit"][0]):
+        while args.seconds is None or t_play < args.seconds:
+            if feed is not None:
+                emit(render_wall(RecordedData(uenv.sim.data.qpos[:1],
+                                              uenv.sim.data.qvel[:1]),
+                                 f"simulating {args.batch} new rallies...", INK),
+                     t_play)
+            t0 = time.perf_counter()
+            rallies = simulate_batch(env, policy)
+            random.shuffle(rallies)
+            print(f"[demo] simulated {len(rallies)} rallies in "
+                  f"{time.perf_counter() - t0:.1f} s", flush=True)
+            t_wall0 = time.perf_counter() - t_play / args.speed
+            for rl in rallies:
+                if args.seconds is not None and t_play >= args.seconds:
+                    break
+                rally_no += 1
+                marks["origin"], marks["landing"] = rl.origin, None
+                status, colour = "serving...", INK
+                T = rl.qpos.shape[0]
+                total = (T - 1) * step_dt + args.hold
+                t_r = 0.0
+                while t_r < total:
+                    k = min(int(round(t_r / step_dt)), T - 1)
+                    if rl.hit_tick is not None and k >= rl.hit_tick and marks["landing"] is None:
+                        marks["landing"], marks["landing_ok"] = rl.landing, rl.landing_ok
+                        if rl.landing_ok:
+                            status = f"HIT   return lands {rl.err:.1f} m from the serve origin"
+                            colour = GOOD
+                        else:
+                            status, colour = "HIT   return short / into the net", WARN
+                    if k == T - 1 and rl.hit_tick is None:
                         status, colour = "MISS", BAD
-                    status = f"last rally: {status}"
-                    rally += 1
-                    marks["origin"] = tuple(store["p0_xy"][0].tolist())
-                    marks["landing"] = None
-                t_sim += step_dt
-                tick += 1
-                ep_t = float(uenv.episode_length_buf[0]) * step_dt
-                if 0.3 < ep_t < 0.4 and not bool(store["hit"][0]):
-                    status, colour = "serving...", INK
-                if writer is not None or args.preview:
-                    # fixed cadence for files
-                    if tick % render_every == 0:
-                        img = render_wall()
-                        if writer is not None:
-                            writer.append_data(img)
-                        if args.preview and (abs(ep_t - 1.0) < step_dt / 2
-                                             or abs(ep_t - 2.0) < step_dt / 2):
-                            previews.append(img)
-                if feed is not None:
-                    # live: pace the sim to real time (x speed) when it is
-                    # fast enough, and render whenever the fps cap allows.
-                    # (A single env steps ~20 Warp substeps per tick, so
-                    # the sim itself may run below real time; never gate
-                    # rendering on that or the page goes blank.)
-                    now = time.perf_counter()
-                    lag = t_sim / args.speed - (now - t_wall0)
-                    if now - last_render_wall >= 1.0 / args.fps:
-                        t0 = time.perf_counter()
-                        img = render_wall()
-                        t1 = time.perf_counter()
-                        buf = io.BytesIO()
-                        Image.fromarray(img).save(
-                            buf, "JPEG", quality=args.jpeg_quality)
-                        feed.publish(buf.getvalue())
-                        last_render_wall = time.perf_counter()
-                        n_frames += 1
-                        if args.debug and n_frames % 30 == 1:
-                            print(f"[demo] tick {tick} t={t_sim:.1f}s lag={lag:+.3f}s "
-                                  f"render {1e3*(t1-t0):.0f} ms encode "
-                                  f"{1e3*(last_render_wall-t1):.0f} ms "
-                                  f"{len(buf.getvalue())//1024} KB frames={n_frames}",
-                                  file=sys.stderr, flush=True)
-                    lag = t_sim / args.speed - (time.perf_counter() - t_wall0)
-                    if lag > 0:
-                        time.sleep(lag)
+                    data = RecordedData(rl.qpos[k:k + 1], rl.qvel[k:k + 1])
+                    tr0 = time.perf_counter()
+                    img = render_wall(data, f"rally {rally_no}   {min(t_r, (T - 1) * step_dt):4.1f} s   {status}",
+                                      colour)
+                    tr1 = time.perf_counter()
+                    if args.preview and (abs(t_r - 1.0) < frame_dt / 2 or abs(t_r - 2.0) < frame_dt / 2):
+                        previews.append(img)
+                    emit(img, t_play)
+                    if args.debug and n_frames % 50 == 1:
+                        print(f"[demo] rally {rally_no} t={t_r:.2f} render "
+                              f"{1e3 * (tr1 - tr0):.0f} ms  wall-lag "
+                              f"{t_play / args.speed - (time.perf_counter() - t_wall0):+.2f} s",
+                              file=sys.stderr, flush=True)
+                    t_r += frame_dt
+                    t_play += frame_dt
     except KeyboardInterrupt:
         pass
     finally:
@@ -334,7 +411,7 @@ def main() -> None:
             writer.close()
             print(f"[demo] wrote {args.record}", flush=True)
         if args.preview and previews:
-            Image.fromarray(np.concatenate(previews, axis=0)).save(args.preview)
+            Image.fromarray(np.concatenate(previews[:2], axis=0)).save(args.preview)
             print(f"[demo] wrote {args.preview}", flush=True)
         for r in renderers:
             r.close()
