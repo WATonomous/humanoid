@@ -206,6 +206,17 @@ syncs the train extra, and runs the teacher (NUM_ENVS overrides the default
 1024). Logs land in `runs/slurm-<jobid>.out`. Jobs take any sm_75+ GPU node (2080 Ti / 3090 / 4090); check
 `squeue --me` for the node and tunnel viser to `<node>.cluster.watonomous.ca`.
 Stop with `scripts/slurm_stop.sh <jobid>` so wandb closes the run cleanly.
+`TASK=Mjlab-Badminton-Receive-Student sbatch scripts/slurm_train.sbatch`
+runs distillation (teacher dir symlinked into `logs/rsl_rl/badminton_student/`),
+and `scripts/student_to_ppo.py` + `TASK=...Student-PPO` the PPO fine-tune.
+
+Cluster helpers (each prints the SSH tunnel line; `... stop` cancels):
+`scripts/slurm_view.sh [model.pt]` single-robot viser viewer;
+`scripts/slurm_demo.sh [model.pt] [--record runs/demo.mp4 --no-viser]`
+four-screen demo (four random rallies tiled 2x2, captions with hit/miss and
+predicted landing; defaults to the fine-tuned student); bank eval with
+`sbatch --wrap "uv run scripts/eval_rl.py --task <task> --checkpoint-file <pt>"`
+then `scripts/plot_hits.py` for the strike-zone / racket-face image.
 
 MDP summary: actions = 6 joint position targets around the ready pose,
 clipped to the joint ranges; episodes reset from the launcher bank (same
