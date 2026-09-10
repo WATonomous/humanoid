@@ -251,10 +251,12 @@ def label(frame: np.ndarray, text: str, font) -> np.ndarray:
     img = Image.fromarray(frame)
     draw = ImageDraw.Draw(img, "RGBA")
     h = frame.shape[0]
-    box = draw.textbbox((0, 0), text, font=font)
-    th = box[3] - box[1] + 10
-    draw.rectangle((0, h - th, box[2] + 14, h), fill=PANEL + (200,))
-    draw.text((7, h - th + 4), text, fill=INK, font=font)
+    # textbbox is measured at the draw position (glyph ascent offsets the
+    # box from the anchor), so anchor first, then size the box from it
+    y = h - font.size - 12
+    box = draw.textbbox((7, y), text, font=font)
+    draw.rectangle((0, box[1] - 5, box[2] + 8, h), fill=PANEL + (200,))
+    draw.text((7, y), text, fill=INK, font=font)
     return np.asarray(img)
 
 
