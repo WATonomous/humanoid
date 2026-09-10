@@ -558,6 +558,6 @@ the datasheet ceilings (24–45 rad/s) and the speed costs were token
   flight.
 
 Run: PPO fine-tune of the student from model_1499 (2026-09-09_22-48-00),
-1024 envs, 2000 iterations, under the new envelope (job id below) (the warm start is far from feasible now — its
+1024 envs, 2000 iterations, under the new envelope: SLURM job 616856 (the warm start is far from feasible now — its
 commanded steps get clipped 10x — so expect an initial hit-rate dip and a
 longer climb), bank eval, demo re-render.
