@@ -202,6 +202,8 @@ def main() -> None:
                          "until killed; with --record defaults to 40)")
     ap.add_argument("--no-viser", "--no-web", dest="no_web", action="store_true",
                     help="record only, do not start the web page")
+    ap.add_argument("--debug", action="store_true",
+                    help="print render/encode timings to stderr")
     ap.add_argument("--preview", default=None,
                     help="write one frame per camera at two moments of a "
                          "rally to this PNG and exit (camera tuning)")
@@ -251,6 +253,7 @@ def main() -> None:
     marks["origin"] = tuple(store["p0_xy"][0].tolist())
     t_sim, tick, t_wall0 = 0.0, 0, time.perf_counter()
     last_render_wall = -1.0
+    n_frames = 0
     previews = []
 
     def render_wall() -> np.ndarray:
@@ -305,11 +308,21 @@ def main() -> None:
                     now = time.perf_counter()
                     lag = t_sim / args.speed - (now - t_wall0)
                     if now - last_render_wall >= 1.0 / args.fps and lag > -0.05:
+                        t0 = time.perf_counter()
+                        img = render_wall()
+                        t1 = time.perf_counter()
                         buf = io.BytesIO()
-                        Image.fromarray(render_wall()).save(
+                        Image.fromarray(img).save(
                             buf, "JPEG", quality=args.jpeg_quality)
                         feed.publish(buf.getvalue())
                         last_render_wall = time.perf_counter()
+                        n_frames += 1
+                        if args.debug and n_frames % 30 == 1:
+                            print(f"[demo] tick {tick} t={t_sim:.1f}s lag={lag:+.3f}s "
+                                  f"render {1e3*(t1-t0):.0f} ms encode "
+                                  f"{1e3*(last_render_wall-t1):.0f} ms "
+                                  f"{len(buf.getvalue())//1024} KB frames={n_frames}",
+                                  file=sys.stderr, flush=True)
                     lag = t_sim / args.speed - (time.perf_counter() - t_wall0)
                     if lag > 0:
                         time.sleep(lag)
