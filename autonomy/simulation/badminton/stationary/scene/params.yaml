@@ -44,6 +44,11 @@ arm:
   # dual-arm model; only the right arm (joint1-6) is actuated. The left arm
   # (joint1L-8l) and both grippers (joint7/8) are frozen at the zero pose.
   joints: [joint1, joint2, joint3, joint4, joint5, joint6]
+  # Rest pose the arm returns to after the hit (BadmintonAction overrides
+  # the policy target once the face has met the shuttle): hanging straight
+  # down with a slight elbow bend so the racket points down-forward and
+  # clears the floor (face centre 0.18 m up, FK-checked). Same joint order.
+  rest_joint_pos: [0.0, 0.0, 0.0, 0.5, 0.0, 0.0]
   palm_body: link6       # gripper base; the racket welds here
   # ledger: joint damping/armature below are additions for actuation stability,
   # not re-parameterizations of the arm kinematics/inertia. Per joint, scaled
@@ -73,7 +78,12 @@ arm:
   # load. The GL40 wrist is the bottleneck: even with wrist-sparing IK
   # weights, per-joint step caps and small wrist damping, swing tracking
   # degrades vs the earlier CubeMars-class guesses (78% -> ~61% contact).
-  torque_limits: [53.0, 53.0, 22.0, 22.0, 22.0, 0.73]
+  # Operational envelope (2026-09-10): the AK motors are capped at their
+  # RATED (continuous) torque, not the transient peak - the demo policy sat
+  # at the peak clamp in ~90% of rallies, which no real drive sustains. The
+  # GL40 wrist keeps its peak: its rated 0.25 Nm cannot even hold the racket
+  # horizontal (0.09 kg at 0.45 m = 0.4 Nm), the pending hardware decision.
+  torque_limits: [18.0, 18.0, 9.0, 9.0, 9.0, 0.73]
   # datasheet rated (continuous) torques, same motor mapping; used by the
   # training feasibility metrics to flag time spent above sustainable load
   torque_rated: [18.0, 18.0, 9.0, 9.0, 9.0, 0.25]
@@ -164,7 +174,12 @@ control:
   # AK10-9 235 rpm, AK80-9 390 rpm, GL40 430 rpm) and the configured
   # low_pass_alpha 0.85. Copy the team's operational velocity_max here when
   # it is decided; it can only be lower.
-  target_velocity_max: [24.6, 24.6, 40.8, 40.8, 40.8, 45.0]   # rad/s, per joint
+  # Operational value (2026-09-10): 3 rad/s (~170 deg/s) on every joint.
+  # The datasheet ceilings (24.6/40.8/45 rad/s) let the policy whip the arm
+  # at 4-8 rad/s with every joint at its torque clamp - unnatural and far
+  # beyond anything the arm has run (bring-up crawl: 0.7 rad/s). 3 rad/s
+  # is a brisk human arm; raise it when the team commissions a higher value.
+  target_velocity_max: [3.0, 3.0, 3.0, 3.0, 3.0, 3.0]   # rad/s, per joint
   low_pass_alpha: 0.85
   # weak-wrist planning: IK joint weights (weight w -> joint moves 1/w^2 as
   # readily) push stroke motion onto the 53/22 Nm shoulder/elbow motors;

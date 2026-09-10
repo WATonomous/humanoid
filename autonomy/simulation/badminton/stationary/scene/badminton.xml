@@ -69,27 +69,27 @@
       <geom type="mesh" conaffinity="0" group="3" rgba="0.752941 0.752941 0.752941 1" mesh="arm_base_link"/>
       <body name="arm_link1" pos="0.023038 -0.1633 0.0175">
         <inertial pos="0.00656893 -0.0774449 4.3565e-05" quat="0.703349 0.705567 0.0600001 0.06226" mass="0.880686" diaginertia="0.00214534 0.00173722 0.00109075"/>
-        <joint name="arm_joint1" pos="0 0 0" axis="0 1 0" limited="true" range="-2.8 0.6" actuatorfrclimited="true" actuatorfrcrange="-53 53" armature="0.01" damping="0.1 0.1 0.1"/>
+        <joint name="arm_joint1" pos="0 0 0" axis="0 1 0" limited="true" range="-2.8 0.6" actuatorfrclimited="true" actuatorfrcrange="-18 18" armature="0.01" damping="0.1 0.1 0.1"/>
         <geom type="mesh" contype="0" conaffinity="0" group="2" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="arm_link1"/>
         <geom type="mesh" conaffinity="0" group="3" rgba="0.752941 0.752941 0.752941 1" mesh="arm_link1"/>
         <body name="arm_link2" pos="-0.043021 -0.116 0">
           <inertial pos="0.0226409 -4.83004e-05 -0.0456182" quat="0.978566 -0.00226443 -0.205873 0.0044768" mass="0.524798" diaginertia="0.00148561 0.00125796 0.000773941"/>
-          <joint name="arm_joint2" pos="0 0 0" axis="1 0 0" limited="true" range="-2.2 0.9" actuatorfrclimited="true" actuatorfrcrange="-53 53" armature="0.01" damping="0.1 0.1 0.1"/>
+          <joint name="arm_joint2" pos="0 0 0" axis="1 0 0" limited="true" range="-2.2 0.9" actuatorfrclimited="true" actuatorfrcrange="-18 18" armature="0.01" damping="0.1 0.1 0.1"/>
           <geom type="mesh" contype="0" conaffinity="0" group="2" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="arm_link2"/>
           <geom type="mesh" conaffinity="0" group="3" rgba="0.752941 0.752941 0.752941 1" mesh="arm_link2"/>
           <body name="arm_link3" pos="0.036 0 -0.1163">
             <inertial pos="-0.00598357 0.000141305 -0.0990879" quat="0.705358 -0.00197415 0.0112667 0.708759" mass="0.617876" diaginertia="0.0028882 0.00251207 0.000535541"/>
-            <joint name="arm_joint3" pos="0 0 0" axis="0 0 -1" limited="true" range="-1.6 1.6" actuatorfrclimited="true" actuatorfrcrange="-22 22" armature="0.01" damping="0.1 0.1 0.1"/>
+            <joint name="arm_joint3" pos="0 0 0" axis="0 0 -1" limited="true" range="-1.6 1.6" actuatorfrclimited="true" actuatorfrcrange="-9 9" armature="0.01" damping="0.1 0.1 0.1"/>
             <geom type="mesh" contype="0" conaffinity="0" group="2" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="arm_link3"/>
             <geom type="mesh" conaffinity="0" group="3" rgba="0.752941 0.752941 0.752941 1" mesh="arm_link3"/>
             <body name="arm_link4" pos="0 0.02525 -0.1846">
               <inertial pos="0.000589781 -0.0270043 -0.0534087" quat="0.702883 0.709273 -0.0325653 0.0427293" mass="0.2361" diaginertia="0.000375424 0.000331377 0.00023671"/>
-              <joint name="arm_joint4" pos="0 0 0" axis="0 -1 0" limited="true" range="-0.1 2.4" actuatorfrclimited="true" actuatorfrcrange="-22 22" armature="0.01" damping="0.1 0.1 0.1"/>
+              <joint name="arm_joint4" pos="0 0 0" axis="0 -1 0" limited="true" range="-0.1 2.4" actuatorfrclimited="true" actuatorfrcrange="-9 9" armature="0.01" damping="0.1 0.1 0.1"/>
               <geom type="mesh" contype="0" conaffinity="0" group="2" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="arm_link4"/>
               <geom type="mesh" conaffinity="0" group="3" rgba="0.752941 0.752941 0.752941 1" mesh="arm_link4"/>
               <body name="arm_link5" pos="0 -0.0275 -0.1075">
                 <inertial pos="-6.78957e-05 0.00286491 -0.073483" quat="0.707527 0.00583486 -0.00670024 0.70663" mass="0.258486" diaginertia="0.000762931 0.000684118 0.000190613"/>
-                <joint name="arm_joint5" pos="0 0 0" axis="0 0 1" limited="true" range="-2 2" actuatorfrclimited="true" actuatorfrcrange="-22 22" armature="0.01" damping="0.05 0.05 0.05"/>
+                <joint name="arm_joint5" pos="0 0 0" axis="0 0 1" limited="true" range="-2 2" actuatorfrclimited="true" actuatorfrcrange="-9 9" armature="0.01" damping="0.05 0.05 0.05"/>
                 <geom type="mesh" contype="0" conaffinity="0" group="2" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="arm_link5"/>
                 <geom type="mesh" conaffinity="0" group="3" rgba="0.752941 0.752941 0.752941 1" mesh="arm_link5"/>
                 <body name="arm_link6" pos="0 -0.0325 -0.128">

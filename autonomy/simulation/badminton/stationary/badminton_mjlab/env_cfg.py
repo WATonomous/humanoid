@@ -192,12 +192,15 @@ def make_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         # window (physical validity, not a style preference).
         "return_landing": RewardTermCfg(
             func=mdp.return_landing, weight=100.0, params={"sigma": 1.5}),
-        "action_rate": RewardTermCfg(func=rew_mdp.action_rate_l2, weight=-0.01),
+        # smoothness (2026-10 envelope pass): energy-style costs, not a
+        # posture preference. -0.01/-1e-4 were token values that let PPO
+        # bang-bang the arm inside the (then huge) velocity envelope.
+        "action_rate": RewardTermCfg(func=rew_mdp.action_rate_l2, weight=-0.05),
         "joint_limits": RewardTermCfg(
             func=rew_mdp.joint_pos_limits, weight=-5.0,
             params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
         "joint_vel": RewardTermCfg(
-            func=rew_mdp.joint_vel_l2, weight=-1e-4,
+            func=rew_mdp.joint_vel_l2, weight=-2e-3,
             params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
         # mdp.torque_over_rated (thermal penalty) is available but off: run 9
         # showed an instantaneous per-tick penalty suppresses the transient

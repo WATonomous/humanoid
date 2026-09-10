@@ -95,10 +95,22 @@ class BadmintonAction(JointPositionAction):
         self._alpha = float(c["low_pass_alpha"])
         self._prev_target = self._offset.clone() if torch.is_tensor(
             self._offset) else torch.full_like(self._raw_actions, self._offset)
+        # after the hit the target is no longer the policy's: the arm returns
+        # to the rest pose through the same moderation (a deployment wrapper
+        # does the same, so post-hit behaviour is deterministic and slow)
+        rest = dict(zip(p["arm"]["joints"], p["arm"]["rest_joint_pos"]))
+        # target names carry the model prefix ("arm_joint4"); match by suffix
+        self._rest = torch.tensor(
+            [next(v for j, v in rest.items() if n.endswith(j))
+             for n in self._target_names],
+            device=self.device).unsqueeze(0)
 
     def process_actions(self, actions: torch.Tensor) -> None:
         super().process_actions(actions)
+        from badminton_mjlab import mdp  # lazy: mdp imports this module
         tgt = self._processed_actions
+        hit = mdp._state(self._env)["hit"]
+        tgt = torch.where(hit.unsqueeze(-1), self._rest.expand_as(tgt), tgt)
         prev = self._prev_target
         q = prev + (tgt - prev).clamp(-self._step_max, self._step_max)
         q = self._alpha * prev + (1.0 - self._alpha) * q
