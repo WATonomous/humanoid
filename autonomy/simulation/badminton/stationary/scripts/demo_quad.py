@@ -158,6 +158,7 @@ def main() -> None:
                 for i in dones.nonzero().flatten().tolist():
                     if not bool(prev_hit[i]):
                         status[i], colour[i] = "MISS", BAD
+                    status[i] = "last rally: " + status[i]
                     rally[i] += 1
                 t_sim += step_dt
                 tick += 1
