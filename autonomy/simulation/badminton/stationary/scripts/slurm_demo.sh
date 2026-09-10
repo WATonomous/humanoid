@@ -6,7 +6,7 @@
 # Defaults to the fine-tuned student. Examples:
 #   scripts/slurm_demo.sh                                  # live page
 #   scripts/slurm_demo.sh "" --record runs/demo.mp4 --no-viser   # 40 s video
-# EXCLUDE=node1,node2 skips currently-broken GPU nodes.
+# EXCLUDE=node1,node2 skips currently-broken GPU nodes; NODE=trpro-slurm1 pins one.
 set -euo pipefail
 PATH="/opt/slurm/bin:$PATH"
 cd "$(dirname "$0")/.."
@@ -22,7 +22,7 @@ shift || true
 echo "checkpoint: $ckpt"
 
 jid=$(sbatch --parsable --job-name=quad-demo --gres=shard:4096,tmpdisk:4096 \
-    --exclude="${EXCLUDE:-tr-slurm2}" --cpus-per-task=4 --mem=16G --time=03:00:00 \
+    --exclude="${EXCLUDE:-tr-slurm2}" ${NODE:+-w "$NODE"} --cpus-per-task=4 --mem=16G --time=03:00:00 \
     --output=runs/demo-%j.out \
     --wrap="MUJOCO_GL=egl uv run scripts/demo_quad.py --checkpoint-file $ckpt $*")
 echo "submitted job $jid; waiting for it to start..."
