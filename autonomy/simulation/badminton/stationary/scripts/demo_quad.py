@@ -356,6 +356,7 @@ def main() -> None:
         n_frames += 1
 
     n_frames, last_render_wall = 0, 0.0
+    last_frame_wall = time.perf_counter()
     frame_dt = 1.0 / args.fps           # playback seconds per frame
     t_play, rally_no = 0.0, 0
     previews = []
@@ -374,6 +375,7 @@ def main() -> None:
             print(f"[demo] simulated {len(rallies)} rallies in "
                   f"{time.perf_counter() - t0:.1f} s", flush=True)
             t_wall0 = time.perf_counter() - t_play / args.speed
+            last_frame_wall = time.perf_counter()
             for rl in rallies:
                 if args.seconds is not None and t_play >= args.seconds:
                     break
@@ -408,8 +410,17 @@ def main() -> None:
                               f"{1e3 * (tr1 - tr0):.0f} ms  wall-lag "
                               f"{t_play / args.speed - (time.perf_counter() - t_wall0):+.2f} s",
                               file=sys.stderr, flush=True)
-                    t_r += frame_dt
-                    t_play += frame_dt
+                    if feed is not None and writer is None:
+                        # live: advance by the wall time the frame took
+                        # (x speed) so playback stays real time at whatever
+                        # frame rate the GPU delivers; --fps is the ceiling
+                        now = time.perf_counter()
+                        adv = max(frame_dt, (now - last_frame_wall) * args.speed)
+                        last_frame_wall = now
+                    else:
+                        adv = frame_dt
+                    t_r += adv
+                    t_play += adv
     except KeyboardInterrupt:
         pass
     finally:
