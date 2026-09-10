@@ -36,6 +36,11 @@ def main() -> None:
     ap.add_argument("--episodes", type=int, default=4096)
     ap.add_argument("--num-envs", type=int, default=1024)
     ap.add_argument("--device", default="cuda:0")
+    ap.add_argument("--count-first-episodes", action="store_true",
+                    help="also count each env's first episode after the "
+                         "global reset (default: skipped - those hit 90-95%% "
+                         "vs 98-99.6%% steady state, see TRAINING_LOG "
+                         "2026-09-10, so they bias the bank number down)")
     args = ap.parse_args()
 
     env_cfg = load_env_cfg(args.task)
@@ -102,6 +107,7 @@ def main() -> None:
     land_ok = torch.zeros(n, dtype=torch.bool, device=dev)
 
     rows = []  # (front_dist, z, x, hit, u, v, d_min, land_err, land_ok)
+    warm = torch.zeros(n, dtype=torch.bool, device=dev)  # env past its 1st episode
     qv_rows, tau_rows, duty_rows = [], [], []  # per-episode, per-joint
     with torch.no_grad():
         while len(rows) < args.episodes:
@@ -131,7 +137,11 @@ def main() -> None:
                 land_err[first] = (
                     (xy - store["p0_xy"][first]).norm(dim=-1))
                 land_ok[first] = ok
-            done_ids = done.nonzero(as_tuple=False).squeeze(-1)
+            if args.count_first_episodes:
+                done_ids = done.nonzero(as_tuple=False).squeeze(-1)
+            else:
+                done_ids = (done & warm).nonzero(as_tuple=False).squeeze(-1)
+                warm |= done
             for i in done_ids.tolist():
                 p = prev_p[i].cpu().numpy()
                 uv = prev_uv[i].cpu().numpy()

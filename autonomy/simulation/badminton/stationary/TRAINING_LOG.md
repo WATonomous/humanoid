@@ -482,3 +482,29 @@ logs/rsl_rl/badminton_student_ppo/2026-09-09_22-48-00/.**
 
 Open: wrist duty 81% above rated (hardware decision), elbow now 25% (the
 fine-tuned student swings hardest of all policies so far).
+
+### 2026-09-10 — first episode after a global reset hits less
+
+Found while recording the demo video (the on-screen tally read 81/90).
+Deterministic fine-tuned student, 256 envs, hit rate by condition:
+
+| condition                                   | hit rate |
+|---------------------------------------------|----------|
+| first episode at env creation               | 0.949 |
+| first episode after `env.reset()` (2 runs)  | 0.895, 0.938 |
+| episode after each env's next natural reset | 0.992, 0.984 |
+| second episode after `env.reset()`          | 0.996 |
+
+Misses are physical (rallies end at 1.1–1.5 s). Consequences:
+- `eval_rl.py` now skips each env's first episode (`--count-first-episodes`
+  restores the old behaviour). All bank numbers logged before this date
+  include 1024 first episodes out of 8192 and are ~0.5–1 pt conservative;
+  the fine-tuned student's steady-state rate is ~99%, not 98.2%.
+- `demo_quad.py` records each env's next natural episode.
+- Hardware: the first serve after boot IS this condition. Open item.
+
+Mechanism (mjlab `CommandTerm._resample` calls `_resample_command` but not
+`_update_command`): after a natural reset the first observation still holds
+the previous episode's converged shuttle features; after `env.reset()` mjlab
+recomputes them from the fresh EKF init, whose velocity prior is 0 — "a
+shuttle dropping straight down at the far court". Tested both ways below.
