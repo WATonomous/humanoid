@@ -570,7 +570,7 @@ Result (run 5xlfkl4z, model_3498.pt in 2026-09-10_23-54-28, eval 616940,
 | hit rate                | 0.982 (incl. first eps.) | **0.982** |
 | returns clearing net    | 84.2%                    | 76.5% |
 | landing err (cleared)   | 1.06 m                   | 1.05 m |
-| peak \|qvel\| j1/j2 (med) | 4.6 / 4.9 rad/s        | 4.6 / 4.6 |
+| peak \|qvel\| j1/j2 (med) | 4.6 / 4.9 rad/s        | 4.8 / 4.6 |
 | peak \|qvel\| j3/j4/j5  | 5.8 / 6.2 / 5.8          | 2.8 / 3.4 / 3.3 |
 | peak \|qvel\| j6        | 6.3                      | 5.1 |
 | AK duty > rated         | 5–25%                    | 0 (rated is the clamp) |
