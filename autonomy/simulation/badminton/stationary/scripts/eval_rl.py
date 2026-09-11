@@ -39,8 +39,8 @@ def main() -> None:
     ap.add_argument("--count-first-episodes", action="store_true",
                     help="also count each env's first episode after the "
                          "global reset (default: skipped - those hit 90-95%% "
-                         "vs 98-99.6%% steady state, see TRAINING_LOG "
-                         "2026-09-10, so they bias the bank number down)")
+                         "vs 98-99.6%% steady state, so they bias the bank "
+                         "number down)")
     args = ap.parse_args()
 
     env_cfg = load_env_cfg(args.task)

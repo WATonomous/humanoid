@@ -10,7 +10,7 @@ its kinematics and inertials are imported untouched. This script only
 - adds the two-layer shuttle, court, net, explicit contact pairs, actuators.
 
 Conventions: net line at y = 0, arm on the y < 0 side, +z up.
-Geom groups: 2 = visual meshes, 3 = collision primitives (sim_lab toggles).
+Geom groups: 2 = visual meshes, 3 = collision primitives.
 Contacts: explicit <pair> entries only; every geom has contype=conaffinity=0.
 
 Usage: uv run python scripts/build_scene.py   (writes scene/badminton.xml)

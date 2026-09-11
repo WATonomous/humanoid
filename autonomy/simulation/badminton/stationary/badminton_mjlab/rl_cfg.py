@@ -35,7 +35,7 @@ def make_teacher_ppo_cfg() -> RslRlOnPolicyRunnerCfg:
         algorithm=RslRlPpoAlgorithmCfg(
             learning_rate=3e-4,
             # The early-run collapses at 0.005 (runs 1-2) were caused by the
-            # broken arm mount (TRAINING_LOG run 6), not the coefficient: with
+            # broken arm mount (run 6), not the coefficient: with
             # no reachable reward, entropy was the only pressure. On the fixed
             # world 0.01 overshot late-run — std drifted 0.42 -> 0.85 after
             # the kernels saturated and precision (d@t*) paid for it (run 7).

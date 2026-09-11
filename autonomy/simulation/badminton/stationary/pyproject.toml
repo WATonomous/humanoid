@@ -18,8 +18,8 @@ dependencies = [
 # task code can be smoke-tested on any machine (MuJoCo Warp runs on CPU but
 # is far too slow to train on). Everything else in the project is the local
 # CPU mode on plain MuJoCo.
-train = ["mjlab[cu128]>=1.6.0"]
-train-cpu = ["mjlab[cpu]>=1.6.0"]
+train = ["mjlab[cu128]==1.6.0"]
+train-cpu = ["mjlab[cpu]==1.6.0"]
 
 [dependency-groups]
 dev = [

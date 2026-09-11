@@ -1,4 +1,4 @@
-"""Shared episode runner + metrics for gate 5 (used by run_gate5_eval.py,
+"""Shared episode runner + metrics for gate 5 (used by
 replay logging, and the gate-5 pytest)."""
 
 from __future__ import annotations
@@ -126,7 +126,7 @@ def run_eval(n_episodes: int, seed: int = 0, record: bool = False,
              out_dir: str | None = None, verbose: bool = True):
     """Run the gate-5 eval. Returns (summary, results). With out_dir set,
     writes metrics.json, per-episode metrics, ranked worst list, and (with
-    record) qpos/qvel trajectories for replay.py."""
+    record) qpos/qvel trajectories."""
     sim = mjsim.load()
     w = launcher.load_workspace()
     ctrl = Controller(sim, w)
