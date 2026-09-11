@@ -16,7 +16,7 @@ if [ "${1:-}" = "stop" ]; then
     exit 0
 fi
 ckpt="${1:-}"
-[ -n "$ckpt" ] || ckpt=$(ls -d logs/rsl_rl/badminton_student_ppo/2*/ | sort | tail -1)model_1499.pt
+[ -n "$ckpt" ] || ckpt=$(ls "$(ls -d logs/rsl_rl/badminton_student_ppo/2*/ | sort | tail -1)"model_*.pt | sort -V | tail -1)
 [ -f "$ckpt" ] || { echo "checkpoint not found: $ckpt" >&2; exit 1; }
 shift || true
 echo "checkpoint: $ckpt"
