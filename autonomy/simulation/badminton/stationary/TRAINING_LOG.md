@@ -585,3 +585,7 @@ honest picture of what "continuous rating" costs. Judgement of naturalness
 deferred to the demo video (runs/demo_envelope.mp4). If still too fast:
 lower the effective cap on the shoulders (e.g. 2 rad/s = raw 13.3) and
 fine-tune again.
+
+User review of runs/demo_envelope.mp4: "a lot better". The operational
+envelope is the accepted baseline from here on; the earlier
+(datasheet-cap) policies are superseded for demos and hardware.
