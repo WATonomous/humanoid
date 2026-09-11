@@ -561,3 +561,27 @@ Run: PPO fine-tune of the student from model_1499 (2026-09-09_22-48-00),
 1024 envs, 2000 iterations, under the new envelope: SLURM job 616856 (the warm start is far from feasible now — its
 commanded steps get clipped 10x — so expect an initial hit-rate dip and a
 longer climb), bank eval, demo re-render.
+
+Result (run 5xlfkl4z, model_3498.pt in 2026-09-10_23-54-28, eval 616940,
+8192 episodes, first episodes skipped):
+
+|                         | before envelope (616651) | envelope |
+|-------------------------|--------------------------|----------|
+| hit rate                | 0.982 (incl. first eps.) | **0.982** |
+| returns clearing net    | 84.2%                    | 76.5% |
+| landing err (cleared)   | 1.06 m                   | 1.05 m |
+| peak \|qvel\| j1/j2 (med) | 4.6 / 4.9 rad/s        | 4.6 / 4.6 |
+| peak \|qvel\| j3/j4/j5  | 5.8 / 6.2 / 5.8          | 2.8 / 3.4 / 3.3 |
+| peak \|qvel\| j6        | 6.3                      | 5.1 |
+| AK duty > rated         | 5–25%                    | 0 (rated is the clamp) |
+| at-clamp episodes j2/j5 | 0.1% / 87%               | 93% / 100% |
+
+Hit rate held; clearance paid ~8 pts (less racket speed on the far/high
+serves). Distal joints halved as intended; the shoulders were already near
+3.7 rad/s effective so they barely changed; the wrist joint still peaks at
+5 rad/s — the servo overshoots its 3 rad/s target rate. The AK motors now
+sit AT rated torque in most episodes (rated is the ceiling), which is the
+honest picture of what "continuous rating" costs. Judgement of naturalness
+deferred to the demo video (runs/demo_envelope.mp4). If still too fast:
+lower the effective cap on the shoulders (e.g. 2 rad/s = raw 13.3) and
+fine-tune again.
