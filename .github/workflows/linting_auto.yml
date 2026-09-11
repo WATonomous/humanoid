@@ -24,9 +24,9 @@ jobs:
           token: ${{ secrets.GHCR_PWD }}
 
       - name: Set up Python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10.20'
+          python-version: '3.10'
 
       - name: Install Python dependencies
         run: pip install autopep8 clang-format
@@ -37,7 +37,7 @@ jobs:
         with:
           auto_fix: ${{ contains(github.event.pull_request.labels.*.name, 'auto-lint') }}
           Autopep8: true
-          Autopep8_args: "--max-line-length 150 --exclude '*autonomy/simulation*'"
+          Autopep8_args: "--max-line-length 150 --exclude '*src/simulation*,*src/teleop*,*tools/isaac_harness*'"
           clang_format: true
           clang_format_auto_fix: ${{ contains(github.event.pull_request.labels.*.name, 'auto-lint') }}
           clang_format_args: "-style=file"

@@ -17,54 +17,45 @@ runs:
       uses: tj-actions/changed-files@v42
       with:
         files: |
-          !autonomy/**
-          !embedded/**
+          !src/**
+          !src/embedded/**
     
-    - name: Find changed files inside autonomy/wato_msgs folder
-      id: changed-files-wato-msgs
+    - name: Find changed files inside src/common_msgs folder
+      id: changed-files-common-msgs
       uses: tj-actions/changed-files@v42
       with:
-        files: autonomy/wato_msgs/**
+        files: src/common_msgs/**
 
-    - name: Get changed files inside autonomy/interfacing folder
+    - name: Get changed files inside src/interfacing folder
       id: changed-files-interfacing
       uses: tj-actions/changed-files@v42
       with:
-        files: autonomy/interfacing/**
+        files: src/interfacing/**
     
-    - name: Get changed files inside autonomy/perception folder
+    - name: Get changed files inside src/perception folder
       id: changed-files-perception
       uses: tj-actions/changed-files@v42
       with:
-        files: autonomy/perception/**
+        files: src/perception/**
 
-    - name: Get changed files inside autonomy/behaviour folder
-      id: changed-files-behaviour
-      uses: tj-actions/changed-files@v42
-      with:
-        files: autonomy/behaviour/**
-    
-    - name: Get changed files inside autonomy/simulation folder
+    - name: Get changed files inside src/simulation folder
       id: changed-files-simulation
       uses: tj-actions/changed-files@v42
       with:
-        files: autonomy/simulation/**
+        files: src/simulation/**
 
     - name: Find changed files inside embedded folder
       id: changed-files-embedded
       uses: tj-actions/changed-files@v42
       with:
-        files: embedded/**
+        files: src/embedded/**
     
     - name: Create list of changed modules
       id: output-changes
       env:
-        INFRASTRUCTURE_CHANGED: >
-          ${{ steps.changed-files-wato-msgs.outputs.any_changed == 'true' 
-          || steps.changed-files-outside-development.outputs.any_changed == 'true' }}
+        INFRASTRUCTURE_CHANGED: ${{ steps.changed-files-common-msgs.outputs.any_changed == 'true' || steps.changed-files-outside-development.outputs.any_changed == 'true' }}
         INTERFACING_CHANGED: ${{ steps.changed-files-interfacing.outputs.any_changed }}
         PERCEPTION_CHANGED: ${{ steps.changed-files-perception.outputs.any_changed }}
-        BEHAVIOUR_CHANGED: ${{ steps.changed-files-behaviour.outputs.any_changed }}
         SIMULATION_CHANGED: ${{ steps.changed-files-simulation.outputs.any_changed }}
         EMBEDDED_CHANGED: ${{ steps.changed-files-embedded.outputs.any_changed }}
 

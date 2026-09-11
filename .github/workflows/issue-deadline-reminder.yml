@@ -1,0 +1,107 @@
+name: Issue Deadline Reminder
+
+on:
+  schedule:
+    # 13:00 UTC daily
+    - cron: '0 13 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  issues: write
+
+jobs:
+  remind:
+    name: Remind assignees of upcoming/overdue deadlines
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scan open issues for due dates and comment reminders
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const DUE_DATE_RE = /###\s*Due date\s*\r?\n+\s*(\d{4}-\d{2}-\d{2})/i;
+            const REMINDER_DAYS_BEFORE = [3, 1];
+
+            function todayUTC() {
+              const now = new Date();
+              return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+            }
+
+            function parseDueDate(body) {
+              if (!body) return null;
+              const m = body.match(DUE_DATE_RE);
+              if (!m) return null;
+              const [y, mo, d] = m[1].split('-').map(Number);
+              const date = new Date(Date.UTC(y, mo - 1, d));
+              return isNaN(date.getTime()) ? null : date;
+            }
+
+            function daysBetween(a, b) {
+              return Math.round((a.getTime() - b.getTime()) / 86400000);
+            }
+
+            const today = todayUTC();
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100,
+            });
+
+            for (const issue of issues) {
+              if (issue.pull_request) continue;
+
+              const assignees = issue.assignees && issue.assignees.length
+                ? issue.assignees
+                : (issue.assignee ? [issue.assignee] : []);
+              if (assignees.length === 0) continue;
+
+              const dueDate = parseDueDate(issue.body);
+              if (!dueDate) continue;
+
+              const daysLeft = daysBetween(dueDate, today); // positive = days remaining, negative = overdue
+              const isReminderDay = REMINDER_DAYS_BEFORE.includes(daysLeft);
+              const isOverdue = daysLeft < 0;
+              if (!isReminderDay && !isOverdue) continue;
+
+              const dueDateStr = dueDate.toISOString().slice(0, 10);
+              const marker = isOverdue
+                ? `<!-- deadline-reminder:${dueDateStr}:overdue:${today.toISOString().slice(0, 10)} -->`
+                : `<!-- deadline-reminder:${dueDateStr}:${daysLeft}d -->`;
+
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner,
+                repo,
+                issue_number: issue.number,
+                per_page: 100,
+              });
+              const alreadySent = comments.some(c => c.body && c.body.includes(marker));
+              if (alreadySent) continue;
+
+              const mentions = assignees.map(a => `@${a.login}`).join(' ');
+              const message = isOverdue
+                ? `${mentions} this issue's due date (**${dueDateStr}**) has passed. Please update the status or the due date.\n\n${marker}`
+                : `${mentions} reminder: this issue is due on **${dueDateStr}** (${daysLeft} day${daysLeft === 1 ? '' : 's'} left).\n\n${marker}`;
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body: message,
+              });
+
+              if (isOverdue) {
+                try {
+                  await github.rest.issues.addLabels({
+                    owner,
+                    repo,
+                    issue_number: issue.number,
+                    labels: ['overdue'],
+                  });
+                } catch (e) {
+                  core.warning(`Could not add "overdue" label to #${issue.number}: ${e.message}`);
+                }
+              }
+            }

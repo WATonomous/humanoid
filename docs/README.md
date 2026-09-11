@@ -1,30 +1,19 @@
-## Documenting:
-Documentation should be used as a blueprint for development, then filled in when specifics are established. 
+# Docs
 
-The documentation of this repository follows a package level scheme. As shown below:
-```
-common_msgs/
-├── README.md ──────────────> overview (package)
-├── CMakeLists.txt
-├── package.xml
-└── msg/
-    ├── ArmPose.msg
-    └── ...
-```
+The team's living documentation is the **humanoid-docs** site, not this repo:
 
-### Component Level 
-- Overview of component as a whole
+<https://watonomous.github.io/humanoid-docs/index.html> · repo:
+[`WATonomous/humanoid-docs`](https://github.com/WATonomous/humanoid-docs)
 
-### Package Level   
-- **Purpose** – What the package does and its role within the component.  
-- **Inputs & Outputs** – Data flow, including message types, service calls, or file interactions.  
-- **Key Features** – Key classes, nodes, or scripts, along with their relationships.  
-- **Usage** – How to build, run, and test the package.  
-- **Configuration** – Relevant parameters, environment variables, or dependencies.
+| Section | Covers |
+|---------|--------|
+| [Mechanical](https://watonomous.github.io/humanoid-docs/mechanical/) | Structure, actuators, hardware design |
+| [Electrical](https://watonomous.github.io/humanoid-docs/electrical/) | Power, wiring, boards |
+| [Interfacing](https://watonomous.github.io/humanoid-docs/interfacing/) | CAN, host ↔ hardware integration |
+| [Firmware](https://watonomous.github.io/humanoid-docs/firmware/) | STM32 / ESP32 low-level control |
+| [Software & ML](https://watonomous.github.io/humanoid-docs/software/) | Architecture, sim, teleop, imitation learning |
 
-### System Architecture 
-The system architecture can be viewed in this [document](Architecture_Map.pdf), along with the .odg file (use libre draw to edit).
+## In this repo
 
-### Infrastructure Documentation
-1. [Project Infrastructure Development Docs](https://github.com/WATonomous/wato_monorepo/tree/main/docs/dev/)
-2. [Messages](../autonomy/wato_msgs/common_msgs/README.md)
+- Per-package `README.md`s alongside the code they describe.
+- [DEVELOPING.md](../DEVELOPING.md) — dev environment and per-module workflow.

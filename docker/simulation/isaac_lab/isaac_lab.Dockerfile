@@ -123,14 +123,24 @@ RUN $PYTHON -m pip install --no-deps "rerun-sdk>=0.24.0,<0.27.0" && \
     $PYTHON -m pip install pyzmq && \
     $PYTHON -m pip install --upgrade pip
 
-# ── Humanoid IL packages (editable; repo bind-mounted at runtime) ─────────────
-COPY autonomy/il ${HUMANOID_ROOT}/autonomy/il
-COPY autonomy/simulation/so101_vial_task ${HUMANOID_ROOT}/autonomy/simulation/so101_vial_task
+# ── Humanoid packages (editable; repo bind-mounted at runtime) ────────────────
+COPY src/il ${HUMANOID_ROOT}/src/il
+COPY src/simulation/so101_vial_task ${HUMANOID_ROOT}/src/simulation/so101_vial_task
+COPY src/simulation/humanoid_scenes ${HUMANOID_ROOT}/src/simulation/humanoid_scenes
+COPY src/simulation/humanoid_rl ${HUMANOID_ROOT}/src/simulation/humanoid_rl
+COPY src/simulation/humanoid_rl_tasks ${HUMANOID_ROOT}/src/simulation/humanoid_rl_tasks
+COPY src/pioneer_humanoid ${HUMANOID_ROOT}/src/pioneer_humanoid
 
-# Humanoid packages: --no-deps only (never [sim]/[lerobot] extras — they pull torch/lerobot with deps).
-RUN $PYTHON -m pip install --no-deps -e "${HUMANOID_ROOT}/autonomy/il" && \
+# Humanoid packages: --no-deps (never [sim]/[lerobot] extras — they pull torch/lerobot with deps)
+# and --no-build-isolation (use the base image's setuptools; pip's PEP-517 isolated build env
+# can't reach an index for setuptools>=61 in this builder).
+RUN $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/il" && \
     $PYTHON -m pip install -c /tmp/constraints.txt psutil && \
-    $PYTHON -m pip install --no-deps -e "${HUMANOID_ROOT}/autonomy/simulation/so101_vial_task"
+    $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/so101_vial_task" && \
+    $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/humanoid_scenes" && \
+    $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/humanoid_rl" && \
+    $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/humanoid_rl_tasks" && \
+    $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/pioneer_humanoid"
 
 RUN mkdir -p /tmp/pycache && chmod 1777 /tmp/pycache
 ENV PYTHONPYCACHEPREFIX=/tmp/pycache
@@ -169,8 +179,8 @@ ENV LD_LIBRARY_PATH=/opt/ros/humble/lib:${LD_LIBRARY_PATH}
 
 # ament_ws: symlinks into bind-mounted repo, resolved at runtime.
 RUN mkdir -p /root/ament_ws/src && \
-    ln -s /workspace/humanoid/autonomy/wato_msgs/common_msgs /root/ament_ws/src/common_msgs && \
-    ln -s /workspace/humanoid/autonomy/teleop /root/ament_ws/src/teleop
+    ln -s /workspace/humanoid/src/common_msgs /root/ament_ws/src/common_msgs && \
+    ln -s /workspace/humanoid/src/teleop /root/ament_ws/src/teleop
 
 COPY docker/simulation/isaac_lab/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
@@ -178,13 +188,15 @@ RUN chmod +x /entrypoint.sh
 RUN cat >> /root/.bashrc <<'EOF'
 export ISAACLAB=/workspace/isaaclab
 export HUMANOID_ROOT=/workspace/humanoid
-export TASK_ROOT=/workspace/humanoid/autonomy/simulation/so101_vial_task
-export RL_ROOT=/workspace/humanoid/autonomy/simulation/Humanoid_Wato/HumanoidRL
+export TASK_ROOT=/workspace/humanoid/src/simulation/so101_vial_task
+export RL_RUNNERS=/workspace/humanoid/src/simulation/humanoid_rl/humanoid_rl/scripts
 alias il-train='$PYTHON -m lerobot.scripts.lerobot_train'
 alias il-record='cd $TASK_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_agent.py'
 alias il-eval='cd $TASK_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_eval.py'
-alias rl-train='cd $RL_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/train.py'
-alias rl-play='cd $RL_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p HumanoidRLPackage/rsl_rl_scripts/play.py'
+# humanoid_rl / humanoid_rl_tasks are pip-installed (editable). Checkpoints go to
+# $HUMANOID_ROOT/outputs/rl/ regardless of cwd.
+alias rl-train='cd $HUMANOID_ROOT && $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/train.py'
+alias rl-play='cd $HUMANOID_ROOT && $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play.py'
 EOF
 
 RUN cat >> /root/.bashrc <<'EOF'

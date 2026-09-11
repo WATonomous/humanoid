@@ -3,7 +3,7 @@
 Exact workflow used for **HF dataset → ACT train → sim eval** (no physical arm).
 Stack: Isaac Lab 2.3.2 / Sim 5.1 / LeRobot 0.4.3 / ACT / watod `simulation_isaac`.
 
-Full reference: [README.md](README.md). Task/env details: [`autonomy/simulation/so101_vial_task/README.md`](../../../autonomy/simulation/so101_vial_task/README.md).
+Full reference: [README.md](README.md). Task/env details: [`src/simulation/so101_vial_task/README.md`](../../../src/simulation/so101_vial_task/README.md).
 
 ---
 
@@ -59,7 +59,7 @@ $PYTHON -c "import torch; print(torch.__version__)"   # expect 2.7.0+cu128
 $PYTHON -c "import lerobot; print('ok')"
 ```
 
-Container env (from `.bashrc`): `$ISAACLAB`, `$TASK_ROOT` (SO101 IL), `$RL_ROOT` (HumanoidRL).
+Container env (from `.bashrc`): `$ISAACLAB`, `$TASK_ROOT` (SO101 IL), `$RL_RUNNERS` (RSL-RL train/play scripts).
 
 Aliases: `il-train`, `il-eval`, `il-record`, `rl-train`, `rl-play`.
 
@@ -132,7 +132,7 @@ Same path on host: `~/Desktop/humanoid/outputs/train/so101_hf_act/...`
 **Must** run from `$TASK_ROOT`. **Do not** pass `--rename_map` for local ACT (cameras already `ego` / `external_D455`).
 
 ```bash
-cd /workspace/humanoid/autonomy/simulation/so101_vial_task
+cd /workspace/humanoid/src/simulation/so101_vial_task
 
 PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_eval.py \
   --task Lerobot-So101-Teleop-Vials-To-Rack-DR-Eval \
@@ -191,25 +191,28 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_agent.py \
 
 ---
 
-## 8. HumanoidRL — in-hand / locomotion / etc. (inside container)
+## 8. RL tasks — in-hand / locomotion / push / etc. (inside container)
 
-Same `simulation_isaac` stack (Lab 2.3.2 / Sim 5.1). Repo is bind-mounted — checkpoints under `logs/rsl_rl/` on host.
+Same `simulation_isaac` stack (Lab 2.3.2 / Sim 5.1). Tasks live in
+`src/simulation/humanoid_rl_tasks/`, runners in `$RL_RUNNERS` — see
+[src/simulation/README.md](../../../src/simulation/README.md). Repo is
+bind-mounted; checkpoints under `$HUMANOID_ROOT/outputs/rl/` on host.
 
 ```bash
-cd $RL_ROOT
+cd $HUMANOID_ROOT
 
 # In-hand cube reorientation — train
-rl-train --task=Isaac-Repose-Cube-WatoHand-v0 --headless
+rl-train --task=Isaac-Repose-Cube-PioneerHand-v0 --headless
 
 # Play (GUI; omit --headless)
-rl-play --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1
+rl-play --task=Isaac-Repose-Cube-PioneerHand-Play-v0 --num_envs=1
 
-# Locomotion — Wato Humanoid V1 (flat)
-rl-train --task=Isaac-Locomotion-Flat-WatoHumanoid-v0 --headless
-rl-play --task=Isaac-Locomotion-Flat-WatoHumanoid-Play-v0 --num_envs=1
+# Locomotion — Pioneer humanoid V1 (flat)
+rl-train --task=Isaac-Locomotion-Flat-PioneerHumanoid-v0 --headless
+rl-play --task=Isaac-Locomotion-Flat-PioneerHumanoid-Play-v0 --num_envs=1
 ```
 
-Task docs: `autonomy/simulation/Humanoid_Wato/HumanoidRL/.../tasks/<task>/*.md`.
+Task docs: `src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md`.
 
 ---
 
@@ -218,5 +221,5 @@ Task docs: `autonomy/simulation/Humanoid_Wato/HumanoidRL/.../tasks/<task>/*.md`.
 | Workload | Where |
 |----------|-------|
 | SO101 IL train + sim eval | `simulation_isaac` docker |
-| HumanoidRL (all tasks) | `simulation_isaac` docker (`$RL_ROOT`) |
+| RL tasks (all) | `simulation_isaac` docker; `humanoid_rl_tasks/` + runners in `$RL_RUNNERS` |
 | Quest / Wato teleop | `simulation_isaac` docker |

@@ -2,7 +2,7 @@
 set -e
 
 ################# Sweep for Docker Services and Modules #################
-# Scans for services and modules in the wato_monorepo,
+# Scans for services and modules in this repo,
 # dynamically builds a json matrix for downstream CI build and testing
 
 # Find docker compose files in 'modules' directory
@@ -30,7 +30,7 @@ while read -r module; do
     fi
 
     # Retrieve docker compose service names
-    services=$(docker compose -f "$module" --profile deploy --profile develop config --services)
+    services=$(docker compose -f "$module" config --services)
 
     # Only work with modules that are modified
     if [[ $MODIFIED_MODULES != *$module_out* && $TEST_ALL = "false"  ]]; then
@@ -46,7 +46,7 @@ while read -r module; do
         # fi
 
         # TODO: Expose whole profile object to env
-        dockerfile=$(docker compose -f "$module" --profile deploy --profile develop config | yq ".services.$service_out.build.dockerfile")
+        dockerfile=$(docker compose -f "$module" config | yq ".services.$service_out.build.dockerfile")
         json_object=$(jq -nc --arg module_out "$module_out" --arg service_out "$service_out" --arg dockerfile "$dockerfile" \
         '{module: $module_out, service: $service_out, dockerfile: $dockerfile}')
         # Append JSON object to the array

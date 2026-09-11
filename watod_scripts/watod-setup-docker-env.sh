@@ -30,11 +30,10 @@ TAG=${TAG/\//-}
 
 # List of active modules (each needs modules/docker-compose.<name>.yaml).
 # Possible values:
-##   - interfacing          :   CAN / hardware interfacing
-##   - perception           :   perception nodes
-##   - behaviour            :   joint_command, voxel_grid
-##   - simulation_isaac     :   Isaac Lab (SO101 IL, HumanoidRL, Quest teleop)
-##   - simulation_mj        :   MuJoCo / mjlab (mjlabs service)
+##   - interfacing          :   CAN / hardware interfacing + joint_command
+##   - perception           :   perception nodes + voxel_grid
+##   - simulation_isaac     :   Isaac Lab (SO101 IL, RL tasks, Quest teleop)
+##   - simulation_mj        :   MuJoCo / mjlab
 ACTIVE_MODULES=${ACTIVE_MODULES:-""}
 
 # Docker Registry to pull/push images
@@ -47,16 +46,20 @@ REPOSITORY=$(echo "$REGISTRY_URL" | sed 's|^.*/\(.*\)$|\1|')
 # NOTE: ALL IMAGE NAMES MUCH BE IN THE FORMAT OF <COMPOSE_FILE>_<SERVICE>
 
 # Images
-BEHAVIOUR_VOXEL_IMAGE=${BEHAVIOUR_VOXEL_IMAGE:-"$REGISTRY_URL/behaviour/voxel_grid"}
+# Dev container user — match the host so bind-mounted files are not root-owned
+USER_UID=$(id -u)
+USER_GID=$(id -g)
+USERNAME=${USER:-dev}
 
-BEHAVIOUR_JOINT_COMMAND_IMAGE=${BEHAVIOUR_JOINT_COMMAND_IMAGE:-"$REGISTRY_URL/behaviour/joint_command"}
+PERCEPTION_VOXEL_IMAGE=${PERCEPTION_VOXEL_IMAGE:-"$REGISTRY_URL/perception/voxel_grid"}
+
+INTERFACING_JOINT_COMMAND_IMAGE=${INTERFACING_JOINT_COMMAND_IMAGE:-"$REGISTRY_URL/interfacing/joint_command"}
 
 PERCEPTION_IMAGE=${PERCEPTION_IMAGE:-"$REGISTRY_URL/perception/perception_module"}
 
 SIMULATION_ISAAC_IMAGE=${SIMULATION_ISAAC_IMAGE:-"$REGISTRY_URL/simulation/isaac_lab"}
 
-# Fork of isaac_lab that adds cuRobo, for the pick_place_gen IL data generator.
-ISAAC_LAB_IL_DATAGEN_IMAGE=${ISAAC_LAB_IL_DATAGEN_IMAGE:-"$REGISTRY_URL/simulation/isaac_lab_il_datagen"}
+SIMULATION_MJ_IMAGE=${SIMULATION_MJ_IMAGE:-"$REGISTRY_URL/simulation/mjlabs"}
 
 ISAAC_SIM_CACHE_DIR=${ISAAC_SIM_CACHE_DIR:-"$HOME/docker/isaac-sim"}
 
@@ -89,13 +92,16 @@ echo "TAG=$TAG" >> "$MODULES_DIR/.env"
 echo "BASE_PORT=$BASE_PORT" >> "$MODULES_DIR/.env"
 
 # Images
+echo "USER_UID=$USER_UID" >> "$MODULES_DIR/.env"
+echo "USER_GID=$USER_GID" >> "$MODULES_DIR/.env"
+echo "USERNAME=$USERNAME" >> "$MODULES_DIR/.env"
 echo "INTERFACING_IMAGE=$INTERFACING_IMAGE" >> "$MODULES_DIR/.env"
 
-echo "BEHAVIOUR_VOXEL_IMAGE=$BEHAVIOUR_VOXEL_IMAGE" >> "$MODULES_DIR/.env"
-echo "BEHAVIOUR_JOINT_COMMAND_IMAGE=$BEHAVIOUR_JOINT_COMMAND_IMAGE" >> "$MODULES_DIR/.env"
+echo "PERCEPTION_VOXEL_IMAGE=$PERCEPTION_VOXEL_IMAGE" >> "$MODULES_DIR/.env"
+echo "INTERFACING_JOINT_COMMAND_IMAGE=$INTERFACING_JOINT_COMMAND_IMAGE" >> "$MODULES_DIR/.env"
 echo "PERCEPTION_IMAGE=$PERCEPTION_IMAGE" >> "$MODULES_DIR/.env"
 echo "SIMULATION_ISAAC_IMAGE=$SIMULATION_ISAAC_IMAGE" >> "$MODULES_DIR/.env"
-echo "ISAAC_LAB_IL_DATAGEN_IMAGE=$ISAAC_LAB_IL_DATAGEN_IMAGE" >> "$MODULES_DIR/.env"
+echo "SIMULATION_MJ_IMAGE=$SIMULATION_MJ_IMAGE" >> "$MODULES_DIR/.env"
 echo "ISAAC_SIM_CACHE_DIR=$ISAAC_SIM_CACHE_DIR" >> "$MODULES_DIR/.env"
 echo "HF_HOME=${HF_HOME:-$HOME/.cache/huggingface}" >> "$MODULES_DIR/.env"
 echo "XAUTHORITY=${XAUTHORITY:-$HOME/.Xauthority}" >> "$MODULES_DIR/.env"

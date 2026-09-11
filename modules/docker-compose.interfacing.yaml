@@ -3,11 +3,15 @@ services:
     build: &interfacing
       context: ..
       dockerfile: docker/interfacing/interfacing.Dockerfile
+      target: develop
+      args:
+        USER_UID: "${USER_UID}"
+        USER_GID: "${USER_GID}"
+        USERNAME: "${USERNAME}"
       cache_from:
         - "${INTERFACING_IMAGE:?}:${TAG}"
         - "${INTERFACING_IMAGE:?}:main"
     image: "${INTERFACING_IMAGE:?}:${TAG}"
-    profiles: [deploy, develop]
     command: /bin/bash -c "ros2 launch can can.launch.py"
     privileged: true
     network_mode: host # Allow the container to access the host's network interfaces
@@ -20,6 +24,28 @@ services:
       - ROS_DOMAIN_ID=0
     volumes:
       - /dev:/dev # Allow access to host devices
-      - ${MONO_DIR}/autonomy/interfacing:/root/ament_ws/src/interfacing
+      - ${MONO_DIR}/src/interfacing:/root/ament_ws/src/interfacing
       # For calibrate_arm.py --write-mapping
-      - ${MONO_DIR}/autonomy/behaviour/joint_command/config/hardware_mapping.yaml:/calibration/hardware_mapping.yaml
+      - ${MONO_DIR}/src/interfacing/joint_command/config/hardware_mapping.yaml:/calibration/hardware_mapping.yaml
+
+  joint_command:
+    build:
+      context: ..
+      dockerfile: docker/interfacing/joint_command/joint_command.Dockerfile
+      target: develop
+      args:
+        USER_UID: "${USER_UID}"
+        USER_GID: "${USER_GID}"
+        USERNAME: "${USERNAME}"
+        BASE_IMAGE: ${BASE_IMAGE_OVERRIDE-}
+      cache_from:
+        - "${INTERFACING_JOINT_COMMAND_IMAGE:?}:${TAG}"
+        - "${INTERFACING_JOINT_COMMAND_IMAGE:?}:main"
+    image: "${INTERFACING_JOINT_COMMAND_IMAGE:?}:${TAG}"
+    network_mode: host
+    working_dir: /root/ament_ws
+    # editable src is bind-mounted; launch it yourself:
+    #   watod -t joint_command  ->  ros2 launch joint_command joint_command.launch.py
+    command: tail -F anything
+    volumes:
+      - ${MONO_DIR}/src/interfacing/joint_command:/root/ament_ws/src/joint_command

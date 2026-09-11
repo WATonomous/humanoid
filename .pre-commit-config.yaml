@@ -1,0 +1,17 @@
+# Structural sanity checks on commit. Run `pre-commit install` once to enable
+# the git hook; CI runs `pre-commit run --all-files` on every PR.
+# Deliberately checks-only for now (no whole-repo reformat) — formatters can be
+# layered on later after a cleanup pass.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=51200]   # blocks accidental multi-hundred-MB asset commits
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-symlinks
+      - id: destroyed-symlinks
+      - id: forbid-submodules
+      - id: check-ast           # Python parses
+      - id: check-toml

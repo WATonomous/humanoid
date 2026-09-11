@@ -18,8 +18,8 @@ Based on [NVIDIA SO-101 workshop](https://github.com/isaac-sim/Sim-to-Real-SO-10
 
 | Environment | Use |
 |-------------|-----|
-| **`simulation_isaac`** (this) | SO101 IL + **HumanoidRL** + Quest / Wato teleop |
-| **`simulation_mj`** | MuJoCo / mjlab (`mjlabs`) |
+| **`simulation_isaac`** (this) | SO101 IL + RL tasks + Quest / Wato teleop |
+| **`simulation_mj`** | MuJoCo / mjlab |
 
 ## Files
 
@@ -27,7 +27,7 @@ Based on [NVIDIA SO-101 workshop](https://github.com/isaac-sim/Sim-to-Real-SO-10
 |------|------|
 | `docker/simulation/isaac_lab/isaac_lab.Dockerfile` | Image build |
 | `modules/docker-compose.simulation_isaac.yaml` | watod compose service |
-| `autonomy/simulation/so101_vial_task/` | Gym envs + `lerobot_agent.py` / `lerobot_eval.py` |
+| `src/simulation/so101_vial_task/` | Gym envs + `lerobot_agent.py` / `lerobot_eval.py` |
 | `assets/lerobot/` | Workshop USD/HDRI assets |
 
 ## One-time host setup
@@ -71,8 +71,8 @@ Set automatically in `.bashrc`:
 ```bash
 export ISAACLAB=/workspace/isaaclab
 export HUMANOID_ROOT=/workspace/humanoid
-export TASK_ROOT=/workspace/humanoid/autonomy/simulation/so101_vial_task
-export RL_ROOT=/workspace/humanoid/autonomy/simulation/Humanoid_Wato/HumanoidRL
+export TASK_ROOT=/workspace/humanoid/src/simulation/so101_vial_task
+export RL_RUNNERS=/workspace/humanoid/src/simulation/humanoid_rl/humanoid_rl/scripts
 export PYTHON=/workspace/isaaclab/_isaac_sim/python.sh
 ```
 
@@ -93,12 +93,12 @@ $PYTHON -c "import lerobot; print('ok')"
 
 ## Workflows
 
-### A. HumanoidRL — RSL-RL train / play
+### A. RL tasks — RSL-RL train / play
 
 ```bash
-cd $RL_ROOT
-rl-train --task=Isaac-Repose-Cube-WatoHand-v0 --headless
-rl-play --task=Isaac-Repose-Cube-WatoHand-Play-v0 --num_envs=1
+cd $HUMANOID_ROOT
+rl-train --task=Isaac-Repose-Cube-PioneerHand-v0 --headless
+rl-play --task=Isaac-Repose-Cube-PioneerHand-Play-v0 --num_envs=1
 ```
 
 Checkpoints: `logs/rsl_rl/<experiment>/` (same path on host under `~/Desktop/humanoid/...`).

@@ -10,21 +10,13 @@
 ## List of active modules to run (each needs modules/docker-compose.<name>.yaml).
 ##
 ## Possible values:
-##   - interfacing          :   CAN / hardware interfacing
-##   - perception           :   perception nodes
-##   - behaviour            :   joint_command, voxel_grid
-##   - simulation_isaac     :   Isaac Lab (SO101 IL, HumanoidRL, Quest teleop)
-##   - simulation_mj        :   MuJoCo / mjlab (mjlabs service)
+##   - interfacing          :   CAN / hardware interfacing + joint_command
+##   - perception           :   perception nodes + voxel_grid
+##   - simulation_isaac     :   Isaac Lab (SO101 IL, RL tasks, Quest teleop)
+##   - simulation_mj        :   MuJoCo / mjlab
 
 ACTIVE_MODULES="interfacing"
 
-################################# MODE OF OPERATION #################################
-## Possible modes of operation when running watod.
-## Possible values:
-##	 - deploy (default)		:	runs production-grade containers (non-editable)
-##	 - develop   		    :	runs developer containers (editable)
-
-# MODE_OF_OPERATION=""
 
 ############################## ADVANCED CONFIGURATIONS ##############################
 ## Name to append to docker containers. DEFAULT = "<your_watcloud_username>"

@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pioneer-humanoid"
+version = "0.1.0"
+description = "Isaac Lab articulation configs for the Pioneer humanoid"
+requires-python = ">=3.10"
+# isaaclab / isaacsim are provided by the Isaac Sim environment, not pip-installable here.
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pioneer_humanoid*"]
