@@ -72,7 +72,7 @@ import torch
 
 import isaaclab.sim as sim_utils
 from isaaclab.controllers import DifferentialIKController, DifferentialIKControllerCfg
-from isaaclab.devices import Se3Keyboard, Se3KeyboardCfg
+from isaaclab.devices import Se3Keyboard
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.scene import InteractiveScene
 from isaaclab.utils.math import compute_pose_error, quat_from_angle_axis, quat_mul, subtract_frame_transforms
@@ -209,7 +209,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     # modifier, so the base sensitivity is set high and Shift scales the command
     # down via a carb keyboard subscription (add_callback is press-only, can't
     # detect release).
-    teleop = Se3Keyboard(Se3KeyboardCfg(pos_sensitivity=0.011, rot_sensitivity=0.09, gripper_term=True))
+    teleop = Se3Keyboard(pos_sensitivity=0.011, rot_sensitivity=0.09)
     _FINE_SCALE = 0.2
     fine = {"active": False}
     _shift_keys = {carb.input.KeyboardInput.LEFT_SHIFT, carb.input.KeyboardInput.RIGHT_SHIFT}
