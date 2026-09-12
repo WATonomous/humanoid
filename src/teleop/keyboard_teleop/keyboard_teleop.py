@@ -20,12 +20,21 @@ from pathlib import Path
 
 from isaaclab.app import AppLauncher
 
-_IL_PKG = Path(__file__).resolve().parents[2] / "il"
+_SRC = Path(__file__).resolve().parents[2]
+_IL_PKG = _SRC / "il"
 _DEFAULT_SIM_SCHEMA = _IL_PKG / "config" / "dataset_schema_sim.yaml"
 
-# pioneer_humanoid package (canonical arm config). Editable-installed in the image; this fallback
-# keeps a bare bind-mounted checkout working.
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "pioneer_humanoid"))
+# Packages editable-installed in the image; these fallbacks
+# keep a bare bind-mounted checkout or direct invocation working.
+for _p in [
+    _SRC / "pioneer_humanoid",
+    _SRC / "simulation" / "humanoid_scenes",
+    _SRC / "simulation" / "humanoid_rl_tasks",
+    _SRC / "teleop",
+    _IL_PKG,
+]:
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
 parser = argparse.ArgumentParser(description="Keyboard teleoperation for the Pioneer bimanual arm (left only).")
 parser.add_argument(
