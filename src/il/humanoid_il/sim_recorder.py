@@ -30,41 +30,66 @@ def _encode_video_frames_subprocess(
 
     lerobot encodes videos in-process through PyAV/SVT-AV1, which leaks
     ~0.6 GB of native memory per encoded episode when running inside Isaac
-    Sim (measured; the leak eventually freezes the host). Encoding in a
-    short-lived ffmpeg subprocess produces identical output (same codec and
-    parameters) while the leaked memory dies with the child process.
+    Sim. Encoding in a short-lived ffmpeg subprocess avoids the memory leak.
+    Falls back to libx264/h264 if libsvtav1 is not installed in system ffmpeg.
     """
     video_path = Path(video_path)
     if video_path.exists() and not overwrite:
         return
     video_path.parent.mkdir(parents=True, exist_ok=True)
-    cmd = [
-        "ffmpeg", "-y", "-loglevel", "error",
-        "-framerate", str(fps),
-        "-i", str(Path(imgs_dir) / "frame-%06d.png"),
-        "-c:v", vcodec,
-        "-pix_fmt", pix_fmt,
-    ]
-    if vcodec == "libsvtav1":
-        cmd += ["-preset", "12"]
-    if g is not None:
-        cmd += ["-g", str(g)]
-    if crf is not None:
-        cmd += ["-crf", str(crf)]
-    cmd.append(str(video_path))
-    subprocess.run(cmd, check=True, capture_output=True)
+    input_pattern = str(Path(imgs_dir) / "frame-%06d.png")
+
+    codecs_to_try = [vcodec]
+    if "libx264" not in codecs_to_try:
+        codecs_to_try.append("libx264")
+    if "h264" not in codecs_to_try:
+        codecs_to_try.append("h264")
+
+    last_error = None
+    for codec in codecs_to_try:
+        cmd = [
+            "ffmpeg", "-y", "-loglevel", "error",
+            "-framerate", str(fps),
+            "-i", input_pattern,
+            "-c:v", codec,
+            "-pix_fmt", pix_fmt,
+        ]
+        if codec == "libsvtav1":
+            cmd += ["-preset", "12"]
+            if g is not None:
+                cmd += ["-g", str(g)]
+            if crf is not None:
+                cmd += ["-crf", str(crf)]
+        elif codec in ("libx264", "h264"):
+            cmd += ["-preset", "veryfast", "-crf", "22"]
+            if g is not None:
+                cmd += ["-g", str(g)]
+
+        cmd.append(str(video_path))
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, text=True)
+            return
+        except subprocess.CalledProcessError as e:
+            last_error = e
+            continue
+
+    if last_error is not None:
+        print(f"[ERROR] ffmpeg video encoding failed for {video_path}: {last_error.stderr}")
+        raise last_error
 
 
 def _install_subprocess_video_encoder() -> None:
-    """Route lerobot's video encoding through the ffmpeg CLI (idempotent).
-
-    lerobot offers no encoder hook, so the module-level symbol is replaced.
-    Covers both the sequential path and the per-camera worker processes
-    (which resolve the same module attribute after fork).
-    """
-    import lerobot.datasets.lerobot_dataset as lerobot_dataset
-
-    lerobot_dataset.encode_video_frames = _encode_video_frames_subprocess
+    """Route lerobot's video encoding through the ffmpeg CLI (idempotent)."""
+    try:
+        import lerobot.datasets.lerobot_dataset as lerobot_dataset
+        lerobot_dataset.encode_video_frames = _encode_video_frames_subprocess
+    except Exception:
+        pass
+    try:
+        import lerobot.datasets.video_utils as video_utils
+        video_utils.encode_video_frames = _encode_video_frames_subprocess
+    except Exception:
+        pass
 
 
 class SimLeRobotRecorder:
