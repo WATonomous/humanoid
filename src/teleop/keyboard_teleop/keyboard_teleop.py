@@ -252,10 +252,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             break
 
         if should_reset:
+            # Reset robot joints
             joint_pos = robot.data.default_joint_pos.clone()
             joint_vel = robot.data.default_joint_vel.clone()
             robot.write_joint_state_to_sim(joint_pos, joint_vel)
             robot.reset()
+
+            # Reset all scene rigid objects (e.g. the Block) to their initial spawn state
+            if hasattr(scene, "rigid_objects"):
+                for obj_name, obj in scene.rigid_objects.items():
+                    if hasattr(obj, "data") and hasattr(obj.data, "default_root_state"):
+                        obj.write_root_state_to_sim(obj.data.default_root_state.clone())
+                        obj.reset()
+
             diff_ik_controller.reset()
             teleop.reset()
             target["pos"] = None  # re-seed the persistent target from the tip
