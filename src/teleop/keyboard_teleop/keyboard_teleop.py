@@ -366,7 +366,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                 is_recording_active = False
                 ep_num = recorder.num_recorded_episodes
                 total_eps = recorder.num_episodes or "unlimited"
-                print(f"\n[INFO] [RECORD] +++ Successfully SAVED Episode {ep_num}/{total_eps}! (Press S to start next episode, R to reset)")
+                resolved_path = Path(recorder.dataset_root).resolve()
+                ep_file = resolved_path / "data" / "chunk-000" / f"episode_{ep_num - 1:06d}.parquet"
+                print(f"\n[INFO] [RECORD] +++ Successfully SAVED Episode {ep_num}/{total_eps}!")
+                print(f"[INFO] [RECORD]     File: {ep_file}")
+                print(f"[INFO] [RECORD]     Folder: {resolved_path}")
+                print(f"[INFO] [RECORD] (Press S to start next episode, R to reset)")
 
         # Actuate active left arm gripper fingers
         gripper_targets = gripper_closed_targets if close_gripper else gripper_open_targets
@@ -387,7 +392,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     if recorder is not None:
         recorder.finalize()
-        print(f"[RECORD] Saved under {recorder.dataset_root}")
+        print(f"\n[INFO] [RECORD] >>> All {recorder.num_recorded_episodes} episode(s) finalized and saved at:")
+        print(f"[INFO] [RECORD]     {Path(recorder.dataset_root).resolve()}")
 
 
 def main():
