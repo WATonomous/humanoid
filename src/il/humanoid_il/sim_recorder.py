@@ -15,6 +15,9 @@ from tqdm import tqdm
 from humanoid_il.episode_keys import EpisodeFlags, EpisodeKeyboard
 
 
+import re
+
+
 def _encode_video_frames_subprocess(
     imgs_dir: Path | str,
     video_path: Path | str,
@@ -37,7 +40,25 @@ def _encode_video_frames_subprocess(
     if video_path.exists() and not overwrite:
         return
     video_path.parent.mkdir(parents=True, exist_ok=True)
-    input_pattern = str(Path(imgs_dir) / "frame-%06d.png")
+    imgs_path = Path(imgs_dir)
+    if not imgs_path.exists():
+        print(f"[WARN] imgs_dir {imgs_dir} does not exist!")
+        return
+
+    files = sorted([f for f in imgs_path.iterdir() if f.is_file()])
+    if not files:
+        print(f"[WARN] No image files found in {imgs_dir} to encode into video {video_path}")
+        return
+
+    # Dynamically detect filename pattern (e.g. frame_000000.png vs frame-000000.png vs 000000.png)
+    first_file = files[0].name
+    match = re.match(r"^(.*?)(\d+)(\.[a-zA-Z0-9]+)$", first_file)
+    if match:
+        prefix, digits, ext = match.groups()
+        num_digits = len(digits)
+        input_pattern = str(imgs_path / f"{prefix}%0{num_digits}d{ext}")
+    else:
+        input_pattern = str(imgs_path / "frame_%06d.png")
 
     codecs_to_try = [vcodec]
     if "libx264" not in codecs_to_try:
