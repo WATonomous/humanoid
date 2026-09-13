@@ -241,12 +241,27 @@ class SimLeRobotRecorder:
         if self._free_slots.empty():
             self._allocate_cpu_slots()
         root = self.dataset_root
+        features = self._build_features()
         if root.exists():
             if (root / "meta" / "info.json").exists():
                 try:
-                    self.dataset = LeRobotDataset(self.repo_id, root=root)
-                    print(f"[INFO]: Opened existing dataset at {root}")
-                    return
+                    existing_ds = LeRobotDataset(self.repo_id, root=root)
+                    existing_features = getattr(existing_ds, "features", {})
+                    mismatch = False
+                    for k, v in features.items():
+                        if k not in existing_features:
+                            mismatch = True
+                            break
+                        if "shape" in v and "shape" in existing_features[k]:
+                            if tuple(v["shape"]) != tuple(existing_features[k]["shape"]):
+                                mismatch = True
+                                break
+                    if not mismatch:
+                        self.dataset = existing_ds
+                        print(f"[INFO]: Opened existing dataset at {root}")
+                        return
+                    else:
+                        print(f"[WARNING]: Schema mismatch detected with existing dataset at {root} (e.g. joint count / camera changes). Recreating fresh dataset...")
                 except Exception as exc:
                     print(f"[WARNING]: Could not open existing dataset at {root} ({exc}). Recreating fresh dataset...")
             import shutil
@@ -255,7 +270,7 @@ class SimLeRobotRecorder:
         self.dataset = LeRobotDataset.create(
             self.repo_id,
             fps=self.fps,
-            features=self._build_features(),
+            features=features,
             root=root,
             robot_type=self.robot_type,
         )
