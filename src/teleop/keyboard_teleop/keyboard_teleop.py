@@ -65,9 +65,9 @@ parser.add_argument("--task_description", type=str, default="sim keyboard teleop
 parser.add_argument(
     "--scene",
     type=str,
-    default="bare",
-    help="scene name: 'bare' (arm only), 'push', or any scene registered in "
-    "humanoid_scenes (validated after launch — pass an unknown name to list them)",
+    default="pick_place",
+    help="scene name: 'pick_place' (default: pickup table with block + fenced target table), "
+    "'bare', 'push', 'vial_rack', or any scene registered in humanoid_scenes",
 )
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
