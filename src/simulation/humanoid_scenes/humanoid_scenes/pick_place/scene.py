@@ -22,11 +22,11 @@ TABLE_Z_CENTER = TABLE_TOP_Z - TABLE_HEIGHT / 2  # -0.45
 
 # Table 1 (Pickup Table) - moved further away from place table (y = 0.08)
 PICK_TABLE_SIZE = (0.35, 0.14, TABLE_HEIGHT)
-PICK_TABLE_POS = (0.66, 0.40, TABLE_Z_CENTER)
+PICK_TABLE_POS = (0.56, 0.40, TABLE_Z_CENTER)
 
 # Pickup Block (centered on pickup table)
 BLOCK_SIZE = (0.045, 0.045, 0.055)
-BLOCK_POS = (0.66, 0.40, TABLE_TOP_Z + BLOCK_SIZE[2] / 2)  # -0.2225
+BLOCK_POS = (0.56, 0.40, TABLE_TOP_Z + BLOCK_SIZE[2] / 2)  # -0.2225
 
 # Table 2 (Place / Landing Table with Border Fence) - unchanged
 PLACE_TABLE_SIZE = (0.35, 0.14, TABLE_HEIGHT)
