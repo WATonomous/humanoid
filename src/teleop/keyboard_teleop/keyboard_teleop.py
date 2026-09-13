@@ -263,12 +263,23 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             target["pos"] = None  # re-seed the persistent target from the tip
             should_reset = False
 
-        # Se3Keyboard.advance() returns a 7-vec tensor: [dx,dy,dz,drx,dry,drz, gripper(+1 open/-1 close)].
-        cmd = teleop.advance()
-        command = cmd[:6].to(dtype=torch.float32, device=sim.device).unsqueeze(0)
+        # Se3Keyboard.advance() returns a tuple (delta_pose, gripper_command)
+        res = teleop.advance()
+        if isinstance(res, tuple):
+            delta_pose, gripper_cmd = res[0], res[1]
+            close_gripper = bool(gripper_cmd) if isinstance(gripper_cmd, bool) else (float(gripper_cmd) < 0.0)
+        else:
+            delta_pose = res[:6]
+            close_gripper = bool(res[6].item() < 0.0) if hasattr(res, "numel") and res.numel() > 6 else False
+
+        if not isinstance(delta_pose, torch.Tensor):
+            delta_pose = torch.tensor(delta_pose, dtype=torch.float32, device=sim.device)
+        else:
+            delta_pose = delta_pose.to(dtype=torch.float32, device=sim.device)
+
+        command = delta_pose.view(1, 6)
         if fine["active"]:
             command = command * _FINE_SCALE
-        close_gripper = bool(cmd[6].item() < 0.0) if cmd.numel() > 6 else False
 
         if debug_steps < 5 and torch.any(command.abs() > 1e-4):
             print(f"[DEBUG] Keyboard command: {command[0].tolist()}")

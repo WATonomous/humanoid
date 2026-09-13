@@ -246,10 +246,20 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             maybe_apply_domain_rand(scene, args_cli)
             should_reset = False
 
-        teleop_result = teleop.advance()
-        delta_pose = teleop_result[:6]
-        close_gripper = teleop_result[6].item() < 0
-        command = delta_pose.to(device=sim.device).unsqueeze(0)
+        res = teleop.advance()
+        if isinstance(res, tuple):
+            delta_pose, gripper_cmd = res[0], res[1]
+            close_gripper = bool(gripper_cmd) if isinstance(gripper_cmd, bool) else (float(gripper_cmd) < 0.0)
+        else:
+            delta_pose = res[:6]
+            close_gripper = bool(res[6].item() < 0.0) if hasattr(res, "numel") and res.numel() > 6 else False
+
+        if not isinstance(delta_pose, torch.Tensor):
+            delta_pose = torch.tensor(delta_pose, dtype=torch.float32, device=sim.device)
+        else:
+            delta_pose = delta_pose.to(dtype=torch.float32, device=sim.device)
+
+        command = delta_pose.view(1, 6)
 
         ee_pose_w = robot.data.body_state_w[:, robot_entity_cfg.body_ids[0], 0:7]
         root_pose_w = robot.data.root_state_w[:, 0:7]
