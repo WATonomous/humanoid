@@ -242,17 +242,15 @@ class SimLeRobotRecorder:
             self._allocate_cpu_slots()
         root = self.dataset_root
         if root.exists():
-            try:
-                self.dataset = LeRobotDataset(self.repo_id, root=root)
-                print(f"[INFO]: Opened existing dataset at {root}")
-                return
-            except Exception as exc:
-                raise ValueError(
-                    f"[ERROR]: Dataset folder exists but cannot be opened: {root}\n"
-                    f"  Cause: {type(exc).__name__}: {exc}\n"
-                    "  A run that ended before saving an episode leaves a folder LeRobotDataset "
-                    "cannot re-open. Delete it (or pass --dataset_root elsewhere) and retry."
-                ) from exc
+            if (root / "meta" / "info.json").exists():
+                try:
+                    self.dataset = LeRobotDataset(self.repo_id, root=root)
+                    print(f"[INFO]: Opened existing dataset at {root}")
+                    return
+                except Exception as exc:
+                    print(f"[WARNING]: Could not open existing dataset at {root} ({exc}). Recreating fresh dataset...")
+            import shutil
+            shutil.rmtree(root, ignore_errors=True)
 
         self.dataset = LeRobotDataset.create(
             self.repo_id,
