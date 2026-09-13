@@ -367,6 +367,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         joint_pos_des = diff_ik_controller.compute(tip_pos_b, tip_quat_b, jacobian, joint_pos)
         robot.set_joint_position_target(joint_pos_des, joint_ids=left_arm_ids)
 
+        # Actuate active left arm gripper fingers
+        gripper_targets = gripper_closed_targets if close_gripper else gripper_open_targets
+        zero_gripper_vel = torch.zeros(1, len(left_gripper_ids), device=sim.device)
+        robot.set_joint_position_target(gripper_targets, joint_ids=left_gripper_ids)
+        robot.set_joint_velocity_target(zero_gripper_vel, joint_ids=left_gripper_ids)
+
+        # Keep right arm and right gripper fixed at default pose
+        robot.set_joint_position_target(right_default_pos, joint_ids=right_hold_ids)
+        robot.set_joint_velocity_target(
+            torch.zeros(1, len(right_hold_ids), device=sim.device),
+            joint_ids=right_hold_ids,
+        )
+
         if recorder is not None:
             # Record full 8-DOF state (6 arm joints + 2 gripper fingers) and commanded action targets
             state = torch.cat(
@@ -411,19 +424,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     )
                     print(f"[INFO] [RECORD]     Video ({cam_name}): {vid_file}")
                 print(f"[INFO] [RECORD] (Press I to start next episode, R to reset)")
-
-        # Actuate active left arm gripper fingers
-        gripper_targets = gripper_closed_targets if close_gripper else gripper_open_targets
-        zero_gripper_vel = torch.zeros(1, len(left_gripper_ids), device=sim.device)
-        robot.set_joint_position_target(gripper_targets, joint_ids=left_gripper_ids)
-        robot.set_joint_velocity_target(zero_gripper_vel, joint_ids=left_gripper_ids)
-
-        # Keep right arm and right gripper fixed at default pose
-        robot.set_joint_position_target(right_default_pos, joint_ids=right_hold_ids)
-        robot.set_joint_velocity_target(
-            torch.zeros(1, len(right_hold_ids), device=sim.device),
-            joint_ids=right_hold_ids,
-        )
 
         scene.write_data_to_sim()
         sim.step()
