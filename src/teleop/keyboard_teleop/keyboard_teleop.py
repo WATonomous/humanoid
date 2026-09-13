@@ -78,6 +78,10 @@ parser.add_argument(
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 
+# Enable cameras for simulation rendering when recording video datasets
+if args_cli.record:
+    args_cli.enable_cameras = True
+
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
@@ -156,6 +160,19 @@ def _init_recorder(device: str):
     print(f"[RECORD] Writing to {dataset_root}")
     print("[RECORD] Keys: I=start, O=save episode, P=discard, Esc=stop")
     return recorder, cfg
+
+
+def _capture_record_images(scene) -> dict[str, torch.Tensor]:
+    """Capture RGB images from scene camera sensors."""
+    images = {}
+    for cam_name in ("ego_cam", "wrist_cam"):
+        if cam_name in scene.sensors:
+            cam_data = scene[cam_name].data
+            if hasattr(cam_data, "output") and "rgb" in cam_data.output:
+                rgb = cam_data.output["rgb"]
+                if rgb is not None and rgb.numel() > 0:
+                    images[cam_name] = rgb[0, ..., :3]
+    return images
 
 
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
@@ -351,8 +368,15 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         robot.set_joint_position_target(joint_pos_des, joint_ids=left_arm_ids)
 
         if recorder is not None:
-            state = joint_pos[0].detach().cpu().numpy().astype(np.float32)
-            action = joint_pos_des[0].detach().cpu().numpy().astype(np.float32)
+            # Record full 8-DOF state (6 arm joints + 2 gripper fingers) and commanded action targets
+            state = torch.cat(
+                [robot.data.joint_pos[:, left_arm_ids], robot.data.joint_pos[:, left_gripper_ids]],
+                dim=-1,
+            )[0].detach().cpu().numpy().astype(np.float32)
+            action = torch.cat(
+                [joint_pos_des, gripper_targets],
+                dim=-1,
+            )[0].detach().cpu().numpy().astype(np.float32)
 
             # Check for recording start transition
             if hasattr(recorder, "_flags") and recorder._flags is not None:
@@ -367,16 +391,25 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                 if recorder._flags.remove:
                     print(f"\n[INFO] [RECORD] --- Discarded current episode buffer. (Press I to start re-recording)")
 
-            saved = recorder.tick(action, state, {})
+            saved = recorder.tick(action, state, lambda: _capture_record_images(scene))
             if saved:
                 is_recording_active = False
-                ep_num = recorder.num_recorded_episodes
+                ep_idx = recorder.num_recorded_episodes
                 total_eps = recorder.num_episodes or "unlimited"
                 resolved_path = Path(recorder.dataset_root).resolve()
-                ep_file = resolved_path / "data" / "chunk-000" / f"episode_{ep_num - 1:06d}.parquet"
-                print(f"\n[INFO] [RECORD] +++ Successfully SAVED Episode {ep_num}/{total_eps}!")
-                print(f"[INFO] [RECORD]     File: {ep_file}")
-                print(f"[INFO] [RECORD]     Folder: {resolved_path}")
+                ep_file = resolved_path / "data" / "chunk-000" / f"episode_{ep_idx:06d}.parquet"
+                print(f"\n[INFO] [RECORD] +++ Successfully SAVED Episode {ep_idx + 1}/{total_eps}!")
+                print(f"[INFO] [RECORD]     Dataset Root : {resolved_path}")
+                print(f"[INFO] [RECORD]     Parquet Data : {ep_file}")
+                for cam_name in recorder.cameras:
+                    vid_file = (
+                        resolved_path
+                        / "videos"
+                        / "chunk-000"
+                        / f"observation.images.{cam_name}"
+                        / f"episode_{ep_idx:06d}.mp4"
+                    )
+                    print(f"[INFO] [RECORD]     Video ({cam_name}): {vid_file}")
                 print(f"[INFO] [RECORD] (Press I to start next episode, R to reset)")
 
         # Actuate active left arm gripper fingers

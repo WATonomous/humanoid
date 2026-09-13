@@ -13,6 +13,7 @@ from isaaclab.sensors.frame_transformer.frame_transformer_cfg import FrameTransf
 from isaaclab.utils import configclass
 
 from humanoid_scenes import scene
+from teleop_cameras import make_ego_cam_cfg, make_wrist_cam_cfg
 
 # ── Dimensions and coordinates ──────────────────────────────────────────────
 GROUND_Z = -1.05
@@ -156,3 +157,7 @@ class PickPlaceSceneCfg(InteractiveSceneCfg):
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.85, 0.75, 0.30)),
         ),
     )
+
+    # 5. Onboard RGB Cameras for Video Recording / ACT training
+    ego_cam = make_ego_cam_cfg()
+    wrist_cam = make_wrist_cam_cfg(body="link6l", name="wrist_cam")
