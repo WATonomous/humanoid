@@ -20,17 +20,17 @@ TABLE_TOP_Z = -0.25
 TABLE_HEIGHT = 0.40
 TABLE_Z_CENTER = TABLE_TOP_Z - TABLE_HEIGHT / 2  # -0.45
 
-# Table 1 (Pickup Table)
+# Table 1 (Pickup Table) - moved further away from place table (y = 0.08)
 PICK_TABLE_SIZE = (0.35, 0.28, TABLE_HEIGHT)
-PICK_TABLE_POS = (0.46, -0.12, TABLE_Z_CENTER)
+PICK_TABLE_POS = (0.46, 0.28, TABLE_Z_CENTER)
 
-# Pickup Block
+# Pickup Block (centered on pickup table)
 BLOCK_SIZE = (0.045, 0.045, 0.055)
-BLOCK_POS = (0.46, -0.12, TABLE_TOP_Z + BLOCK_SIZE[2] / 2)  # -0.2225
+BLOCK_POS = (0.46, 0.28, TABLE_TOP_Z + BLOCK_SIZE[2] / 2)  # -0.2225
 
-# Table 2 (Place Table with Border Fence)
+# Table 2 (Place / Landing Table with Border Fence) - unchanged
 PLACE_TABLE_SIZE = (0.35, 0.28, TABLE_HEIGHT)
-PLACE_TABLE_POS = (0.46, -0.42, TABLE_Z_CENTER)
+PLACE_TABLE_POS = (0.46, 0.02, TABLE_Z_CENTER)
 
 # Fence parameters on Table 2
 FENCE_HEIGHT = 0.05
@@ -50,7 +50,7 @@ WALL_W_POS = (PLACE_TABLE_POS[0], PLACE_TABLE_POS[1] - PLACE_TABLE_SIZE[1] / 2 +
 WALL_W_SIZE = (PLACE_TABLE_SIZE[0], FENCE_THICKNESS, FENCE_HEIGHT)
 
 
-@scene("pick_place", robot_pos=(0.0, 0.0, 0.0), camera=([1.1, -0.9, 0.35], [0.46, -0.27, -0.20]))
+@scene("pick_place", robot_pos=(0.0, 0.0, 0.0), camera=([1.2, -0.8, 0.40], [0.46, -0.17, -0.20]))
 @configclass
 class PickPlaceSceneCfg(InteractiveSceneCfg):
     """Pick-and-place scene with pick table + block + fenced place table."""
