@@ -34,7 +34,7 @@ PYTHONPATH=$(pwd) /workspace/isaaclab/isaaclab.sh -p keyboard_teleop.py [--scene
 - **Move:** `W/S` x · `A/D` y · `Q/E` z · `Z/X` `T/G` `C/V` rotate · **hold `Shift`** = fine
 - **`K`** toggle gripper · **`R`** reset arm
 - **`--scene`:** `bare` (default) or `push` (table + ramp-box + block + lightbox)
-- **`--record`** (image already has `humanoid-il`): `S` start · `N` save · `D` discard · `Esc` stop → `datasets/record_sim/`
+- **`--record`** (image already has `humanoid-il`): `I` start · `O` save · `P` discard · `Esc` stop → `datasets/record_sim/`
 
 ## Notes
 

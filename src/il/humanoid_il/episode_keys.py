@@ -22,9 +22,9 @@ class EpisodeFlags:
 class EpisodeKeyboard:
     """
     Register keys:
-      S — start / resume logging frames for the current episode
-      N — finish episode (save on next loop tick)
-      D — discard buffered frames and re-record current episode
+      I — start / resume logging frames for the current episode
+      O — finish episode (save on next loop tick, only if started)
+      P — discard buffered frames and re-record current episode (only if started)
       ESC — stop session and finalize dataset
     """
 
@@ -55,15 +55,21 @@ class EpisodeKeyboard:
                 if char is None:
                     return
                 c = char.lower()
-                if c == "s":
+                if c == "i":
                     self.flags.start = True
-                    logger.info("[S] Recording frames for this episode.")
-                elif c == "n":
-                    self.flags.success = True
-                    logger.info("[N] Mark episode complete.")
-                elif c == "d":
-                    self.flags.remove = True
-                    logger.info("[D] Discard episode buffer.")
+                    logger.info("[I] Recording frames for this episode.")
+                elif c == "o":
+                    if self.flags.start:
+                        self.flags.success = True
+                        logger.info("[O] Mark episode complete.")
+                    else:
+                        print("\n[INFO] [RECORD] [O] Ignored: Recording is not active. Press 'I' to start recording first.")
+                elif c == "p":
+                    if self.flags.start:
+                        self.flags.remove = True
+                        logger.info("[P] Discard episode buffer.")
+                    else:
+                        print("\n[INFO] [RECORD] [P] Ignored: Recording is not active. Press 'I' to start recording first.")
             except Exception:
                 logger.exception("Keyboard callback error")
 

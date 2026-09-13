@@ -11,7 +11,13 @@ Teleop bindings: https://isaac-sim.github.io/IsaacLab/v2.0.1/source/overview/tel
   Z/X     Rotate along x-axis
   T/G     Rotate along y-axis
   C/V     Rotate along z-axis
-  R       Reset left arm to default pose
+  R       Reset left arm + block to default pose
+
+Recording keys (when --record):
+  I       Start recording episode
+  O       Save current episode (only if started)
+  P       Discard current episode (only if started)
+  Esc     Stop recording session and finalize
 """
 
 import argparse
@@ -148,7 +154,7 @@ def _init_recorder(device: str):
     )
     recorder.init_dataset()
     print(f"[RECORD] Writing to {dataset_root}")
-    print("[RECORD] Keys: S=start, N=save episode, D=discard, Esc=stop")
+    print("[RECORD] Keys: I=start, O=save episode, P=discard, Esc=stop")
     return recorder, cfg
 
 
@@ -354,12 +360,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     is_recording_active = True
                     ep_num = recorder.num_recorded_episodes + 1
                     total_eps = recorder.num_episodes or "unlimited"
-                    print(f"\n[INFO] [RECORD] >>> Started recording Episode {ep_num}/{total_eps} (Press N to save, D to discard, R to reset)")
+                    print(f"\n[INFO] [RECORD] >>> Started recording Episode {ep_num}/{total_eps} (Press O to save, P to discard, R to reset)")
                 elif not recorder._flags.start and is_recording_active:
                     is_recording_active = False
 
                 if recorder._flags.remove:
-                    print(f"\n[INFO] [RECORD] --- Discarded current episode buffer. (Press S to start re-recording)")
+                    print(f"\n[INFO] [RECORD] --- Discarded current episode buffer. (Press I to start re-recording)")
 
             saved = recorder.tick(action, state, {})
             if saved:
@@ -371,7 +377,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                 print(f"\n[INFO] [RECORD] +++ Successfully SAVED Episode {ep_num}/{total_eps}!")
                 print(f"[INFO] [RECORD]     File: {ep_file}")
                 print(f"[INFO] [RECORD]     Folder: {resolved_path}")
-                print(f"[INFO] [RECORD] (Press S to start next episode, R to reset)")
+                print(f"[INFO] [RECORD] (Press I to start next episode, R to reset)")
 
         # Actuate active left arm gripper fingers
         gripper_targets = gripper_closed_targets if close_gripper else gripper_open_targets
