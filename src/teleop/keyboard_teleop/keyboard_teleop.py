@@ -246,9 +246,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     print("[INFO] Click the 3D viewport window, then W/A/S/D/Q/E to move. Hold SHIFT for fine control.")
 
     debug_steps = 0
+    is_recording_active = False
     while simulation_app.is_running():
         if recorder is not None and recorder.is_complete:
-            print("[RECORD] Session complete.")
+            print(f"[INFO] [RECORD] Target number of episodes ({recorder.num_episodes}) reached. Session complete.")
             break
 
         if should_reset:
@@ -346,7 +347,26 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         if recorder is not None:
             state = joint_pos[0].detach().cpu().numpy().astype(np.float32)
             action = joint_pos_des[0].detach().cpu().numpy().astype(np.float32)
-            recorder.tick(action, state, {})
+
+            # Check for recording start transition
+            if hasattr(recorder, "_flags") and recorder._flags is not None:
+                if recorder._flags.start and not is_recording_active:
+                    is_recording_active = True
+                    ep_num = recorder.num_recorded_episodes + 1
+                    total_eps = recorder.num_episodes or "unlimited"
+                    print(f"\n[INFO] [RECORD] >>> Started recording Episode {ep_num}/{total_eps} (Press N to save, D to discard, R to reset)")
+                elif not recorder._flags.start and is_recording_active:
+                    is_recording_active = False
+
+                if recorder._flags.remove:
+                    print(f"\n[INFO] [RECORD] --- Discarded current episode buffer. (Press S to start re-recording)")
+
+            saved = recorder.tick(action, state, {})
+            if saved:
+                is_recording_active = False
+                ep_num = recorder.num_recorded_episodes
+                total_eps = recorder.num_episodes or "unlimited"
+                print(f"\n[INFO] [RECORD] +++ Successfully SAVED Episode {ep_num}/{total_eps}! (Press S to start next episode, R to reset)")
 
         # Actuate active left arm gripper fingers
         gripper_targets = gripper_closed_targets if close_gripper else gripper_open_targets
