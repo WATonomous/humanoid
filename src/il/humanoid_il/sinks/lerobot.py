@@ -45,4 +45,5 @@ class LeRobotSink:
         self._dataset.save_episode()
 
     def finalize(self) -> None:
-        self._dataset.finalize()
+        if hasattr(self._dataset, "finalize"):
+            self._dataset.finalize()

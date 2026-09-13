@@ -545,8 +545,12 @@ class SimLeRobotRecorder:
                     self._save_seg_video(episode["seg"][name][:n].numpy(), name)
 
         self.dataset.save_episode()
-        self.dataset.finalize()
-        self.dataset = LeRobotDataset(self.repo_id, root=self.dataset_root)
+        if hasattr(self.dataset, "finalize"):
+            self.dataset.finalize()
+        try:
+            self.dataset = LeRobotDataset(self.repo_id, root=self.dataset_root)
+        except Exception:
+            pass
 
     def finalize(self) -> None:
         """Block until all queued episodes are saved, then stop the worker thread."""
