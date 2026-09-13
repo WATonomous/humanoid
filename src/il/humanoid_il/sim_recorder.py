@@ -501,13 +501,19 @@ class SimLeRobotRecorder:
             frame: dict[str, Any] = {
                 "action": episode["action"][i],
                 "observation.state": episode["observation"][i],
-                "task": self.task_name,
             }
             for name in self.cameras:
                 frame[f"observation.images.{name}"] = episode["rgb"][name][i]
             for name in self.extra_features:
                 frame[name] = episode["extras"][name][i]
-            self.dataset.add_frame(frame)
+            try:
+                self.dataset.add_frame(frame, task=self.task_name)
+            except TypeError:
+                try:
+                    self.dataset.add_frame(frame, self.task_name)
+                except TypeError:
+                    frame["task"] = self.task_name
+                    self.dataset.add_frame(frame)
 
         if self.save_mp4:
             for name in self.cameras:

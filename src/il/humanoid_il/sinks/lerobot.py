@@ -30,7 +30,13 @@ class LeRobotSink:
             task=task,
             image_keys=self._image_keys,
         )
-        self._dataset.add_frame(frame)
+        try:
+            self._dataset.add_frame(frame, task=task)
+        except TypeError:
+            try:
+                self._dataset.add_frame(frame, task)
+            except TypeError:
+                self._dataset.add_frame(frame)
 
     def clear_episode(self) -> None:
         self._dataset.clear_episode_buffer()
