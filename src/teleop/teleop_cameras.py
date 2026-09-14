@@ -14,13 +14,14 @@ import math
 import isaaclab.sim as sim_utils
 from isaaclab.sensors import CameraCfg
 
-# Data camera lens (RealSense D455 optical profile)
+# Standard data cam lens (clean, crisp, no fisheye distortion)
 DATA_CAM_LENS = sim_utils.PinholeCameraCfg(
     focal_length=7.336, horizontal_aperture=20.955, vertical_aperture=15.2908,
     clipping_range=(0.01, 100.0),
 )
 
-# ego_cam pose relative to base_link: downward glance aimed cleanly at the manipulation workspace
+# ego_cam pose relative to base_link:
+# Pure 60-degree downward pitch around X-axis (y=0, z=0 ensures zero sideways roll)
 EGO_CAM_POS = (0.047450090928410314, -0.008096717438775313, 0.21180604954921534)
 EGO_CAM_ROT = (0.8660254037844387, 0.49999999999999983, 0.0, 0.0)
 
