@@ -226,6 +226,7 @@ class SimLeRobotRecorder:
         if flags.remove:
             self.cancel_recording()
             flags.remove = False
+            flags.start = False
         if flags.success:
             self.save_episode()
             flags.success = False

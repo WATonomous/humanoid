@@ -259,8 +259,16 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     should_reset = False
 
     def reset_left_arm():
-        nonlocal should_reset
+        nonlocal should_reset, is_recording_active
         should_reset = True
+        if recorder is not None:
+            recorder.cancel_recording()
+            is_recording_active = False
+            if hasattr(recorder, "_flags") and recorder._flags is not None:
+                recorder._flags.start = False
+                recorder._flags.remove = False
+                recorder._flags.success = False
+        print("\n[INFO] [RESET] Robot arm, block, and teleop targets reset to spawn pose.")
 
     teleop.add_callback("R", reset_left_arm)
     teleop.reset()
@@ -402,11 +410,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     is_recording_active = False
 
                 if recorder._flags.remove:
-                    print(f"\n[INFO] [RECORD] --- Discarded current episode buffer. (Press I to start re-recording)")
+                    is_recording_active = False
+                    should_reset = True
+                    print(f"\n[INFO] [RECORD] --- Discarded current episode. Scene reset to spawn pose. (Press I to start new recording)")
 
             saved = recorder.tick(action, state, lambda: _capture_record_images(scene))
             if saved:
                 is_recording_active = False
+                should_reset = True
                 ep_idx = recorder.num_recorded_episodes
                 total_eps = recorder.num_episodes or "unlimited"
                 resolved_path = Path(recorder.dataset_root).resolve()
@@ -423,7 +434,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                         / f"episode_{ep_idx:06d}.mp4"
                     )
                     print(f"[INFO] [RECORD]     Video ({cam_name}): {vid_file}")
-                print(f"[INFO] [RECORD] (Press I to start next episode, R to reset)")
+                print(f"[INFO] [RECORD] Scene reset to spawn pose. (Press I to start next episode)")
 
         scene.write_data_to_sim()
         sim.step()
