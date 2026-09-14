@@ -113,6 +113,20 @@ def _install_subprocess_video_encoder() -> None:
         pass
 
 
+def _find_highest_episode_index(root: Path) -> int:
+    """Find the highest episode index existing on disk (-1 if none exist)."""
+    highest = -1
+    for p in root.glob("data/**/episode_*.parquet"):
+        match = re.search(r"episode_(\d+)", p.stem)
+        if match:
+            highest = max(highest, int(match.group(1)))
+    for p in root.glob("videos/**/episode_*.mp4"):
+        match = re.search(r"episode_(\d+)", p.stem)
+        if match:
+            highest = max(highest, int(match.group(1)))
+    return highest
+
+
 class SimLeRobotRecorder:
     """Buffer frames in GPU tensors, flush to a LeRobot dataset asynchronously.
 
@@ -277,25 +291,6 @@ class SimLeRobotRecorder:
                 "names": list(comp_names),
             }
         return features
-
-def _find_highest_episode_index(root: Path) -> int:
-    """Find the highest episode index existing on disk (-1 if none exist)."""
-    highest = -1
-    for p in root.glob("data/**/episode_*.parquet"):
-        match = re.search(r"episode_(\d+)", p.stem)
-        if match:
-            highest = max(highest, int(match.group(1)))
-    for p in root.glob("videos/**/episode_*.mp4"):
-        match = re.search(r"episode_(\d+)", p.stem)
-        if match:
-            highest = max(highest, int(match.group(1)))
-    return highest
-
-
-class SimLeRobotRecorder:
-    """Buffer frames in GPU tensors, flush to a LeRobot dataset asynchronously."""
-
-    _NUM_CPU_SLOTS = 2
 
     def init_dataset(self) -> None:
         """Create or re-open the LeRobot dataset on disk, appending to existing episodes."""
