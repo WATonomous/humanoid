@@ -150,6 +150,8 @@ class SimLeRobotRecorder:
         recorder.finalize()
     """
 
+    _NUM_CPU_SLOTS = 2
+
     def __init__(
         self,
         task_name: str,
