@@ -1,15 +1,15 @@
 {
     "codebase_version": "v2.1",
     "robot_type": "so101_follower",
-    "total_episodes": 4,
-    "total_frames": 1507,
+    "total_episodes": 5,
+    "total_frames": 1964,
     "total_tasks": 1,
-    "total_videos": 8,
+    "total_videos": 10,
     "total_chunks": 1,
     "chunks_size": 1000,
     "fps": 30,
     "splits": {
-        "train": "0:4"
+        "train": "0:5"
     },
     "data_path": "data/chunk-{episode_chunk:03d}/episode_{episode_index:06d}.parquet",
     "video_path": "videos/chunk-{episode_chunk:03d}/{video_key}/episode_{episode_index:06d}.mp4",
