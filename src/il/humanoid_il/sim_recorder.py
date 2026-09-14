@@ -278,10 +278,27 @@ class SimLeRobotRecorder:
             }
         return features
 
+def _find_highest_episode_index(root: Path) -> int:
+    """Find the highest episode index existing on disk (-1 if none exist)."""
+    highest = -1
+    for p in root.glob("data/**/episode_*.parquet"):
+        match = re.search(r"episode_(\d+)", p.stem)
+        if match:
+            highest = max(highest, int(match.group(1)))
+    for p in root.glob("videos/**/episode_*.mp4"):
+        match = re.search(r"episode_(\d+)", p.stem)
+        if match:
+            highest = max(highest, int(match.group(1)))
+    return highest
+
+
+class SimLeRobotRecorder:
+    """Buffer frames in GPU tensors, flush to a LeRobot dataset asynchronously."""
+
     _NUM_CPU_SLOTS = 2
 
     def init_dataset(self) -> None:
-        """Create or re-open the LeRobot dataset on disk."""
+        """Create or re-open the LeRobot dataset on disk, appending to existing episodes."""
         from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
         _install_subprocess_video_encoder()
@@ -305,7 +322,11 @@ class SimLeRobotRecorder:
                                 break
                     if not mismatch:
                         self.dataset = existing_ds
-                        print(f"[INFO]: Opened existing dataset at {root}")
+                        highest_idx = _find_highest_episode_index(root)
+                        meta = getattr(self.dataset, "meta", None)
+                        ds_ep_count = getattr(self.dataset, "num_episodes", len(getattr(meta, "episodes", [])) if meta else 0)
+                        self.num_recorded_episodes = max(highest_idx + 1, ds_ep_count, 0)
+                        print(f"[INFO]: Opened existing dataset at {root} ({self.num_recorded_episodes} existing episode(s) found. Next episode will be Episode #{self.num_recorded_episodes + 1})")
                         return
                     else:
                         print(f"[WARNING]: Schema mismatch detected with existing dataset at {root} (e.g. joint count / camera changes). Recreating fresh dataset...")
@@ -321,6 +342,7 @@ class SimLeRobotRecorder:
             root=root,
             robot_type=self.robot_type,
         )
+        self.num_recorded_episodes = 0
         print(f"[INFO]: Created new dataset at {root}")
 
     def _allocate_buffers(self) -> None:
