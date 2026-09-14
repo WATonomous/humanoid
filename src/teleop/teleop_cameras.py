@@ -14,17 +14,22 @@ import math
 import isaaclab.sim as sim_utils
 from isaaclab.sensors import CameraCfg
 
-# focal_length 18 is ~60deg horizontal; lower it to widen. run_quest_bimanual_teleop.py overwrites
-# ego_cam's at runtime to match the headset's widened RSD455 FOV.
+# Standard data cam lens for wrist cam
 DATA_CAM_LENS = sim_utils.PinholeCameraCfg(
     focal_length=7.336, horizontal_aperture=20.955, vertical_aperture=15.2908,
     clipping_range=(0.01, 100.0),
 )
 
-# ego_cam pose, relative to base_link. Only an initial value in the Quest teleop script, which
-# re-aims ego_cam at the operator's head viewpoint at startup when --record is passed.
-EGO_CAM_POS = (0.047450090928410314, -0.008096717438775313, 0.21180604954921534)
-EGO_CAM_ROT = (0.8660254037844387, 0.49999999999999983, 0.0, 0.0)
+# Widened ~120deg horizontal FOV lens for ego_cam matching the Quest VR teleop setup
+EGO_CAM_LENS = sim_utils.PinholeCameraCfg(
+    focal_length=1.124678, horizontal_aperture=20.955, vertical_aperture=15.2908,
+    clipping_range=(0.01, 100.0),
+)
+
+# ego_cam pose relative to base_link, matching the VR teleop operator head viewpoint
+# (forward +0.25m, up +0.10m to clear the housing mesh, 70deg downward glance)
+EGO_CAM_POS = (0.25125718, 0.0715, 0.14658678)
+EGO_CAM_ROT = (-0.69636422, -0.12278781, 0.12278781, 0.69636422)
 
 # wrist_cam aiming. The two angles are independent: roll spins the image, pitch aims the camera.
 WRIST_CAM_ROLL_DEG = 270.0   # rotates the image counter-clockwise; 90 / 180 / 270
@@ -72,7 +77,7 @@ def make_ego_cam_cfg() -> CameraCfg:
     when it resolves {ENV_REGEX_NS}."""
     return CameraCfg(
         prim_path="{ENV_REGEX_NS}/Robot/base_link/ego_cam",
-        spawn=DATA_CAM_LENS,
+        spawn=EGO_CAM_LENS,
         offset=CameraCfg.OffsetCfg(pos=EGO_CAM_POS, rot=EGO_CAM_ROT, convention="opengl"),
         height=480, width=640,
         # Refresh whenever the app renders. An additional per-camera update_period on top of
