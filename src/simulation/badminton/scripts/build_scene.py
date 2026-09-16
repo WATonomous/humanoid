@@ -1,9 +1,10 @@
 """Build scene/badminton.xml from params.yaml + the existing arm URDF.
 
-The arm (assets/pioneer_bimanual_arm/urdf/pioneer_bimanual_arm_stand.urdf, dual arm on a stand) is a fixed input:
-its kinematics and inertials are imported untouched. This script only
+The arm (assets/pioneer_bimanual_arm/urdf/pioneer_bimanual_arm.urdf, the
+same dual-arm-on-stand URDF the Isaac Lab / hardware stack uses) is a fixed
+input: its kinematics and inertials are imported untouched. This script only
 - freezes the left arm and both grippers (only right joint1-6 stay actuated),
-- assigns joint ranges/efforts (the v2 URDF exports every limit as 0/0/0/0),
+- assigns joint ranges (params.yaml, clipped to the URDF limits) and efforts,
 - places the stand on the floor behind the net, yawed to face it,
 - welds the two-layer racket (visual mesh + collision primitives) into the
   right gripper (link6),
@@ -161,9 +162,10 @@ def main():
     # the frozen right-gripper fingers onto the racket handle, 1 mm shy of
     # touching so the workspace self-collision check sees no contact
     grip_y = p["racket"]["grip_pos"][1]
-    for fname, sign in (("link7", -1.0), ("link8", +1.0)):
+    for fname in ("link7", "link8"):
         b = arm.body(fname)
         pos = np.array(b.pos)
+        sign = 1.0 if pos[1] > grip_y else -1.0   # each finger stays on its side
         pos[1] = grip_y + sign * (HANDLE_R + FINGER_PAD + 0.001)
         b.pos = pos
 
@@ -177,9 +179,16 @@ def main():
             j.damping = np.full(
                 3, p["arm"]["joint_damping"][arm_joints.index(j.name)])
             j.armature = p["arm"]["joint_armature"]
-            # the v2 URDF exports limits as 0/0/0/0; assign real ones
+            # human-like range from params, never wider than the URDF
+            # <limit> (the hardware-live limit)
+            lo, hi = p["arm"]["joint_range"][arm_joints.index(j.name)]
+            ulo, uhi = j.range
+            if ulo < uhi and (lo < ulo or hi > uhi):
+                print(f"{j.name}: params range [{lo}, {hi}] clipped to URDF "
+                      f"[{ulo:.3f}, {uhi:.3f}]")
+                lo, hi = max(lo, ulo), min(hi, uhi)
             j.limited = mujoco.mjtLimited.mjLIMITED_TRUE
-            j.range = p["arm"]["joint_range"][arm_joints.index(j.name)]
+            j.range = [lo, hi]
             tau = p["arm"]["torque_limits"][arm_joints.index(j.name)]
             j.actfrclimited = mujoco.mjtLimited.mjLIMITED_TRUE
             j.actfrcrange = [-tau, tau]
@@ -277,10 +286,13 @@ def main():
     adr = model.jnt_qposadr[jid]
     qpos[adr:adr + 7] = [0, 5.0, 0.1, 1, 0, 0, 0]
     # guard-like ready pose: shoulder pitched forward, wrist turned so the
-    # face is at guard height facing the net (episodes overwrite this via IK)
-    for jname, ang in [(arm_joints[0], -np.pi / 2), (arm_joints[4], np.pi / 2),
+    # face is at guard height facing the net (episodes overwrite this via IK).
+    # joint5 stops at 1.2 rad, inside its 1.31 rad range (URDF limit 1.316).
+    for jname, ang in [(arm_joints[0], -np.pi / 2), (arm_joints[4], 1.2),
                        (arm_joints[5], -np.pi / 2)]:
         jid = model.joint(ARM_PREFIX + jname).id
+        lo, hi = model.jnt_range[jid]
+        assert lo <= ang <= hi, (jname, ang, lo, hi)
         qpos[model.jnt_qposadr[jid]] = ang
     key.qpos = qpos
 
@@ -305,6 +317,13 @@ def main():
     mujoco.mj_forward(model, data)
     sid = model.site("face_center").id
     print("face_center at home:", data.site_xpos[sid].round(3))
+    # lateral offset of the right-arm chain: arm.base_x must cancel it so the
+    # swing plane passes through x = 0 (the base yaw maps base y to world -x)
+    mujoco.mj_resetData(model, data)
+    mujoco.mj_forward(model, data)
+    x6 = data.xpos[model.body(ARM_PREFIX + p["arm"]["palm_body"]).id][0]
+    print(f"link6 world x at qpos 0: {x6:+.4f} (arm.base_x cancels the "
+          f"chain offset; set base_x = {p['arm'].get('base_x', 0.0) - x6:+.4f})")
     print("racket subtree mass:",
           round(float(model.body_subtreemass[model.body("racket").id]), 3))
 

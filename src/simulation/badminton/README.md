@@ -8,15 +8,16 @@ RL pipeline that trains the receive policy (mjlab / MuJoCo Warp, rsl_rl PPO).
 ```bash
 uv sync --extra train          # Linux + NVIDIA GPU (CPU: --extra train-cpu, smoke tests only)
 uv run scripts/build_scene.py  # regenerate scene/badminton.xml after editing scene/params.yaml
-uv run pytest -q
 ```
 
-The arm is `assets/pioneer_bimanual_arm/urdf/pioneer_bimanual_arm_stand.urdf`
-(repo root). `scene/params.yaml` is the single source of truth (shuttle aerodynamics,
-arm joint ranges / torque and speed limits, control gains, launcher bank,
-perception noise). Note the speed cap: `control.target_velocity_max` is in
-the hardware `joint_command` units, where the effective steady-state speed
-is `(1 - low_pass_alpha) * velocity_max` (15%).
+The arm is `assets/pioneer_bimanual_arm/urdf/pioneer_bimanual_arm.urdf` (repo
+root), the same URDF the Isaac Lab and hardware stacks use; its `<limit>` tags
+cap the joint ranges. `scene/params.yaml` is the single source of truth for
+everything else (shuttle aerodynamics, arm joint ranges within the URDF limits,
+torque and speed limits, control gains, launcher bank, perception noise). Note
+the speed cap: `control.target_velocity_max` is in the hardware `joint_command`
+units, where the effective steady-state speed is
+`(1 - low_pass_alpha) * velocity_max` (15%).
 
 ## Train
 
@@ -58,7 +59,6 @@ baseline/        scripted receive (IK + min-jerk swing) used as the reference be
 humanoid_badminton/ the mjlab task: env config, rewards, observations, action moderation, perception command
 scripts/         build_scene, mesh_prep, train_rl, student_to_ppo, eval_rl, play_rl
 scene/           params.yaml, generated badminton.xml, meshes
-tests/           gates 1-5 (aero, scene, launcher, predictor, baseline) + perception + mjlab task
 ```
 
 Policy I/O: 61 inputs at 50 Hz (joint pos/vel, racket face pose, last

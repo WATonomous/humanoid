@@ -21,14 +21,6 @@ dependencies = [
 train = ["mjlab[cu128]==1.6.0"]
 train-cpu = ["mjlab[cpu]==1.6.0"]
 
-[dependency-groups]
-dev = [
-    "pytest>=8.0",
-]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-
 [tool.uv]
 package = false
 # the two train extras pull torch from different wheel indexes (mjlab's
