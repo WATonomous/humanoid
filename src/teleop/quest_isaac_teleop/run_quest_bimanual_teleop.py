@@ -127,7 +127,6 @@ from isaaclab.sensors import Camera, CameraCfg  # noqa: E402
 from isaaclab.utils import configclass  # noqa: E402
 from isaaclab.utils.math import (  # noqa: E402
     quat_apply,
-    quat_apply_inverse,
     quat_from_matrix,
     quat_inv,
     quat_mul,
@@ -1608,7 +1607,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 ) * left_gain
                 left_delta_w = left_delta_w * min(1.0, _MAX_REACH_M / max(left_delta_w.norm().item(), 1e-6))
                 target_pos_b_left_dbg = (
-                    left_arm.home_tip_pos_b + quat_apply_inverse(root_quat_w, left_delta_w.unsqueeze(0))
+                    left_arm.home_tip_pos_b + quat_apply(quat_inv(root_quat_w), left_delta_w.unsqueeze(0))
                 )
                 if _SHOW_AXIS_DEBUG and left_disp_raw.norm().item() > 0.05:
                     print(f"[Quest][axisdbg] L quest_disp(x,y,z)={left_disp_raw.tolist()}  "
@@ -1640,7 +1639,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 ) * right_gain
                 right_delta_w = right_delta_w * min(1.0, _MAX_REACH_M / max(right_delta_w.norm().item(), 1e-6))
                 target_pos_b_right_dbg = (
-                    right_arm.home_tip_pos_b + quat_apply_inverse(root_quat_w, right_delta_w.unsqueeze(0))
+                    right_arm.home_tip_pos_b + quat_apply(quat_inv(root_quat_w), right_delta_w.unsqueeze(0))
                 )
                 if _SHOW_AXIS_DEBUG and right_disp_raw.norm().item() > 0.05:
                     print(f"[Quest][axisdbg] R quest_disp(x,y,z)={right_disp_raw.tolist()}  "
