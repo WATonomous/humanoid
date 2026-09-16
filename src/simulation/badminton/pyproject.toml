@@ -18,8 +18,10 @@ dependencies = [
 # task code can be smoke-tested on any machine (MuJoCo Warp runs on CPU but
 # is far too slow to train on). Everything else in the project is the local
 # CPU mode on plain MuJoCo.
-train = ["mjlab[cu128]==1.6.0"]
-train-cpu = ["mjlab[cpu]==1.6.0"]
+# wandb 0.30 removed Settings(start_method=...), which rsl_rl 5.4.2's wandb
+# writer still passes; there is no lock file, so pin it here
+train = ["mjlab[cu128]==1.6.0", "wandb<0.30"]
+train-cpu = ["mjlab[cpu]==1.6.0", "wandb<0.30"]
 
 [tool.uv]
 package = false
