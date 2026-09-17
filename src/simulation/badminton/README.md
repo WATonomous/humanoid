@@ -51,6 +51,10 @@ uv run scripts/play_rl.py Mjlab-Badminton-Receive-Student-PPO --viewer viser \
     --checkpoint-file <model.pt>                      # http://localhost:8080
 ```
 
+Baselines are checked in under `models/` (repo root):
+`models/badminton_student_ppo/model_4997.pt` (98.8% bank hits, 78% net
+clearance) and its teacher `models/badminton_teacher/model_5996.pt`.
+
 ## Layout
 
 ```
