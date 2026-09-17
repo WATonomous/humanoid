@@ -38,11 +38,15 @@ def pump(src, dst):
 
 
 def forward_port(host_port: int, container_port: int):
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server.bind(("0.0.0.0", host_port))
-    server.listen(50)
-    print(f"[PortBridge] Listening on host 0.0.0.0:{host_port} -> container:{container_port}", flush=True)
+    try:
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind(("0.0.0.0", host_port))
+        server.listen(50)
+        print(f"[PortBridge] Listening on host 0.0.0.0:{host_port} -> container:{container_port}", flush=True)
+    except OSError as e:
+        print(f"[PortBridge] Port {host_port} on host already in use ({e}) -- skipping host bind.", flush=True)
+        return
 
     # In-container forwarder snippet (uses container's bundled python3)
     container_cmd = (
@@ -75,5 +79,7 @@ def forward_port(host_port: int, container_port: int):
 
 if __name__ == "__main__":
     print(f"[PortBridge] Starting bridge for container '{CONTAINER_NAME}'...", flush=True)
-    threading.Thread(target=forward_port, args=(8443, 8443), daemon=True).start()
+    t = threading.Thread(target=forward_port, args=(8443, 8443), daemon=True)
+    t.start()
     forward_port(9090, 9090)
+    t.join()
