@@ -15,7 +15,8 @@ src/simulation/
 │       └── push_block/     # PPO + vision distillation; also a teleop scene
 ├── humanoid_scenes/        # teleop data-collection scenes — @scene-discovered
 │   └── humanoid_scenes/    #   bare/  vial_rack/  push_block/
-└── so101_vial_task/        # SO101 imitation-learning task
+├── so101_vial_task/        # SO101 imitation-learning task
+└── badminton/              # mjlab (MuJoCo Warp) badminton receive RL — see badminton/README.md
 ```
 
 Robot URDF/USD/meshes and scene props live at the repo-root **`assets/`** (backend-neutral —
