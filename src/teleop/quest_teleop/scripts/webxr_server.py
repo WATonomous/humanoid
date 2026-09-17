@@ -31,6 +31,18 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    if not (CERT_FILE.exists() and KEY_FILE.exists()):
+        CERT_DIR.mkdir(parents=True, exist_ok=True)
+        print(f"Generating self-signed SSL certificates in {CERT_DIR}...")
+        import subprocess
+        subprocess.run([
+            "openssl", "req", "-x509", "-newkey", "rsa:2048",
+            "-keyout", str(KEY_FILE),
+            "-out", str(CERT_FILE),
+            "-days", "365", "-nodes",
+            "-subj", "/CN=localhost"
+        ], check=True)
+
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)  # Change HTTP to HTTPS.
     ctx.load_cert_chain(  # Certs to make it secure.
         certfile=str(CERT_FILE),
