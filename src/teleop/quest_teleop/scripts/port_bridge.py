@@ -66,7 +66,8 @@ def forward_port(host_port: int, container_port: int):
     )
 
     while True:
-        client_sock, _ = server.accept()
+        client_sock, addr = server.accept()
+        print(f"[PortBridge] Connection from {addr[0]}:{addr[1]} on port {host_port} -> forwarded to container:{container_port}", flush=True)
         proc = subprocess.Popen(
             ["docker", "exec", "-i", CONTAINER_NAME, "python3", "-c", container_cmd],
             stdin=subprocess.PIPE,
@@ -78,8 +79,11 @@ def forward_port(host_port: int, container_port: int):
 
 
 if __name__ == "__main__":
+    import signal
+    signal.signal(signal.SIGINT, lambda *_: (print("\n[PortBridge] Shutting down cleanly..."), sys.exit(0)))
     print(f"[PortBridge] Starting bridge for container '{CONTAINER_NAME}'...", flush=True)
     t = threading.Thread(target=forward_port, args=(8443, 8443), daemon=True)
     t.start()
     forward_port(9090, 9090)
     t.join()
+
