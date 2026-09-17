@@ -67,15 +67,23 @@ def forward_port(host_port: int, container_port: int):
 
     while True:
         client_sock, addr = server.accept()
-        print(f"[PortBridge] Connection from {addr[0]}:{addr[1]} on port {host_port} -> forwarded to container:{container_port}", flush=True)
+        print(f"[PortBridge] Connection from {addr[0]}:{addr[1]} on port {host_port} -> forwarding to container:{container_port}...", flush=True)
         proc = subprocess.Popen(
             ["docker", "exec", "-i", CONTAINER_NAME, "python3", "-c", container_cmd],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
         )
+
+        def log_err(pipe):
+            err = pipe.read().decode('utf-8', errors='ignore').strip()
+            if err:
+                print(f"[PortBridge] Docker error for port {host_port}: {err}", flush=True)
+
+        threading.Thread(target=log_err, args=(proc.stderr,), daemon=True).start()
         threading.Thread(target=pump, args=(client_sock, proc.stdin), daemon=True).start()
         threading.Thread(target=pump, args=(proc.stdout, client_sock), daemon=True).start()
+
 
 
 if __name__ == "__main__":
