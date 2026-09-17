@@ -35,3 +35,4 @@ src/simulation/garment_fold_task/
 src/simulation/humanoid_rl/logs/
 src/simulation/humanoid_rl/outputs/
 venv/
+venv/
