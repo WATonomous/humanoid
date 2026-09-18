@@ -281,22 +281,17 @@ _TABLE_USD_PATH = str(
 _TABLE_SCALE = (0.0254, 0.0254, 0.0254)
 # GUI-verified pose. The rotation is needed because the STEP conversion's native axes do not
 # come out Z-up-front (Orient XYZ = 90, 90, 0 deg in USD rotateXYZ convention).
-_TABLE_POS = (0.69, 0.00612, 0.33)
+_TABLE_POS = (0.69, 0.00612, 0.50)  # Elevated table so top surface sits at Z=0.879m
 _TABLE_ROT = (0.5000000000000001, 0.5, 0.5, 0.49999999999999994)  # wxyz
+_TABLE_TOP_Z = 0.87917  # Elevated table work surface
 
-# Box (to grasp) and container (to place it in). Both assets have their local origin at a
-# bottom corner, so matching X/Y/Z rests the box flush on the container floor.
-_BOX_USD_PATH = str(
-    _SIM_DIR.parent.parent / "assets" / "props" / "block.usd"
-)  # 5.08cm cube -- box.usd (25x25x3cm flat pad) is too flat/wide for this gripper to grasp
+# Box (to grasp) and container (to place it in).
 _CONTAINER_USD_PATH = str(
     _SIM_DIR.parent.parent / "assets" / "lerobot" / "so101_vial_task" / "usd" / "tray.usda"
 )
-_CONTAINER_POS = (0.25, 0.20, 0.70917)  # Container on the left side (+Y)
+_CONTAINER_POS = (0.25, 0.20, _TABLE_TOP_Z)  # Container on the left side (+Y) flush on elevated table
 _CONTAINER_ROT = (0.7071067811865476, 0.0, 0.0, 0.7071067811865475)  # wxyz
-_BOX_STAND_HEIGHT = 0.17  # 0.17m height (top at Z=0.88m)
-_BOX_STAND_POS = (0.33, -0.22, 0.70917 + _BOX_STAND_HEIGHT / 2.0)  # (0.33, -0.22, 0.79417) - shifted further (+X)
-_BOX_POS = (0.33, -0.22, 0.70917 + _BOX_STAND_HEIGHT + 0.03)  # Resting directly on top of the blue pedestal
+_BOX_POS = (0.33, -0.22, _TABLE_TOP_Z + 0.025)  # Red pick-up block resting directly on elevated table
 
 # Stereo pair: two RealSense D455s on base_link giving real depth via two eye textures (not a
 # mirrored monocular feed), fixed at _HEAD_VIEWPOINT_HOME_POS/QUAT. Head tracking is off --
@@ -742,25 +737,13 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
             collision_props=sim_utils.CollisionPropertiesCfg(),
         ),
     )
-    # Blue pedestal stand under the box for easier grasping
-    box_stand: AssetBaseCfg = AssetBaseCfg(
-        prim_path="{ENV_REGEX_NS}/BoxStand",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=_BOX_STAND_POS),
-        spawn=sim_utils.CuboidCfg(
-            size=(0.14, 0.14, _BOX_STAND_HEIGHT),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.12, 0.45, 0.95), roughness=0.2),
-            collision_props=sim_utils.CollisionPropertiesCfg(),
-        ),
-    )
-    # Graspable box -- dynamic rigid body, same rigid/mass/collision pattern
-    # as pick_place_env_cfg.py's _cuboid_object_cfg, but referencing the
-    # imported block.usd mesh instead of a procedural CuboidCfg.
+    # Graspable box -- vibrant Red 4.5cm cube, dynamic rigid body with high friction
     box: RigidObjectCfg = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Box",
         init_state=RigidObjectCfg.InitialStateCfg(pos=_BOX_POS),
-        spawn=sim_utils.UsdFileCfg(
-            usd_path=_BOX_USD_PATH,
-            scale=(0.9, 0.9, 0.9),  # slightly smaller than the native 5.08cm cube, per live feedback
+        spawn=sim_utils.CuboidCfg(
+            size=(0.045, 0.045, 0.045),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.95, 0.08, 0.08), roughness=0.25),
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 solver_position_iteration_count=16,
                 solver_velocity_iteration_count=1,
