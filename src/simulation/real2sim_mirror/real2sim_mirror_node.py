@@ -16,8 +16,8 @@ class Real2SimMirrorNode(Node):
 
     def feedback_callback(self, msg):
         motor_id = msg.motor_id
-        raw_position = msg.position
-        angle = angle_computation(motor_id, raw_position, self.lookup_table)
+        position = msg.position
+        angle = angle_computation(motor_id, position, self.lookup_table)
         print(f"{msg.motor_id}: {angle} rad")
 
 if __name__ == "__main__":
