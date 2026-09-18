@@ -294,9 +294,9 @@ _CONTAINER_USD_PATH = str(
 )
 _CONTAINER_POS = (0.25, 0.20, 0.70917)  # Container on the left side (+Y)
 _CONTAINER_ROT = (0.7071067811865476, 0.0, 0.0, 0.7071067811865475)  # wxyz
-_BOX_STAND_HEIGHT = 0.24  # 40% shorter than 0.40m (0.24m height, top at Z=0.95m)
-_BOX_STAND_POS = (0.22, -0.22, 0.70917 + _BOX_STAND_HEIGHT / 2.0)  # (0.22, -0.22, 0.82917)
-_BOX_POS = (0.22, -0.22, 0.70917 + _BOX_STAND_HEIGHT + 0.03)  # Resting directly on top of the yellow pedestal
+_BOX_STAND_HEIGHT = 0.17  # 30% shorter (0.17m height, top at Z=0.88m)
+_BOX_STAND_POS = (0.27, -0.22, 0.70917 + _BOX_STAND_HEIGHT / 2.0)  # (0.27, -0.22, 0.79417) - shifted 5cm further (+X)
+_BOX_POS = (0.27, -0.22, 0.70917 + _BOX_STAND_HEIGHT + 0.03)  # Resting directly on top of the purple pedestal
 
 # Stereo pair: two RealSense D455s on base_link giving real depth via two eye textures (not a
 # mirrored monocular feed), fixed at _HEAD_VIEWPOINT_HOME_POS/QUAT. Head tracking is off --
@@ -742,13 +742,13 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
             collision_props=sim_utils.CollisionPropertiesCfg(),
         ),
     )
-    # Yellow pedestal stand under the box for easier grasping
+    # Purple pedestal stand under the box for easier grasping
     box_stand: AssetBaseCfg = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/BoxStand",
         init_state=AssetBaseCfg.InitialStateCfg(pos=_BOX_STAND_POS),
         spawn=sim_utils.CuboidCfg(
             size=(0.14, 0.14, _BOX_STAND_HEIGHT),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.85, 0.0), roughness=0.2),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.58, 0.12, 0.88), roughness=0.2),
             collision_props=sim_utils.CollisionPropertiesCfg(),
         ),
     )
