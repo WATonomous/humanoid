@@ -20,6 +20,10 @@ def load_hardware_mapping(yaml_file_path):
 
 #angle computation function so rad angles can be sent to mjlabs
 def angle_computation(motor_id, raw_position, lookup):
+    if motor_id not in lookup:
+        print (f"Warning: Unknown Motor ID {motor_id}")
+        return None
+        
     config = lookup[motor_id]
     zero_offset = config["zero_offset"]
     direction =  config["direction"]
@@ -27,16 +31,10 @@ def angle_computation(motor_id, raw_position, lookup):
     true_angle_deg = (raw_position - zero_offset) * direction
     true_angle_rad = math.radians(true_angle_deg)
 
-    if motor_id not in lookup:
-        print (f"Warning: Unknown Motor ID {motor_id}")
-        return None
-
     return true_angle_rad
 
-def
-
 if __name__ == "__main__":
-    yaml_file_path = "src/interfacing/joint_command/config/hardware_mapping.yaml" 
+    yaml_file_path = "src/joint_command/config/hardware_mapping.yaml" 
     lookup_table = load_hardware_mapping(yaml_file_path)
     print(lookup_table)
 

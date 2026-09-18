@@ -12,7 +12,7 @@ class Real2SimMirrorNode(Node):
             self.feedback_callback, 
             10
         )
-        self.lookup_table = load_hardware_mapping("src/interfacing/joint_command/config/hardware_mapping.yaml")
+        self.lookup_table = load_hardware_mapping("src/joint_command/config/hardware_mapping.yaml")
 
     def feedback_callback(self, msg):
         motor_id = msg.motor_id
