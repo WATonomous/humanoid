@@ -17,10 +17,15 @@ services:
     ports:
       - "8080:8080"
     environment:
+      #commented the two below since I (Nitish) don't have a GPU and can't test them. Uncomment if you have a GPU and want to use it.
       # - NVIDIA_VISIBLE_DEVICES=all
       # - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
       - ROS_DOMAIN_ID=0
       - FASTDDS_BUILTIN_TRANSPORTS=UDPv4
+      #added the below three for mujoco visualization
+      - DISPLAY=${DISPLAY}
+      - WAYLAND_DISPLAY=${WAYLAND_DISPLAY}
+      - XDG_RUNTIME_DIR=/tmp/runtime-nitish
     command: sleep infinity
     # deploy:
     #   resources:
@@ -34,3 +39,7 @@ services:
       - ${MONO_DIR}/src/teleop:/root/ament_ws/src/teleop
       - ${MONO_DIR}/src/common_msgs:/root/ament_ws/src/common_msgs
       - ${MONO_DIR}/src/interfacing/joint_command:/root/ament_ws/src/joint_command
+      ##added the three below for mujoco visualization
+      - ${MONO_DIR}/assets:/root/ament_ws/assets:ro
+      - ${XDG_RUNTIME_DIR}/wayland-0:/tmp/runtime-nitish/wayland-0
+      - /tmp/.X11-unix:/tmp/.X11-unix
