@@ -13,6 +13,7 @@
 ##   - interfacing          :   CAN / hardware interfacing + joint_command
 ##   - perception           :   perception nodes + voxel_grid
 ##   - simulation_isaac     :   Isaac Lab (SO101 IL, RL tasks, Quest teleop)
+##   - simulation_isaac_pi  :   pi0.5 (openpi) fine-tuning/inference
 ##   - simulation_mj        :   MuJoCo / mjlab
 
 ACTIVE_MODULES="interfacing"
