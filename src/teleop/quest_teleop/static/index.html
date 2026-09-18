@@ -522,7 +522,7 @@
           // frames at only ~5-6fps -- see the [Quest][fps] print), so those redundant fetches
           // just occupy the tunnel and delay the next genuinely-new frame. POV_POLL_FLOOR_MS
           // sits well above the backend's real rate, so it never becomes the bottleneck.
-          const POV_POLL_FLOOR_MS = 25;
+          const POV_POLL_FLOOR_MS = 10;
           let povPollActive = true;
           async function povPollLoop() {
             while (povPollActive) {

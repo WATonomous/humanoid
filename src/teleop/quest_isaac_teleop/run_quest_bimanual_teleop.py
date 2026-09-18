@@ -292,9 +292,10 @@ _BOX_USD_PATH = str(
 _CONTAINER_USD_PATH = str(
     _SIM_DIR.parent.parent / "assets" / "lerobot" / "so101_vial_task" / "usd" / "tray.usda"
 )
-_CONTAINER_POS = (0.3, -0.07041, 0.70917)  # +33cm net with the table
+_CONTAINER_POS = (0.25, 0.20, 0.70917)  # Container on the left side (+Y)
 _CONTAINER_ROT = (0.7071067811865476, 0.0, 0.0, 0.7071067811865475)  # wxyz
-_BOX_POS = (0.2, 0.2, 0.70917)  # moved 0.1m closer in X, per live feedback (was 0.3)
+_BOX_STAND_POS = (0.22, -0.22, 0.70917)  # Elevated yellow pedestal on the other side (-Y)
+_BOX_POS = (0.22, -0.22, 0.70917 + 0.06)  # Resting directly on top of the yellow pedestal
 
 # Stereo pair: two RealSense D455s on base_link giving real depth via two eye textures (not a
 # mirrored monocular feed), fixed at _HEAD_VIEWPOINT_HOME_POS/QUAT. Head tracking is off --
@@ -554,16 +555,14 @@ def _open_pov_camera(camera_prim_path: str, label: str, width: int = 480, height
         return None
 
 
-def _save_frame_atomic(frame, file_path, quality: int = 80) -> None:
-    """Encode an HxWx3 uint8 array to file_path via a temp file + atomic rename.
+import concurrent.futures
 
-    Three details, each of which caused a real failure:
-      - rename: writing straight to the served path lets a poll fetch a half-written file.
-        os.replace is atomic, so a reader sees the old frame or the new one, never a torn one.
-      - explicit format=: PIL infers the encoder from the extension and cannot map ".tmp".
-      - PID in the temp name: two live sim instances otherwise race on one path, and the loser
-        dies on a missing temp file.
-    Nothing propagates -- a filesystem error must degrade the preview, never kill teleop."""
+_FRAME_WRITER_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+
+
+def _save_frame_atomic(frame, file_path, quality: int = 65) -> None:
+    """Encode an HxWx3 uint8 array to file_path via a temp file + atomic rename.
+    Runs asynchronously in background thread pool to prevent blocking the physics loop."""
     from PIL import Image
 
     file_path = Path(file_path)
@@ -572,12 +571,16 @@ def _save_frame_atomic(frame, file_path, quality: int = 80) -> None:
     try:
         Image.fromarray(frame).save(str(tmp_path), format=fmt, quality=quality)
         os.replace(tmp_path, file_path)
-    except Exception as exc:  # noqa: BLE001 -- see docstring: never kill teleop over a frame
-        print(f"[Quest] WARNING: could not write {file_path.name}: {exc}", flush=True)
+    except Exception:
         try:
             tmp_path.unlink(missing_ok=True)
         except OSError:
             pass
+
+
+def _save_frame_async(frame, file_path, quality: int = 65) -> None:
+    """Non-blocking background frame submission."""
+    _FRAME_WRITER_EXECUTOR.submit(_save_frame_atomic, frame, file_path, quality)
 
 
 def _camera_rgb_frame(camera):
@@ -589,9 +592,8 @@ def _camera_rgb_frame(camera):
 
 
 def _write_pov_jpeg(camera, file_path) -> None:
-    """Write a standalone Camera's current RGB frame to file_path as an atomically-replaced
-    JPEG -- same tensor-read approach as _write_wrist_cam_hud_frames, for the two eye cameras."""
-    _save_frame_atomic(_camera_rgb_frame(camera), file_path)
+    """Write a standalone Camera's current RGB frame to file_path asynchronously."""
+    _save_frame_async(_camera_rgb_frame(camera), file_path, quality=65)
 
 
 # Eye frames for the headset. They live in the WebXR static dir so webxr_server.py's stock
@@ -725,6 +727,16 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.UsdFileCfg(
             usd_path=_TABLE_USD_PATH,
             scale=_TABLE_SCALE,
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+        ),
+    )
+    # Yellow pedestal stand under the box for easier grasping
+    box_stand: AssetBaseCfg = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/BoxStand",
+        init_state=AssetBaseCfg.InitialStateCfg(pos=_BOX_STAND_POS),
+        spawn=sim_utils.CuboidCfg(
+            size=(0.14, 0.14, 0.08),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.85, 0.0), roughness=0.2),
             collision_props=sim_utils.CollisionPropertiesCfg(),
         ),
     )
@@ -1168,11 +1180,9 @@ def _capture_record_images(scene: InteractiveScene) -> dict:
 
 
 def _write_wrist_cam_hud_frames(scene: InteractiveScene) -> None:
-    """Both wrist cams' current frames -> the headset HUD panels, from the same sensor tensors
-    recording uses (no extra viewport render). JPEG, not PNG: as a PNG this was ~155KB, ten times
-    the two eye JPEGs combined and the largest thing the headset polled."""
-    _save_frame_atomic(_camera_rgb_frame(scene["wrist_cam"]), _WRIST_CAM_FRAME_PATH_LEFT)
-    _save_frame_atomic(_camera_rgb_frame(scene["wrist_cam_right"]), _WRIST_CAM_FRAME_PATH_RIGHT)
+    """Both wrist cams' current frames -> the headset HUD panels asynchronously."""
+    _save_frame_async(_camera_rgb_frame(scene["wrist_cam"]), _WRIST_CAM_FRAME_PATH_LEFT, quality=65)
+    _save_frame_async(_camera_rgb_frame(scene["wrist_cam_right"]), _WRIST_CAM_FRAME_PATH_RIGHT, quality=65)
 
 
 # ── main simulation loop ──────────────────────────────────────────────────────
