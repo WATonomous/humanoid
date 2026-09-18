@@ -1,0 +1,39 @@
+x-simulation_isaac_pi_volumes: &simulation_isaac_pi_volumes
+  - ${MONO_DIR}:/workspace/humanoid:rw
+  # Live-bind entrypoint so ownership fix works without rebuilding the image.
+  - ${MONO_DIR}/docker/simulation/isaac_lab/entrypoint.sh:/entrypoint.sh:ro
+  - ${HF_HOME:-${HOME}/.cache/huggingface}:/root/.cache/huggingface:rw
+  - ${OPENPI_DATA_HOME:-${HOME}/.cache/openpi}:/root/.cache/openpi:rw
+
+x-simulation_isaac_pi_env: &simulation_isaac_pi_env
+  - NVIDIA_VISIBLE_DEVICES=all
+  - NVIDIA_DRIVER_CAPABILITIES=all
+  - HUMANOID_ROOT=/workspace/humanoid
+  # Map container-written files back to the host user (container runs as root).
+  - HOST_UID=${HOST_UID:-1000}
+  - HOST_GID=${HOST_GID:-1000}
+  - OWNERSHIP_FIX_INTERVAL=${OWNERSHIP_FIX_INTERVAL:-30}
+
+services:
+  simulation_isaac_pi:
+    build:
+      context: ..
+      dockerfile: docker/simulation/isaac_pi/isaac_pi.Dockerfile
+      cache_from:
+        - "${SIMULATION_ISAAC_PI_IMAGE:?}:${TAG}"
+        - "${SIMULATION_ISAAC_PI_IMAGE:?}:main"
+    image: "${SIMULATION_ISAAC_PI_IMAGE:?}:${TAG}"
+    privileged: true
+    gpus: all
+    environment: *simulation_isaac_pi_env
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    volumes: *simulation_isaac_pi_volumes
+    network_mode: host
+    stdin_open: true
+    tty: true
+    command: sleep infinity
