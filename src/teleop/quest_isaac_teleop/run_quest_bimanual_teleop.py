@@ -294,8 +294,8 @@ _CONTAINER_USD_PATH = str(
 )
 _CONTAINER_POS = (0.25, 0.20, 0.70917)  # Container on the left side (+Y)
 _CONTAINER_ROT = (0.7071067811865476, 0.0, 0.0, 0.7071067811865475)  # wxyz
-_BOX_STAND_HEIGHT = 0.40  # 5x taller (0.40m height, placing top surface at Z=1.11m)
-_BOX_STAND_POS = (0.22, -0.22, 0.70917 + _BOX_STAND_HEIGHT / 2.0)  # (0.22, -0.22, 0.90917)
+_BOX_STAND_HEIGHT = 0.24  # 40% shorter than 0.40m (0.24m height, top at Z=0.95m)
+_BOX_STAND_POS = (0.22, -0.22, 0.70917 + _BOX_STAND_HEIGHT / 2.0)  # (0.22, -0.22, 0.82917)
 _BOX_POS = (0.22, -0.22, 0.70917 + _BOX_STAND_HEIGHT + 0.03)  # Resting directly on top of the yellow pedestal
 
 # Stereo pair: two RealSense D455s on base_link giving real depth via two eye textures (not a
