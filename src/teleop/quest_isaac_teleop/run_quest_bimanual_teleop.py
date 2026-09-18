@@ -291,7 +291,7 @@ _CONTAINER_USD_PATH = str(
 )
 _CONTAINER_POS = (0.25, 0.20, _TABLE_TOP_Z)  # Container on the left side (+Y) flush on elevated table
 _CONTAINER_ROT = (0.7071067811865476, 0.0, 0.0, 0.7071067811865475)  # wxyz
-_BOX_POS = (0.33, -0.22, _TABLE_TOP_Z + 0.025)  # Red pick-up block resting directly on elevated table
+_BOX_POS = (0.33, -0.30, _TABLE_TOP_Z + 0.025)  # Red pick-up block shifted further to the right (-Y)
 
 # Stereo pair: two RealSense D455s on base_link giving real depth via two eye textures (not a
 # mirrored monocular feed), fixed at _HEAD_VIEWPOINT_HOME_POS/QUAT. Head tracking is off --
