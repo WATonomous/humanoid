@@ -182,13 +182,13 @@ adb reverse --list
 
 ---
 
-## Keyboard Controls & Teleop Actions (In Terminal 5)
+## Keyboard Controls & Teleop Actions (Type in Terminal 5 or Isaac Sim Window)
 
-| Key / Gesture | Action |
+| Command / Key | Action |
 | :--- | :--- |
-| **Move Quest Controllers** | Robot dual arms follow hand poses in real time via DLS IK |
-| **Index Triggers / Grips** | Open and close left and right grippers |
-| **`O` Key** | **Save** current episode recording (`.h5` / `.zarr`) and auto-reset environment |
-| **`P` Key** | **Discard** current episode recording and auto-reset environment |
-| **`R` Key** | **Reset** simulation scene manually |
-| **`C` Key** | **Recalibrate** controller home offset to current hand positions |
+| **Move Quest Controllers** | Robot dual arms follow your hands in real time via DLS IK |
+| **Grip / Triggers** | Open and close left and right grippers |
+| **`t` + Enter / `T`** | **Full Scene Reset** — Resets robot joints, returns red cube to starting position, resets container |
+| **`r` + Enter / `R`** | **IK Recalibrate** — Re-homes tracking to your current controller hand positions |
+| **`s` + Enter / `S`** | **Save Episode** — Commits current demonstration recording to dataset |
+| **`d` + Enter / `D`** | **Discard Episode** — Cancels and retries current demonstration recording |
