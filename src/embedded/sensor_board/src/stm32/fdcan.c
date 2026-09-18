@@ -39,7 +39,7 @@ void MX_FDCAN1_Init(void)
   /* USER CODE END FDCAN1_Init 1 */
   hfdcan1.Instance = FDCAN1;
   hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV1;
-  hfdcan1.Init.FrameFormat = FDCAN_FRAME_FD_BRS;
+  hfdcan1.Init.FrameFormat = FDCAN_FRAME_CLASSIC;
   hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
   hfdcan1.Init.AutoRetransmission = DISABLE;
   hfdcan1.Init.TransmitPause = DISABLE;
@@ -60,19 +60,10 @@ void MX_FDCAN1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN FDCAN1_Init 2 */
-  if (HAL_FDCAN_ConfigTxDelayCompensation(&hfdcan1, 16, 0) != HAL_OK) {
-    Error_Handler();
-  }
-
-  if (HAL_FDCAN_EnableTxDelayCompensation(&hfdcan1) != HAL_OK) {
-    Error_Handler();
-  }
-
   if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK) {
     Error_Handler();
   }
   /* USER CODE END FDCAN1_Init 2 */
-
 }
 
 void HAL_FDCAN_MspInit(FDCAN_HandleTypeDef* fdcanHandle)
