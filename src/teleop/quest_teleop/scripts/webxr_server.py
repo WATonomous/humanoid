@@ -4,6 +4,7 @@ import http.server
 import ssl
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 PORT = 8443
 
@@ -30,8 +31,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     protocol_version = "HTTP/1.1"  # Reuse TLS connections, eliminating TCP/SSL handshake latency
 
     def __init__(self, *args, **kwargs):
-        # Serves files in the static directory over HTTPS.
+        # Camera JPEGs live in the shared Isaac Lab static directory, but the
+        # application page must always come from this package so a git pull
+        # immediately activates WebXR/control-path changes.
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
+
+    def translate_path(self, path):
+        if urlsplit(path).path in ("/", "/index.html"):
+            return str(PACKAGE_DIR / "static" / "index.html")
+        return super().translate_path(path)
 
     def log_request(self, code="-", size="-"):
         # index.html polls pov_left/right.jpg, wrist_cam_*.jpg and marker_uv.json back-to-back,
@@ -60,6 +68,7 @@ if __name__ == "__main__":
         keyfile=str(KEY_FILE),
     )
 
+    http.server.ThreadingHTTPServer.allow_reuse_address = True
     server = http.server.ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     server.socket = ctx.wrap_socket(server.socket, server_side=True)
 
