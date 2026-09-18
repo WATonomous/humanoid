@@ -599,7 +599,14 @@ def _write_pov_jpeg(camera, file_path) -> None:
 # _POV_CAPTURE_EVERY_N_STEPS steps -- the same constant that gates `render=`, so a capture
 # always lands on freshly-rendered pixels. Sim-time render rate is 1/(n*dt); the headset sees
 # that scaled by RTF, which is why the fps diagnostic prints both.
-_POV_STATIC_DIR = _SIM_DIR.parent / "teleop" / "quest_teleop" / "static"
+_SHARED_STATIC = Path("/workspace/isaaclab/source/static")
+if not _SHARED_STATIC.exists():
+    _SHARED_STATIC = Path(os.path.expanduser("~/IsaacLab/source/static"))
+
+if _SHARED_STATIC.exists():
+    _POV_STATIC_DIR = _SHARED_STATIC
+else:
+    _POV_STATIC_DIR = _SIM_DIR.parent / "teleop" / "quest_teleop" / "static"
 _POV_FRAME_PATH_LEFT = _POV_STATIC_DIR / "pov_left.jpg"
 _POV_FRAME_PATH_RIGHT = _POV_STATIC_DIR / "pov_right.jpg"
 # THE render/capture cadence -- single source of truth. main()'s SimulationCfg reads this, and
