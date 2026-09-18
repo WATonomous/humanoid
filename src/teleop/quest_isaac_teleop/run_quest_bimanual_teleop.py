@@ -561,15 +561,26 @@ import concurrent.futures
 _FRAME_WRITER_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
 
-def _save_frame_atomic(frame, file_path, quality: int = 65) -> None:
+def _save_frame_atomic(frame, file_path, quality: int = 60) -> None:
     """Encode an HxWx3 uint8 array to file_path via a temp file + atomic rename.
-    Runs asynchronously in background thread pool to prevent blocking the physics loop."""
-    from PIL import Image
-
+    Uses cv2.imencode (libjpeg-turbo SIMD) for ultra-fast compression, falling
+    back to PIL.Image if OpenCV is unavailable. Runs in a background thread pool."""
     file_path = Path(file_path)
     tmp_path = file_path.with_name(f"{file_path.name}.{os.getpid()}.tmp")
-    fmt = "JPEG" if file_path.suffix.lower() in (".jpg", ".jpeg") else "PNG"
     try:
+        try:
+            import cv2
+            bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR) if (frame.ndim == 3 and frame.shape[2] == 3) else frame
+            success, enc_buf = cv2.imencode(".jpg", bgr, [int(cv2.IMWRITE_JPEG_QUALITY), int(quality)])
+            if success:
+                tmp_path.write_bytes(enc_buf.tobytes())
+                os.replace(tmp_path, file_path)
+                return
+        except ImportError:
+            pass
+
+        from PIL import Image
+        fmt = "JPEG" if file_path.suffix.lower() in (".jpg", ".jpeg") else "PNG"
         Image.fromarray(frame).save(str(tmp_path), format=fmt, quality=quality)
         os.replace(tmp_path, file_path)
     except Exception:
@@ -579,7 +590,7 @@ def _save_frame_atomic(frame, file_path, quality: int = 65) -> None:
             pass
 
 
-def _save_frame_async(frame, file_path, quality: int = 65) -> None:
+def _save_frame_async(frame, file_path, quality: int = 60) -> None:
     """Non-blocking background frame submission."""
     _FRAME_WRITER_EXECUTOR.submit(_save_frame_atomic, frame, file_path, quality)
 
@@ -594,7 +605,7 @@ def _camera_rgb_frame(camera):
 
 def _write_pov_jpeg(camera, file_path) -> None:
     """Write a standalone Camera's current RGB frame to file_path asynchronously."""
-    _save_frame_async(_camera_rgb_frame(camera), file_path, quality=65)
+    _save_frame_async(_camera_rgb_frame(camera), file_path, quality=60)
 
 
 # Eye frames for the headset. They live in the WebXR static dir so webxr_server.py's stock
@@ -1180,10 +1191,13 @@ def _capture_record_images(scene: InteractiveScene) -> dict:
     return images
 
 
-def _write_wrist_cam_hud_frames(scene: InteractiveScene) -> None:
-    """Both wrist cams' current frames -> the headset HUD panels asynchronously."""
-    _save_frame_async(_camera_rgb_frame(scene["wrist_cam"]), _WRIST_CAM_FRAME_PATH_LEFT, quality=65)
-    _save_frame_async(_camera_rgb_frame(scene["wrist_cam_right"]), _WRIST_CAM_FRAME_PATH_RIGHT, quality=65)
+def _write_wrist_cam_hud_frames(scene: InteractiveScene, step_idx: int = 0) -> None:
+    """Both wrist cams' current frames -> the headset HUD panels asynchronously.
+    Decimated to every 2nd render frame (~5Hz) to keep full GPU/CPU headroom for stereo POV."""
+    if step_idx % 2 != 0:
+        return
+    _save_frame_async(_camera_rgb_frame(scene["wrist_cam"]), _WRIST_CAM_FRAME_PATH_LEFT, quality=60)
+    _save_frame_async(_camera_rgb_frame(scene["wrist_cam_right"]), _WRIST_CAM_FRAME_PATH_RIGHT, quality=60)
 
 
 # ── main simulation loop ──────────────────────────────────────────────────────
@@ -1867,7 +1881,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 right_eye_camera.update(dt=sim_dt * _POV_CAPTURE_EVERY_N_STEPS)
                 _write_pov_jpeg(left_eye_camera, _POV_FRAME_PATH_LEFT)
                 _write_pov_jpeg(right_eye_camera, _POV_FRAME_PATH_RIGHT)
-                _write_wrist_cam_hud_frames(scene)
+                _write_wrist_cam_hud_frames(scene, pov_capture_frame)
             except Exception as _pov_exc:  # noqa: BLE001 -- see comment above
                 print(f"[Quest] WARNING: POV capture failed this cycle: {_pov_exc}", flush=True)
 

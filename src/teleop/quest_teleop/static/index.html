@@ -482,28 +482,26 @@
           const wristCamTextureLeft = createEyeTexture(gl);
           const wristCamTextureRight = createEyeTexture(gl);
 
-          // Periodically fetch both eyes' latest POV frames and stash them;
-          // the actual gl.texImage2D upload happens once in onFrame (not
-          // here) since WebGL calls must happen on the frame that has the XR
-          // context bound -- this loop just keeps decoded ImageBitmaps ready.
+          // Periodically fetch stereo POV frames and wrist HUD frames independently.
+          // ImageBitmaps are decoded asynchronously on background threads by the browser
+          // and uploaded to WebGL textures in onFrame without main-thread stalls.
           let pendingLeftBitmap = null;
           let pendingRightBitmap = null;
           let pendingWristLeftBitmap = null;
           let pendingWristRightBitmap = null;
+
           async function refreshPovTexture(path, setPending) {
             try {
               const res = await fetch(`${path}?t=${Date.now()}`, { cache: "no-store" });
               if (!res.ok) return;
               const blob = await res.blob();
-              setPending(await createImageBitmap(blob));
+              const bmp = await createImageBitmap(blob);
+              setPending(bmp);
             } catch (e) {
-              // Transient fetch/decode failure (frame not written yet, network
-              // hiccup) -- next interval tick retries, nothing to do here.
+              // Transient fetch/decode failure -- next tick retries.
             }
           }
-          // Polled the same way and cadence as the POV images -- written atomically (temp file +
-          // rename) by run_quest_bimanual_teleop.py, so this should never observe a torn/partial
-          // JSON, but a stale/absent value here just means the marker skips a draw this frame.
+
           let markerUV = null;
           async function refreshMarkerUV() {
             try {
@@ -511,27 +509,26 @@
               if (!res.ok) return;
               markerUV = await res.json();
             } catch (e) {
-              // Same as refreshPovTexture -- transient failure, next tick retries.
+              // Transient failure -- next tick retries.
             }
           }
-          // Re-fetch as soon as the previous round-trip finishes, plus a small floor delay.
-          // An earlier version had a hard setInterval(..., 200) that capped the headset at 5fps
-          // regardless of how fast the backend produced frames; that cap was rightly removed.
-          // But a completely unpaced loop spins as fast as the link allows and mostly
-          // re-downloads a frame the sim hasn't regenerated yet (the backend writes new POV
-          // frames at only ~5-6fps -- see the [Quest][fps] print), so those redundant fetches
-          // just occupy the tunnel and delay the next genuinely-new frame. POV_POLL_FLOOR_MS
-          // sits well above the backend's real rate, so it never becomes the bottleneck.
-          const POV_POLL_FLOOR_MS = 10;
+
+          const POV_POLL_FLOOR_MS = 8;
           let povPollActive = true;
-          async function povPollLoop() {
+
+          // Dedicated high-frequency loop for primary stereo eyes
+          async function stereoPovPollLoop() {
             while (povPollActive) {
               const cycleStart = performance.now();
               await Promise.all([
-                refreshPovTexture("/pov_left.jpg", (bmp) => { pendingLeftBitmap = bmp; }),
-                refreshPovTexture("/pov_right.jpg", (bmp) => { pendingRightBitmap = bmp; }),
-                refreshPovTexture("/wrist_cam_left.jpg", (bmp) => { pendingWristLeftBitmap = bmp; }),
-                refreshPovTexture("/wrist_cam_right.jpg", (bmp) => { pendingWristRightBitmap = bmp; }),
+                refreshPovTexture("/pov_left.jpg", (bmp) => {
+                  if (pendingLeftBitmap && pendingLeftBitmap.close) pendingLeftBitmap.close();
+                  pendingLeftBitmap = bmp;
+                }),
+                refreshPovTexture("/pov_right.jpg", (bmp) => {
+                  if (pendingRightBitmap && pendingRightBitmap.close) pendingRightBitmap.close();
+                  pendingRightBitmap = bmp;
+                }),
                 refreshMarkerUV(),
               ]);
               const remaining = POV_POLL_FLOOR_MS - (performance.now() - cycleStart);
@@ -540,7 +537,30 @@
               }
             }
           }
-          povPollLoop();
+
+          // Auxiliary loop for wrist cam HUD panels (runs at ~10Hz)
+          async function wristHudPollLoop() {
+            while (povPollActive) {
+              const cycleStart = performance.now();
+              await Promise.all([
+                refreshPovTexture("/wrist_cam_left.jpg", (bmp) => {
+                  if (pendingWristLeftBitmap && pendingWristLeftBitmap.close) pendingWristLeftBitmap.close();
+                  pendingWristLeftBitmap = bmp;
+                }),
+                refreshPovTexture("/wrist_cam_right.jpg", (bmp) => {
+                  if (pendingWristRightBitmap && pendingWristRightBitmap.close) pendingWristRightBitmap.close();
+                  pendingWristRightBitmap = bmp;
+                }),
+              ]);
+              const remaining = 50 - (performance.now() - cycleStart);
+              if (remaining > 0) {
+                await new Promise((resolve) => setTimeout(resolve, remaining));
+              }
+            }
+          }
+
+          stereoPovPollLoop();
+          wristHudPollLoop();
           session.addEventListener("end", () => { povPollActive = false; });
 
           session.updateRenderState({
@@ -582,21 +602,25 @@
             if (pendingLeftBitmap) {
               gl.bindTexture(gl.TEXTURE_2D, leftEyeTexture);
               gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pendingLeftBitmap);
+              if (pendingLeftBitmap.close) pendingLeftBitmap.close();
               pendingLeftBitmap = null;
             }
             if (pendingRightBitmap) {
               gl.bindTexture(gl.TEXTURE_2D, rightEyeTexture);
               gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pendingRightBitmap);
+              if (pendingRightBitmap.close) pendingRightBitmap.close();
               pendingRightBitmap = null;
             }
             if (pendingWristLeftBitmap) {
               gl.bindTexture(gl.TEXTURE_2D, wristCamTextureLeft);
               gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pendingWristLeftBitmap);
+              if (pendingWristLeftBitmap.close) pendingWristLeftBitmap.close();
               pendingWristLeftBitmap = null;
             }
             if (pendingWristRightBitmap) {
               gl.bindTexture(gl.TEXTURE_2D, wristCamTextureRight);
               gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pendingWristRightBitmap);
+              if (pendingWristRightBitmap.close) pendingWristRightBitmap.close();
               pendingWristRightBitmap = null;
             }
 

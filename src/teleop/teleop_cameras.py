@@ -106,7 +106,7 @@ def make_wrist_cam_cfg(body: str = "link6l", name: str = "wrist_cam", mirror: bo
         prim_path="{ENV_REGEX_NS}/Robot/" + f"{body}/{name}",
         spawn=DATA_CAM_LENS,
         offset=CameraCfg.OffsetCfg(pos=pos, rot=rot, convention="opengl"),
-        height=480, width=640,
+        height=256, width=256,
         update_period=0.0,
         data_types=["rgb"],
     )
