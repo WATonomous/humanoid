@@ -1,11 +1,10 @@
 import math
-import os
-import tempfile
 import yaml
 import mujoco
-import mujoco.viewer
-
 import rclpy
+import viser
+
+from mjviser import ViserMujocoScene
 from rclpy.node import Node
 from common_msgs.msg import MotorFeedback
 
@@ -13,23 +12,13 @@ from common_msgs.msg import MotorFeedback
 class Real2SimMirrorNode(Node):
     def __init__(self):
         super().__init__("real2sim_mirror_node")
-        self.urdf_path = (
-            "/root/ament_ws/assets/pioneer_bimanual_arm/"
-            "urdf/pioneer_bimanual_arm.urdf"
-        )
-
-        self.mesh_directory = (
-            "/root/ament_ws/assets/pioneer_bimanual_arm/meshes"
-        )
 
         self.hardware_mapping_path = (
             "/root/ament_ws/src/joint_command/"
             "config/hardware_mapping.yaml"
         )
 
-        self.lookup_table = self.load_hardware_mapping(
-            "src/joint_command/config/hardware_mapping.yaml"
-        )
+        self.lookup_table = self.load_hardware_mapping(self.hardware_mapping_path)
 
         self.left_joint_names = {
             "shoulder_pitch": "joint1L",
@@ -58,14 +47,15 @@ class Real2SimMirrorNode(Node):
             "wrist_pitch": -1,
         }
 
-        #temporary file to store the modified URDF for MuJoCo
-        self.mujoco_urdf_path = self.create_mujoco_urdf()
+        self.mjcf_path = "/root/ament_ws/models/robot_mjcf.xml"
 
         self.model = mujoco.MjModel.from_xml_path(
-            self.mujoco_urdf_path
+            self.mjcf_path
         )
+
         # Initialize MuJoCo data structure
         self.data = mujoco.MjData(self.model)
+        mujoco.mj_forward(self.model, self.data)
 
         self.left_qpos = {}
         self.right_qpos = {}
@@ -102,39 +92,7 @@ class Real2SimMirrorNode(Node):
                     lookup_table[config["can_id"]] = entry
 
         return lookup_table
-    #Temporary function for Mujoco urdf simulation. 
-    def create_mujoco_urdf(self):
-        """
-        The original URDF uses ROS package:// mesh paths.
 
-        MuJoCo does not resolve those ROS package paths, so create
-        a temporary copy with the mesh paths replaced by the actual
-        mounted mesh directory.
-        """
-
-        with open(self.urdf_path, "r") as f:
-            urdf = f.read()
-
-        urdf = urdf.replace(
-            "package://armv2URDF/meshes/",
-            self.mesh_directory + "/",
-        )
-
-        temp_file = tempfile.NamedTemporaryFile(
-            mode="w",
-            suffix=".urdf",
-            delete=False,
-        )
-
-        temp_file.write(urdf)
-        temp_file.close()
-
-        self.get_logger().info(
-            f"Created MuJoCo-readable URDF: {temp_file.name}"
-        )
-
-        return temp_file.name
-    #Temporary function for Mujoco urdf simulation. 
     def setup_joint_indices(self):
         for joint_type, joint_name in self.left_joint_names.items():
             joint_id = mujoco.mj_name2id(
@@ -215,14 +173,11 @@ class Real2SimMirrorNode(Node):
         if joint_type not in self.left_qpos:
             return
 
-        ##Temporary code for Mujoco urdf simulation. 
         left_qpos_index = self.left_qpos[joint_type]
         self.data.qpos[left_qpos_index] = angle_rad
-        ##
 
         mirrored_angle_rad = self.mirror_angle(angle_rad, joint_name)
 
-        ##Temporary code for Mujoco urdf simulation. 
         right_qpos_index = self.right_qpos[joint_type]
         self.data.qpos[right_qpos_index] = mirrored_angle_rad
         # Update MuJoCo forward kinematics.
@@ -230,7 +185,6 @@ class Real2SimMirrorNode(Node):
             self.model,
             self.data,
         )
-        ##
 
         self.get_logger().info(
             f"{joint_name}: "
@@ -242,28 +196,30 @@ def main():
     rclpy.init()
 
     node = Real2SimMirrorNode()
-    #temporary code for Mujoco urdf simulation, will remove once xml model is found for mjlabs
     try:
-        # ------------------------------------------------------------
-        # Start MuJoCo viewer
-        # ------------------------------------------------------------
+        server = viser.ViserServer(port=8080)
 
-        with mujoco.viewer.launch_passive(
+        scene = ViserMujocoScene(
+            server,
             node.model,
-            node.data,
-        ) as viewer:
+            num_envs=1,
+        )
 
-            node.get_logger().info(
-                "MuJoCo viewer started."
+        scene.create_visualization_gui()
+        
+        node.get_logger().info(
+            "MJViser started, Open the printed browser URL"
+        )
+
+        while rclpy.ok():
+            rclpy.spin_once(
+                node,
+                timeout_sec=0.01,
             )
 
-            while rclpy.ok() and viewer.is_running():
-                rclpy.spin_once(
-                    node,
-                    timeout_sec=0.01,
-                )
-
-                viewer.sync()
+            scene.update_from_mjdata(
+                node.data
+            )
 
     except KeyboardInterrupt:
         pass

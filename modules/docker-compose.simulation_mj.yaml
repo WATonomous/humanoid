@@ -39,6 +39,8 @@ services:
       - ${MONO_DIR}/src/teleop:/root/ament_ws/src/teleop
       - ${MONO_DIR}/src/common_msgs:/root/ament_ws/src/common_msgs
       - ${MONO_DIR}/src/interfacing/joint_command:/root/ament_ws/src/joint_command
+      #so that the models folder is mounted into mjlabs docker container
+      - ${MONO_DIR}/models:/root/ament_ws/models:ro
       ##added the three below for mujoco visualization
       - ${MONO_DIR}/assets:/root/ament_ws/assets:ro
       - ${XDG_RUNTIME_DIR}/wayland-0:/tmp/runtime-nitish/wayland-0
