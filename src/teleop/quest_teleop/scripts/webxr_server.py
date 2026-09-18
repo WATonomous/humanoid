@@ -27,6 +27,8 @@ KEY_FILE = CERT_DIR / "key.pem"
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"  # Reuse TLS connections, eliminating TCP/SSL handshake latency
+
     def __init__(self, *args, **kwargs):
         # Serves files in the static directory over HTTPS.
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)

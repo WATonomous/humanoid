@@ -291,7 +291,7 @@ _CONTAINER_USD_PATH = str(
 )
 _CONTAINER_POS = (0.25, 0.20, _TABLE_TOP_Z)  # Container on the left side (+Y) flush on elevated table
 _CONTAINER_ROT = (0.7071067811865476, 0.0, 0.0, 0.7071067811865475)  # wxyz
-_BOX_POS = (0.33, -0.30, _TABLE_TOP_Z + 0.025)  # Red pick-up block shifted further to the right (-Y)
+_BOX_POS = (0.22, -0.26, _TABLE_TOP_Z + 0.025)  # Red pick-up block brought closer (X=0.22m) and to the right (Y=-0.26m)
 
 # Stereo pair: two RealSense D455s on base_link giving real depth via two eye textures (not a
 # mirrored monocular feed), fixed at _HEAD_VIEWPOINT_HOME_POS/QUAT. Head tracking is off --
@@ -556,7 +556,7 @@ import concurrent.futures
 _FRAME_WRITER_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
 
-def _save_frame_atomic(frame, file_path, quality: int = 60) -> None:
+def _save_frame_atomic(frame, file_path, quality: int = 50) -> None:
     """Encode an HxWx3 uint8 array to file_path via a temp file + atomic rename.
     Uses cv2.imencode (libjpeg-turbo SIMD) for ultra-fast compression, falling
     back to PIL.Image if OpenCV is unavailable. Runs in a background thread pool."""
@@ -585,7 +585,7 @@ def _save_frame_atomic(frame, file_path, quality: int = 60) -> None:
             pass
 
 
-def _save_frame_async(frame, file_path, quality: int = 60) -> None:
+def _save_frame_async(frame, file_path, quality: int = 50) -> None:
     """Non-blocking background frame submission."""
     _FRAME_WRITER_EXECUTOR.submit(_save_frame_atomic, frame, file_path, quality)
 
@@ -600,7 +600,7 @@ def _camera_rgb_frame(camera):
 
 def _write_pov_jpeg(camera, file_path) -> None:
     """Write a standalone Camera's current RGB frame to file_path asynchronously."""
-    _save_frame_async(_camera_rgb_frame(camera), file_path, quality=60)
+    _save_frame_async(_camera_rgb_frame(camera), file_path, quality=50)
 
 
 # Eye frames for the headset. They live in the WebXR static dir so webxr_server.py's stock
