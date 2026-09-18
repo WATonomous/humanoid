@@ -294,9 +294,9 @@ _CONTAINER_USD_PATH = str(
 )
 _CONTAINER_POS = (0.25, 0.20, 0.70917)  # Container on the left side (+Y)
 _CONTAINER_ROT = (0.7071067811865476, 0.0, 0.0, 0.7071067811865475)  # wxyz
-_BOX_STAND_HEIGHT = 0.17  # 30% shorter (0.17m height, top at Z=0.88m)
-_BOX_STAND_POS = (0.27, -0.22, 0.70917 + _BOX_STAND_HEIGHT / 2.0)  # (0.27, -0.22, 0.79417) - shifted 5cm further (+X)
-_BOX_POS = (0.27, -0.22, 0.70917 + _BOX_STAND_HEIGHT + 0.03)  # Resting directly on top of the purple pedestal
+_BOX_STAND_HEIGHT = 0.17  # 0.17m height (top at Z=0.88m)
+_BOX_STAND_POS = (0.33, -0.22, 0.70917 + _BOX_STAND_HEIGHT / 2.0)  # (0.33, -0.22, 0.79417) - shifted further (+X)
+_BOX_POS = (0.33, -0.22, 0.70917 + _BOX_STAND_HEIGHT + 0.03)  # Resting directly on top of the blue pedestal
 
 # Stereo pair: two RealSense D455s on base_link giving real depth via two eye textures (not a
 # mirrored monocular feed), fixed at _HEAD_VIEWPOINT_HOME_POS/QUAT. Head tracking is off --
@@ -742,13 +742,13 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
             collision_props=sim_utils.CollisionPropertiesCfg(),
         ),
     )
-    # Purple pedestal stand under the box for easier grasping
+    # Blue pedestal stand under the box for easier grasping
     box_stand: AssetBaseCfg = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/BoxStand",
         init_state=AssetBaseCfg.InitialStateCfg(pos=_BOX_STAND_POS),
         spawn=sim_utils.CuboidCfg(
             size=(0.14, 0.14, _BOX_STAND_HEIGHT),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.58, 0.12, 0.88), roughness=0.2),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.12, 0.45, 0.95), roughness=0.2),
             collision_props=sim_utils.CollisionPropertiesCfg(),
         ),
     )
@@ -1519,14 +1519,41 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     _keyboard = omni.appwindow.get_default_app_window().get_keyboard()
     _keyboard_sub = _keyboard_iface.subscribe_to_keyboard_events(_keyboard, _on_keyboard_event)
 
+    def _terminal_stdin_listener():
+        import sys, select
+        try:
+            while True:
+                r, _, _ = select.select([sys.stdin], [], [], 0.2)
+                if r:
+                    line = sys.stdin.readline()
+                    if not line:
+                        break
+                    for char in line.strip().upper():
+                        if char == "R":
+                            _recalibrate()
+                        elif char == "T":
+                            _reset_scene()
+                        elif char == "S" and recorder is not None:
+                            recorder.save_episode()
+                            print("[RECORD] [S] Episode saved -- recording continues for the next one.", flush=True)
+                        elif char == "D" and recorder is not None:
+                            recorder.cancel_recording()
+                            print("[RECORD] [D] Episode discarded -- recording continues for the retry.", flush=True)
+        except Exception:
+            pass
+
+    _stdin_thread = threading.Thread(target=_terminal_stdin_listener, daemon=True)
+    _stdin_thread.start()
+
     print("[Quest] Ready. Waiting for /quest_teleop messages.", flush=True)
     print("[Quest] Both arms: Differential IK (DLS), fingertip-tip target.", flush=True)
     print("[Quest] Connect the Quest browser to start streaming hand data.", flush=True)
-    print("[Quest] Press R (Isaac Sim window focused) to recalibrate to your current pose.", flush=True)
+    print("[Quest] Commands (type in terminal OR press with window focused):", flush=True)
+    print("[Quest]   T / t <Enter> : Reset scene (robot arm, box on stand, container)", flush=True)
+    print("[Quest]   R / r <Enter> : Recalibrate arm tracking to current controller pose", flush=True)
     if recorder is not None:
-        print("[Quest] Press S to save the current episode, D to discard it -- recording "
-              "continues either way for the next demo.", flush=True)
-    print("[Quest] Press T (Isaac Sim window focused) to fully reset the scene (box/container/arm).", flush=True)
+        print("[Quest]   S / s <Enter> : Save recorded episode", flush=True)
+        print("[Quest]   D / d <Enter> : Discard recorded episode", flush=True)
 
     diag_frame = 0
     pov_capture_frame = 0
