@@ -11,16 +11,15 @@ PORT = 8443
 SCRIPT_DIR = Path(__file__).resolve().parent
 PACKAGE_DIR = SCRIPT_DIR.parent
 
-SHARED_STATIC = Path("/workspace/isaaclab/source/static")
+SHARED_STATIC = Path("/workspace/isaaclab/logs/static")
 if not SHARED_STATIC.exists():
-    SHARED_STATIC = Path(os.path.expanduser("~/IsaacLab/source/static"))
+    SHARED_STATIC = Path(os.path.expanduser("~/IsaacLab/logs/static"))
+SHARED_STATIC.mkdir(parents=True, exist_ok=True)
 
 if os.environ.get("TELEOP_STATIC_DIR"):
     STATIC_DIR = Path(os.environ["TELEOP_STATIC_DIR"])
-elif SHARED_STATIC.exists():
-    STATIC_DIR = SHARED_STATIC
 else:
-    STATIC_DIR = PACKAGE_DIR / "static"
+    STATIC_DIR = SHARED_STATIC
 CERT_DIR = Path(os.environ.get("TELEOP_CERT_DIR", PACKAGE_DIR / "certs"))
 
 CERT_FILE = CERT_DIR / "cert.pem"

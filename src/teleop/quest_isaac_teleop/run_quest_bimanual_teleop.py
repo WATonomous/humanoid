@@ -79,6 +79,9 @@ def _ensure_il_on_path() -> None:
 parser = argparse.ArgumentParser(description="Quest pioneer_bimanual_arm teleop (both arms: DLS fingertip IK)")
 parser.add_argument("--gain", type=float, default=1.0,
                     help="Motion gain: metres of EE motion per metre of real wrist motion")
+parser.add_argument("--low-latency", action="store_true",
+                    help="Use a latency-focused profile that preserves stereo Quest video and recording: "
+                         "320x240 eye streams, more responsive pose filtering, and latest-sample processing.")
 parser.add_argument("--record", action="store_true",
                     help="Record demonstrations (requires: pip install -e src/il[record]). Records the "
                          "L-suffixed (link6l) arm only -- that's the arm ego_cam/wrist_cam are mounted for.")
@@ -608,14 +611,12 @@ def _write_pov_jpeg(camera, file_path) -> None:
 # _POV_CAPTURE_EVERY_N_STEPS steps -- the same constant that gates `render=`, so a capture
 # always lands on freshly-rendered pixels. Sim-time render rate is 1/(n*dt); the headset sees
 # that scaled by RTF, which is why the fps diagnostic prints both.
-_SHARED_STATIC = Path("/workspace/isaaclab/source/static")
+_SHARED_STATIC = Path("/workspace/isaaclab/logs/static")
 if not _SHARED_STATIC.exists():
-    _SHARED_STATIC = Path(os.path.expanduser("~/IsaacLab/source/static"))
+    _SHARED_STATIC = Path(os.path.expanduser("~/IsaacLab/logs/static"))
 
-if _SHARED_STATIC.exists():
-    _POV_STATIC_DIR = _SHARED_STATIC
-else:
-    _POV_STATIC_DIR = _SIM_DIR.parent / "teleop" / "quest_teleop" / "static"
+_SHARED_STATIC.mkdir(parents=True, exist_ok=True)
+_POV_STATIC_DIR = _SHARED_STATIC
 _POV_FRAME_PATH_LEFT = _POV_STATIC_DIR / "pov_left.jpg"
 _POV_FRAME_PATH_RIGHT = _POV_STATIC_DIR / "pov_right.jpg"
 # THE render/capture cadence -- single source of truth. main()'s SimulationCfg reads this, and
@@ -625,6 +626,15 @@ _POV_FRAME_PATH_RIGHT = _POV_STATIC_DIR / "pov_right.jpg"
 # measured cost model and the fps/RTF table.
 _POV_CAPTURE_EVERY_N_STEPS = 5
 _PHYSICS_DT = 0.02  # seconds of simulated time per physics step (50Hz)
+
+# The low-latency profile keeps every camera needed by --record and both Quest wrist HUDs, but
+# halves the stereo eye pixel count. It therefore changes neither dataset schema nor operator
+# visibility. The higher One Euro cutoffs reduce small-motion lag while retaining useful jitter
+# suppression; filters consume each Quest sample exactly once (see QuestRosReceiver.poll()).
+_POV_WIDTH = 320 if args_cli.low_latency else 480
+_POV_HEIGHT = 240 if args_cli.low_latency else 360
+_FILTER_MIN_CUTOFF = 4.0 if args_cli.low_latency else 1.0
+_FILTER_BETA = 1.0 if args_cli.low_latency else 0.5
 
 # Dataset fps, derived: the render rate is the only rate at which recorded pixels can change.
 # Declared independently (schema said 30, sim rendered 10) it duplicated ~25% of frames --
@@ -771,11 +781,20 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
 
 
 class QuestRosReceiver(Node):
-    """ROS 2 subscriber that caches the latest /quest_teleop message."""
+    """ROS 2 subscriber that exposes each newest /quest_teleop sample once.
+
+    The callback may overwrite an unconsumed sample, deliberately: stale hand poses must never
+    form a playback queue. The receive timestamp lets filters use elapsed wall time between
+    samples actually consumed by the simulator rather than pretending a cached sample is new on
+    every physics step.
+    """
 
     def __init__(self) -> None:
         super().__init__("quest_ik_listener")
         self._latest: QuestHandPose | None = None
+        self._latest_received_at = 0.0
+        self._generation = 0
+        self._consumed_generation = 0
         self._lock = threading.Lock()
         self.create_subscription(QuestHandPose, "/quest_teleop", self._cb, 1)
         self.get_logger().info("Subscribed to /quest_teleop")
@@ -783,10 +802,15 @@ class QuestRosReceiver(Node):
     def _cb(self, msg: QuestHandPose) -> None:
         with self._lock:
             self._latest = msg
+            self._latest_received_at = time.monotonic()
+            self._generation += 1
 
-    def poll(self) -> QuestHandPose | None:
+    def poll(self) -> tuple[QuestHandPose, float] | None:
         with self._lock:
-            return self._latest
+            if self._latest is None or self._generation == self._consumed_generation:
+                return None
+            self._consumed_generation = self._generation
+            return self._latest, self._latest_received_at
 
 
 def _joint_ids(robot, names: list[str]) -> list[int]:
@@ -1080,9 +1104,10 @@ class _ArmDlsController:
         self.smoothed_pos: torch.Tensor | None = None
         self.smoothed_vel: torch.Tensor | None = None
         # Input-side jitter filters on the RAW Quest wrist pose, applied before homing and
-        # displacement. Distinct from the output smoothing above.
-        self.pos_filter = _OneEuroFilter()
-        self.quat_filter = _OneEuroQuatFilter()
+        # displacement. Distinct from the output smoothing above. --low-latency raises the
+        # adaptive cutoff to reduce small-motion lag without removing filtering entirely.
+        self.pos_filter = _OneEuroFilter(min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA)
+        self.quat_filter = _OneEuroQuatFilter(min_cutoff=_FILTER_MIN_CUTOFF, beta=_FILTER_BETA)
 
     def tip_pose_b(self, robot, root_pose_w):
         return compute_gripper_tip_pose_b(
@@ -1222,8 +1247,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     _rsd455_native_fov = _read_camera_fov(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}")
     _widen_camera_fov(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}", _RSD455_WIDENED_FOCAL_LENGTH)
     _widen_camera_fov(f"{right_eye_mount}/{_RSD455_CAMERA_SUBPATH}", _RSD455_WIDENED_FOCAL_LENGTH)
-    left_eye_camera = _open_pov_camera(f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}", "Left Eye POV")
-    right_eye_camera = _open_pov_camera(f"{right_eye_mount}/{_RSD455_CAMERA_SUBPATH}", "Right Eye POV")
+    left_eye_camera = _open_pov_camera(
+        f"{left_eye_mount}/{_RSD455_CAMERA_SUBPATH}", "Left Eye POV", _POV_WIDTH, _POV_HEIGHT,
+    )
+    right_eye_camera = _open_pov_camera(
+        f"{right_eye_mount}/{_RSD455_CAMERA_SUBPATH}", "Right Eye POV", _POV_WIDTH, _POV_HEIGHT,
+    )
     # Cached for _project_world_point_to_uv; valid because _widen_camera_fov already blocked
     # until these prims finished loading.
     _stage_for_cams = omni.usd.get_context().get_stage()
@@ -1530,6 +1559,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
 
     print("[Quest] Ready. Waiting for /quest_teleop messages.", flush=True)
     print("[Quest] Both arms: Differential IK (DLS), fingertip-tip target.", flush=True)
+    if args_cli.low_latency:
+        print(f"[Quest][latency] Low-latency profile active: stereo={_POV_WIDTH}x{_POV_HEIGHT}, "
+              f"pose filter min_cutoff={_FILTER_MIN_CUTOFF:.1f}Hz beta={_FILTER_BETA:.1f}, "
+              "latest samples only.", flush=True)
     print("[Quest] Connect the Quest browser to start streaming hand data.", flush=True)
     print("[Quest] Commands (type in terminal OR press with window focused):", flush=True)
     print("[Quest]   T / t <Enter> : Reset scene (robot arm, box on stand, container)", flush=True)
@@ -1575,8 +1608,19 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     signal.signal(signal.SIGINT, _request_shutdown)
     signal.signal(signal.SIGTERM, _request_shutdown)
 
+    _last_quest_sample_t: float | None = None
     while simulation_app.is_running() and not _shutdown_requested:
-        msg = receiver.poll()
+        sample = receiver.poll()
+        if sample is None:
+            msg = None
+            quest_sample_dt = sim_dt
+        else:
+            msg, sample_received_at = sample
+            quest_sample_dt = (
+                sim_dt if _last_quest_sample_t is None
+                else max(1e-4, min(sample_received_at - _last_quest_sample_t, 0.1))
+            )
+            _last_quest_sample_t = sample_received_at
 
         if msg is not None:
             if not _vr_connected:
@@ -1603,11 +1647,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             # Filter tracking noise before homing/displacement use it. Only while tracked, so
             # the untracked sentinel (0,0,0 / identity) never enters either filter's state.
             if left_tracked:
-                left_xyz_q = left_arm.pos_filter.filter(left_xyz_q, sim_dt)
-                left_quat = left_arm.quat_filter.filter(left_quat, sim_dt)
+                left_xyz_q = left_arm.pos_filter.filter(left_xyz_q, quest_sample_dt)
+                left_quat = left_arm.quat_filter.filter(left_quat, quest_sample_dt)
             if right_tracked:
-                right_xyz_q = right_arm.pos_filter.filter(right_xyz_q, sim_dt)
-                right_quat = right_arm.quat_filter.filter(right_quat, sim_dt)
+                right_xyz_q = right_arm.pos_filter.filter(right_xyz_q, quest_sample_dt)
+                right_quat = right_arm.quat_filter.filter(right_quat, quest_sample_dt)
 
             root_quat_w = robot.data.root_state_w[:, 3:7]
             root_pose_w = robot.data.root_state_w[:, 0:7]
