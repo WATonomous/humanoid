@@ -77,6 +77,10 @@ void WssServer::run() {
 
 void WssServer::handle_session(tcp::socket socket) {
   try {
+    // Teleop values freshness over delivery of stale queued packets. Disable
+    // Nagle before wrapping the socket in TLS so tiny control frames are sent
+    // immediately instead of waiting behind an application-level ACK cycle.
+    socket.set_option(tcp::no_delay(true));
     ssl::stream<tcp::socket> tls_stream(std::move(socket), ssl_context_);
     tls_stream.handshake(ssl::stream_base::server);
 
@@ -114,9 +118,8 @@ void WssServer::handle_session(tcp::socket socket) {
       if (on_message_) {
         on_message_(text);
       }
-
-      ws.text(true);
-      ws.write(boost::asio::buffer(std::string("ok")));
+      // Do not send a per-pose application ACK. The browser does not consume it,
+      // and a synchronous write here delays reading the next, fresher pose.
     }
   } catch (const std::exception& e) {
     std::cout << "WSS session ended: " << e.what() << std::endl;

@@ -28,8 +28,10 @@ images:
     width: 640
     enabled: true
   wrist:
-    height: 480
-    width: 640
+    # Native wrist CameraCfg resolution in teleop_cameras.py. Upscaling this
+    # buffer to 640x480 adds no image information and increases recording cost.
+    height: 256
+    width: 256
     enabled: true
 
 record:

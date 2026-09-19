@@ -684,7 +684,17 @@
               }
             }
 
-            if (ws.readyState === WebSocket.OPEN) {
+            // The simulator consumes at most 50 Hz. Cap control traffic at 60 Hz
+            // and never queue another pose behind an unsent one: for teleoperation,
+            // the newest pose is useful and a stale backlog is actively harmful.
+            const sendIntervalMs = 1000 / 60;
+            const lastSendTime = onFrame.lastControlSendTime ?? -Infinity;
+            if (
+              ws.readyState === WebSocket.OPEN &&
+              ws.bufferedAmount === 0 &&
+              time - lastSendTime >= sendIntervalMs
+            ) {
+              onFrame.lastControlSendTime = time;
               ws.send(JSON.stringify(payload));
             }
 

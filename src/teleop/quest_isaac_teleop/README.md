@@ -116,6 +116,40 @@ required for teleop to work, but useful so the Quest can load pages.
 
 ---
 
+## WATCloud low-latency profile
+
+Use `--low-latency` for the conservative latency profile. It keeps the Isaac window, stereo
+Quest view, both wrist HUDs, and every `--record` dataset camera. It reduces only the stereo eye
+streams to 320x240, raises the pose-filter cutoff, and consumes only fresh Quest samples.
+
+Keep control (9090), WebXR/video (8443), and VNC (5900) on separate SSH processes. Otherwise
+large JPEG responses and VNC updates share one SSH TCP stream with control messages and can
+head-of-line block them. On Windows, run each command in its own Git Bash terminal:
+
+```bash
+ssh -N -T -o Compression=no -o ControlMaster=no -L 9090:localhost:9090 asd-dev-session
+```
+
+```bash
+ssh -N -T -o Compression=no -o ControlMaster=no -L 8443:localhost:8443 asd-dev-session
+```
+
+```bash
+# Optional: only if the desktop/VNC view is needed.
+ssh -N -T -o Compression=no -o ControlMaster=no -L 5900:localhost:5900 asd-dev-session
+```
+
+Launch recording normally (not headless):
+
+```bash
+./run_quest_bimanual_teleop.sh --record --low-latency
+```
+
+The terminal confirms activation with `[Quest][latency] Low-latency profile active`. Remove only
+`--low-latency` to return to the original 480x360 eye streams and filter tuning.
+
+---
+
 ## Running the pipeline
 
 ### Check what's already running first
