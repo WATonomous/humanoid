@@ -26,8 +26,17 @@ ENV AMENT_WS=/root/ament_ws
 
 # Install Rosdep requirements
 COPY --from=source /tmp/colcon_install_list /tmp/colcon_install_list
+#RUN apt-get update -qq && \
+    #apt-get install -qq -y --no-install-recommends $(cat /tmp/colcon_install_list) || true
+
+#Install OpenGL/EGL libraries required for Mujoco and MJViser rendering
 RUN apt-get update -qq && \
-    apt-get install -qq -y --no-install-recommends $(cat /tmp/colcon_install_list) || true
+    apt-get install -qq -y --no-install-recommends \
+        $(cat /tmp/colcon_install_list) \
+        libgl1 \
+        libglx0 \
+        libegl1 \
+    || true
 
 # Copy in source code from source stage
 WORKDIR ${AMENT_WS}

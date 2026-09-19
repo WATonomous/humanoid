@@ -12,7 +12,8 @@ services:
         - "${INTERFACING_IMAGE:?}:${TAG}"
         - "${INTERFACING_IMAGE:?}:main"
     image: "${INTERFACING_IMAGE:?}:${TAG}"
-    command: /bin/bash -c "ros2 launch can can.launch.py"
+    entrypoint: ./wato_ros_entrypoint.sh
+    command: -c "source /opt/watonomous/setup.bash && exec ros2 launch can can.launch.py"
     privileged: true
     network_mode: host # Allow the container to access the host's network interfaces
     cap_add: # Grant the capability to configure network interfaces

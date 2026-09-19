@@ -1,0 +1,266 @@
+import math
+import yaml
+import mujoco
+import rclpy
+import viser
+
+from mjviser import ViserMujocoScene
+from rclpy.node import Node
+from common_msgs.msg import MotorFeedback
+
+
+class Real2SimMirrorNode(Node):
+    def __init__(self):
+        super().__init__("real2sim_mirror_node")
+
+        self.hardware_mapping_path = (
+            "/root/ament_ws/src/joint_command/"
+            "config/hardware_mapping.yaml"
+        )
+
+        self.lookup_table = self.load_hardware_mapping(self.hardware_mapping_path)
+
+        self.left_joint_names = {
+            "shoulder_pitch": "joint1L",
+            "shoulder_yaw": "joint2l",
+            "shoulder_roll": "joint3l",
+            "elbow_pitch": "joint4l",
+            "elbow_roll": "joint5l",
+            "wrist_pitch": "joint6l",
+            "gripper": "joint7l",
+        }
+
+        self.right_joint_names = {
+            "shoulder_pitch": "joint1",
+            "shoulder_yaw": "joint2",
+            "shoulder_roll": "joint3",
+            "elbow_pitch": "joint4",
+            "elbow_roll": "joint5",
+            "wrist_pitch": "joint6",
+            "gripper": "joint7",
+        }
+
+        self.mirror_directions = {
+            "shoulder_pitch": -1,
+            "shoulder_roll": -1,
+            "shoulder_yaw": -1,
+            "elbow_pitch": -1,
+            "elbow_roll": -1,
+            "wrist_pitch": -1,
+        }
+
+        self.mjcf_path = "/root/ament_ws/models/robot_mjcf.xml"
+
+        self.model = mujoco.MjModel.from_xml_path(
+            self.mjcf_path
+        )
+
+        # Initialize MuJoCo data structure
+        self.data = mujoco.MjData(self.model)
+        mujoco.mj_forward(self.model, self.data)
+
+        self.left_qpos = {}
+        self.right_qpos = {}
+
+        self.setup_joint_indices()
+
+        self.subscription = self.create_subscription(
+            MotorFeedback,
+            "/interfacing/motorFeedback",
+            self.feedback_callback,
+            10,
+        )
+
+        self.get_logger().info("Real2Sim mirror visualization node started.")
+
+    #Converts the hardware mapping YAML file into a lookup table for easy access
+    def load_hardware_mapping(self, yaml_file_path):
+        with open(yaml_file_path, "r") as f:
+            data = yaml.safe_load(f)
+
+        lookup_table = {}
+
+        for side, limbs in data.items():
+            for limb, joints in limbs.items():
+                for joint_type, config in joints.items():
+                    joint_name = f"{side}_{limb}_{joint_type}"
+
+                    entry = config.copy()
+                    entry["joint_name"] = joint_name
+
+                    lookup_table[config["can_id"]] = entry
+
+        return lookup_table
+
+    def setup_joint_indices(self):
+        for joint_type, joint_name in self.left_joint_names.items():
+            joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, joint_name,)
+
+            if joint_id == -1:
+                raise RuntimeError(
+                    f"Could not find MuJoCo joint: {joint_name}"
+                )
+
+            self.left_qpos[joint_type] = self.model.jnt_qposadr[joint_id]
+
+        for joint_type, joint_name in self.right_joint_names.items():
+            joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
+
+            if joint_id == -1:
+                raise RuntimeError(f"Could not find MuJoCo joint: {joint_name}")
+
+            self.right_qpos[joint_type] = self.model.jnt_qposadr[joint_id]
+
+        self.get_logger().info(
+            f"Left qpos indices: {self.left_qpos}"
+        )
+
+        self.get_logger().info(
+            f"Right qpos indices: {self.right_qpos}"
+        )
+
+    def angle_computation(self, motor_id, position_deg):
+        
+        if motor_id not in self.lookup_table:
+            self.get_logger().warn(f"Unknown Motor ID {motor_id}")
+            return None
+
+        config = self.lookup_table[motor_id]
+
+        true_angle_deg = (position_deg - config["zero_offset"]) * config["direction"]
+
+        limited_angle_deg = max(config["lower_limit"], min(config["upper_limit"], true_angle_deg))
+
+        return math.radians(limited_angle_deg)
+
+    def mirror_angle(self, angle_rad, joint_name):
+        joint_type = "_".join(joint_name.split("_")[1:])
+        direction = self.mirror_directions[joint_type]
+
+        return angle_rad * direction
+
+    def feedback_callback(self, msg):
+        motor_id = msg.motor_id
+        position_deg = msg.position
+
+        if motor_id == 21:
+            gripper_angle = max(0.0, min(100.0, position_deg))
+
+            gripper_value = gripper_angle / 100.0
+
+            # Map the logical gripper value to both finger joints.
+            joint7_min = -0.0532
+            joint7_max = 0.0168
+
+            joint8_min = -0.0132
+            joint8_max = 0.0468
+
+            joint7_position = (joint7_min + gripper_value * (joint7_max - joint7_min))
+            joint8_position = (joint8_min + gripper_value * (joint8_max - joint8_min))
+
+            # Left gripper
+
+            #Set the position of the left gripper's main prismatic joint
+            self.data.qpos[self.left_qpos["gripper"]] = joint7_position
+
+            #Find the mujoco joint id for the left gripper second prismatic joint
+            joint8l_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT,"joint8l")
+
+            if joint8l_id == -1:                                    
+                raise RuntimeError("Could not find MuJoCo joint: joint8l")  
+
+            #Convert the Mujoco joint id into the index used to access that joint's position inside data.qpos.
+            joint8l_qpos = self.model.jnt_qposadr[joint8l_id]
+
+            #Set the position of the left gripper's second prismatic joint
+            self.data.qpos[joint8l_qpos] = joint8_position
+
+            # Right gripper
+
+            #Set the position of the right gripper's main prismatic joint
+            self.data.qpos[self.right_qpos["gripper"]] = joint7_position
+            
+            #Find the mujoco joint id for the right gripper second prismatic joint
+            joint8_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "joint8")
+
+            if joint8_id == -1:      
+                raise RuntimeError("Could not find MuJoCo joint: joint8")
+
+             #Convert the Mujoco joint id into the index used to access that joint's position inside data.qpos.
+            joint8_qpos = self.model.jnt_qposadr[joint8_id]
+
+            #Set the position of the right gripper's second prismatic joint
+            self.data.qpos[joint8_qpos] = joint8_position
+
+            mujoco.mj_forward(self.model, self.data,)
+
+            self.get_logger().info(
+                f"Gripper: {position_deg:.1f} deg -> "
+                f"joint7: {joint7_position:.4f} m, "
+                f"joint8: {joint8_position:.4f} m"
+            )
+
+            return
+
+        angle_rad = self.angle_computation(motor_id, position_deg,)
+
+        if angle_rad is None:
+            return
+
+        joint_name = self.lookup_table[motor_id]["joint_name"]
+
+        if not joint_name.startswith("left_"):
+            return
+
+        #Get the joint type from hardware_mapping
+        joint_type = "_".join(joint_name.split("_")[1:])
+
+        if joint_type not in self.left_qpos:
+            return
+
+        left_qpos_index = self.left_qpos[joint_type]
+
+        #Set the left joint angle (rad)
+        self.data.qpos[left_qpos_index] = angle_rad
+
+        mirrored_angle_rad = self.mirror_angle(angle_rad, joint_name)
+
+        right_qpos_index = self.right_qpos[joint_type]
+        self.data.qpos[right_qpos_index] = mirrored_angle_rad
+
+        # Update MuJoCo forward kinematics.
+        mujoco.mj_forward(self.model, self.data,)
+
+        self.get_logger().info(
+            f"{joint_name}: "
+            f"{angle_rad:.3f} rad -> "
+            f"{mirrored_angle_rad:.3f} rad"
+        )
+    
+def main():
+    rclpy.init()
+
+    node = Real2SimMirrorNode()
+    try:
+        server = viser.ViserServer(port=8080)
+
+        scene = ViserMujocoScene(server, node.model, num_envs=1)
+
+        scene.create_visualization_gui()
+        
+        node.get_logger().info("MJViser started, Open the printed browser URL")
+
+        while rclpy.ok():
+            rclpy.spin_once(node, timeout_sec=0.01)
+            scene.update_from_mjdata(node.data)
+
+    except KeyboardInterrupt:
+        pass
+
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == "__main__":
+    main()
