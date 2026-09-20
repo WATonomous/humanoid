@@ -216,6 +216,9 @@ _HOME_TIP_Z_OFFSET = 0.0
 # pose (no snap). The delay is operator prep time -- a hand on the e-stop before motion.
 _REAL_ARM_PUBLISH_PERIOD_S = 0.02  # 20ms = 50Hz, matches joint_command_node's control_rate_hz
 _REAL_ARM_PUBLISH_START_DELAY_S = 5.0
+# After a full scene reset, hold Quest tracking while the operator returns both hands to a
+# comfortable position. The first fresh sample after this delay becomes the new home pose.
+_RESET_RECALIBRATION_DELAY_S = 5.0
 
 # Per-arm rotation offset conjugated onto the wrist orientation delta; identity = no
 # correction. The old bimanual_arm_cfg's non-identity value does NOT transfer (this asset's
@@ -1410,6 +1413,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
 
     left_closed = False
     right_closed = False
+    # Set only by T/reset. While active, incoming hand samples are ignored so the first sample
+    # after the hold window becomes the new calibration pose.
+    tracking_resume_at: float | None = None
 
     recorder, record_cfg = _init_recorder(device)
     if recorder is not None:
@@ -1495,7 +1501,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         tracking re-homed (same as R) so the arm doesn't immediately snap back toward wherever
         your hand currently is."""
         nonlocal target_pos_b_left, target_quat_b_left, target_pos_b_right, target_quat_b_right
-        nonlocal left_closed, right_closed
+        nonlocal left_closed, right_closed, tracking_resume_at
         nonlocal left_gripper_smoothed, left_gripper_vel, right_gripper_smoothed, right_gripper_vel
         scene["box"].write_root_state_to_sim(scene["box"].data.default_root_state.clone())
         scene["container"].write_root_state_to_sim(scene["container"].data.default_root_state.clone())
@@ -1515,7 +1521,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         right_gripper_smoothed = right_g_open.clone()
         right_gripper_vel = torch.zeros_like(right_g_open)
         _recalibrate()
-        print("[Quest] Scene reset -- box/container respawned, arm back to rest pose.", flush=True)
+        tracking_resume_at = time.monotonic() + _RESET_RECALIBRATION_DELAY_S
+        print(f"[Quest] Scene reset -- box/container respawned, arm back to rest pose. "
+              f"Tracking paused for {_RESET_RECALIBRATION_DELAY_S:.0f}s; reposition your hands now.",
+              flush=True)
 
     def _on_keyboard_event(event, *args, **kwargs) -> None:
         if event.type != carb.input.KeyboardEventType.KEY_PRESS:
@@ -1569,7 +1578,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
               "latest samples only.", flush=True)
     print("[Quest] Connect the Quest browser to start streaming hand data.", flush=True)
     print("[Quest] Commands (type in terminal OR press with window focused):", flush=True)
-    print("[Quest]   T / t <Enter> : Reset scene (robot arm, box on stand, container)", flush=True)
+    print("[Quest]   T / t <Enter> : Reset scene, then pause hand tracking for 5s to reposition", flush=True)
     print("[Quest]   R / r <Enter> : Recalibrate arm tracking to current controller pose", flush=True)
     if recorder is not None:
         print("[Quest]   S / s <Enter> : Save recorded episode", flush=True)
@@ -1647,6 +1656,18 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             left_tracked = _is_tracked(left_xyz_q, left_quat)
             right_tracked = _is_tracked(right_xyz_q, right_quat)
             head_tracked = _is_tracked(head_xyz_q, head_quat)
+
+            if tracking_resume_at is not None:
+                if time.monotonic() < tracking_resume_at:
+                    # Hold targets and grippers at their reset state while the operator returns
+                    # their hands to position. Do not filter, home, or act on these samples.
+                    left_tracked = False
+                    right_tracked = False
+                    head_tracked = False
+                else:
+                    tracking_resume_at = None
+                    print("[Quest] Reset tracking pause complete — homing from your current hand poses.",
+                          flush=True)
 
             # Filter tracking noise before homing/displacement use it. Only while tracked, so
             # the untracked sentinel (0,0,0 / identity) never enters either filter's state.
