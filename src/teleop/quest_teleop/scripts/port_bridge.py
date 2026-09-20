@@ -6,17 +6,23 @@ all TCP traffic directly into the running container via `docker exec`.
 Works in all rootless network namespaces without needing port mappings.
 """
 
+import os
 import socket
 import subprocess
 import threading
 import sys
 
-CONTAINER_NAME = "isaac-lab-ros2"
+CONTAINER_NAME = os.environ.get("PORT_BRIDGE_CONTAINER", "isaac-lab-ros2")
 
 def pump(src, dst):
+    """Relay promptly available bytes; buffered .read(65536) can deadlock HTTPS.
+
+    `docker exec` gives us buffered pipe objects. Use os.read for those streams so small TLS
+    records are forwarded immediately rather than waiting for a complete 64 KiB buffer.
+    """
     try:
         while True:
-            data = src.recv(65536) if hasattr(src, "recv") else src.read(65536)
+            data = src.recv(65536) if hasattr(src, "recv") else os.read(src.fileno(), 65536)
             if not data:
                 break
             if hasattr(dst, "sendall"):
@@ -50,19 +56,19 @@ def forward_port(host_port: int, container_port: int):
 
     # In-container forwarder snippet (uses container's bundled python3)
     container_cmd = (
-        f"import socket, sys, threading; "
-        f"s = socket.create_connection(('127.0.0.1', {container_port})); "
-        f"def r():\n"
-        f"    while True:\n"
-        f"        b = s.recv(65536)\n"
-        f"        if not b: break\n"
-        f"        sys.stdout.buffer.write(b)\n"
-        f"        sys.stdout.buffer.flush()\n"
-        f"threading.Thread(target=r, daemon=True).start()\n"
-        f"while True:\n"
-        f"    b = sys.stdin.buffer.read(65536)\n"
-        f"    if not b: break\n"
-        f"    s.sendall(b)\n"
+        "import os, socket, sys, threading\n"
+        f"s = socket.create_connection(('127.0.0.1', {container_port}))\n"
+        "def r():\n"
+        "    while True:\n"
+        "        b = s.recv(65536)\n"
+        "        if not b: break\n"
+        "        sys.stdout.buffer.write(b)\n"
+        "        sys.stdout.buffer.flush()\n"
+        "threading.Thread(target=r, daemon=True).start()\n"
+        "while True:\n"
+        "    b = os.read(sys.stdin.fileno(), 65536)\n"
+        "    if not b: break\n"
+        "    s.sendall(b)\n"
     )
 
     while True:

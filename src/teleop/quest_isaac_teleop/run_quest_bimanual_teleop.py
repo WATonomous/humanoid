@@ -81,7 +81,7 @@ parser.add_argument("--gain", type=float, default=1.0,
                     help="Motion gain: metres of EE motion per metre of real wrist motion")
 parser.add_argument("--low-latency", action="store_true",
                     help="Use a latency-focused profile that preserves stereo Quest video and recording: "
-                         "320x240 eye streams, more responsive pose filtering, and latest-sample processing.")
+                         "400x300 eye streams, more responsive pose filtering, and latest-sample processing.")
 parser.add_argument("--record", action="store_true",
                     help="Record demonstrations (requires: pip install -e src/il[record]). Records the "
                          "L-suffixed (link6l) arm only -- that's the arm ego_cam/wrist_cam are mounted for.")
@@ -227,8 +227,10 @@ _WRIST_ORIENT_OFFSET_RIGHT = torch.tensor([1.0, 0.0, 0.0, 0.0])
 
 _THUMB_TIP_IDX = 4
 _INDEX_TIP_IDX = 9
-_PINCH_CLOSE_M = 0.035  # was 0.030, nudged up per live feedback (easier to trigger close)
-_PINCH_OPEN_M = 0.050
+# Quest hand-joint tracking has modest jitter at close range. Keep a 1cm hysteresis gap so
+# the gripper does not chatter, but accept a deliberate natural pinch more reliably.
+_PINCH_CLOSE_M = 0.045
+_PINCH_OPEN_M = 0.055
 
 # Lowered from 0.2/0.35: those were raised for conditioning near full extension, which was an
 # artifact of the old all-zeros spawn pose. the arm config's flexed spawn fixes the
@@ -603,7 +605,7 @@ def _camera_rgb_frame(camera):
 
 def _write_pov_jpeg(camera, file_path) -> None:
     """Write a standalone Camera's current RGB frame to file_path asynchronously."""
-    _save_frame_async(_camera_rgb_frame(camera), file_path, quality=50)
+    _save_frame_async(_camera_rgb_frame(camera), file_path, quality=_POV_JPEG_QUALITY)
 
 
 # Eye frames for the headset. They live in the WebXR static dir so webxr_server.py's stock
@@ -628,11 +630,13 @@ _POV_CAPTURE_EVERY_N_STEPS = 5
 _PHYSICS_DT = 0.02  # seconds of simulated time per physics step (50Hz)
 
 # The low-latency profile keeps every camera needed by --record and both Quest wrist HUDs, but
-# halves the stereo eye pixel count. It therefore changes neither dataset schema nor operator
-# visibility. The higher One Euro cutoffs reduce small-motion lag while retaining useful jitter
-# suppression; filters consume each Quest sample exactly once (see QuestRosReceiver.poll()).
-_POV_WIDTH = 320 if args_cli.low_latency else 480
-_POV_HEIGHT = 240 if args_cli.low_latency else 360
+# uses 400x300 stereo images: a 4:3 compromise that is sharper than 320x240 and remains above
+# the renderer's DLSS minimum input height. The higher One Euro cutoffs reduce small-motion lag
+# while retaining useful jitter suppression; filters consume each Quest sample exactly once (see
+# QuestRosReceiver.poll()).
+_POV_WIDTH = 400 if args_cli.low_latency else 480
+_POV_HEIGHT = 300 if args_cli.low_latency else 360
+_POV_JPEG_QUALITY = 70 if args_cli.low_latency else 50
 _FILTER_MIN_CUTOFF = 4.0 if args_cli.low_latency else 1.0
 _FILTER_BETA = 1.0 if args_cli.low_latency else 0.5
 

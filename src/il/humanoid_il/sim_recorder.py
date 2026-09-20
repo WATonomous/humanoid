@@ -188,6 +188,7 @@ class SimLeRobotRecorder:
 
         self._capacity = int(buffer_capacity_s * fps)
         self._current_frame = 0
+        self._buffer_full_warned = False
 
         self._action_buf: torch.Tensor | None = None
         self._obs_buf: torch.Tensor | None = None
@@ -218,6 +219,17 @@ class SimLeRobotRecorder:
         self._flags = EpisodeFlags(start=False)
         self._keyboard = EpisodeKeyboard(self._flags)
         return self._keyboard.start()
+
+    def _has_buffer_capacity(self) -> bool:
+        if self._current_frame < self._capacity:
+            return True
+        if not self._buffer_full_warned:
+            print(
+                f"[WARN]: Episode buffer full at {self._capacity} frames. "
+                "Press S to save or D to discard; capture is paused until then."
+            )
+            self._buffer_full_warned = True
+        return False
 
     def tick(
         self,
@@ -252,6 +264,10 @@ class SimLeRobotRecorder:
             now = time.monotonic()
             if now - self._last_frame_t >= self._frame_period:
                 self._last_frame_t = now
+                # Check before resolving the image callable: GPU-to-CPU camera copies are the
+                # expensive part of a tick and provide no value once the episode is full.
+                if not self._has_buffer_capacity():
+                    return False
                 resolved_images = images() if callable(images) else images
                 self.push_frame_to_buffer(action, state, resolved_images, depth_buffers, instance_id_seg_buffers)
         return False
@@ -385,10 +401,7 @@ class SimLeRobotRecorder:
         extras: dict[str, np.ndarray | torch.Tensor] | None = None,
     ) -> None:
         """Push one timestep of data into the GPU buffers."""
-        if self._current_frame >= self._capacity:
-            print(
-                f"[WARN]: Buffer full at frame {self._current_frame}, skipping"
-            )
+        if not self._has_buffer_capacity():
             return
         if self._action_buf is None:
             self._allocate_buffers()
@@ -493,6 +506,7 @@ class SimLeRobotRecorder:
         self._seg_bufs = {}
         self._extra_bufs = {}
         self._current_frame = 0
+        self._buffer_full_warned = False
 
     def _async_processor(self) -> None:
         while not self._stop_event.is_set():

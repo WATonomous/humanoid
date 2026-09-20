@@ -230,9 +230,9 @@
       // ── HUD layout ──────────────────────────────────────────────────────────────
       // All of these are in the eye-space quad coordinates described on createQuadRenderer
       // (X ~ -1.1..1.1, Y ~ -0.825..0.825 at Z=-1.5, approximating the eye's near-plane
-      // frustum extent). Both feeds are 4:3 -- the sim renders 480x360 eye frames and 640x480
-      // wrist frames -- so every height is DERIVED from its width. Retune a width and the
-      // aspect stays correct; hand-editing both is how a stretched feed gets introduced.
+      // frustum extent). Both feeds are 4:3 -- normal mode renders 480x360 eye frames and the
+      // low-latency profile renders 400x300; wrist HUD frames remain 256x256.
+      // Every quad height derives from its width so its aspect stays correct.
       const HUD_ASPECT = 4 / 3;
 
       // Main POV. Was the full -1.1..1.1 / -0.825..0.825 quad with the wrist feed floating over
