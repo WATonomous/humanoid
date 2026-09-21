@@ -297,7 +297,7 @@ _TABLE_TOP_Z = 0.87917  # Elevated table work surface
 _CONTAINER_USD_PATH = str(
     _SIM_DIR.parent.parent / "assets" / "lerobot" / "so101_vial_task" / "usd" / "tray.usda"
 )
-_CONTAINER_POS = (0.30, 0.00612, _TABLE_TOP_Z)  # Container on the left side (+Y) flush on elevated table
+_CONTAINER_POS = (0.35, -0.04388, _TABLE_TOP_Z)  # 5cm forward and 5cm right of table center
 _CONTAINER_ROT = (0.7071067811865476, 0.0, 0.0, 0.7071067811865475)  # wxyz
 # The grasp target is deliberately compact: 27 mm edges (40% smaller than the original 45 mm
 # cube). Scale mass with volume so reducing the dimensions does not make it disproportionately
@@ -360,6 +360,9 @@ _BOX_STATIC_FRICTION = 3.0
 _BOX_DYNAMIC_FRICTION = 2.5
 _GRIPPER_STATIC_FRICTION = 3.0
 _GRIPPER_DYNAMIC_FRICTION = 2.5
+# Very high-friction placement pad: resist sliding after the block is set down.
+_CONTAINER_STATIC_FRICTION = 8.0
+_CONTAINER_DYNAMIC_FRICTION = 6.0
 
 
 def _set_rigid_body_friction(
@@ -1232,6 +1235,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     scene.update(sim_dt)
     apply_joint_limits(robot)
     _set_rigid_body_friction(scene["box"], _BOX_STATIC_FRICTION, _BOX_DYNAMIC_FRICTION)
+    _set_rigid_body_friction(scene["container"], _CONTAINER_STATIC_FRICTION, _CONTAINER_DYNAMIC_FRICTION)
     _set_rigid_body_friction(
         robot, _GRIPPER_STATIC_FRICTION, _GRIPPER_DYNAMIC_FRICTION,
         body_names=(*LEFT_FINGER_TIP_BODIES, *RIGHT_FINGER_TIP_BODIES),
