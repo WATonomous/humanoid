@@ -1,0 +1,2 @@
+datasets/record_wato_arm_v2_clarity_grasp/**/*.mp4 filter=lfs diff=lfs merge=lfs -text
+datasets/record_wato_arm_v2_clarity_grasp/**/*.parquet filter=lfs diff=lfs merge=lfs -text
