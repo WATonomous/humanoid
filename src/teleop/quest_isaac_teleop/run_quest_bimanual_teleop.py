@@ -303,8 +303,9 @@ _CONTAINER_ROT = (0.7071067811865476, 0.0, 0.0, 0.7071067811865475)  # wxyz
 # cube). Scale mass with volume so reducing the dimensions does not make it disproportionately
 # dense or difficult for the gripper to lift.
 _BOX_SIZE_M = 0.027
+_BOX_HEIGHT_M = 0.081  # 3x the current 27 mm height; width/depth remain unchanged
 _BOX_MASS_KG = 0.011
-_BOX_POS = (0.22, -0.26, _TABLE_TOP_Z + _BOX_SIZE_M / 2)  # Rest directly on the elevated tabletop
+_BOX_POS = (0.22, -0.26, _TABLE_TOP_Z + _BOX_HEIGHT_M / 2)  # Rest directly on the elevated tabletop
 
 # Stereo pair: two RealSense D455s on base_link giving real depth via two eye textures (not a
 # mirrored monocular feed), fixed at _HEAD_VIEWPOINT_HOME_POS/QUAT. Head tracking is off --
@@ -764,7 +765,7 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/Box",
         init_state=RigidObjectCfg.InitialStateCfg(pos=_BOX_POS),
         spawn=sim_utils.CuboidCfg(
-            size=(_BOX_SIZE_M, _BOX_SIZE_M, _BOX_SIZE_M),
+            size=(_BOX_SIZE_M, _BOX_SIZE_M, _BOX_HEIGHT_M),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.95, 0.08, 0.08), roughness=0.25),
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 solver_position_iteration_count=16,
