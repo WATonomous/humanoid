@@ -305,7 +305,7 @@ _CONTAINER_ROT = (0.7071067811865476, 0.0, 0.0, 0.7071067811865475)  # wxyz
 _BOX_SIZE_M = 0.027
 _BOX_HEIGHT_M = 0.081  # 3x the current 27 mm height; width/depth remain unchanged
 _BOX_MASS_KG = 0.011
-_BOX_POS = (0.22, -0.26, _TABLE_TOP_Z + _BOX_HEIGHT_M / 2)  # Rest directly on the elevated tabletop
+_BOX_POS = (0.30, -0.26, _TABLE_TOP_Z + _BOX_HEIGHT_M / 2)  # Rest directly on the elevated tabletop
 
 # Stereo pair: two RealSense D455s on base_link giving real depth via two eye textures (not a
 # mirrored monocular feed), fixed at _HEAD_VIEWPOINT_HOME_POS/QUAT. Head tracking is off --
