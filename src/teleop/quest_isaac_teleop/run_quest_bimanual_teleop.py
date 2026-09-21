@@ -37,8 +37,8 @@ Performance
 See main() for the measured cost model and the fps/RTF tuning table. Three knobs:
 _POV_CAPTURE_EVERY_N_STEPS (render cadence), _PHYSICS_DT, _PACE_TO_REALTIME.
 
-Keys (Isaac Sim window focused): R recalibrate, T reset scene, S save episode,
-D discard episode (S/D only with --record).
+Keys (Isaac Sim window focused): R recalibrate, T reset scene, S start recording,
+E save episode, D discard episode (S/E/D only with --record).
 
 Usage
 -----
@@ -1437,6 +1437,35 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         from humanoid_il.episode_keys import EpisodeFlags
         recorder._flags = EpisodeFlags(start=False)
 
+    def _start_recording() -> None:
+        """Begin a new manual recording episode; VR connection alone never arms it."""
+        if recorder is None or recorder._flags is None:
+            return
+        if recorder._flags.start:
+            print("[RECORD] Already recording. Press E to save or D to discard.", flush=True)
+            return
+        recorder._flags.start = True
+        print("[RECORD] [S] Recording started.", flush=True)
+
+    def _discard_recording(reason: str) -> None:
+        """Discard an active manual episode and leave recording stopped."""
+        if recorder is None or recorder._flags is None or not recorder._flags.start:
+            return
+        recorder.cancel_recording()
+        recorder._flags.start = False
+        print(f"[RECORD] {reason} Active recording discarded.", flush=True)
+
+    def _save_recording() -> None:
+        """Commit an active episode and require S before beginning the next one."""
+        if recorder is None or recorder._flags is None:
+            return
+        if not recorder._flags.start:
+            print("[RECORD] Nothing is recording. Press S to start an episode.", flush=True)
+            return
+        recorder.save_episode()
+        recorder._flags.start = False
+        print("[RECORD] [E] Episode saved. Press S to start the next episode.", flush=True)
+
     def _sphere_cfg(color, radius, opacity=1.0):
         return sim_utils.SphereCfg(
             radius=radius,
@@ -1489,7 +1518,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                 print(f"[Quest] WARNING: {_wrist_key} RenderProduct prim {_rp_path} not valid -- "
                       f"marker exclusion did not apply", flush=True)
 
-    def _recalibrate() -> None:
+    def _recalibrate(*, discard_recording: bool = True) -> None:
+        if discard_recording:
+            _discard_recording("[R]")
         nonlocal head_home_xyz, head_home_quat
         left_arm.quest_home_xyz = None
         right_arm.quest_home_xyz = None
@@ -1513,6 +1544,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         nonlocal target_pos_b_left, target_quat_b_left, target_pos_b_right, target_quat_b_right
         nonlocal left_closed, right_closed, tracking_resume_at
         nonlocal left_gripper_smoothed, left_gripper_vel, right_gripper_smoothed, right_gripper_vel
+        _discard_recording("[T]")
         scene["box"].write_root_state_to_sim(scene["box"].data.default_root_state.clone())
         scene["container"].write_root_state_to_sim(scene["container"].data.default_root_state.clone())
         robot.write_joint_state_to_sim(robot.data.default_joint_pos.clone(), robot.data.default_joint_vel.clone())
@@ -1530,7 +1562,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         left_gripper_vel = torch.zeros_like(left_g_open)
         right_gripper_smoothed = right_g_open.clone()
         right_gripper_vel = torch.zeros_like(right_g_open)
-        _recalibrate()
+        _recalibrate(discard_recording=False)
         tracking_resume_at = time.monotonic() + _RESET_RECALIBRATION_DELAY_S
         print(f"[Quest] Scene reset -- box/container respawned, arm back to rest pose. "
               f"Tracking paused for {_RESET_RECALIBRATION_DELAY_S:.0f}s; reposition your hands now.",
@@ -1544,11 +1576,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
         elif event.input.name == "T":
             _reset_scene()
         elif event.input.name == "S" and recorder is not None:
-            recorder.save_episode()
-            print("[RECORD] [S] Episode saved -- recording continues for the next one.", flush=True)
+            _start_recording()
+        elif event.input.name == "E" and recorder is not None:
+            _save_recording()
         elif event.input.name == "D" and recorder is not None:
-            recorder.cancel_recording()
-            print("[RECORD] [D] Episode discarded -- recording continues for the retry.", flush=True)
+            _discard_recording("[D]")
 
     _keyboard_iface = carb.input.acquire_input_interface()
     _keyboard = omni.appwindow.get_default_app_window().get_keyboard()
@@ -1569,11 +1601,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
                         elif char == "T":
                             _reset_scene()
                         elif char == "S" and recorder is not None:
-                            recorder.save_episode()
-                            print("[RECORD] [S] Episode saved -- recording continues for the next one.", flush=True)
+                            _start_recording()
+                        elif char == "E" and recorder is not None:
+                            _save_recording()
                         elif char == "D" and recorder is not None:
-                            recorder.cancel_recording()
-                            print("[RECORD] [D] Episode discarded -- recording continues for the retry.", flush=True)
+                            _discard_recording("[D]")
         except Exception:
             pass
 
@@ -1591,8 +1623,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     print("[Quest]   T / t <Enter> : Reset scene, then pause hand tracking for 5s to reposition", flush=True)
     print("[Quest]   R / r <Enter> : Recalibrate arm tracking to current controller pose", flush=True)
     if recorder is not None:
-        print("[Quest]   S / s <Enter> : Save recorded episode", flush=True)
-        print("[Quest]   D / d <Enter> : Discard recorded episode", flush=True)
+        print("[Quest]   S / s <Enter> : Start a new recording episode", flush=True)
+        print("[Quest]   E / e <Enter> : Save the active recording episode", flush=True)
+        print("[Quest]   D / d <Enter> : Discard the active recording episode", flush=True)
 
     diag_frame = 0
     pov_capture_frame = 0
@@ -1649,11 +1682,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             if not _vr_connected:
                 _vr_connected = True
                 print("[Quest] VR connected (first /quest_teleop message received).", flush=True)
-                # Auto-arm recording on headset connect rather than waiting for a keypress.
-                # Buffering only -- S still has to be pressed to commit an episode to disk.
-                if recorder is not None and recorder._flags is not None and not recorder._flags.start:
-                    recorder._flags.start = True
-                    print("[RECORD] VR connected -- recording started automatically.", flush=True)
+                if recorder is not None:
+                    print("[RECORD] VR connected -- ready. Press S to start an episode.", flush=True)
             left_xyz_q = _wrist_xyz(msg.left_wrist).to(device)
             right_xyz_q = _wrist_xyz(msg.right_wrist).to(device)
             left_quat = _wrist_quat_wxyz(msg.left_wrist).to(device)
