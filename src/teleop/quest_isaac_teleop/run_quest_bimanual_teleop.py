@@ -297,7 +297,7 @@ _TABLE_TOP_Z = 0.87917  # Elevated table work surface
 _CONTAINER_USD_PATH = str(
     _SIM_DIR.parent.parent / "assets" / "lerobot" / "so101_vial_task" / "usd" / "tray.usda"
 )
-_CONTAINER_POS = (0.69, 0.00612, _TABLE_TOP_Z)  # Container on the left side (+Y) flush on elevated table
+_CONTAINER_POS = (0.30, 0.00612, _TABLE_TOP_Z)  # Container on the left side (+Y) flush on elevated table
 _CONTAINER_ROT = (0.7071067811865476, 0.0, 0.0, 0.7071067811865475)  # wxyz
 # The grasp target is deliberately compact: 27 mm edges (40% smaller than the original 45 mm
 # cube). Scale mass with volume so reducing the dimensions does not make it disproportionately
