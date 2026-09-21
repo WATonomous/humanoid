@@ -945,6 +945,7 @@ class _OneEuroFilter:
         self.d_cutoff = d_cutoff  # Hz -- smooths the velocity estimate itself, so cutoff adaptation isn't itself noisy
         self.x_prev: torch.Tensor | None = None
         self.dx_prev: torch.Tensor | None = None
+        self._lock = threading.Lock()
 
     @staticmethod
     def _alpha(cutoff, dt: float):
@@ -952,27 +953,31 @@ class _OneEuroFilter:
         return 1.0 / (1.0 + tau / dt)
 
     def filter(self, x: torch.Tensor, dt: float) -> torch.Tensor:
-        if self.x_prev is None:
-            self.x_prev = x.clone()
-            self.dx_prev = torch.zeros_like(x)
-            return x.clone()
-        dt = max(dt, 1e-4)
-        dx = (x - self.x_prev) / dt
-        a_d = self._alpha(self.d_cutoff, dt)
-        edx = a_d * dx + (1.0 - a_d) * self.dx_prev
-        cutoff = self.min_cutoff + self.beta * edx.abs()
-        a = self._alpha(cutoff, dt)
-        x_filtered = a * x + (1.0 - a) * self.x_prev
-        self.x_prev = x_filtered
-        self.dx_prev = edx
-        return x_filtered
+        # R/T can arrive from the terminal-listener thread while Isaac's main thread is here.
+        # Serialize filtering and reset so a reset cannot clear state mid-calculation.
+        with self._lock:
+            if self.x_prev is None:
+                self.x_prev = x.clone()
+                self.dx_prev = torch.zeros_like(x)
+                return x.clone()
+            dt = max(dt, 1e-4)
+            dx = (x - self.x_prev) / dt
+            a_d = self._alpha(self.d_cutoff, dt)
+            edx = a_d * dx + (1.0 - a_d) * self.dx_prev
+            cutoff = self.min_cutoff + self.beta * edx.abs()
+            a = self._alpha(cutoff, dt)
+            x_filtered = a * x + (1.0 - a) * self.x_prev
+            self.x_prev = x_filtered
+            self.dx_prev = edx
+            return x_filtered
 
     def reset(self) -> None:
         """Called on recalibration (R key) / scene reset (T key) so a teleport-style jump in
         raw position doesn't get smoothed into a slow drift -- the next filter() call reseeds
         state exactly like the first-ever call."""
-        self.x_prev = None
-        self.dx_prev = None
+        with self._lock:
+            self.x_prev = None
+            self.dx_prev = None
 
 
 class _OneEuroQuatFilter:
@@ -988,6 +993,7 @@ class _OneEuroQuatFilter:
         self.d_cutoff = d_cutoff  # Hz -- smooths the angular-velocity estimate itself
         self.q_prev: torch.Tensor | None = None
         self.angvel_prev: float = 0.0
+        self._lock = threading.Lock()
 
     @staticmethod
     def _alpha(cutoff: float, dt: float) -> float:
@@ -995,29 +1001,32 @@ class _OneEuroQuatFilter:
         return 1.0 / (1.0 + tau / dt)
 
     def filter(self, q: torch.Tensor, dt: float) -> torch.Tensor:
-        if self.q_prev is None:
-            self.q_prev = q.clone()
-            self.angvel_prev = 0.0
-            return q.clone()
-        dt = max(dt, 1e-4)
-        # Angular distance between the last filtered quat and this new raw sample, as the
-        # "speed" signal driving the adaptive cutoff (same role dx plays in _OneEuroFilter).
-        dot = torch.clamp(torch.dot(self.q_prev, q).abs(), -1.0, 1.0)
-        angle = 2.0 * torch.acos(dot).item()
-        angvel = angle / dt
-        a_d = self._alpha(self.d_cutoff, dt)
-        smoothed_angvel = a_d * angvel + (1.0 - a_d) * self.angvel_prev
-        cutoff = self.min_cutoff + self.beta * smoothed_angvel
-        a = self._alpha(cutoff, dt)
-        q_filtered = quat_slerp(self.q_prev, q, a)
-        self.q_prev = q_filtered
-        self.angvel_prev = smoothed_angvel
-        return q_filtered
+        # See _OneEuroFilter.filter: terminal-triggered recalibration is concurrent.
+        with self._lock:
+            if self.q_prev is None:
+                self.q_prev = q.clone()
+                self.angvel_prev = 0.0
+                return q.clone()
+            dt = max(dt, 1e-4)
+            # Angular distance between the last filtered quat and this new raw sample, as the
+            # "speed" signal driving the adaptive cutoff (same role dx plays in _OneEuroFilter).
+            dot = torch.clamp(torch.dot(self.q_prev, q).abs(), -1.0, 1.0)
+            angle = 2.0 * torch.acos(dot).item()
+            angvel = angle / dt
+            a_d = self._alpha(self.d_cutoff, dt)
+            smoothed_angvel = a_d * angvel + (1.0 - a_d) * self.angvel_prev
+            cutoff = self.min_cutoff + self.beta * smoothed_angvel
+            a = self._alpha(cutoff, dt)
+            q_filtered = quat_slerp(self.q_prev, q, a)
+            self.q_prev = q_filtered
+            self.angvel_prev = smoothed_angvel
+            return q_filtered
 
     def reset(self) -> None:
         """See _OneEuroFilter.reset's docstring -- same reasoning, called from the same places."""
-        self.q_prev = None
-        self.angvel_prev = 0.0
+        with self._lock:
+            self.q_prev = None
+            self.angvel_prev = 0.0
 
 
 def _smooth_damp(
