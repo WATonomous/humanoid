@@ -299,7 +299,12 @@ _CONTAINER_USD_PATH = str(
 )
 _CONTAINER_POS = (0.25, 0.20, _TABLE_TOP_Z)  # Container on the left side (+Y) flush on elevated table
 _CONTAINER_ROT = (0.7071067811865476, 0.0, 0.0, 0.7071067811865475)  # wxyz
-_BOX_POS = (0.22, -0.26, _TABLE_TOP_Z + 0.025)  # Red pick-up block brought closer (X=0.22m) and to the right (Y=-0.26m)
+# The grasp target is deliberately compact: 27 mm edges (40% smaller than the original 45 mm
+# cube). Scale mass with volume so reducing the dimensions does not make it disproportionately
+# dense or difficult for the gripper to lift.
+_BOX_SIZE_M = 0.027
+_BOX_MASS_KG = 0.011
+_BOX_POS = (0.22, -0.26, _TABLE_TOP_Z + _BOX_SIZE_M / 2)  # Rest directly on the elevated tabletop
 
 # Stereo pair: two RealSense D455s on base_link giving real depth via two eye textures (not a
 # mirrored monocular feed), fixed at _HEAD_VIEWPOINT_HOME_POS/QUAT. Head tracking is off --
@@ -348,12 +353,12 @@ _RSD455_CAMERA_SUBPATH = "rsd455/RSD455/Camera_OmniVision_OV9782_Right"
 # lens instead. Solved from fov = 2*atan(aperture / (2*focalLength)), aperture unchanged.
 _RSD455_WIDENED_FOCAL_LENGTH = 1.1246782979523935  # ~120deg horizontal FOV
 
-# Rubber-on-plastic-ish grip friction, applied to both the box and the gripper fingers so the
-# effective coefficient is the same whichever way PhysX combines the two materials.
-_BOX_STATIC_FRICTION = 1.5
-_BOX_DYNAMIC_FRICTION = 1.2
-_GRIPPER_STATIC_FRICTION = 1.5
-_GRIPPER_DYNAMIC_FRICTION = 1.2
+# High-friction grasp profile: applying matching values to the box and fingertip shapes prevents
+# the block from being pushed away during the final closing motion, while still permitting lift.
+_BOX_STATIC_FRICTION = 3.0
+_BOX_DYNAMIC_FRICTION = 2.5
+_GRIPPER_STATIC_FRICTION = 3.0
+_GRIPPER_DYNAMIC_FRICTION = 2.5
 
 
 def _set_rigid_body_friction(
@@ -759,7 +764,7 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/Box",
         init_state=RigidObjectCfg.InitialStateCfg(pos=_BOX_POS),
         spawn=sim_utils.CuboidCfg(
-            size=(0.045, 0.045, 0.045),
+            size=(_BOX_SIZE_M, _BOX_SIZE_M, _BOX_SIZE_M),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.95, 0.08, 0.08), roughness=0.25),
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
                 solver_position_iteration_count=16,
@@ -769,7 +774,7 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
                 max_depenetration_velocity=5.0,
                 disable_gravity=False,
             ),
-            mass_props=sim_utils.MassPropertiesCfg(mass=0.05),
+            mass_props=sim_utils.MassPropertiesCfg(mass=_BOX_MASS_KG),
             collision_props=sim_utils.CollisionPropertiesCfg(),
         ),
     )
