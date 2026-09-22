@@ -31,6 +31,10 @@ uint32_t SH2_HAL_WriteAttempts(void);
 uint32_t SH2_HAL_WriteFailures(void);
 uint32_t SH2_HAL_LastWriteFailMs(void);
 
+// Sticky I2C transfer-failure flag, reading it clears it.
+bool SH2_HAL_TakeTransferError(void);
+uint32_t SH2_HAL_BusRecoveries(void);
+
 #ifdef __cplusplus
 }
 #endif

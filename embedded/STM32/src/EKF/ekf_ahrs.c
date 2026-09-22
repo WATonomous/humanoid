@@ -2,6 +2,10 @@
 #include <string.h>
 #include <math.h>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 /* ---------- small fixed-size matrix helpers (no malloc) ---------- */
 
 static void mat6x6_mult(const float A[6][6], const float B[6][6], float C[6][6]) {
@@ -61,14 +65,13 @@ void ekf_ahrs_init(ekf_ahrs_t *ekf, const float mag_ref_nav[3]) {
 
     for (int i = 0; i < 6; i++) {
         ekf->P[i][i] = (i < 3) ? 0.05f   /* initial attitude uncertainty, rad^2 */
-                               : 0.01f;  /* initial gyro bias uncertainty, (rad/s)^2 */
+                               : 7.6e-7f; /* initial gyro bias uncertainty, (rad/s)^2 = (0.05 deg/s)^2 */
     }
 
-    /* --- default noise parameters: TUNE THESE for your sensors --- */
     ekf->gyro_noise_var  = 3e-4f;  /* gyro white noise, (rad/s)^2 -- from datasheet or Allan variance */
-    ekf->gyro_bias_var   = 1e-7f;  /* gyro bias random walk, (rad/s)^2/s */
+    ekf->gyro_bias_var   = 1e-11f; /* gyro bias random walk, (rad/s)^2/s */
     ekf->accel_noise_var = 5e-2f;  /* accel direction noise -- raise this if vehicle moves/vibrates a lot */
-    ekf->mag_noise_var   = 5e-2f;  /* mag direction noise -- raise near magnetic interference */
+    ekf->mag_noise_var   = 7.6e-3f; /* mag HEADING noise, rad^2 = (5 deg)^2 -- raise near magnetic interference */
 
     ekf->accel_ref[0] = 0.0f;
     ekf->accel_ref[1] = 0.0f;
@@ -78,6 +81,28 @@ void ekf_ahrs_init(ekf_ahrs_t *ekf, const float mag_ref_nav[3]) {
     ekf->mag_ref[1] = mag_ref_nav[1];
     ekf->mag_ref[2] = mag_ref_nav[2];
 
+    vec3_normalize(ekf->mag_ref);
+
+    ekf->mag_ref_norm = 0.0f;              /* unknown until set_mag_ref_from_body() */
+    ekf->mag_norm_tol = 0.15f;             /* +/-15% field magnitude */
+    ekf->mag_dip_tol  = 10.0f * (float)M_PI / 180.0f;
+}
+
+void ekf_ahrs_set_attitude(ekf_ahrs_t *ekf, quat_t q) {
+    ekf->q = quat_normalize(q);
+}
+
+void ekf_ahrs_set_mag_ref_from_body(ekf_ahrs_t *ekf, const float mag_body[3]) {
+    float m[3] = {mag_body[0], mag_body[1], mag_body[2]};
+
+    ekf->mag_ref_norm = sqrtf(m[0] * m[0] + m[1] * m[1] + m[2] * m[2]);
+
+    vec3_normalize(m);
+
+    /* mag_ref lives in the nav frame, so the body sample has to be rotated. */
+    float R[3][3];
+    quat_to_rotmat(ekf->q, R);
+    mat3_vec_mult(R, m, ekf->mag_ref);
     vec3_normalize(ekf->mag_ref);
 }
 
@@ -247,8 +272,9 @@ static void vector_update(ekf_ahrs_t *ekf, const float meas_body_in[3],
     for (int i = 0; i < 6; i++)
         for (int j = 0; j < 6; j++) {
             float s = 0.0f;
+            /* R = meas_noise_var * I, so K R K^T reduces to a scaled K K^T */
             for (int k = 0; k < 3; k++)
-                s += K[i][k] * (k == 0 || k == 1 || k == 2 ? meas_noise_var : 0.0f) * K[j][k];
+                s += K[i][k] * meas_noise_var * K[j][k];
             KRKt[i][j] = s;
         }
 
@@ -261,8 +287,125 @@ void ekf_ahrs_update_accel(ekf_ahrs_t *ekf, const float accel[3]) {
     vector_update(ekf, accel, ekf->accel_ref, ekf->accel_noise_var);
 }
 
+/* ---------- generic scalar correction ----------
+ * y is a scalar innovation, H a 1x6 Jacobian row w.r.t. the error state,
+ * r the scalar measurement noise variance.
+ */
+static void scalar_update(ekf_ahrs_t *ekf, const float H[6], float y, float r) {
+    /* PHt = P H^T (6x1),  S = H P H^T + r (scalar) */
+    float PHt[6];
+    for (int i = 0; i < 6; i++) {
+        float s = 0.0f;
+        for (int k = 0; k < 6; k++) s += ekf->P[i][k] * H[k];
+        PHt[i] = s;
+    }
+
+    float S = r;
+    for (int k = 0; k < 6; k++) S += H[k] * PHt[k];
+    if (S < 1e-12f) return;
+
+    float K[6];
+    for (int i = 0; i < 6; i++) K[i] = PHt[i] / S;
+
+    /* apply correction, then reset the attitude error to 0 (MEKF) */
+    float da[3] = {K[0] * y, K[1] * y, K[2] * y};
+    quat_t dq = quat_from_small_angle(da);
+    ekf->q = quat_normalize(quat_mult(ekf->q, dq));
+
+    ekf->bias[0] += K[3] * y;
+    ekf->bias[1] += K[4] * y;
+    ekf->bias[2] += K[5] * y;
+
+    /* Joseph form: P = (I - K H) P (I - K H)^T + r K K^T */
+    float IKH[6][6];
+    for (int i = 0; i < 6; i++)
+        for (int j = 0; j < 6; j++)
+            IKH[i][j] = ((i == j) ? 1.0f : 0.0f) - K[i] * H[j];
+
+    float IKHt[6][6], tmp[6][6], Pnew[6][6];
+    mat6x6_transpose(IKH, IKHt);
+    mat6x6_mult(IKH, ekf->P, tmp);
+    mat6x6_mult(tmp, IKHt, Pnew);
+
+    for (int i = 0; i < 6; i++)
+        for (int j = 0; j < 6; j++)
+            Pnew[i][j] += r * K[i] * K[j];
+
+    memcpy(ekf->P, Pnew, sizeof(Pnew));
+}
+
+int ekf_ahrs_mag_heading_error(const ekf_ahrs_t *ekf, const float mag[3], float *err) {
+    float m[3] = {mag[0], mag[1], mag[2]};
+    vec3_normalize(m);
+
+    float R[3][3];
+    quat_to_rotmat(ekf->q, R);
+
+    float m_nav[3];
+    mat3_vec_mult(R, m, m_nav);
+
+    /* A field that is (near) vertical in either frame has no defined
+     * horizontal direction, so it carries no heading information. */
+    float m_horiz = sqrtf(m_nav[0] * m_nav[0] + m_nav[1] * m_nav[1]);
+    float ref_horiz = sqrtf(ekf->mag_ref[0] * ekf->mag_ref[0] +
+                            ekf->mag_ref[1] * ekf->mag_ref[1]);
+    if (m_horiz < 0.1f || ref_horiz < 0.1f) return 0;
+
+    /* If the true attitude is our estimate rotated by d_psi about nav z, the
+     * field seen through our estimate appears rotated by -d_psi. So the
+     * heading error is the reference azimuth minus the measured azimuth. */
+    float e = atan2f(ekf->mag_ref[1], ekf->mag_ref[0]) - atan2f(m_nav[1], m_nav[0]);
+    while (e >  (float)M_PI) e -= 2.0f * (float)M_PI;
+    while (e < -(float)M_PI) e += 2.0f * (float)M_PI;
+
+    *err = e;
+    return 1;
+}
+
+/*
+ * Magnetometer correction -- HEADING ONLY, as a scalar measurement.
+ *
+ * Measuring heading as an angle, with H = d(nav yaw)/d(error state), makes
+ * the magnetometer physically unable to touch roll or pitch.
+ */
 void ekf_ahrs_update_mag(ekf_ahrs_t *ekf, const float mag[3]) {
-    vector_update(ekf, mag, ekf->mag_ref, ekf->mag_noise_var);
+    float norm = sqrtf(mag[0] * mag[0] + mag[1] * mag[1] + mag[2] * mag[2]);
+    if (norm < 1e-6f) return;
+
+    /* Magnitude gate: Earth's field strength doesn't change as you rotate. */
+    if (ekf->mag_ref_norm > 0.0f &&
+        fabsf(norm / ekf->mag_ref_norm - 1.0f) > ekf->mag_norm_tol) {
+        ekf->mag_rejects++;
+        return;
+    }
+
+    float R[3][3];
+    quat_to_rotmat(ekf->q, R);
+
+    /* Dip gate: nor does its inclination. Roll/pitch come from the
+     * accelerometer and are accurate, so the measured field's vertical
+     * component in the nav frame is a trustworthy disturbance check. */
+    float m[3] = {mag[0] / norm, mag[1] / norm, mag[2] / norm};
+    float m_nav[3];
+    mat3_vec_mult(R, m, m_nav);
+
+    float dip_meas = asinf(fmaxf(-1.0f, fminf(1.0f, m_nav[2])));
+    float dip_ref  = asinf(fmaxf(-1.0f, fminf(1.0f, ekf->mag_ref[2])));
+    if (fabsf(dip_meas - dip_ref) > ekf->mag_dip_tol) {
+        ekf->mag_rejects++;
+        return;
+    }
+
+    float y;
+    if (!ekf_ahrs_mag_heading_error(ekf, mag, &y)) return;
+
+    /* q <- q (x) dq(da) rotates by R*da in the nav frame, so the nav yaw
+     * component of a body-frame error da is the third row of R dotted with
+     * it. Bias does not enter the measurement directly. */
+
+    float H[6] = {R[2][0], R[2][1], R[2][2], 0.0f, 0.0f, 0.0f};
+
+    scalar_update(ekf, H, y, ekf->mag_noise_var);
 }
 
 void ekf_ahrs_get_euler(const ekf_ahrs_t *ekf, float *roll, float *pitch, float *yaw) {
