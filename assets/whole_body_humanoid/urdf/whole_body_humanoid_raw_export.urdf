@@ -1,0 +1,1227 @@
+<?xml version="1.0"?>
+<robot name="wato_urdf_test_copy_description">
+  <link name="Left_ankle_rs03_bottom_2">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Left_ankle_rs03_bottom_2.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Left_ankle_rs03_bottom_2.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.0001630484588 3.737075428e-08 0.0001863826964" rpy="0 0 0" />
+      <mass value="0.350905" />
+      <inertia ixx="0.000355215" ixy="-9.17585e-21" ixz="8.86281e-08" iyy="0.00026261" iyz="1.3972e-18" izz="0.000258651" />
+    </inertial>
+  </link>
+  <link name="Mirrorlink1__1__1">
+    <!-- sw2robot inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Mirrorlink1__1__1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Mirrorlink1__1__1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.07490266923 -0.004239569035 -0.004508750744" rpy="0 0 0" />
+      <mass value="0.946635" />
+      <inertia ixx="0.00163163" ixy="-0.000100827" ixz="-0.000107368" iyy="0.00330337" iyz="0.000123689" izz="0.00331868" />
+    </inertial>
+  </link>
+  <link name="Mirrorlink2__1__1">
+    <!-- sw2robot inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Mirrorlink2__1__1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Mirrorlink2__1__1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.005058418245 0.02382751065 -0.04084549572" rpy="0 0 0" />
+      <mass value="0.524799" />
+      <inertia ixx="0.00165585" ixy="-7.01245e-05" ixz="1.7616e-05" iyy="0.00102298" iyz="0.000223144" izz="0.00165033" />
+    </inertial>
+  </link>
+  <link name="Mirrorlink3__1__1">
+    <!-- sw2robot inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Mirrorlink3__1__1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Mirrorlink3__1__1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.01160586292 0.06799913879 -0.07207688228" rpy="0 0 0" />
+      <mass value="0.617862" />
+      <inertia ixx="0.00340655" ixy="-0.000202768" ixz="0.000199035" iyy="0.00203057" iyz="0.00124143" izz="0.00216392" />
+    </inertial>
+  </link>
+  <link name="Mirrorlink4__1__1">
+    <!-- sw2robot inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Mirrorlink4__1__1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Mirrorlink4__1__1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.02337410285 0.04371329269 0.03353354739" rpy="0 0 0" />
+      <mass value="0.236091" />
+      <inertia ixx="0.0003604" ixy="1.01832e-05" ixz="-1.67181e-05" iyy="0.000380463" iyz="-7.21764e-05" izz="0.000445998" />
+    </inertial>
+  </link>
+  <link name="Mirrorlink5__1__1">
+    <!-- sw2robot inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Mirrorlink5__1__1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Mirrorlink5__1__1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.005707061114 0.06203624593 0.04053888691" rpy="0 0 0" />
+      <mass value="0.260214" />
+      <inertia ixx="0.000837211" ixy="1.11849e-05" ixz="1.09829e-05" iyy="0.000435026" iyz="-0.000261655" izz="0.000650378" />
+    </inertial>
+  </link>
+  <link name="Mirrorlink6__1__1">
+    <!-- sw2robot inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Mirrorlink6__1__1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Mirrorlink6__1__1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.0003464158533 0.06384436106 0.008732303624" rpy="0 0 0" />
+      <mass value="0.12042" />
+      <inertia ixx="0.000177266" ixy="-3.61089e-05" ixz="-1.1155e-05" iyy="0.000110215" iyz="-2.71577e-05" izz="0.000206575" />
+    </inertial>
+  </link>
+  <link name="Mirrorlink7__1__1">
+    <!-- sw2robot inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Mirrorlink7__1__1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Mirrorlink7__1__1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.01684109544 0.02610037022 0.008736551652" rpy="0 0 0" />
+      <mass value="0.0372921" />
+      <inertia ixx="2.47198e-05" ixy="-3.42778e-06" ixz="6.57872e-07" iyy="1.09459e-05" iyz="-3.26411e-06" izz="1.92968e-05" />
+    </inertial>
+  </link>
+  <link name="Mirrorlink8__1__1">
+    <!-- sw2robot inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Mirrorlink8__1__1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Mirrorlink8__1__1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.01856816803 0.02637099717 0.0009863064157" rpy="0 0 0" />
+      <mass value="0.0372921" />
+      <inertia ixx="2.5078e-05" ixy="1.98949e-06" ixz="1.76099e-06" iyy="9.5186e-06" iyz="-5.11308e-07" izz="2.0366e-05" />
+    </inertial>
+  </link>
+  <link name="Torso_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Torso_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/Torso_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="6.309084144e-07 -0.0004959845426 -0.003708989496" rpy="0 0 0" />
+      <mass value="20.7857" />
+      <inertia ixx="0.337545" ixy="7.5621e-08" ixz="-2.03428e-06" iyy="0.522058" iyz="-0.00332676" izz="0.251279" />
+    </inertial>
+  </link>
+  <link name="baseLink__1__1">
+    <!-- sw2robot inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/baseLink__1__1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/baseLink__1__1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="5.961836376e-05 -0.0572137844 0.003683518303" rpy="0 0 0" />
+      <mass value="1.43809" />
+      <inertia ixx="0.0170028" ixy="-4.99173e-06" ixz="2.07621e-07" iyy="0.0311899" iyz="0.000252497" izz="0.0442211" />
+    </inertial>
+  </link>
+  <link name="base_link">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/base_link_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/base_link_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-1.204974013e-07 3.939473967e-08 -0.0001295697052" rpy="0 0 0" />
+      <mass value="1.19665" />
+      <inertia ixx="0.00326235" ixy="2.73703e-09" ixz="-5.65341e-09" iyy="0.0149971" iyz="1.86079e-09" izz="0.0150146" />
+    </inertial>
+  </link>
+  <link name="left_ankle_rs03_top_2">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_ankle_rs03_top_2.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_ankle_rs03_top_2.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.0001630467899 1.401339133e-06 -0.00018625282" rpy="0 0 0" />
+      <mass value="0.350905" />
+      <inertia ixx="0.000355215" ixy="5.87191e-10" ixz="-8.86261e-08" iyy="0.00026261" iyz="-2.62311e-08" izz="0.000258651" />
+    </inertial>
+  </link>
+  <link name="left_calf_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_calf_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_calf_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.0666406123 0.01186964668 -0.1527581308" rpy="0 0 0" />
+      <mass value="1.43369" />
+      <inertia ixx="0.0184806" ixy="0.000241848" ixz="-0.00150486" iyy="0.0177934" iyz="0.00353103" izz="0.00433372" />
+    </inertial>
+  </link>
+  <link name="left_foot_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_foot_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_foot_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.001911234462 -0.001559892572 -0.02313859335" rpy="0 0 0" />
+      <mass value="0.699866" />
+      <inertia ixx="0.00277422" ixy="0.000405104" ixz="-7.73839e-05" iyy="0.000861909" iyz="0.000229897" izz="0.00327601" />
+    </inertial>
+  </link>
+  <link name="left_foot_joint_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_foot_joint_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_foot_joint_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.03120427882 0.007885920896 -0.009261338158" rpy="0 0 0" />
+      <mass value="0.097636" />
+      <inertia ixx="4.93169e-05" ixy="3.66537e-06" ixz="3.73512e-07" iyy="3.25159e-05" iyz="-1.01593e-06" izz="4.03615e-05" />
+    </inertial>
+  </link>
+  <link name="left_hip_a_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_hip_a_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_hip_a_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.3346357594 -0.06594239727 -0.009100356695" rpy="0 0 0" />
+      <mass value="0.491846" />
+      <inertia ixx="0.00152396" ixy="-0.000251081" ixz="-2.40688e-05" iyy="0.001464" iyz="-7.11779e-06" izz="0.00150758" />
+    </inertial>
+  </link>
+  <link name="left_hip_akh70_2">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_hip_akh70_2.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_hip_akh70_2.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 2.183701025e-09" rpy="0 0 0" />
+      <mass value="0.508938" />
+      <inertia ixx="0.0005153" ixy="1.6263e-19" ixz="4.67849e-19" iyy="0.000529083" iyz="6.79906e-34" izz="0.000529083" />
+    </inertial>
+  </link>
+  <link name="left_hip_r_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_hip_r_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_hip_r_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.0009932917726 0.0688852393 -0.06747947465" rpy="0 0 0" />
+      <mass value="0.67665" />
+      <inertia ixx="0.00373826" ixy="-1.32432e-05" ixz="-7.5848e-06" iyy="0.00221981" iyz="-0.00124964" izz="0.00296806" />
+    </inertial>
+  </link>
+  <link name="left_hip_rs04_2">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_hip_rs04_2.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_hip_rs04_2.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="4.526407743e-08 -0.0002006359047 0" rpy="0 0 0" />
+      <mass value="0.531297" />
+      <inertia ixx="0.000554602" ixy="-3.1138e-17" ixz="1.02255e-30" iyy="0.000893588" iyz="-1.6796e-18" izz="0.000554602" />
+    </inertial>
+  </link>
+  <link name="left_knee_akh70_2">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_knee_akh70_2.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_knee_akh70_2.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 3.577986798e-08 2.235712704e-08" rpy="0 0 0" />
+      <mass value="0.508938" />
+      <inertia ixx="0.0005153" ixy="4.69821e-19" ixz="1.77031e-36" iyy="0.000529083" iyz="-1.96798e-36" izz="0.000529083" />
+    </inertial>
+  </link>
+  <link name="left_thigh_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_thigh_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_thigh_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.01808351251 0.01237973671 -0.13062593" rpy="0 0 0" />
+      <mass value="2.17912" />
+      <inertia ixx="0.0138282" ixy="-0.000168173" ixz="-0.000336692" iyy="0.0148966" iyz="0.00113918" izz="0.00660577" />
+    </inertial>
+  </link>
+  <link name="left_thigh_rs03_2">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_thigh_rs03_2.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/left_thigh_rs03_2.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="4.452661401e-08 -0.0001861202373 0.0001630520467" rpy="0 0 0" />
+      <mass value="0.350905" />
+      <inertia ixx="0.00026261" ixy="1.83671e-18" ixz="-4.0949e-20" iyy="0.000258651" iyz="-8.86281e-08" izz="0.000355215" />
+    </inertial>
+  </link>
+  <link name="link1__1__1">
+    <!-- sw2robot inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/link1__1__1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/link1__1__1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.07390296777 0.005528710021 -0.002781432496" rpy="0 0 0" />
+      <mass value="0.946645" />
+      <inertia ixx="0.00163164" ixy="-0.000131627" ixz="6.60817e-05" iyy="0.00338495" iyz="-9.94925e-05" izz="0.00323718" />
+    </inertial>
+  </link>
+  <link name="link2__1__1">
+    <!-- sw2robot inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/link2__1__1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/link2__1__1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.002528183039 -0.01381142639 -0.04403675133" rpy="0 0 0" />
+      <mass value="0.5248" />
+      <inertia ixx="0.00166109" ixy="-2.77214e-05" ixz="-2.19851e-05" iyy="0.00123843" iyz="-0.000375938" izz="0.00142967" />
+    </inertial>
+  </link>
+  <link name="link3__1__1">
+    <!-- sw2robot inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/link3__1__1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/link3__1__1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.02449098709 -0.04619586757 -0.09931594765" rpy="0 0 0" />
+      <mass value="0.342962" />
+      <inertia ixx="0.00190105" ixy="-0.00017071" ixz="-0.000195227" iyy="0.00157021" iyz="-0.000542542" izz="0.00060193" />
+    </inertial>
+  </link>
+  <link name="link4__1__1">
+    <!-- sw2robot inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/link4__1__1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/link4__1__1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.04028389221 0.03492077932 -0.01731557619" rpy="0 0 0" />
+      <mass value="0.236092" />
+      <inertia ixx="0.000354312" ixy="-4.06638e-06" ixz="1.16491e-05" iyy="0.000367041" iyz="6.11609e-05" izz="0.000465508" />
+    </inertial>
+  </link>
+  <link name="link5__1__1">
+    <!-- sw2robot inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/link5__1__1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/link5__1__1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.03347216275 0.05605758624 -0.02871718822" rpy="0 0 0" />
+      <mass value="0.26021" />
+      <inertia ixx="0.000692863" ixy="-0.000218489" ixz="0.000101099" iyy="0.000464547" iyz="0.00016319" izz="0.000765189" />
+    </inertial>
+  </link>
+  <link name="link6__1__1">
+    <!-- sw2robot inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/link6__1__1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/link6__1__1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.005016564496 0.05515126185 -0.03769381395" rpy="0 0 0" />
+      <mass value="0.12042" />
+      <inertia ixx="0.000202796" ixy="-3.55099e-05" ixz="-2.16615e-06" iyy="9.82416e-05" iyz="-2.25329e-06" izz="0.000193019" />
+    </inertial>
+  </link>
+  <link name="link7__1__1">
+    <!-- sw2robot inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/link7__1__1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/link7__1__1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.007501320675 0.01809589856 -0.02564107233" rpy="0 0 0" />
+      <mass value="0.0372921" />
+      <inertia ixx="1.93408e-05" ixy="-3.12094e-06" ixz="2.37849e-06" iyy="1.07094e-05" iyz="2.09087e-06" izz="2.49134e-05" />
+    </inertial>
+  </link>
+  <link name="link8__1__1">
+    <!-- sw2robot inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/link8__1__1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/link8__1__1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.003372151293 0.03109177375 0.007945196524" rpy="0 0 0" />
+      <mass value="0.0372921" />
+      <inertia ixx="2.07521e-05" ixy="2.92871e-07" ixz="2.28058e-06" iyy="1.27171e-05" iyz="6.48139e-06" izz="2.14944e-05" />
+    </inertial>
+  </link>
+  <link name="right_ankle_rs03_bottom_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_ankle_rs03_bottom_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_ankle_rs03_bottom_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.0001630484588 3.737075426e-08 0.0001863826964" rpy="0 0 0" />
+      <mass value="0.350905" />
+      <inertia ixx="0.000355215" ixy="-4.04269e-20" ixz="-8.86281e-08" iyy="0.00026261" iyz="2.40549e-18" izz="0.000258651" />
+    </inertial>
+  </link>
+  <link name="right_ankle_rs03_top_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_ankle_rs03_top_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_ankle_rs03_top_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.0001630467899 1.401339133e-06 -0.00018625282" rpy="0 0 0" />
+      <mass value="0.350905" />
+      <inertia ixx="0.000355215" ixy="-5.87191e-10" ixz="8.86261e-08" iyy="0.00026261" iyz="-2.62311e-08" izz="0.000258651" />
+    </inertial>
+  </link>
+  <link name="right_calf_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_calf_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_calf_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.06731264326 -0.01164731818 -0.1481014296" rpy="0 0 0" />
+      <mass value="1.4337" />
+      <inertia ixx="0.0182449" ixy="9.26701e-05" ixz="0.00222463" iyy="0.0187196" iyz="7.70989e-05" izz="0.00364318" />
+    </inertial>
+  </link>
+  <link name="right_foot_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_foot_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_foot_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.001389703813 0.08577080718 -0.02270920661" rpy="0 0 0" />
+      <mass value="0.699869" />
+      <inertia ixx="0.00285523" ixy="7.86336e-05" ixz="-4.19435e-05" iyy="0.000760899" iyz="5.67487e-05" izz="0.00329621" />
+    </inertial>
+  </link>
+  <link name="right_foot_joint_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_foot_joint_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_foot_joint_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.02517581162 0.00107408398 -0.01177675687" rpy="0 0 0" />
+      <mass value="0.097636" />
+      <inertia ixx="4.99766e-05" ixy="8.60039e-07" ixz="8.83558e-07" iyy="3.19903e-05" iyz="-1.63998e-06" izz="4.02275e-05" />
+    </inertial>
+  </link>
+  <link name="right_hip_a_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_hip_a_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_hip_a_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-0.01836422477 -0.06583030916 -0.009878470884" rpy="0 0 0" />
+      <mass value="0.491846" />
+      <inertia ixx="0.00152396" ixy="0.00025078" ixz="2.70328e-05" iyy="0.00146417" iyz="-7.63106e-06" izz="0.00150741" />
+    </inertial>
+  </link>
+  <link name="right_hip_akh70_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_hip_akh70_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_hip_akh70_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 2.183701024e-09" rpy="0 0 0" />
+      <mass value="0.508938" />
+      <inertia ixx="0.0005153" ixy="-1.6263e-19" ixz="-4.67849e-19" iyy="0.000529083" iyz="7.29682e-34" izz="0.000529083" />
+    </inertial>
+  </link>
+  <link name="right_hip_r_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_hip_r_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_hip_r_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.005792091824 0.06964462002 -0.06645089224" rpy="0 0 0" />
+      <mass value="0.67665" />
+      <inertia ixx="0.00373585" ixy="7.67132e-05" ixz="4.50494e-05" iyy="0.00224856" iyz="-0.0012556" izz="0.00294172" />
+    </inertial>
+  </link>
+  <link name="right_hip_rs04_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_hip_rs04_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_hip_rs04_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-4.526407738e-08 -0.0002006359047 0" rpy="0 0 0" />
+      <mass value="0.531297" />
+      <inertia ixx="0.000554602" ixy="3.11407e-17" ixz="-1.01843e-30" iyy="0.000893588" iyz="-1.67847e-18" izz="0.000554602" />
+    </inertial>
+  </link>
+  <link name="right_knee_akh70_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_knee_akh70_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_knee_akh70_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 3.577986798e-08 2.235712709e-08" rpy="0 0 0" />
+      <mass value="0.508938" />
+      <inertia ixx="0.0005153" ixy="-4.69821e-19" ixz="1.77031e-36" iyy="0.000529083" iyz="-1.96798e-36" izz="0.000529083" />
+    </inertial>
+  </link>
+  <link name="right_thigh_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_thigh_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_thigh_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0.02563423087 0.0179484779 -0.1284839315" rpy="0 0 0" />
+      <mass value="2.17912" />
+      <inertia ixx="0.0137324" ixy="-0.000229599" ixz="0.000752206" iyy="0.0148821" iyz="0.00127363" izz="0.00671606" />
+    </inertial>
+  </link>
+  <link name="right_thigh_rs03_1">
+    <!-- sw2robot density="1000" inertia="solidworks" -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_thigh_rs03_1.dae" />
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://wato_urdf_test_copy_description/meshes/right_thigh_rs03_1.stl" />
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="-9.258387423e-08 -0.0001863068736 0.0001630527907" rpy="0 0 0" />
+      <mass value="0.350905" />
+      <inertia ixx="0.00026261" ixy="1.17801e-18" ixz="5.74783e-20" iyy="0.000258651" iyz="-8.86281e-08" izz="0.000355215" />
+    </inertial>
+  </link>
+  <joint name="left_calf_1__Left_ankle_rs03_bottom_2" type="fixed">
+    <origin xyz="-0.0629190056 0.02437107065 -0.2571276017" rpy="3.087767118 -0.01636623417 0.2047569727" />
+    <parent link="left_calf_1" />
+    <child link="Left_ankle_rs03_bottom_2" />
+    <axis xyz="-1 0 0" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF); config sets fixed (inference said revolute) -->
+  </joint>
+  <joint name="left_calf_1__left_ankle_rs03_top_2" type="fixed">
+    <origin xyz="-0.05776044894 0.003783508058 -0.1571994963" rpy="-0.1131923565 -0.01636623417 0.2047569727" />
+    <parent link="left_calf_1" />
+    <child link="left_ankle_rs03_top_2" />
+    <axis xyz="1 0 0" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF); config sets fixed (inference said revolute) -->
+  </joint>
+  <joint name="left_foot_joint_simMotor1" type="revolute">
+    <origin xyz="-0.09808388086 0.06318679076 -0.3864171215" rpy="0 0 0" />
+    <parent link="left_calf_1" />
+    <child link="left_foot_joint_1" />
+    <axis xyz="-0.9789793 -0.20330198 -0.0163655" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="left_knee_akh70" type="revolute">
+    <origin xyz="0.05290007363 0.04885489238 -0.257882302" rpy="0 0 0" />
+    <parent link="left_thigh_1" />
+    <child link="left_calf_1" />
+    <axis xyz="-0.9789793 -0.20330198 -0.0163655" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="left_foot_joint_simMotor2" type="revolute">
+    <origin xyz="0.01894214611 0.06792955314 -0.02164198302" rpy="0 0 0" />
+    <parent link="left_foot_joint_1" />
+    <child link="left_foot_1" />
+    <axis xyz="0.2018046 -0.97714559 0.06679375" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="left_thigh_rs03" type="revolute">
+    <origin xyz="-0.001763702203 0.1460291197 -0.1164147137" rpy="0 0 0" />
+    <parent link="left_hip_r_1" />
+    <child link="left_thigh_1" />
+    <axis xyz="-0.0129684 0.14212248 -0.98976412" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="left_hip_r_rs04" type="revolute">
+    <origin xyz="-0.324 -0.1242258441 -0.01783787116" rpy="0 0 0" />
+    <parent link="left_hip_a_1" />
+    <child link="left_hip_r_1" />
+    <axis xyz="0 -0.98984736 -0.14213443" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="left_hip_a_akh70" type="revolute">
+    <origin xyz="0.1725 0 0" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="left_hip_a_1" />
+    <axis xyz="1 0 0" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="right_hip_a_akh70" type="revolute">
+    <origin xyz="0.1805 0 0" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="right_hip_a_1" />
+    <axis xyz="1 0 0" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="left_hip_r_1__left_hip_rs04_2" type="fixed">
+    <origin xyz="-4.526407743e-08 0.02387074267 0.003427654171" rpy="0.1426174066 0 0" />
+    <parent link="left_hip_r_1" />
+    <child link="left_hip_rs04_2" />
+    <axis xyz="0 1 0" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF); config sets fixed (inference said revolute) -->
+  </joint>
+  <joint name="left_hip_r_1__left_thigh_rs03_2" type="fixed">
+    <origin xyz="-0.001276305922 0.1413103371 -0.08057456766" rpy="0.1419341933 0.01907625088 -0.04170964632" />
+    <parent link="left_hip_r_1" />
+    <child link="left_thigh_rs03_2" />
+    <axis xyz="0 0 1" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF); config sets fixed (inference said revolute) -->
+  </joint>
+  <joint name="right_hip_r_rs04" type="revolute">
+    <origin xyz="-0.029 -0.1240065168 -0.01930372453" rpy="0 0 0" />
+    <parent link="right_hip_a_1" />
+    <child link="right_hip_r_1" />
+    <axis xyz="0 0.98809974 0.15381454" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="right_hip_a_1__right_knee_akh70_1" type="fixed">
+    <origin xyz="-0.04 -3.577979298e-08 -2.235712709e-08" rpy="0 0 0" />
+    <parent link="right_hip_a_1" />
+    <child link="right_knee_akh70_1" />
+    <axis xyz="1 0 0" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF); config sets fixed (inference said revolute) -->
+  </joint>
+  <joint name="right_hip_r_1__right_hip_rs04_1" type="fixed">
+    <origin xyz="4.489601887e-08 0.02382859677 0.003709332205" rpy="0.1555868518 -0.1216585124 -0.0190333569" />
+    <parent link="right_hip_r_1" />
+    <child link="right_hip_rs04_1" />
+    <axis xyz="0 -1 0" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF); config sets fixed (inference said revolute) -->
+  </joint>
+  <joint name="right_thigh_rs03" type="revolute">
+    <origin xyz="0.01028474598 0.1473356418 -0.1143084977" rpy="0 0 0" />
+    <parent link="right_hip_r_1" />
+    <child link="right_thigh_1" />
+    <axis xyz="-0.07562313 -0.15337409 0.98527028" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="right_hip_r_1__right_thigh_rs03_1" type="fixed">
+    <origin xyz="0.008437751931 0.1440501532 -0.09045040321" rpy="0.1510394482 -0.08228434269 0.03707221769" />
+    <parent link="right_hip_r_1" />
+    <child link="right_thigh_rs03_1" />
+    <axis xyz="0 0 -1" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF); config sets fixed (inference said revolute) -->
+  </joint>
+  <joint name="right_knee_akh70" type="revolute">
+    <origin xyz="-0.02822131086 0.03818695598 -0.2616310456" rpy="0 0 0" />
+    <parent link="right_thigh_1" />
+    <child link="right_calf_1" />
+    <axis xyz="0.9957834 0.03984165 0.08263208" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="right_calf_1__right_ankle_rs03_bottom_1" type="fixed">
+    <origin xyz="0.07213015489 -0.02712613859 -0.2528741884" rpy="-0.01936114443 -0.08272640953 0.03998902614" />
+    <parent link="right_calf_1" />
+    <child link="right_ankle_rs03_bottom_1" />
+    <axis xyz="-1 0 0" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF); config sets fixed (inference said revolute) -->
+  </joint>
+  <joint name="right_calf_1__right_ankle_rs03_top_1" type="fixed">
+    <origin xyz="0.06094994446 -0.02261907519 -0.1505713415" rpy="-0.01936114443 -0.08272640953 0.03998902614" />
+    <parent link="right_calf_1" />
+    <child link="right_ankle_rs03_top_1" />
+    <axis xyz="1 0 0" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF); config sets fixed (inference said revolute) -->
+  </joint>
+  <joint name="right_foot_joint_simMotor1" type="revolute">
+    <origin xyz="0.1113896231 -0.01458450467 -0.3853087776" rpy="0 0 0" />
+    <parent link="right_calf_1" />
+    <child link="right_foot_joint_1" />
+    <axis xyz="-0.9957834 -0.03984165 -0.08263208" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="right_foot_joint_simMotor2" type="revolute">
+    <origin xyz="-0.02352421388 -0.02286085478 -0.02013944342" rpy="0 0 0" />
+    <parent link="right_foot_joint_1" />
+    <child link="right_foot_1" />
+    <axis xyz="0.04042693 -0.99916779 -0.00542131" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="right_thigh_1__right_hip_akh70_1" type="fixed">
+    <origin xyz="0.01559315893 0.03993998846 -0.257995236" rpy="-0.01936114443 -0.08272640953 0.03998902614" />
+    <parent link="right_thigh_1" />
+    <child link="right_hip_akh70_1" />
+    <axis xyz="1 0 0" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF); config sets fixed (inference said revolute) -->
+  </joint>
+  <joint name="base_link_1__left_knee_akh70_2" type="fixed">
+    <origin xyz="-0.1405 -3.577979298e-08 -2.235712704e-08" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="left_knee_akh70_2" />
+    <axis xyz="1 0 0" />
+    <!-- mates: CONCENTRIC, CONCENTRIC -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (2 DOF); config sets fixed (inference said revolute) -->
+  </joint>
+  <joint name="left_thigh_1__left_hip_akh70_2" type="fixed">
+    <origin xyz="-0.0029017465 0.03726667901 -0.2588151379" rpy="-0.1131923565 -0.01636623417 0.2047569727" />
+    <parent link="left_thigh_1" />
+    <child link="left_hip_akh70_2" />
+    <axis xyz="1 0 0" />
+    <!-- mates: CONCENTRIC, CONCENTRIC -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (2 DOF); config sets fixed (inference said revolute) -->
+  </joint>
+  <joint name="base_link_1__Torso_1" type="fixed">
+    <origin xyz="-0.0002656327969 -0.03286228409 0.3169043956" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="Torso_1" />
+    <axis xyz="1 0 0" />
+    <!-- mates: COINCIDENT, COINCIDENT, COINCIDENT, COINCIDENT -->
+    <!-- sw2robot-note: geo: 1 DOF pure translation; config sets fixed (inference said prismatic) -->
+  </joint>
+  <joint name="Torso_1__baseLink__1__1" type="fixed">
+    <origin xyz="-0.0001710417544 0.02490924892 0.2022548894" rpy="1.570796327 0 0" />
+    <parent link="Torso_1" />
+    <child link="baseLink__1__1" />
+    <axis xyz="0 -1 0" />
+    <!-- mates: COINCIDENT, COINCIDENT, TANGENT, COINCIDENT, COINCIDENT, TANGENT -->
+    <!-- sw2robot-note: geo: fully constrained -->
+  </joint>
+  <joint name="left_shoulder_ak10_1_pitch" type="revolute">
+    <origin xyz="-0.1749562322 -0.0937785004 0.002263802034" rpy="-1.570796327 0 0" />
+    <parent link="baseLink__1__1" />
+    <child link="Mirrorlink1__1__1" />
+    <axis xyz="1 0 0" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="left_shoulder_ak10_2_roll" type="revolute">
+    <origin xyz="-0.118 0.02316350842 0.02464348305" rpy="0 0 0" />
+    <parent link="Mirrorlink1__1__1" />
+    <child link="Mirrorlink2__1__1" />
+    <axis xyz="0 0.68488857 0.72864782" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="left_elbow_ak80_1_yaw" type="revolute">
+    <origin xyz="0.01271842662 0.06551194337 -0.09835805363" rpy="0 0 0" />
+    <parent link="Mirrorlink2__1__1" />
+    <child link="Mirrorlink3__1__1" />
+    <axis xyz="0.10983097 0.7242397 -0.68074519" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="left_elbow_ak80_2_bend" type="revolute">
+    <origin xyz="-0.006648498418 0.1345721494 -0.1298102715" rpy="0 0 0" />
+    <parent link="Mirrorlink3__1__1" />
+    <child link="Mirrorlink4__1__1" />
+    <axis xyz="-0.99002611 0.01891304 -0.13960871" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="left_elbow_ak80_3_forearm" type="revolute">
+    <origin xyz="0.01982268724 0.08666234575 0.06098523518" rpy="0 0 0" />
+    <parent link="Mirrorlink4__1__1" />
+    <child link="Mirrorlink5__1__1" />
+    <axis xyz="-0.06136847 0.83410087 0.5481876" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="left_wrist_gl40" type="revolute">
+    <origin xyz="0.006067671885 0.1082130428 0.07499580329" rpy="0 0 0" />
+    <parent link="Mirrorlink5__1__1" />
+    <child link="Mirrorlink6__1__1" />
+    <axis xyz="0.97289248 -0.07270144 0.21953297" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="right_shoulder_ak10_1_pitch" type="revolute">
+    <origin xyz="0.176102005 -0.0937785004 0.002263802034" rpy="-1.570796327 0 0" />
+    <parent link="baseLink__1__1" />
+    <child link="link1__1__1" />
+    <axis xyz="1 0 0" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="right_shoulder_ak10_2_roll" type="revolute">
+    <origin xyz="0.117 -0.02485576267 0.0124976131" rpy="0 0 0" />
+    <parent link="link1__1__1" />
+    <child link="link2__1__1" />
+    <axis xyz="0 0.89342236 -0.44921764" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="right_elbow_ak80_1_yaw" type="revolute">
+    <origin xyz="-0.006569405166 -0.03357741048 -0.1130828468" rpy="0 0 0" />
+    <parent link="link2__1__1" />
+    <child link="link3__1__1" />
+    <axis xyz="-0.05648672 -0.44850039 -0.89199588" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="right_elbow_ak80_2_bend" type="revolute">
+    <origin xyz="-0.02378779146 -0.075562671 -0.1663308336" rpy="0 0 0" />
+    <parent link="link3__1__1" />
+    <child link="link4__1__1" />
+    <axis xyz="-0.87979219 0.44472143 -0.16789446" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="right_elbow_ak80_3_forearm" type="revolute">
+    <origin xyz="0.06631944791 0.07722542126 -0.0387358357" rpy="0 0 0" />
+    <parent link="link4__1__1" />
+    <child link="link5__1__1" />
+    <axis xyz="0.47370312 0.79077253 -0.38766501" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="right_wrist_gl40" type="revolute">
+    <origin xyz="0.07008933306 0.1089832254 -0.02222930454" rpy="0 0 0" />
+    <parent link="link5__1__1" />
+    <child link="link6__1__1" />
+    <axis xyz="-0.31517781 -0.25881138 -0.91306058" />
+    <limit lower="-3.14159" upper="3.14159" effort="10" velocity="3.14" />
+    <!-- mates: CONCENTRIC, COINCIDENT, CONCENTRIC, COINCIDENT -->
+    <!-- sw2robot-note: geo: free rotation about mate axis (1 DOF) -->
+  </joint>
+  <joint name="left_claw_1" type="prismatic">
+    <origin xyz="0.06366898189 0.1057800529 0.02834089116" rpy="0 0 0" />
+    <parent link="Mirrorlink6__1__1" />
+    <child link="Mirrorlink7__1__1" />
+    <axis xyz="-0.97289248 0.07270144 -0.21953297" />
+    <limit lower="-0.012" upper="0.1132" effort="10" velocity="3.14" />
+    <!-- mates: COINCIDENT, COINCIDENT, DISTANCE, COINCIDENT, COINCIDENT, DISTANCE -->
+    <!-- sw2robot-note: limit mate (SolidWorks slider/hinge) -->
+  </joint>
+  <joint name="left_claw_2" type="prismatic">
+    <origin xyz="-0.07908326742 0.1143024854 0.007704963888" rpy="0 0 0" />
+    <parent link="Mirrorlink6__1__1" />
+    <child link="Mirrorlink8__1__1" />
+    <axis xyz="0.97289248 -0.07270144 0.21953297" />
+    <limit lower="-0.0022" upper="0.124" effort="10" velocity="3.14" />
+    <!-- mates: COINCIDENT, COINCIDENT, DISTANCE, COINCIDENT, COINCIDENT, DISTANCE -->
+    <!-- sw2robot-note: limit mate (SolidWorks slider/hinge) -->
+  </joint>
+  <joint name="right_claw_1" type="prismatic">
+    <origin xyz="0.008764368656 0.0967080851 -0.0612481036" rpy="0 0 0" />
+    <parent link="link6__1__1" />
+    <child link="link7__1__1" />
+    <axis xyz="-0.31517781 -0.25881138 -0.91306058" />
+    <limit lower="-0.081" upper="0.044" effort="10" velocity="3.14" />
+    <!-- mates: COINCIDENT, COINCIDENT, DISTANCE, COINCIDENT, COINCIDENT, DISTANCE -->
+    <!-- sw2robot-note: limit mate (SolidWorks slider/hinge) -->
+  </joint>
+  <joint name="right_claw_2" type="prismatic">
+    <origin xyz="0.005027376678 0.08227208665 -0.1036708267" rpy="0 0 0" />
+    <parent link="link6__1__1" />
+    <child link="link8__1__1" />
+    <axis xyz="0.31517781 0.25881138 0.91306058" />
+    <limit lower="-0.028" upper="0.089" effort="10" velocity="3.14" />
+    <!-- mates: COINCIDENT, COINCIDENT, DISTANCE, COINCIDENT, COINCIDENT, DISTANCE -->
+    <!-- sw2robot-note: limit mate (SolidWorks slider/hinge) -->
+  </joint>
+</robot>
