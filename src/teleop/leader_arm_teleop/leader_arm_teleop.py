@@ -258,9 +258,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
     last_angles = (0.0,) * len(SERVO_IDS)
     last_report = time.monotonic()
     last_warning = 0.0
+    window_samples = 0
+    total_samples = 0
+    serial_failures = 0
     try:
         while simulation_app.is_running():
             loop_started = time.monotonic()
+            window_samples += 1
+            total_samples += 1
             keyboard.advance()  # pumps callbacks; motion output is intentionally unused
             if should_rezero:
                 leader.rezero()
@@ -274,6 +279,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             try:
                 last_angles = leader.read_radians()
             except RuntimeError as exc:
+                serial_failures += 1
                 # A transient serial miss should hold the last safe target, not stop physics.
                 now = time.monotonic()
                 if now - last_warning >= 1.0:
@@ -292,24 +298,43 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
             robot.set_joint_position_target(neutral_pos)
             robot.set_joint_velocity_target(torch.zeros_like(default_vel))
             robot.set_joint_position_target(filtered_target, joint_ids=controlled_ids)
-
             scene.write_data_to_sim()
             sim.step()
             scene.update(sim_dt)
 
             now = time.monotonic()
             if now - last_report >= 0.5:
+                report_elapsed = now - last_report
+                loop_hz = window_samples / report_elapsed
+                failure_rate = 100.0 * serial_failures / max(1, total_samples)
                 degrees = [math.degrees(value) for value in last_angles]
                 targets = [math.degrees(float(value)) for value in filtered_target[0]]
+                actuals = [
+                    math.degrees(float(value))
+                    for value in robot.data.joint_pos[0, controlled_ids]
+                ]
+                errors = [target - actual for target, actual in zip(targets, actuals)]
                 print(
-                    "\r[LEADER] "
-                    + " ".join(f"{label}={value:+6.1f}deg" for label, value in zip(SERVO_IDS, degrees))
+                    f"\r[LEADER {loop_hz:5.1f}Hz serial_fail={failure_rate:.3f}%] "
+                    + " ".join(
+                        f"{label}={value:+6.1f}deg"
+                        for label, value in zip(SERVO_IDS, degrees)
+                    )
                     + "  ->  "
-                    + " ".join(f"{name}={value:+6.1f}deg" for name, value in zip(controlled_names, targets)),
+                    + " ".join(
+                        f"{name}={value:+6.1f}deg"
+                        for name, value in zip(controlled_names, targets)
+                    )
+                    + "  error: "
+                    + " ".join(
+                        f"{name}={error:+5.1f}deg"
+                        for name, error in zip(controlled_names, errors)
+                    ),
                     end="",
                     flush=True,
                 )
                 last_report = now
+                window_samples = 0
 
             # Cap polling at 50 Hz, matching the standalone reader's cadence.
             # Only one process may own this serial port at a time.
