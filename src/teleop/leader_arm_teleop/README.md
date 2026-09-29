@@ -26,7 +26,36 @@ The **R** key is also available when the 3D viewport has keyboard focus.
 Return along the same path after an overshoot; the single-turn encoders cannot
 resolve motion exceeding half a revolution between successful samples.
 
-Run inside the `simulation_isaac` container:
+## Quick start
+
+From the repository root on the host:
+
+```bash
+./src/teleop/leader_arm_teleop/start_teleop.sh
+```
+
+This single command detects the leader's USB serial device, starts the
+`simulation_isaac` container if needed, and launches Isaac Sim. Press
+**Ctrl+C** to stop cleanly and release the serial port. Extra controller
+options are forwarded directly, for example:
+
+```bash
+./src/teleop/leader_arm_teleop/start_teleop.sh --filter-alpha 0.5
+```
+
+If more than one USB serial device is connected, select the leader explicitly:
+
+```bash
+./src/teleop/leader_arm_teleop/start_teleop.sh --port /dev/ttyACM0
+```
+
+The stable `/dev/serial/by-id/...` path is preferred automatically when it is
+available. `TELEOP_PORT=/dev/...` can also set the port without a command-line
+flag.
+
+## Manual container launch
+
+To launch directly inside the `simulation_isaac` container:
 
 ```bash
 cd /workspace/humanoid/src/teleop/leader_arm_teleop
