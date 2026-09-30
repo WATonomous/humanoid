@@ -10,6 +10,20 @@ DBC files define CAN bus messages, signals, and communication protocols used in 
 
 - `humanoid.dbc` - message definitions
 
+### One message is not like the others
+
+`MITControlCmd` is a **standard 11-bit** message (`BO_ 0`), while every servo-mode message here
+is extended (its base id carries `0x80000000`, which is what sets the extended flag when
+`can_node` ORs in the motor id). A GL II drive in MIT mode only listens to standard frames, so
+that difference is load-bearing.
+
+Its signals are the **raw fixed-point codes** the CubeMars MIT protocol defines
+(`pos(16) vel(12) kp(12) kd(12) t_ff(12)`), not physical units: `can_node` converts N·m/rad and
+radians into those codes using each motor's range from `can/config/mit_profiles.yaml`. MIT
+*feedback* has a different layout again, arrives on the drive's master id, and is decoded in
+`can_node` (`decodeGl2Feedback`) rather than through this file. `can/test/test_mit_protocol.cpp`
+pins the layout against the manual's worked example.
+
 ## Two ways to decode DBC
 
 Turning raw CAN bytes into named signals can be done statically or dynamically. This repo

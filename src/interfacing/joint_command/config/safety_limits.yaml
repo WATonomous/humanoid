@@ -2,50 +2,191 @@ safety:
   units:
     angle: "deg"
     velocity: "deg_s"
-    # mit_kp/mit_kd: only used when joint_command.yaml's control_type is MIT_CONTROL (0).
-    # Per-motor units (kp in [0,500], kd in [0,5] for AK-series -- see
-    # can/config/mit_profiles.yaml). Unset/0 (the default below) is a deliberate safe no-op:
-    # zero stiffness/damping means the joint stays free even under MIT_CONTROL. Set explicitly
-    # per joint to enable compliant holding; start LOW (e.g. kp<10) and increase gradually.
 
-  # NOTE (test config): position clamp is DISABLED. Originally this was because
-  # hardware_mapping.yaml's limits were unmeasured placeholders (±90 etc); that's no
-  # longer true -- calibrate_arm.py's software zero-mode has now been run for real,
-  # producing real per-joint limits (see hardware_mapping.yaml). TODO: re-enable
-  # enable_position_clamp:true now that proper calibration is in place, and re-verify
-  # each joint's limits are current before flipping it (re-run calibration after any
-  # power cycle first -- see hardware_mapping.yaml's header note on encoder drift).
-  # velocity_max is still a deliberate slow crawl for testing; raise once trusted.
+  # HOW THE PIPELINE MODERATES EACH JOINT, in order, once per CONTROL TICK (control_rate_hz in
+  # joint_command.yaml -- NOT once per incoming ArmPose):
+  #   1. position clamp   -> hardware_mapping.yaml lower_limit/upper_limit
+  #   2. low-pass         -> smooths the approach (alpha of the PREVIOUS target)
+  #   3. velocity limit   -> at most velocity_max/control_rate_hz degrees this tick
+  #   4. delta limit      -> hard per-tick backstop, independent of the rate
+  #   5. position clamp   -> limits still hold after smoothing
+  #   6. calibration      -> direction * (q - zero_offset), then published as MotorCmd
+  # Because the limiter runs on the tick, velocity_max is a TRUE degrees-per-second bound:
+  # streaming ArmPose faster no longer makes the arm move faster, and one ArmPose is enough
+  # for the arm to ramp all the way to it (it used to advance one step per message).
+  #
+  # The low-pass runs BEFORE the rate clamps. The other way round it shrank every step the
+  # velocity limiter had just sized, so the real top speed was (1 - alpha) * velocity_max --
+  # 6 deg/s where this file said 40.
   global:
-    enable_position_clamp: false
+    enable_position_clamp: true
     enable_velocity_limit: true
     enable_delta_limit: true
     enable_low_pass: true
-    velocity_max: 40.0
+    # 10 deg/s is a deliberate crawl, and is now honest: it matches the ~6 deg/s the arm
+    # actually moved at before the ordering fix. Raise it once the limits below are trusted.
+    velocity_max: 10.0
     delta_max: 2.4
     low_pass_alpha: 0.85
-    mit_kp: 0.0   # 0 = MIT_CONTROL is a safe no-op until set per-joint below
+    # control_type: -1 means "use joint_command.yaml's control_type". Set per joint below for
+    # motors that need a different one (the GL40 wrist runs MIT; the AK joints run
+    # POSITION_LOOP, which has no gains).
+    control_type: -1
+    # MIT gains: 0 = safe no-op (zero stiffness AND damping means the motor is free). Only
+    # meaningful on joints whose control_type is 0.
+    mit_kp: 0.0
     mit_kd: 0.0
+    mit_max_torque: 0.3
+    mit_max_track_err: 12.0
+    mit_feedback_timeout: 0.2
+    # Which MIT dialect the drive speaks: gl2 (GL40) or ak (AK10-9 / AK80-9). They disagree
+    # about the status byte -- on an AK, 1 means MOTOR OVER-TEMPERATURE, not "Enable".
+    mit_family: gl2
+    # What a MIT joint does on a fault / stale stream / seeding / shutdown. Default follows
+    # mit_family: gl2 -> limp (kp = kd = 0, then MIT_EXIT); ak -> damp (kp = 0,
+    # kd = mit_fault_kd, streamed so the drive's CAN timeout doesn't cut output) -- a limp
+    # shoulder drops the arm. damp requires 0 < mit_fault_kd <= 5.
+    mit_fault_kd: 0.0
+    # GRAVITY FEED-FORWARD (MIT joints only), sent as MotorCmd.torque:
+    #   ff = clamp(gravity_ff_scale * ramp * tau_model, +-gravity_ff_max_torque)
+    # tau_model is the LEFT arm's static load from the URDF's CAD masses (gravity_model.cpp),
+    # evaluated at the commanded pose; ramp goes 0 -> 1 over 1 s after every seed.
+    # Startup rule: quantised mit_kp * mit_max_track_err + gravity_ff_max_torque <= mit_max_torque.
+    # The model needs every joint mapped into URDF angles:
+    #   q_urdf = urdf_direction * q_cmd + urdf_offset_deg
+    # Identity (1, 0) below is a GUESS -- the cmd frame's 0 is calibrate_arm.py's home pose,
+    # not URDF zero (arm hanging straight down, elbow straight). Verify per joint with the
+    # node's "Gravity model ... pred / meas" log while gravity_ff_scale is still 0 (see
+    # README "Gravity feed-forward") before raising gravity_ff_scale on any joint.
+    # An UNPOWERED joint's angle is unknown, which zeroes all feed-forward -- unless that joint
+    # sets gravity_assume_deg (cmd frame). Only for single-motor testing, and only while the
+    # limp joint is STRAPPED at that angle: left free it hangs with gravity, not at a constant.
+    gravity_ff_scale: 0.0
+    gravity_ff_max_torque: 0.0
+    urdf_direction: 1
+    urdf_offset_deg: 0.0
 
   joints:
+    # --- AK10-9 / AK80-9, servo POSITION_LOOP ------------------------------
+    # Limits come from calibrate_arm.py's software zero-mode (see hardware_mapping.yaml).
+    # Re-run calibration after any power cycle: AK80-9 joints lose their zero (ARM_BRINGUP.md).
+    #
+    # MIT on these joints: the commented blocks are STARTING gains, not validated ones. Do NOT
+    # uncomment one until can/README.md "AK joints in MIT mode" is done for that joint (V3
+    # frames seen on candump, zero checked in the MIT frame, stream-loss behaviour recorded,
+    # arm supported). One joint at a time: elbow roll, elbow pitch, shoulder yaw, shoulder
+    # roll, shoulder pitch. Ceilings (real-hardware-safety skill): AK10-9 10 N.m, AK80-9 5 N.m.
+    # Gain rule: quantised kp * 12 deg (0.2094 rad) <= mit_max_torque.
+    # Pure PD sags under gravity by ~tau_grav / kp; if that exceeds mit_max_track_err the
+    # watchdog faults -- on the shoulders, enable gravity feed-forward (global block above).
+    # gravity_ff_max_torque below = model worst case over the URDF limits + ~15% for CAD
+    # mass error; each already satisfies the startup rule with the gains beside it.
     shoulder:
-      pitch:
-        velocity_max: 40.0
+      pitch:   # AK10-9, id 14 
+        velocity_max: 30.0
         delta_max: 2.0
-      roll:
-        velocity_max: 40.0
+        control_type: 0
+        mit_family: ak
+        mit_kp: 55.0           # -> 15.01 applied; x 0.2094 rad = 3.14 N.m <= 10
+        mit_kd: 0.8
+        mit_max_torque: 54.0
+        mit_fault_kd: 1.0
+        gravity_ff_max_torque: 10.5   # model max 4.7 N.m (arm straight out); 3.14 + 5.5 <= 10
+        urdf_direction: 1            
+        urdf_offset_deg: 0.0         
+
+        gravity_assume_deg: 0.0
+      roll:    # AK10-9, id 13
+        velocity_max: 30.0
         delta_max: 2.0
-      yaw:
-        velocity_max: 40.0
+        control_type: 0
+        mit_family: ak
+        mit_kp: 15.0
+        mit_kd: 0.8
+        mit_max_torque: 54.0
+        mit_fault_kd: 1.0
+        gravity_ff_max_torque: 5.5   # model max 4.7 N.m
+        urdf_direction: 1            
+        urdf_offset_deg: 0.0         
+        gravity_assume_deg: 0.0
+      yaw:     # AK80-9, id 12
+        velocity_max: 60.0
         delta_max: 2.0
+        control_type: 0
+        mit_family: ak
+        mit_kp: 60.0            # -> 8.06 applied; x 0.2094 rad = 1.69 N.m <= 5
+        mit_kd: 0.4
+        mit_max_torque: 18.0
+        mit_fault_kd: 0.5
+        gravity_ff_max_torque: 5.5   # model max 1.2 N.m; 1.69 + 1.5 <= 5
+        urdf_direction: 1            #
+        urdf_offset_deg: 0.0         
+        gravity_assume_deg: 0.0
     elbow:
-      pitch:
-        velocity_max: 40.0
+      pitch:   # AK80-9, id 11
+        velocity_max: 30.0
         delta_max: 1.6
-      roll:
-        velocity_max: 40.0
+        control_type: 0
+        mit_family: ak
+        mit_kp: 32.0
+        mit_kd: 0.4
+        mit_max_torque: 18.0
+        mit_fault_kd: 0.5
+        urdf_direction: -1            
+        urdf_offset_deg: 0.0         
+        
+        gravity_ff_scale: 0.9          
+        gravity_ff_max_torque: 3.59     
+
+        gravity_assume_deg: 0.0
+      roll:    # AK80-9, id 104
+        velocity_max: 30.0
         delta_max: 1.6
-    wrist:
+        control_type: 0
+        mit_family: ak
+        mit_kp: 36.0
+        mit_kd: 0.4
+        mit_max_torque: 18.0
+        mit_fault_kd: 0.5
+        gravity_ff_max_torque: 3.3   # model max 0.18 N.m
+        urdf_direction: 1            
+        urdf_offset_deg: 0.0         
+
+        gravity_assume_deg: 0.0
+
+    # --- GL40 KV70 on a GL II drive, MIT_CONTROL ---------------------------
+    # This joint is a PD drive: the motor applies
+    #   torque = mit_kp * (target - actual) + mit_kd * (0 - velocity)
+    # and has NO internal limit checking, so mit_max_* below are the only protection.
+    #
+    # Gains: bench session 2026-09-19 on motor 22. kp is quantised
+    # to the drive's 12-bit code (500/4096 = 0.1221 N.m/rad per count), so 1.22 -> raw 10 ->
+    # 1.2207 applied. kd must be non-zero: the GL II manual warns kd = 0 in position control
+    # makes the motor oscillate and run away.
+    #
+    # THE GAIN RULE, enforced at startup (the node refuses to launch if it is violated):
+    #   quantised mit_kp * mit_max_track_err (rad) <= mit_max_torque
+    #   1.2207 * (12 deg = 0.2094 rad) = 0.256 N.m <= 0.3 N.m  OK
+    # The worst case really is a stalled joint: the tracking fault fires at mit_max_track_err,
+    # so the PD torque can never exceed that product. GL40 KV70 is rated 0.25 N.m, peak 0.73;
+    # 0.3 is the testing ceiling from the real-hardware-safety skill.
+    #
+    # Expect a few degrees of steady-state sag under a gravity load -- pure PD under a torque
+    # ceiling cannot do better. Gravity feed-forward barely helps here: the model's wrist load
+    # peaks at 0.18 N.m, but the startup rule leaves only 0.3 - 0.256 = 0.044 N.m of headroom
+    # at these gains (lower mit_kp to make room).
+    wrist: #gl40 22
       pitch:
-        velocity_max: 40.0
+        velocity_max: 30.0
         delta_max: 2.4
+        
+        # control_type: 0        # MIT_CONTROL   
+        mit_family: gl2        # fault action defaults to limp: unloaded, safe to free
+        mit_kp: 1.22           # N.m/rad  -> raw 10 -> 1.2207 applied
+        mit_kd: 0.0098         # N.m.s/rad -> raw 8 -> 0.00977 applied
+        mit_max_torque: 0.3    # N.m, fault above
+        mit_max_track_err: 12.0  # deg, fault above
+        mit_feedback_timeout: 0.2  # s without feedback -> fault
+        urdf_direction: 1          # 
+        urdf_offset_deg: 0.0       #
+        gravity_assume_deg: 0.0  

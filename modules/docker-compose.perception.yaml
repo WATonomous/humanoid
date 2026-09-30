@@ -48,7 +48,8 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-    working_dir: /root/ament_ws
+    # no working_dir override: the image's WORKDIR is ${AMENT_WS}, where the
+    # relative ENTRYPOINT ./wato_ros_entrypoint.sh lives
     deploy:
       resources:
         reservations:

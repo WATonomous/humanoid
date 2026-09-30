@@ -27,6 +27,18 @@ services:
       - ${MONO_DIR}/src/interfacing:/root/ament_ws/src/interfacing
       # For calibrate_arm.py --write-mapping
       - ${MONO_DIR}/src/interfacing/joint_command/config/hardware_mapping.yaml:/calibration/hardware_mapping.yaml
+      # Telemetry run folders (telemetry_record.py writes here; the host-side plotter reads
+      # them). outputs/ is gitignored.
+      - ${MONO_DIR}/outputs:/outputs
+      # Read-only copy of the limits, so telemetry can record the ceilings it is judging
+      # against (the writable single-file /calibration mount above is for calibrate_arm.py)
+      - ${MONO_DIR}/src/interfacing/joint_command/config:/opt/joint_command_config:ro
+      # can_node loads its INSTALLED share/config, baked in at image build. Overlay the repo
+      # copies so a mit_profiles.yaml / params.yaml edit takes effect on the next container
+      # restart. Per file, not the directory: the installed dir also holds humanoid.dbc (copied
+      # from src/interfacing/dbc), which a directory mount would hide.
+      - ${MONO_DIR}/src/interfacing/can/config/mit_profiles.yaml:/opt/watonomous/can/share/can/config/mit_profiles.yaml:ro
+      - ${MONO_DIR}/src/interfacing/can/config/params.yaml:/opt/watonomous/can/share/can/config/params.yaml:ro
 
   joint_command:
     build:
@@ -43,9 +55,27 @@ services:
         - "${INTERFACING_JOINT_COMMAND_IMAGE:?}:main"
     image: "${INTERFACING_JOINT_COMMAND_IMAGE:?}:${TAG}"
     network_mode: host
-    working_dir: /root/ament_ws
+    environment:
+      # Same as the interfacing service: without this, FastDDS prefers shared memory, and a
+      # node started by `docker exec` under a different user than the publisher silently fails
+      # to discover it (the segments in /dev/shm are per-user). Costs nothing on host net.
+      - FASTDDS_BUILTIN_TRANSPORTS=UDPv4
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_DOMAIN_ID=0
+    # no working_dir override: the image's WORKDIR is ${AMENT_WS}, where the
+    # relative ENTRYPOINT ./wato_ros_entrypoint.sh lives
     # editable src is bind-mounted; launch it yourself:
     #   watod -t joint_command  ->  ros2 launch joint_command joint_command.launch.py
     command: tail -F anything
     volumes:
       - ${MONO_DIR}/src/interfacing/joint_command:/root/ament_ws/src/joint_command
+      # telemetry_record.py runs here too (it needs the ROS topics, not the CAN bus). Mounted
+      # OUTSIDE /root: this container runs as the host user, who cannot traverse root's home.
+      - ${MONO_DIR}/src/interfacing/can/scripts:/opt/humanoid_scripts:ro
+      - ${MONO_DIR}/src/interfacing/joint_command/config/hardware_mapping.yaml:/calibration/hardware_mapping.yaml:ro
+      - ${MONO_DIR}/src/interfacing/joint_command/config:/opt/joint_command_config:ro
+      # joint_command_node loads its INSTALLED share/config, which the image bakes in at build
+      # time. Overlay the repo copy so a calibrate_arm.py run (or a limits edit) takes effect on
+      # the next node restart instead of silently needing an image rebuild.
+      - ${MONO_DIR}/src/interfacing/joint_command/config:/opt/watonomous/joint_command/share/joint_command/config:ro
+      - ${MONO_DIR}/outputs:/outputs

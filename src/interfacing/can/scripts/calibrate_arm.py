@@ -9,6 +9,11 @@ Typical flow per joint:
   3. Move to one range end → Enter, other end → Enter  (records min/max)
   4. Results written to hardware_mapping.yaml and/or a sidecar file
 
+MIT drives (every GL40, and an AK once safety_limits.yaml puts it on control_type 0) only answer
+when spoken to, so this polls them with zero-gain MIT frames (kp = kd = 0: zero torque) for the
+whole session. Those joints are LIMP while you calibrate -- support the arm. Stop
+joint_command_node first; this refuses to run alongside another /interfacing/motorCMD publisher.
+
 Examples (inside interfacing container, ROS sourced)::
 
   python3 /root/ament_ws/src/interfacing/can/scripts/calibrate_arm.py \\
@@ -36,6 +41,8 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
 from common_msgs.msg import MotorCmd, MotorFeedback
+
+import joint_config as jc
 
 
 SET_ORIGIN = 5
@@ -162,6 +169,53 @@ class CalibrateNode(Node):
         time.sleep(0.05)
         self._pub.publish(msg)
 
+    # --- MIT drives only answer when spoken to --------------------------------------------
+    def start_mit_poke(self, motor_ids: List[int], rate_hz: float = 20.0) -> None:
+        """Zero-gain MIT frames (no torque) so the drives keep reporting while moved by hand."""
+        self._mit_ids = set(motor_ids)
+        self._mit_ticks = 0
+        self._mit_timer = self.create_timer(1.0 / rate_hz, self._mit_poke)
+
+    def add_mit_motor(self, motor_id: int) -> None:
+        if getattr(self, "_mit_timer", None) is not None:
+            self._mit_ids.add(motor_id)
+
+    def _mit_poke(self) -> None:
+        # Re-enter once a second: a GL II ignores MIT frames until entered, and the first
+        # MIT_ENTER can go out before DDS has matched can_node.
+        enter = self._mit_ticks % 20 == 0
+        self._mit_ticks += 1
+        for motor_id in sorted(self._mit_ids):
+            if enter:
+                self._mit_special(motor_id, MotorCmd.MIT_ENTER)
+            msg = MotorCmd()
+            msg.motor_id = motor_id
+            msg.control_type = MotorCmd.MIT_CONTROL
+            msg.position = msg.velocity = msg.torque = 0.0
+            msg.kp = msg.kd = 0.0
+            self._pub.publish(msg)
+
+    def stop_mit_poke(self) -> None:
+        timer = getattr(self, "_mit_timer", None)
+        if timer is None:
+            return
+        timer.cancel()
+        self._mit_timer = None
+        for _ in range(3):  # a dropped frame would leave the drive in motor mode
+            for motor_id in sorted(self._mit_ids):
+                self._mit_special(motor_id, MotorCmd.MIT_EXIT)
+            time.sleep(0.01)
+
+    def _mit_special(self, motor_id: int, control_type: int) -> None:
+        msg = MotorCmd()
+        msg.motor_id = motor_id
+        msg.control_type = control_type
+        self._pub.publish(msg)
+
+    def other_motor_cmd_publishers(self) -> List[str]:
+        return sorted({i.node_name for i in self.get_publishers_info_by_topic("/interfacing/motorCMD")
+                       if i.node_name != self.get_name()})
+
     def disable(self, motor_id: int) -> None:
         msg = MotorCmd()
         msg.motor_id = motor_id
@@ -268,6 +322,21 @@ def apply_result_to_joint(joint: Dict[str, Any], result: Dict[str, Any]) -> None
         joint["direction"] = int(result["direction"])
 
 
+def mit_motor_ids(joints: List[Tuple[str, Dict[str, Any]]]) -> List[int]:
+    """Drives that only answer MIT frames: every GL II, plus joints safety_limits.yaml puts on
+    control_type 0 (an AK brought up in MIT)."""
+    safety = jc.find_safety_limits(None)
+    ids = set()
+    for name, joint in joints:
+        motor_id = parse_can_id(joint["can_id"])
+        short = name.split(".", 1)[1] if "." in name else name  # drop the arm side
+        control_type = jc.joint_safety(safety, short).get("control_type")
+        if jc.drive_family(motor_id) == "gl2" or (control_type is not None and
+                                                  int(control_type) == MotorCmd.MIT_CONTROL):
+            ids.add(motor_id)
+    return sorted(ids)
+
+
 def resolve_motor_id(
     node: "CalibrateNode",
     name: str,
@@ -338,6 +407,21 @@ def run(args: argparse.Namespace) -> int:
     spin_thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     spin_thread.start()
 
+    time.sleep(1.0)  # DDS discovery, so the publisher check below sees everyone
+    others = node.other_motor_cmd_publishers()
+    if others:
+        print(f"Refusing: {', '.join(others)} also publishes /interfacing/motorCMD. Stop it "
+              f"(e.g. joint_command_node) first -- two commanders would fight over the drives.",
+              file=sys.stderr)
+        rclpy.shutdown()  # stops the spin thread; destroying a node mid-spin aborts the process
+        spin_thread.join(timeout=2.0)
+        return 1
+    mit_ids = mit_motor_ids(joints)
+    if mit_ids:
+        print(f"MIT drives {mit_ids}: polling with zero-gain frames so they report. They are "
+              f"LIMP (zero torque) until this exits -- support the arm.")
+        node.start_mit_poke(mit_ids)
+
     print("Waiting for /interfacing/motorFeedback ...")
     time.sleep(max(1.0, args.discover_seconds))
     seen = set(node.seen_motor_ids())
@@ -376,6 +460,7 @@ def run(args: argparse.Namespace) -> int:
 
     if not selected:
         print("Nothing to calibrate after filters.", file=sys.stderr)
+        node.stop_mit_poke()
         node.destroy_node()
         rclpy.shutdown()
         return 1
@@ -401,6 +486,8 @@ def run(args: argparse.Namespace) -> int:
                 continue
             if motor_id == -1:
                 break
+            if jc.drive_family(motor_id) == "gl2":
+                node.add_mit_motor(motor_id)  # remapped to a GL40 id: poke it too
 
             ans = prompt(
                 f"[{name}] Move joint to HOME / zero pose, then press Enter "
@@ -492,6 +579,7 @@ def run(args: argparse.Namespace) -> int:
     except (TimeoutError, RuntimeError, KeyboardInterrupt) as exc:
         print(f"\nStopped: {exc}")
     finally:
+        node.stop_mit_poke()
         node.destroy_node()
         rclpy.shutdown()
 

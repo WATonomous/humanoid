@@ -1,18 +1,41 @@
-# Per-motor MIT (Force Control) protocol scaling constants, from the CubeMars AK-series
-# manual (V3.2.0, section 4.2 "Parameter Ranges"). These are the physical MIN/MAX each
-# motor model uses to pack floats into the MIT CAN frame's raw fixed-point fields -- they
-# are NOT the same as hardware_mapping.yaml's calibration (zero_offset/direction/limits),
-# which only applies to POSITION_LOOP. Wrong values here would pack an incorrect raw code
-# and command an unintended stiffness/torque/position via MIT_CONTROL.
+# Per-motor MIT (Force Control) protocol scaling constants. These are the physical MIN/MAX each
+# drive uses to pack floats into the MIT CAN frame's raw fixed-point fields -- they are NOT the
+# same as hardware_mapping.yaml's calibration (zero_offset/direction/limits), which only applies
+# to POSITION_LOOP. Wrong values here pack an incorrect raw code and command an unintended
+# stiffness/torque/position via MIT_CONTROL.
 #
-# position (rad), velocity (rad/s), torque (N.m); kp/kd ranges are shared across AK models.
+# They are also PER-DRIVE SETTINGS, visible/editable in the CubeMars upper-computer parameter
+# page. The values below are each family's defaults; if a drive was reconfigured, fix it here or
+# every position sent to it is wrong by the ratio of the ranges.
+#
+# family: selects the frame/feedback dialect can_node speaks to this motor.
+#   ak  -- AK-series V3.0 firmware (AK10-9 / AK80-9), manual V3.0.1 section 4.2. EXTENDED frame
+#          on (8 << 8) | id with a KP-first payload (packAkMitCommand). No mode switch and no
+#          ENTER/EXIT frames -- the drive accepts MIT frames directly, and can_node drops the
+#          special frames for these motors. Feedback is the ordinary servo status frame
+#          (current in A); can_node reports torque = current * kt. kt is the manual's torque
+#          coefficient (V3.2.0 table), not measured.
+#          The manual's CAN examples decode with p +-12.5 / v +-50, not the +-12.56 / +-28 of its
+#          own parameter table used below. Commands send v = 0, so only p matters (0.5%) --
+#          confirm on the bench (can/README.md "AK joints in MIT mode") before trusting it.
+#   gl2 -- GL II gimbal drive (GL40 KV70), manual V1.0 section 5. Standard 11-bit frames,
+#          feedback on the master id (mit_master_id, default 0x000), decoded by
+#          decodeGl2Feedback(). Needs MIT_ENTER before it accepts commands.
+#
+# position (rad), velocity (rad/s for ak, "r/s" for gl2), torque (N.m); kp/kd ranges are shared.
 # Keyed by motor CAN id (decimal), matching hardware_mapping.yaml's left-arm can_id values.
 
 motors:
-  # AK10-9 -- shoulder_pitch (0x0E), shoulder_roll (0x0C)
-  "14": {model: AK10-9, p_min: -12.56, p_max: 12.56, v_min: -28.0, v_max: 28.0, t_min: -54.0, t_max: 54.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
-  "12": {model: AK10-9, p_min: -12.56, p_max: 12.56, v_min: -28.0, v_max: 28.0, t_min: -54.0, t_max: 54.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
-  # AK80-9 -- shoulder_yaw (0x0D), elbow_pitch (0x0A), elbow_roll (0x0B)
-  "13": {model: AK80-9, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
-  "10": {model: AK80-9, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
-  "11": {model: AK80-9, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
+  # AK10-9 -- shoulder_pitch (14), shoulder_roll (13)
+  "14": {model: AK10-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -28.0, v_max: 28.0, t_min: -54.0, t_max: 54.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 1.3137}
+  "13": {model: AK10-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -28.0, v_max: 28.0, t_min: -54.0, t_max: 54.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 1.3137}
+  # AK80-9 -- shoulder_yaw (12), elbow_pitch (11), elbow_roll (104)
+  "12": {model: AK80-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
+  "11": {model: AK80-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
+  "104": {model: AK80-9, family: ak, p_min: -12.56, p_max: 12.56, v_min: -65.0, v_max: 65.0, t_min: -18.0, t_max: 18.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0, kt: 0.5701}
+  # GL40 KV70 (GL II drive) -- wrist_pitch (0x16), gripper open_close (0x15). Manual V1.0 S5
+  # defaults. Verify p_max before trusting any position commanded through MIT: with the drive
+  # limp (kp = kd = 0), a quarter turn by hand must move `MotorFeedback.position` by ~90 deg
+  # (`ros2 topic echo /interfacing/motorFeedback`).
+  "22": {model: GL40-KV70, family: gl2, p_min: -12.5, p_max: 12.5, v_min: -200.0, v_max: 200.0, t_min: -10.0, t_max: 10.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}
+  "21": {model: GL40-KV70, family: gl2, p_min: -12.5, p_max: 12.5, v_min: -200.0, v_max: 200.0, t_min: -10.0, t_max: 10.0, kp_min: 0.0, kp_max: 500.0, kd_min: 0.0, kd_max: 5.0}

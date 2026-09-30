@@ -4,9 +4,10 @@ Drive the real arm through the `joint_command` safety layer: it seeds from live 
 (no startup slam), then velocity-limits + smooths every command. Read-only visualization
 is separate (`pioneer_bimanual_arm/live_arm_mjviser.py`).
 
-> ⚠️ Moves real motors. Arm clear, hand on the E-stop. Test config has the **position
-> clamp DISABLED** and velocity 40°/s — re-enable clamps once `hardware_mapping.yaml`
-> limits are calibrated.
+> ⚠️ Moves real motors. Arm clear, hand on the E-stop. The position clamp is **enabled** and
+> `velocity_max` is 10°/s — and it is now a true deg/s bound, since moderation runs on the
+> control tick rather than per incoming message. A joint whose measured position is outside its
+> configured limits is excluded with an error rather than clamped.
 
 Names below assume the `watod_hy-*` project and container `watod_hy-jc-dry`.
 
@@ -50,7 +51,9 @@ docker exec watod_hy-jc-dry bash -c 'source /opt/ros/humble/setup.bash; source /
 Dry run (nothing reaches motors): same launch but `-p motor_cmd_topic:=/dry_run/motorCMD`.
 
 ## Move to a pose
-Stream one target at 50 Hz; the node ramps to it and **holds** when you stop.
+Stream one target at 50 Hz; the node ramps to it and **holds** when you stop. (Streaming is
+still the normal way to drive it, but the ramp is now driven by the control tick, so the rate
+you publish at does not change how fast the arm moves.)
 Slot order: `shoulder=[pitch(14), roll(12), yaw(13)]`, `elbow=[pitch(10), roll(11)]`, `wrist=[pitch(22), unwired→0]`.
 ```bash
 docker exec -d watod_hy-jc-dry bash -c 'source /opt/ros/humble/setup.bash; source /opt/watonomous/setup.bash; \
@@ -92,7 +95,11 @@ docker exec watod_hy-jc-dry bash -c 'pkill -f "install/joint_command/lib"'  # ar
 
 ## Notes
 - **Speed / smoothing:** edit `config/safety_limits.yaml` (`velocity_max`, `low_pass_alpha`,
-  the `enable_*` flags), then rebuild (Setup) + restart the node. Currently 40°/s, clamp off.
+  the `enable_*` flags), then rebuild (Setup) + restart the node. Currently 10°/s, clamp on.
+- **Telemetry:** `tools/arm_roundtrip.sh --offset "..."` does the move + record + plot in one
+  command, writing `angle.png` / `velocity.png` into `outputs/gl40_bench/<run>/`.
+- **Wrist (motor 22)** runs MIT, not POSITION_LOOP: it has stiffness gains and a torque /
+  tracking / feedback watchdog that frees it and latches on any fault.
 - **Didn't move?** `ros2 topic info /interfacing/motorCMD` shows `Publisher count: 0` → node
   lost discovery; restart it (safe — it re-seeds from live feedback). Discovery drops are
   mostly triggered by churning many short-lived `ros2 topic pub/echo/hz` processes on the host

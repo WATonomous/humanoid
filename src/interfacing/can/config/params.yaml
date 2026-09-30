@@ -11,3 +11,8 @@ can_node:
     publish_rate_hz: 50                # Rate for checking incoming CAN messages
     receive_timeout_ms: 10000          # Timeout for receiving CAN messages
     receive_poll_interval_ms: 10           # Interval for polling CAN messages in milliseconds
+
+    # MIT mode: CAN id the GL II drives (wrist/gripper GL40s) reply on -- their "master id",
+    # set in the CubeMars upper computer, default 0x000. Feedback frames on this id are
+    # decoded as MIT feedback (see mit_profiles.yaml) instead of through the DBC.
+    mit_master_id: 0

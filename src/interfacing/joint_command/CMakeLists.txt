@@ -17,7 +17,8 @@ find_package(yaml-cpp REQUIRED)
 
 add_executable(joint_command_node
   src/joint_command_node.cpp
-  src/joint_command_core.cpp)
+  src/joint_command_core.cpp
+  src/gravity_model.cpp)
 ament_target_dependencies(joint_command_node rclcpp common_msgs ament_index_cpp)
 target_include_directories(joint_command_node PUBLIC include)
 target_link_libraries(joint_command_node yaml-cpp)
@@ -28,5 +29,20 @@ install(DIRECTORY launch config DESTINATION share/${PROJECT_NAME})
 
 find_package(ament_lint_auto REQUIRED)
 ament_lint_auto_find_test_dependencies()
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  # Runs against the SHIPPED config in config/ (CONFIG_DIR), so a change that disables the
+  # position clamp or raises a velocity past the testing ceiling fails the build, not the arm.
+  ament_add_gtest(test_joint_command_core
+    test/test_joint_command_core.cpp
+    src/joint_command_core.cpp
+    src/gravity_model.cpp)
+  ament_target_dependencies(test_joint_command_core rclcpp common_msgs)
+  target_include_directories(test_joint_command_core PRIVATE include)
+  target_link_libraries(test_joint_command_core yaml-cpp)
+  target_compile_definitions(test_joint_command_core
+    PRIVATE CONFIG_DIR="${CMAKE_CURRENT_SOURCE_DIR}/config")
+endif()
 
 ament_package()
