@@ -20,7 +20,7 @@ the schema's joint_names order (left_shoulder_pitch .. left_wrist_pitch, left_gr
   action             6 IK joint targets (rad) + gripper command (1.0 if K commands closed, else 0.0)
 Physics runs at 100 Hz; one frame is recorded every 4th physics step (25 fps).
 Cameras: if the schema lists images (e.g. --schema config/dataset_schema_sim_cams.yaml, relative to src/il),
-those cameras (ego, wrist_left; see teleop_cameras.make_record_cam_cfg) are added to the scene,
+the enabled ones (ego, wrist_left; wrist_right is off by default; see teleop_cameras.make_record_cam_cfg) are added,
 recorded as observation.images.<name>, and --enable_cameras is turned on automatically.
 """
 

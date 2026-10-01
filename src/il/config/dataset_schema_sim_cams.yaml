@@ -1,4 +1,4 @@
-# Isaac Sim keyboard teleop — Pioneer v1 left arm WITH cameras (ego + left wrist).
+# Isaac Sim keyboard teleop — Pioneer v1 left arm WITH cameras (ego + left wrist; right wrist defined, disabled).
 # Same 7 joint values and 25 fps as dataset_schema_sim.yaml, plus RGB images.
 # Camera poses/lenses: src/teleop/teleop_cameras.py (make_record_cam_cfg, from PR #296).
 # keyboard_teleop forces --enable_cameras when this schema lists images.
@@ -27,6 +27,12 @@ images:
     height: 256
     width: 256
     enabled: true
+  # Defined (teleop_cameras.py) but not recorded for now: the right arm is held still in
+  # left-arm teleop. Set enabled: true to record it.
+  wrist_right:
+    height: 256
+    width: 256
+    enabled: false
 
 record:
   root: datasets/pioneer_v1_left_arm_sim_cams

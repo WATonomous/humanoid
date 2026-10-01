@@ -7,8 +7,9 @@ ships no cameras (the superseded armWithStand.usd baked them into its sensor
 layer), so they are defined and SPAWNED in code, which also keeps a future
 re-export from silently dropping them.
 
-The recording cameras at the bottom (make_record_cam_cfg: ego + wrist_left, PR #296's poses)
-are a separate set, used by keyboard_teleop --record.
+The recording cameras at the bottom (make_record_cam_cfg: ego, wrist_left, wrist_right; PR #296's poses)
+are a separate set, used by keyboard_teleop --record. wrist_right is defined but the default
+camera schema leaves it disabled (the right arm is held still in left-arm teleop).
 
 Prim paths assume the robot is spawned at ``{ENV_REGEX_NS}/Robot``.
 """
@@ -125,6 +126,7 @@ def make_wrist_cam_cfg(body: str = "link6l", name: str = "wrist_cam", mirror: bo
 #   ego         RealSense D455 colour sensor (OV9782) on base_link: faces +X, 40 deg down
 #               (#296 env v3 tilt). Lens from Isaac 5.1's rsd455.usd, ~90 deg horizontal FOV.
 #   wrist_left  link6l, looking between the fingers. ~60 deg horizontal FOV.
+#   wrist_right link6, mirror of wrist_left (same orientation in its own link frame).
 _RECORD_CAMS = {
     "ego": (
         "base_link", "record_ego_cam",
@@ -134,6 +136,11 @@ _RECORD_CAMS = {
     "wrist_left": (
         "link6l", "record_wrist_cam_left",
         (0.06179, 0.05297, -0.07077), (0.696364, -0.122788, 0.122788, -0.696364),
+        18.147562, 20.955, (0.05, 5.0),
+    ),
+    "wrist_right": (
+        "link6", "record_wrist_cam_right",
+        (0.06179, -0.04397, -0.07077), (0.696364, -0.122788, 0.122788, -0.696364),
         18.147562, 20.955, (0.05, 5.0),
     ),
 }
