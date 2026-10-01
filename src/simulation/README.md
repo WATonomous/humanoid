@@ -1,8 +1,8 @@
 # `src/simulation/`
 
-Isaac Lab / Isaac Sim packages: RL tasks, teleop data-collection scenes, the
-training runners, and datagen glue. Everything here is `pip install -e`'d into the
-`simulation_isaac` image (see `docker/simulation/isaac_lab/`).
+Simulation packages: RL tasks, teleop data-collection scenes, the training runners,
+and datagen glue. The Isaac Lab ones are `pip install -e`'d into the `simulation_isaac`
+image (see `docker/simulation/isaac_lab/`); `mujoco_scenes/` and `badminton/` run on MuJoCo.
 
 ```
 src/simulation/
@@ -14,6 +14,8 @@ src/simulation/
 │       └── push_block/     # PPO + vision distillation; also a teleop scene
 ├── isaac_scenes/           # Isaac teleop data-collection scenes — @scene-discovered
 │   └── humanoid_isaac_scenes/  #   bare/  vial_rack/  push_block/
+├── mujoco_scenes/          # plain-MuJoCo (CPU) scenes — @scene-discovered
+│   └── humanoid_mujoco_scenes/ #   bare/  peg_insert/
 ├── so101_vial_task/        # SO101 imitation-learning task
 └── badminton/              # mjlab (MuJoCo Warp) badminton receive RL — see badminton/README.md
 ```

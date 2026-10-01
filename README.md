@@ -42,10 +42,11 @@ humanoid
 │   ├── interfacing/         # CAN ⇄ ROS 2 bridge, DBC, joint_command (ArmPose → per-motor CAN); real-arm bring-up
 │   ├── perception/          # Perception nodes + voxel_grid (depth → occupancy grid)
 │   ├── pioneer_humanoid/    # THE robot definition — arm/hand/whole-body articulation, joint limits, IK, cameras (imported everywhere)
-│   ├── simulation/          # Isaac Lab sim & learning — see src/simulation/README.md
+│   ├── simulation/          # Sim & learning (Isaac Lab, MuJoCo) — see src/simulation/README.md
 │   │   ├── humanoid_rl/         #   RL runners: train / play / distill / diagnose  ($RL_RUNNERS)
 │   │   ├── humanoid_rl_tasks/   #   RL tasks, flat — inhand, locomotion, push_block
 │   │   ├── isaac_scenes/        #   Isaac teleop data-collection scenes (@scene-discovered) — bare, vial_rack, push_block
+│   │   ├── mujoco_scenes/       #   plain-MuJoCo (CPU) scenes — bare, peg_insert
 │   │   └── so101_vial_task/     #   SO101 imitation-learning task
 │   ├── teleop/              # Drive the arm (sim or real): keyboard, Quest WebXR, task-space IK — resolve --scene via humanoid_isaac_scenes
 │   ├── robot_learning/      # Learning from datasets: record demos (sim + real), train / eval policies (ACT, SmolVLA, pi0.5)

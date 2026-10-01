@@ -42,15 +42,23 @@ import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
+from .arm_params import (  # noqa: F401 -- re-exported for existing call sites
+    ACTUATOR_GROUPS,
+    DEFAULT_JOINT_POS,
+    LEFT_ARM_JOINTS,
+    LEFT_GRIPPER_CLOSED,
+    LEFT_GRIPPER_JOINTS,
+    LEFT_GRIPPER_OPEN,
+    RIGHT_ARM_JOINTS,
+    RIGHT_GRIPPER_CLOSED,
+    RIGHT_GRIPPER_JOINTS,
+    RIGHT_GRIPPER_OPEN,
+)
 from .urdf_joint_limits import JOINT_POS_LIMITS
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _ARM_ROOT = str(_REPO_ROOT / "assets" / "pioneer_bimanual_arm")
 _ARM_USD_PATH = str(Path(_ARM_ROOT) / "usd" / "pioneer_bimanual_arm.usd")
-
-
-def _deg(degrees: float) -> float:
-    return degrees * math.pi / 180.0
 
 
 # --- Joint limits -----------------------------------------------------------
@@ -59,48 +67,13 @@ def _deg(degrees: float) -> float:
 # patch_joint_pos_limits_on_prim() below write it onto the spawned prims, so this is what the
 # joints actually enforce at runtime. Replaced an unverified +/-2pi (no-limit) placeholder.
 
-# --- Default (spawn) pose: URDF zero, except the elbows flexed to +/-75 deg.
-#
-# This is Isaac Lab's InitialStateCfg spawn state; it does not change the URDF's zero pose.
-# At URDF zero both arms hang straight down at the elbow EXTENSION SINGULARITY (manipulability
-# ~2e-06, cond(J) ~2560), with the least-controllable direction almost exactly the +Z that
-# _HOME_TIP_Z_OFFSET then commands -- so the first IK step is huge, hikes the shoulder, and
-# picks an elbow-bend direction at random. Flexing the elbows raises manipulability ~10,000x
-# and starts the arm in the flexion branch.
-#
-# Signs are OPPOSITE (joint4/joint4l axes are (0,-1,0)/(0,1,0)); both put the forearm forward
-# toward +X. Opposite-and-equal is what makes the pose mirror-symmetric. 75 not 90 drops the
-# fingertip ~10cm (measured via compute_gripper_tip_pose_b, sweeping theta) -- ~6% manipulability
-# cost, still 3 orders clear of the singularity; don't go below ~60 (tip nears the table).
-# Both well inside the URDF limits (57.5 deg margin each side).
+# --- Default (spawn) pose, joint names, gripper endpoints and actuator gains: arm_params.py
+# (simulator-neutral, shared with mujoco_arm.py).
 #
 # NOTE: InitialStateCfg.joint_pos only sets robot.data.default_joint_pos; PhysX still spawns at
 # the USD zero pose and the implicit actuators barely move it. run_simulator writes the state
 # explicitly each step -- an offline check must do the same or it measures the arms hanging down.
-_DEFAULT_JOINT_POS = {
-    "joint1": 0.0,
-    "joint2": 0.0,
-    "joint3": 0.0,
-    "joint4": _deg(75.0),
-    "joint5": 0.0,
-    "joint6": 0.0,
-    "joint7": 0.0,
-    "joint8": 0.0,
-    # Left arm (the L-suffixed chain)
-    "joint1L": 0.0,
-    "joint2l": 0.0,
-    "joint3l": 0.0,
-    "joint4l": _deg(-75.0),
-    "joint5l": 0.0,
-    "joint6l": 0.0,
-    "joint7l": 0.0,
-    "joint8l": 0.0,
-}
 
-LEFT_ARM_JOINTS = ["joint1L", "joint2l", "joint3l", "joint4l", "joint5l", "joint6l"]
-RIGHT_ARM_JOINTS = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]
-LEFT_GRIPPER_JOINTS = ["joint7l", "joint8l"]
-RIGHT_GRIPPER_JOINTS = ["joint7", "joint8"]
 # Jacobian anchor is the wrist link; IK pose target is the fingertip center (see below).
 LEFT_EE_BODY = "link6l"
 RIGHT_EE_BODY = "link6"
@@ -123,22 +96,6 @@ RIGHT_FINGER_DISTAL_TIP_LOCAL = {
     "link7": (0.0, -0.151416, -0.045369),
     "link8": (0.0, 0.114416, -0.039825),
 }
-
-# Gripper finger targets, verified empirically in headless sim (not copied from bimanual):
-# measured fingertip gap 0.074m closed / ~0.16m open at the configured endpoints. Opposite
-# labeling to bimanual_arm_cfg.py's joint7l/8l -- this asset's joint7/8 axis is Y, not X.
-# Both arms live here: they're properties of the asset, not the driving script.
-LEFT_GRIPPER_OPEN = {"joint7l": 0.0, "joint8l": 0.0}
-LEFT_GRIPPER_CLOSED = {"joint7l": -0.05, "joint8l": 0.05}
-RIGHT_GRIPPER_OPEN = {"joint7": 0.0, "joint8": 0.0}
-RIGHT_GRIPPER_CLOSED = {"joint7": -0.05, "joint8": 0.05}
-
-# Prismatic gripper PD — tuned for hold during arm motion (not from motor datasheet).
-# If fingers bounce when the shoulder moves, raise stiffness; if jittery, raise damping.
-_GRIPPER_STIFFNESS = 400.0
-_GRIPPER_DAMPING = 40.0
-_GRIPPER_EFFORT_LIMIT = 30.0  # N (sim linear-force cap; tune empirically)
-_GRIPPER_VELOCITY_LIMIT = 0.2  # m/s
 
 # Mounted cameras (ego D455, wrist cameras): cameras.py.
 
@@ -341,80 +298,15 @@ BIMANUAL_ARM_CFG = ArticulationCfg(
             enabled_self_collisions=False,
         ),
     ),
-    init_state=ArticulationCfg.InitialStateCfg(joint_pos=_DEFAULT_JOINT_POS),
+    init_state=ArticulationCfg.InitialStateCfg(joint_pos=DEFAULT_JOINT_POS),
     actuators={
-        # AK10-9 V3.0 — shoulder joints 1-2. effort_limit_sim = peak (53 Nm), not rated (18):
-        # at rated torque the shoulder saturates against gravity with the arm extended and the
-        # IK target undershoots on upward reach. This is a sim-only cap. Do NOT raise it past
-        # the real peak (sim-to-real mismatch for dataset collection) -- use stiffness/damping,
-        # which command torque harder within the same budget. Those were raised ~50% from the
-        # original static-hold tuning to stop the shoulder lagging the elbow/wrist on large
-        # reaches; watch for overshoot if pushed further.
-        "left_shoulder": ImplicitActuatorCfg(
-            joint_names_expr=["joint1L", "joint2l"],
-            stiffness=2270.0,
-            damping=180.0,
-            effort_limit_sim=53.0,
-            velocity_limit_sim=6.0,
-        ),
-        # AK80-9 V3.0 — elbow joints 3-5. effort_limit_sim = peak (22 Nm); stiffness/damping
-        # raised with the shoulder (same ~25%) to fix "forearm too slow" reports.
-        "left_elbow": ImplicitActuatorCfg(
-            joint_names_expr=["joint3l", "joint4l", "joint5l"],
-            stiffness=1550.0,
-            damping=110.0,
-            effort_limit_sim=22.0,
-            velocity_limit_sim=6.0,
-        ),
-        # GL40 KV70 — wrist joint 6. effort_limit_sim = peak (0.73); the inherited rated (0.25)
-        # saturated instantly once the actuators were live (joint6l tracked ~0% of its commanded
-        # gap per frame vs 54-70% elsewhere). Don't exceed 0.73 -- raise stiffness instead.
-        "left_wrist": ImplicitActuatorCfg(
-            joint_names_expr=["joint6l"],
-            stiffness=341.0,
-            damping=18.0,
-            effort_limit_sim=0.73,
-            velocity_limit_sim=6.0,
-        ),
-        # GL40 KV70 rotary → linkage → two prismatic fingers (see module docstring)
-        "left_gripper": ImplicitActuatorCfg(
-            joint_names_expr=["joint7l", "joint8l"],
-            stiffness=_GRIPPER_STIFFNESS,
-            damping=_GRIPPER_DAMPING,
-            effort_limit_sim=_GRIPPER_EFFORT_LIMIT,
-            velocity_limit_sim=_GRIPPER_VELOCITY_LIMIT,
-        ),
-        # Right arm (unsuffixed) — mirrors the left groups above. Was one coarse
-        # group (stiffness=1000/damping=100/effort=18) tuned for a static hold;
-        # both arms are teleoperated now and need equal torque headroom.
-        "right_shoulder": ImplicitActuatorCfg(
-            joint_names_expr=["joint1", "joint2"],
-            stiffness=2270.0,
-            damping=180.0,
-            effort_limit_sim=53.0,
-            velocity_limit_sim=6.0,
-        ),
-        "right_elbow": ImplicitActuatorCfg(
-            joint_names_expr=["joint3", "joint4", "joint5"],
-            stiffness=1550.0,
-            damping=110.0,
-            effort_limit_sim=22.0,
-            velocity_limit_sim=6.0,
-        ),
-        "right_wrist": ImplicitActuatorCfg(
-            joint_names_expr=["joint6"],
-            stiffness=341.0,
-            damping=18.0,
-            effort_limit_sim=0.73,  # peak, see left_wrist
-            velocity_limit_sim=6.0,
-        ),
-        # Right gripper — same coupled-prismatic hold as the left
-        "right_gripper": ImplicitActuatorCfg(
-            joint_names_expr=["joint7", "joint8"],
-            stiffness=_GRIPPER_STIFFNESS,
-            damping=_GRIPPER_DAMPING,
-            effort_limit_sim=_GRIPPER_EFFORT_LIMIT,
-            velocity_limit_sim=_GRIPPER_VELOCITY_LIMIT,
-        ),
+        name: ImplicitActuatorCfg(
+            joint_names_expr=group["joints"],
+            stiffness=group["stiffness"],
+            damping=group["damping"],
+            effort_limit_sim=group["effort_limit"],
+            velocity_limit_sim=group["velocity_limit"],
+        )
+        for name, group in ACTUATOR_GROUPS.items()
     },
 )
