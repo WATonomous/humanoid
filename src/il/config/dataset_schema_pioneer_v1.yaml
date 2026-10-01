@@ -14,10 +14,11 @@ joint_names:
   - left_wrist_pitch     # joint6l
   - left_gripper         # joint7l/joint8l: 0 = open, 1 = closed
 
-# Sim poses: src/teleop/teleop_cameras.py. Real: `topic`. `enabled` is the default; override with --cameras.
+# All 4:3 (real captures 640x480). Sim poses/lenses: src/teleop/teleop_cameras.py. Real: `topic`.
+# `enabled` is the default; override with --cameras.
 images:
-  ego:  # D455 colour sensor: keep 16:10
-    height: 200
+  ego:
+    height: 240
     width: 320
     enabled: true
     topic: null  # no real camera yet

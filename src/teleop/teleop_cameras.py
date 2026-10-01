@@ -116,14 +116,15 @@ def make_wrist_cam_cfg(body: str = "link6l", name: str = "wrist_cam", mirror: bo
 # Recording cameras (keyboard_teleop --record), from PR #296's camera USD.
 # name: (parent link, prim, pos, rot wxyz [opengl], focal length, horizontal aperture, clipping,
 #        sensor aspect w/h or None)
-#   ego          RealSense D455 colour sensor (1280x800, 16:10), 40 deg down, ~90 x 65 deg FOV
+#   ego          RealSense D455 colour at 640x480 (4:3), 40 deg down. ESTIMATE ~80 x 65 deg: native
+#                1280x800 lens with the sides cropped to 4:3. Replace with the real camera_info.
 #   wrist_left   between the fingers, ~60 deg hFOV, real camera not chosen yet
 #   wrist_right  mirror of wrist_left
 _RECORD_CAMS = {
     "ego": (
         "base_link", "record_ego_cam",
         (0.08421, -0.00008, 0.26038), (0.640856, 0.298836, -0.298836, -0.640856),
-        1.93, 3.896, (0.01, 100.0), 16 / 10,
+        1.93, 3.896 * (800 * 4 / 3) / 1280, (0.01, 100.0), 4 / 3,
     ),
     "wrist_left": (
         "link6l", "record_wrist_cam_left",

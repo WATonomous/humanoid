@@ -58,7 +58,8 @@ pip install -e ".[record,ros]"      # + ROS image decoding
 
 Uses `config/dataset_schema_pioneer_v1.yaml`, the same contract as sim. Not runnable yet: it stops at
 startup until the gripper (`left_gripper`) has a ROS source and each recorded camera has a `topic`.
-Camera frames are center-cropped and resized to the schema size.
+Cameras capture 640×480 (D455: `rgb_camera.color_profile: 640x480x30`); frames are resized to the
+schema size (center-cropped first if the aspect differs).
 
 ```bash
 source /path/to/humanoid/install/setup.bash
@@ -106,7 +107,7 @@ PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p keyboard_teleop.py --record \
 ```
 
 Uses `config/dataset_schema_pioneer_v1.yaml`: 6 joints (rad) + gripper closure (0 open, 1 closed), 25 fps
-(every 4th physics step). Cameras (RGB, defined in `src/teleop/teleop_cameras.py`; `ego` is a D455 at 320×200, wrists 320×240): `ego` and
+(every 4th physics step). Cameras (320×240 RGB, 4:3, defined in `src/teleop/teleop_cameras.py`): `ego` and
 `wrist_left` by default, `wrist_right` off. Override with `--cameras ego`, `--cameras ego,wrist_left,wrist_right`
 or `--cameras none`. Same S/N/D/Esc keys as real-arm recording.
 
