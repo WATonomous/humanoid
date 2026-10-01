@@ -43,7 +43,12 @@ services:
         - "${INTERFACING_JOINT_COMMAND_IMAGE:?}:main"
     image: "${INTERFACING_JOINT_COMMAND_IMAGE:?}:${TAG}"
     network_mode: host
-    working_dir: /root/ament_ws
+    environment:
+      # UDP only: shared-memory discovery fails across users (docker exec)
+      - FASTDDS_BUILTIN_TRANSPORTS=UDPv4
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_DOMAIN_ID=0
+    # no working_dir: the image WORKDIR holds the relative ENTRYPOINT
     # editable src is bind-mounted; launch it yourself:
     #   watod -t joint_command  ->  ros2 launch joint_command joint_command.launch.py
     command: tail -F anything

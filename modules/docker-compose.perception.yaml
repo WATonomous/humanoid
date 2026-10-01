@@ -48,7 +48,7 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-    working_dir: /root/ament_ws
+    # no working_dir: the image WORKDIR holds the relative ENTRYPOINT
     deploy:
       resources:
         reservations:
