@@ -27,6 +27,10 @@ services:
       - ${MONO_DIR}/src/interfacing:/root/ament_ws/src/interfacing
       # For calibrate_arm.py --write-mapping
       - ${MONO_DIR}/src/interfacing/joint_command/config/hardware_mapping.yaml:/calibration/hardware_mapping.yaml
+      # Telemetry run folders (gitignored)
+      - ${MONO_DIR}/outputs:/outputs
+      # Limits, read-only, for telemetry
+      - ${MONO_DIR}/src/interfacing/joint_command/config:/opt/joint_command_config:ro
       # Overlay the installed config with the repo copies (per file: the dir also holds the DBC)
       - ${MONO_DIR}/src/interfacing/can/config/mit_profiles.yaml:/opt/watonomous/can/share/can/config/mit_profiles.yaml:ro
       - ${MONO_DIR}/src/interfacing/can/config/params.yaml:/opt/watonomous/can/share/can/config/params.yaml:ro
@@ -56,5 +60,10 @@ services:
     command: tail -F anything
     volumes:
       - ${MONO_DIR}/src/interfacing/joint_command:/root/ament_ws/src/joint_command
+      # Scripts for telemetry_record.py, outside /root (this container runs as the host user)
+      - ${MONO_DIR}/src/interfacing/can/scripts:/opt/humanoid_scripts:ro
+      - ${MONO_DIR}/src/interfacing/joint_command/config/hardware_mapping.yaml:/calibration/hardware_mapping.yaml:ro
+      - ${MONO_DIR}/src/interfacing/joint_command/config:/opt/joint_command_config:ro
       # Overlay the installed config so calibration/limit edits apply on node restart
       - ${MONO_DIR}/src/interfacing/joint_command/config:/opt/watonomous/joint_command/share/joint_command/config:ro
+      - ${MONO_DIR}/outputs:/outputs
