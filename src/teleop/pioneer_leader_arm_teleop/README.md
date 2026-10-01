@@ -1,4 +1,4 @@
-# pioneer_leader_teleop
+# pioneer_leader_arm_teleop
 
 The 7-servo leader arm (STS3215, torque always off) drives the Pioneer left arm in Isaac Sim,
 joint to joint with no IK, in any registered scene. Optional recording in the shared
@@ -23,8 +23,8 @@ joint to joint with no IK, in any registered scene. Optional recording in the sh
 
 ```bash
 # inside the simulation_isaac container:
-cd /workspace/humanoid/src/teleop/pioneer_leader_teleop
-PYTHONPATH=$(pwd) /workspace/isaaclab/isaaclab.sh -p pioneer_leader_teleop.py --scene push [--record]
+cd /workspace/humanoid/src/teleop/pioneer_leader_arm_teleop
+PYTHONPATH=$(pwd) /workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --scene push [--record]
 ```
 
 - **Home pose:** hold the leader with the elbow bent like the sim arm and the gripper **open** at startup and whenever you press **R**. Leader zero maps to the sim home pose.

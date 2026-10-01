@@ -1,6 +1,6 @@
 """Shared STS3215 leader-arm reader.
 
-Used by ``pioneer_leader_teleop.py`` (leader -> sim, with optional recording) and
+Used by ``pioneer_leader_arm_teleop.py`` (leader -> sim, with optional recording) and
 ``encoder_test.py`` (bring-up readout).
 
 The leader arm is an INPUT DEVICE. Torque is written OFF for every servo at

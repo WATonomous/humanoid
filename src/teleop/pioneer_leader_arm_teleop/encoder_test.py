@@ -5,7 +5,7 @@ relative to wherever it sat when the program started, so you can move a joint by
 hand and confirm it is wired, addressable, and turning the direction you expect
 before Isaac Sim is involved.
 
-It drives ``ServoLeader``, the same class ``pioneer_leader_teleop.py`` uses, so a
+It drives ``ServoLeader``, the same class ``pioneer_leader_arm_teleop.py`` uses, so a
 clean run here means the read path the teleop depends on is working -- not merely
 that something answered on the bus.
 

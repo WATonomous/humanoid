@@ -1,4 +1,4 @@
-"""Leader-arm angle -> sim target helpers for ``pioneer_leader_teleop.py``.
+"""Leader-arm angle -> sim target helpers for ``pioneer_leader_arm_teleop.py``.
 
 Joint targets are clamped to the arm's URDF limits (passed in by the caller), so the sim
 arm cannot be driven past what the real arm can reach. The leader itself is an input device
