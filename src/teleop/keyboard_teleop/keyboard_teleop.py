@@ -31,8 +31,6 @@ _DEFAULT_SCHEMA = _ROBOT_LEARNING_PKG / "config" / "dataset_schema_pioneer_v1.ya
 # pioneer_humanoid package (canonical arm config). Editable-installed in the image; this fallback
 # keeps a bare bind-mounted checkout working.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "pioneer_humanoid"))
-# src/teleop/ for teleop_cameras
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 parser = argparse.ArgumentParser(description="Keyboard teleoperation for the Pioneer bimanual arm (left only).")
 parser.add_argument(
@@ -56,7 +54,7 @@ parser.add_argument(
     "--dataset_root",
     type=str,
     default=None,
-    help="Output directory (default: <schema record.root>/sim)",
+    help="Output directory (default: <repo>/<schema record.root>/sim)",
 )
 parser.add_argument("--num_episodes", type=int, default=10)
 parser.add_argument("--task_description", type=str, default="sim keyboard teleop demonstration")
@@ -83,7 +81,7 @@ _schema_path, _schema_cfg, _record_images = None, None, {}
 if args_cli.record:
     if str(_ROBOT_LEARNING_PKG) not in sys.path:
         sys.path.insert(0, str(_ROBOT_LEARNING_PKG))
-    from humanoid_robot_learning.record_utils import resolve_config_path
+    from humanoid_robot_learning.record_utils import resolve_config_path, resolve_dataset_root
     from humanoid_robot_learning.schema import enabled_images, load_yaml, select_cameras
 
     _schema_path = resolve_config_path(args_cli.schema, anchor=_ROBOT_LEARNING_PKG)
@@ -130,7 +128,7 @@ from pioneer_humanoid.bimanual_arm import (
     compute_tip_ik_jacobian,
 )
 from humanoid_scenes import list_scenes, make_scene_cfg, scene_camera
-from teleop_cameras import RECORD_CAM_NAMES, make_record_cam_cfg
+from pioneer_humanoid.cameras import CAMERA_NAMES, make_camera_cfg
 
 # Recorded joint order (real-robot names, joint_command_core.cpp); must match the schema.
 _RECORD_JOINT_NAMES = [
@@ -164,11 +162,7 @@ def _init_recorder(device: str, sim_dt: float):
         ) from exc
 
     schema_path, cfg = _schema_path, _schema_cfg
-    dataset_root = (
-        Path(args_cli.dataset_root)
-        if args_cli.dataset_root
-        else Path((cfg.get("record") or {}).get("root", "datasets/pioneer_v1_left_arm")) / "sim"
-    )
+    dataset_root = resolve_dataset_root(cfg, args_cli.dataset_root, subdir="sim")
     if list(cfg["joint_names"]) != _RECORD_JOINT_NAMES:
         raise ValueError(
             f"{schema_path}: joint_names must be {_RECORD_JOINT_NAMES} (6 arm joints + gripper), "
@@ -430,11 +424,11 @@ def main():
 
     scene_cfg = make_scene_cfg(args_cli.scene, BIMANUAL_ARM_CFG, num_envs=1, env_spacing=2.0)
     # Added after the robot: cameras are parented under it, and entities are created in order.
-    unknown = sorted(set(_record_images) - set(RECORD_CAM_NAMES))
+    unknown = sorted(set(_record_images) - set(CAMERA_NAMES))
     if unknown:
-        raise SystemExit(f"{_schema_path}: unknown images {unknown}; available: {list(RECORD_CAM_NAMES)}")
+        raise SystemExit(f"{_schema_path}: unknown images {unknown}; available: {list(CAMERA_NAMES)}")
     for name, spec in _record_images.items():
-        setattr(scene_cfg, f"record_cam_{name}", make_record_cam_cfg(name, int(spec["height"]), int(spec["width"])))
+        setattr(scene_cfg, f"record_cam_{name}", make_camera_cfg(name, int(spec["height"]), int(spec["width"])))
     scene = InteractiveScene(scene_cfg)
 
     sim.reset()

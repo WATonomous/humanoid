@@ -14,7 +14,7 @@ joint_names:
   - left_wrist_pitch     # joint6l
   - left_gripper         # joint7l/joint8l: 0 = open, 1 = closed
 
-# All 640x480 (4:3). Sim poses/lenses: src/teleop/teleop_cameras.py. Real: `topic`.
+# All 640x480 (4:3). Sim poses/lenses: pioneer_humanoid/cameras.py. Real: `topic`.
 # `enabled` is the default; override with --cameras.
 images:
   ego:
@@ -39,7 +39,7 @@ ros:  # real only
   arm_pose_unit: deg
 
 record:
-  root: datasets/pioneer_v1_left_arm  # sim writes <root>/sim, real writes <root>/real
+  root: datasets/pioneer_v1_left_arm  # relative to the repo root; sim -> <root>/sim, real -> <root>/real
   use_videos: true
   image_writer_threads: 4
   image_writer_processes: 0

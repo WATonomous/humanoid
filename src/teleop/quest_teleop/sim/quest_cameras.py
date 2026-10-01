@@ -1,11 +1,7 @@
-"""Data-collection camera configs for pioneer_bimanual_arm teleop.
+"""Quest teleop cameras: ego_cam (re-aimed at the headset viewpoint at runtime) and wrist_cam.
 
-ego_cam (on base_link) and wrist_cam (on link6l) are the cameras that record the
-dataset image reads. They live here rather than in the robot config
-because they are teleop-scene config, not properties of the robot: the arm asset
-ships no cameras (the superseded armWithStand.usd baked them into its sensor
-layer), so they are defined and SPAWNED in code, which also keeps a future
-re-export from silently dropping them.
+Specific to run_quest_bimanual_teleop.py. The robot's own mounted cameras (ego D455, wrist
+cameras) are in pioneer_humanoid.cameras.
 
 Prim paths assume the robot is spawned at ``{ENV_REGEX_NS}/Robot``.
 """
@@ -108,56 +104,6 @@ def make_wrist_cam_cfg(body: str = "link6l", name: str = "wrist_cam", mirror: bo
         spawn=DATA_CAM_LENS,
         offset=CameraCfg.OffsetCfg(pos=pos, rot=rot, convention="opengl"),
         height=480, width=640,
-        update_period=0.0,
-        data_types=["rgb"],
-    )
-
-
-# Recording cameras (keyboard_teleop --record), from PR #296's camera USD.
-# name: (parent link, prim, pos, rot wxyz [opengl], focal length, horizontal aperture, clipping,
-#        sensor aspect w/h or None)
-#   ego          RealSense D455 colour at 640x480 (4:3), 40 deg down. ESTIMATE ~80 x 65 deg: native
-#                1280x800 lens with the sides cropped to 4:3. Replace with the real camera_info.
-#   wrist_left   between the fingers, ~60 deg hFOV, real camera not chosen yet
-#   wrist_right  mirror of wrist_left
-_RECORD_CAMS = {
-    "ego": (
-        "base_link", "record_ego_cam",
-        (0.08421, -0.00008, 0.26038), (0.640856, 0.298836, -0.298836, -0.640856),
-        1.93, 3.896 * (800 * 4 / 3) / 1280, (0.01, 100.0), 4 / 3,
-    ),
-    "wrist_left": (
-        "link6l", "record_wrist_cam_left",
-        (0.06179, 0.05297, -0.07077), (0.696364, -0.122788, 0.122788, -0.696364),
-        18.147562, 20.955, (0.05, 5.0), None,
-    ),
-    "wrist_right": (
-        "link6", "record_wrist_cam_right",
-        (0.06179, -0.04397, -0.07077), (0.696364, -0.122788, 0.122788, -0.696364),
-        18.147562, 20.955, (0.05, 5.0), None,
-    ),
-}
-RECORD_CAM_NAMES = tuple(_RECORD_CAMS)
-
-
-def make_record_cam_cfg(name: str, height: int, width: int) -> CameraCfg:
-    """CameraCfg for recording camera ``name``. Vertical aperture follows the aspect ratio (no stretch).
-
-    A camera modelled on a real sensor must keep that sensor's aspect, so sim sees what the real one sees."""
-    body, prim, pos, rot, focal, h_aperture, clip, aspect = _RECORD_CAMS[name]
-    if aspect is not None and abs(width / height - aspect) > 0.02 * aspect:
-        raise ValueError(f"camera {name}: {width}x{height} must match its sensor aspect {aspect:.3g} (w/h)")
-    return CameraCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/" + f"{body}/{prim}",
-        spawn=sim_utils.PinholeCameraCfg(
-            focal_length=focal,
-            horizontal_aperture=h_aperture,
-            vertical_aperture=h_aperture * height / width,
-            clipping_range=clip,
-        ),
-        offset=CameraCfg.OffsetCfg(pos=pos, rot=rot, convention="opengl"),
-        height=height,
-        width=width,
         update_period=0.0,
         data_types=["rgb"],
     )

@@ -140,8 +140,7 @@ _GRIPPER_DAMPING = 40.0
 _GRIPPER_EFFORT_LIMIT = 30.0  # N (sim linear-force cap; tune empirically)
 _GRIPPER_VELOCITY_LIMIT = 0.2  # m/s
 
-# Data-collection cameras (ego_cam, wrist_cam) live in src/teleop/teleop_cameras.py -- they are
-# teleop-scene config, not robot properties.
+# Mounted cameras (ego D455, wrist cameras): cameras.py.
 
 
 def _joint_limit_key(name: str) -> str | None:
