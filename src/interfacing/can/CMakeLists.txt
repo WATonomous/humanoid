@@ -28,6 +28,7 @@ find_package(yaml-cpp REQUIRED) # MIT protocol per-motor scaling constants (mit_
 
 add_library(can_lib
   src/can_core.cpp
+  src/mit_protocol.cpp
 )
 
 # Indicate to compiler where to search for header files
@@ -54,7 +55,7 @@ target_link_libraries(can_lib
 )
 
 # Create the can_node executable
-add_executable(can_node src/can_node.cpp src/can_core.cpp)
+add_executable(can_node src/can_node.cpp src/can_core.cpp src/mit_protocol.cpp)
 ament_target_dependencies(can_node rclcpp std_msgs)
 
 # Link to the previously built libraries
@@ -74,6 +75,7 @@ install(DIRECTORY
 # Install scripts with execute permissions
 install(PROGRAMS
   scripts/setup_can.sh
+  scripts/setup_socketcan.sh
   scripts/can_udev.sh
   scripts/calibrate_arm.py
   DESTINATION share/${PROJECT_NAME}/scripts
@@ -87,6 +89,16 @@ install(PROGRAMS
 # Testing and Development
 find_package(ament_lint_auto REQUIRED)
 ament_lint_auto_find_test_dependencies()
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  # MIT packing + the real humanoid.dbc layout (no ROS, no bus).
+  ament_add_gtest(test_mit_protocol test/test_mit_protocol.cpp src/mit_protocol.cpp)
+  target_include_directories(test_mit_protocol PRIVATE include /usr/local/include)
+  target_link_libraries(test_mit_protocol /usr/local/lib/libdbcppp.so)
+  target_compile_definitions(test_mit_protocol
+    PRIVATE DBC_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../dbc/humanoid.dbc")
+endif()
 
 install(
   DIRECTORY config/

@@ -10,6 +10,13 @@ DBC files define CAN bus messages, signals, and communication protocols used in 
 
 - `humanoid.dbc` - message definitions
 
+### MITControlCmd
+
+A **standard 11-bit** frame (`BO_ 0`); every servo message is extended. A GL II in MIT mode only
+listens to standard frames. Its signals are raw MIT codes (`pos(16) vel(12) kp(12) kd(12)
+t_ff(12)`) that `can_node` packs from physical units via `can/config/mit_profiles.yaml`. MIT
+feedback is decoded in `can_node`, not here.
+
 ## Two ways to decode DBC
 
 Turning raw CAN bytes into named signals can be done statically or dynamically. This repo
