@@ -81,7 +81,7 @@ def create_dataset(cfg: dict[str, Any], *, root: Path):
     except ImportError as exc:
         raise ImportError(
             "lerobot is required for recording. Install with: "
-            "pip install -e 'src/il[lerobot]'"
+            "pip install -e 'src/robot_learning[lerobot]'"
         ) from exc
 
     root.mkdir(parents=True, exist_ok=True)

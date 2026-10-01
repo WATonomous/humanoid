@@ -13,7 +13,7 @@ Teleop bindings: https://isaac-sim.github.io/IsaacLab/v2.0.1/source/overview/tel
   C/V     Rotate along z-axis
   R       Reset left arm to default pose
 
-Recording (--record, src/il/config/dataset_schema_pioneer_v1.yaml), 25 fps = every 4th physics step:
+Recording (--record, src/robot_learning/config/dataset_schema_pioneer_v1.yaml), 25 fps = every 4th physics step:
   observation.state  6 joints (rad) + gripper closure (0 open .. 1 closed, mean of both fingers)
   action             6 IK targets (rad) + gripper command (1 = K closed, 0 = open)
   observation.images.<name>  cameras enabled in the schema, or --cameras ego,wrist_left / none
@@ -25,8 +25,8 @@ from pathlib import Path
 
 from isaaclab.app import AppLauncher
 
-_IL_PKG = Path(__file__).resolve().parents[2] / "il"
-_DEFAULT_SCHEMA = _IL_PKG / "config" / "dataset_schema_pioneer_v1.yaml"
+_ROBOT_LEARNING_PKG = Path(__file__).resolve().parents[2] / "robot_learning"
+_DEFAULT_SCHEMA = _ROBOT_LEARNING_PKG / "config" / "dataset_schema_pioneer_v1.yaml"
 
 # pioneer_humanoid package (canonical arm config). Editable-installed in the image; this fallback
 # keeps a bare bind-mounted checkout working.
@@ -38,7 +38,7 @@ parser = argparse.ArgumentParser(description="Keyboard teleoperation for the Pio
 parser.add_argument(
     "--record",
     action="store_true",
-    help="Record demonstrations (requires: pip install -e src/il[record])",
+    help="Record demonstrations (requires: pip install -e src/robot_learning[record])",
 )
 parser.add_argument(
     "--sink",
@@ -50,7 +50,7 @@ parser.add_argument(
     "--schema",
     type=str,
     default=str(_DEFAULT_SCHEMA),
-    help="dataset_schema YAML (default: src/il/config/dataset_schema_pioneer_v1.yaml)",
+    help="dataset_schema YAML (default: src/robot_learning/config/dataset_schema_pioneer_v1.yaml)",
 )
 parser.add_argument(
     "--dataset_root",
@@ -81,12 +81,12 @@ if args_cli.cameras is not None and not args_cli.record:
 # Schema is read before launch: recording cameras need --enable_cameras.
 _schema_path, _schema_cfg, _record_images = None, None, {}
 if args_cli.record:
-    if str(_IL_PKG) not in sys.path:
-        sys.path.insert(0, str(_IL_PKG))
-    from humanoid_il.record_utils import resolve_config_path
-    from humanoid_il.schema import enabled_images, load_yaml, select_cameras
+    if str(_ROBOT_LEARNING_PKG) not in sys.path:
+        sys.path.insert(0, str(_ROBOT_LEARNING_PKG))
+    from humanoid_robot_learning.record_utils import resolve_config_path
+    from humanoid_robot_learning.schema import enabled_images, load_yaml, select_cameras
 
-    _schema_path = resolve_config_path(args_cli.schema, anchor=_IL_PKG)
+    _schema_path = resolve_config_path(args_cli.schema, anchor=_ROBOT_LEARNING_PKG)
     try:
         _schema_cfg = select_cameras(load_yaml(_schema_path), args_cli.cameras)
     except ValueError as exc:
@@ -153,14 +153,14 @@ def _init_recorder(device: str, sim_dt: float):
     """Return (recorder, record_every): record one frame every `record_every` physics steps."""
     if not args_cli.record:
         return None, 0
-    if str(_IL_PKG) not in sys.path:
-        sys.path.insert(0, str(_IL_PKG))
+    if str(_ROBOT_LEARNING_PKG) not in sys.path:
+        sys.path.insert(0, str(_ROBOT_LEARNING_PKG))
     try:
-        from humanoid_il.sim_recorder import SimLeRobotRecorder
+        from humanoid_robot_learning.sim_recorder import SimLeRobotRecorder
     except ImportError as exc:
         raise ImportError(
-            "Recording requires humanoid-il. Install with:\n"
-            "  pip install -e src/il[sim]"
+            "Recording requires humanoid-robot-learning. Install with:\n"
+            "  pip install -e src/robot_learning[sim]"
         ) from exc
 
     schema_path, cfg = _schema_path, _schema_cfg

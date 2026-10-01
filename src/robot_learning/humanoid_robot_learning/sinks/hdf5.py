@@ -8,8 +8,8 @@ from typing import Any
 
 import numpy as np
 
-from humanoid_il.schema import enabled_images
-from humanoid_il.snapshot import ObservationSnapshot
+from humanoid_robot_learning.schema import enabled_images
+from humanoid_robot_learning.snapshot import ObservationSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class Hdf5Sink:
         except ImportError as exc:
             raise ImportError(
                 "h5py is required for HDF5 recording. "
-                "Install with: pip install -e 'src/il[hdf5]'"
+                "Install with: pip install -e 'src/robot_learning[hdf5]'"
             ) from exc
 
         self._cfg = cfg

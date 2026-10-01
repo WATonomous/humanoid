@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 
-from humanoid_il.snapshot import ObservationSnapshot
+from humanoid_robot_learning.snapshot import ObservationSnapshot
 
 
 def validate_snapshot(

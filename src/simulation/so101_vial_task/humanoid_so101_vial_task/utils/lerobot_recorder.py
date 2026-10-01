@@ -1,4 +1,4 @@
-"""Re-export SimLeRobotRecorder from humanoid_il."""
-from humanoid_il.sim_recorder import SimLeRobotRecorder as LeRobotRecorder  # noqa: F401
+"""Re-export SimLeRobotRecorder from humanoid_robot_learning."""
+from humanoid_robot_learning.sim_recorder import SimLeRobotRecorder as LeRobotRecorder  # noqa: F401
 
 __all__ = ["LeRobotRecorder"]

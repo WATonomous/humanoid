@@ -16,7 +16,7 @@ One editable container per module — code is bind-mounted from `src/<module>`, 
 |------------------|--------------|
 | `interfacing` | CAN / hardware interfacing, `joint_command` |
 | `perception` | Perception (cameras, GPU), `voxel_grid` |
-| `simulation_isaac` | **Isaac Lab 2.3.2** — SO101 IL, RL tasks, Quest teleop |
+| `simulation_isaac` | **Isaac Lab 2.3.2** — SO101 robot learning, RL tasks, Quest teleop |
 | `simulation_mj` | MuJoCo / mjlab RL |
 
 **Isaac Lab sim (recommended):** see [docker/simulation/isaac_lab/QUICKSTART.md](docker/simulation/isaac_lab/QUICKSTART.md).
@@ -26,7 +26,9 @@ One editable container per module — code is bind-mounted from `src/<module>`, 
 Two workflows share this repo:
 
 - **Real robot:** `embedded` firmware ⇄ `interfacing` (CAN ⇄ ROS 2) ⇄ `perception` — driven live by `teleop`, or by a policy.
-- **Sim / learning:** `teleop` collects demos in `simulation` scenes → `il` records datasets → train (imitation) or `simulation/humanoid_rl` (RL) → deploy back through `interfacing`.
+- **Sim / learning:** `teleop` collects demos in `simulation` scenes → `robot_learning` records datasets and trains policies, or `simulation/humanoid_rl` trains RL policies → deploy back through `interfacing`.
+
+**`robot_learning` vs RL:** `src/robot_learning` learns policies from recorded datasets (sim or real), e.g. ACT, SmolVLA, pi0.5. RL is sim-based (Isaac Lab), so it lives in `src/simulation/humanoid_rl*`.
 
 ```
 humanoid
@@ -42,11 +44,11 @@ humanoid
 │   ├── pioneer_humanoid/    # THE robot definition — arm/hand/whole-body articulation, joint limits, IK, cameras (imported everywhere)
 │   ├── simulation/          # Isaac Lab sim & learning — see src/simulation/README.md
 │   │   ├── humanoid_rl/         #   RL runners: train / play / distill / diagnose  ($RL_RUNNERS)
-│   │   ├── humanoid_rl_tasks/   #   RL tasks, flat — inhand, locomotion, push_block, pick_place
+│   │   ├── humanoid_rl_tasks/   #   RL tasks, flat — inhand, locomotion, push_block
 │   │   ├── humanoid_scenes/     #   teleop data-collection scenes (@scene-discovered) — bare, vial_rack, push_block
 │   │   └── so101_vial_task/     #   SO101 imitation-learning task
 │   ├── teleop/              # Drive the arm (sim or real): keyboard, Quest WebXR, task-space IK — resolve --scene via humanoid_scenes
-│   ├── il/                  # Imitation-learning dataset recording (LeRobot)
+│   ├── robot_learning/      # Learning from datasets: record demos (sim + real), train / eval policies (ACT, SmolVLA, pi0.5)
 │   └── embedded/            # STM32 / ESP32S3 motor-controller firmware
 ├── assets/                  # robot URDF/USD/meshes + scene props (backend-neutral, not tied to Isaac)
 │   ├── pioneer_bimanual_arm/  pioneer_hand/  whole_body_humanoid/
@@ -71,7 +73,7 @@ Full detail — [src/simulation/README.md](src/simulation/README.md). Other area
 
 | Stack | Module | Docs |
 |-------|--------|------|
-| Isaac Lab 2.3.2 / Sim 5.1 (SO101 IL, RL tasks, Quest) | `simulation_isaac` | [QUICKSTART](docker/simulation/isaac_lab/QUICKSTART.md) · [full README](docker/simulation/isaac_lab/README.md) |
+| Isaac Lab 2.3.2 / Sim 5.1 (SO101 robot learning, RL tasks, Quest) | `simulation_isaac` | [QUICKSTART](docker/simulation/isaac_lab/QUICKSTART.md) · [full README](docker/simulation/isaac_lab/README.md) |
 | MuJoCo / mjlab | `simulation_mj` | [README](docker/simulation/mjlabs/README.md) |
 | SO101 vial Gym envs | (inside `simulation_isaac`) | [so101_vial_task](src/simulation/so101_vial_task/README.md) |
 | Quest bimanual teleop | (inside `simulation_isaac`) | [quest_isaac_teleop](src/teleop/quest_isaac_teleop/README.md) |

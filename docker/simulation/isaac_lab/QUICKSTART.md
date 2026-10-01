@@ -61,7 +61,7 @@ $PYTHON -c "import lerobot; print('ok')"
 
 Container env (from `.bashrc`): `$ISAACLAB`, `$TASK_ROOT` (SO101 IL), `$RL_RUNNERS` (RSL-RL train/play scripts).
 
-Aliases: `il-train`, `il-eval`, `il-record`, `rl-train`, `rl-play`.
+Aliases: `train-policy`, `eval-policy`, `record-demos`, `rl-train`, `rl-play`.
 
 **Open Isaac Sim GUI** (no task script — plain simulator). Container runs as root, so allow that:
 
@@ -80,7 +80,7 @@ Dataset: [CursedRock17/so101_teleop_vials_sim_and_real](https://huggingface.co/d
 ```bash
 mkdir -p /workspace/humanoid/outputs/train/so101_hf_act
 
-il-train \
+train-policy \
   --dataset.repo_id=CursedRock17/so101_teleop_vials_sim_and_real \
   --policy.type=act \
   --policy.push_to_hub=false \
@@ -95,7 +95,7 @@ il-train \
 **Longer run** (better policy):
 
 ```bash
-il-train \
+train-policy \
   --dataset.repo_id=CursedRock17/so101_teleop_vials_sim_and_real \
   --policy.type=act \
   --policy.push_to_hub=false \
@@ -119,11 +119,11 @@ Same path on host: `~/Desktop/humanoid/outputs/train/so101_hf_act/...`
 
 | Wrong | Right |
 |-------|-------|
-| `lerobot-train` (bare CLI) | `il-train` or `$PYTHON -m lerobot.scripts.lerobot_train` |
+| `lerobot-train` (bare CLI) | `train-policy` or `$PYTHON -m lerobot.scripts.lerobot_train` |
 | `-m lerobot.scripts.train` | `-m lerobot.scripts.lerobot_train` |
 | `--training.num_epochs=10` | `--steps=10000` |
 | omit `--policy.push_to_hub=false` | always set `false` for local-only training |
-| `pip install humanoid-il[sim]` in image | breaks Isaac torch — Dockerfile uses `--no-deps` only |
+| `pip install humanoid-robot-learning[sim]` in image | breaks Isaac torch — Dockerfile uses `--no-deps` only |
 
 ---
 

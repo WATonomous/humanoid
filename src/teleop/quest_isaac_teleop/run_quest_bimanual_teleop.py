@@ -67,12 +67,12 @@ _SIM_DIR = _AUTONOMY / "simulation"
 sys.path.insert(0, str(_AUTONOMY / "pioneer_humanoid"))
 # src/teleop/ for the shared teleop_cameras module
 sys.path.insert(0, str(_AUTONOMY / "teleop"))
-_IL_PKG = _AUTONOMY / "il"
+_ROBOT_LEARNING_PKG = _AUTONOMY / "robot_learning"
 
 
-def _ensure_il_on_path() -> None:
-    if str(_IL_PKG) not in sys.path:
-        sys.path.insert(0, str(_IL_PKG))
+def _ensure_robot_learning_on_path() -> None:
+    if str(_ROBOT_LEARNING_PKG) not in sys.path:
+        sys.path.insert(0, str(_ROBOT_LEARNING_PKG))
 
 
 # ── CLI args ──────────────────────────────────────────────────────────────────
@@ -80,10 +80,10 @@ parser = argparse.ArgumentParser(description="Quest pioneer_bimanual_arm teleop 
 parser.add_argument("--gain", type=float, default=1.0,
                     help="Motion gain: metres of EE motion per metre of real wrist motion")
 parser.add_argument("--record", action="store_true",
-                    help="Record demonstrations (requires: pip install -e src/il[record]). Records the "
+                    help="Record demonstrations (requires: pip install -e src/robot_learning[record]). Records the "
                          "L-suffixed (link6l) arm only -- that's the arm ego_cam/wrist_cam are mounted for.")
 parser.add_argument("--schema", type=str,
-                    default=str(_IL_PKG / "config" / "dataset_schema_wato_arm_v2_push_box.yaml"),
+                    default=str(_ROBOT_LEARNING_PKG / "config" / "dataset_schema_wato_arm_v2_push_box.yaml"),
                     help="Path to dataset_schema.yaml (only used with --record)")
 parser.add_argument("--sink", type=str, default="lerobot",
                     help="Output sinks when --record: lerobot, hdf5, or lerobot,hdf5")
@@ -1101,19 +1101,18 @@ class _ArmDlsController:
 # ── recording (see dataset_schema_wato_arm_v2_push_box.yaml) ─────────────────
 
 def _init_recorder(device: str):
-    """Mirrors so101_leader_teleop.py's _init_recorder. Returns (recorder, schema_cfg)
-    or (None, None) if --record wasn't passed."""
+    """Returns (recorder, schema_cfg), or (None, None) if --record wasn't passed."""
     if not args_cli.record:
         return None, None
-    _ensure_il_on_path()
+    _ensure_robot_learning_on_path()
     try:
-        from humanoid_il.record_utils import resolve_config_path
-        from humanoid_il.schema import enabled_images, load_yaml
-        from humanoid_il.sim_recorder import SimLeRobotRecorder
+        from humanoid_robot_learning.record_utils import resolve_config_path
+        from humanoid_robot_learning.schema import enabled_images, load_yaml
+        from humanoid_robot_learning.sim_recorder import SimLeRobotRecorder
     except ImportError as exc:
-        raise ImportError("Recording requires humanoid-il. Install with:\n  pip install -e src/il[sim]") from exc
+        raise ImportError("Recording requires humanoid-robot-learning. Install with:\n  pip install -e src/robot_learning[sim]") from exc
 
-    schema_path = resolve_config_path(args_cli.schema, anchor=_IL_PKG)
+    schema_path = resolve_config_path(args_cli.schema, anchor=_ROBOT_LEARNING_PKG)
     cfg = load_yaml(schema_path)
     dataset_root = (
         Path(args_cli.dataset_root) if args_cli.dataset_root
@@ -1141,7 +1140,7 @@ def _init_recorder(device: str):
     recorder.init_dataset()
     print(f"[RECORD] Writing to {dataset_root} at {_RECORD_FPS} fps "
           f"(1 frame / {_POV_CAPTURE_EVERY_N_STEPS} physics steps)", flush=True)
-    # Key bindings differ from humanoid_il's defaults -- see run_simulator's _on_keyboard_event.
+    # Key bindings differ from humanoid_robot_learning's defaults -- see run_simulator's _on_keyboard_event.
     return recorder, cfg
 
 
@@ -1363,12 +1362,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene) -> 
 
     recorder, record_cfg = _init_recorder(device)
     if recorder is not None:
-        # NOT recorder.start_keyboard() -- that attaches humanoid_il's shared pynput listener,
+        # NOT recorder.start_keyboard() -- that attaches humanoid_robot_learning's shared pynput listener,
         # whose bindings other teleop scripts rely on. S/D are handled through the same
         # carb.input listener as R/T instead, calling save_episode()/cancel_recording() directly
         # so recording continues straight into the next demo. EpisodeFlags is still needed
         # (tick() no-ops without it) but is constructed directly.
-        from humanoid_il.episode_keys import EpisodeFlags
+        from humanoid_robot_learning.episode_keys import EpisodeFlags
         recorder._flags = EpisodeFlags(start=False)
 
     def _sphere_cfg(color, radius, opacity=1.0):

@@ -1,12 +1,11 @@
-# Imitation learning: record (`humanoid-record`)
+# Robot learning: record datasets, train and evaluate policies
 
 Record teleoperation into **LeRobot** and/or **HDF5** datasets. One shared `RecordSession` for multiple collection paths:
 
 - **Real WATO arm** — ROS 2 (`humanoid-record`)
 - **Isaac Sim + keyboard** — WATO bimanual left arm IK teleop
-- **Isaac Sim + SO101 Leader** — physical leader drives SO101 follower (sim-to-real)
 
-Training stays outside this repo (`lerobot-train` on the LeRobot folder). HDF5 output is a single `trajectories.h5` with `action`, `proprio`, optional `pixels`, `ep_len`, and `ep_offset`.
+Policies (ACT, SmolVLA, pi0.5, …) train on these datasets with LeRobot (`train-policy` in the Isaac image). RL is sim-based and lives in `src/simulation/humanoid_rl*`. HDF5 output is a single `trajectories.h5` with `action`, `proprio`, optional `pixels`, `ep_len`, and `ep_offset`.
 
 ## Data contract
 
@@ -26,14 +25,13 @@ Training stays outside this repo (`lerobot-train` on the LeRobot folder). HDF5 o
 ## Layout
 
 ```
-src/il/
+src/robot_learning/
 ├── config/
-│   ├── dataset_schema_pioneer_v1.yaml  # Pioneer v1 left arm, shared by sim and real
-│   └── dataset_schema_so101_sim.yaml  # SO101 leader sim (6-DOF + gripper)
-├── humanoid_il/
+│   └── dataset_schema_pioneer_v1.yaml  # Pioneer v1 left arm, shared by sim and real
+├── humanoid_robot_learning/
 │   ├── snapshot.py               # ObservationSnapshot
 │   ├── frame.py                  # build_lerobot_frame()
-│   ├── so101_sim.py              # SO101 leader ↔ sim joint mapping
+│   ├── so101_sim.py              # SO101 leader ↔ sim joint mapping (so101_vial_task)
 │   ├── recorder.py               # RecordSession (episode flags + sinks)
 │   ├── record_loop.py            # blocking loop for ROS CLI
 │   ├── sim_session.py            # helper for Isaac sim scripts
@@ -49,7 +47,7 @@ src/il/
 ## Install
 
 ```bash
-cd src/il
+cd src/robot_learning
 pip install -e ".[record]"          # real arm + sim recording
 pip install -e ".[record,ros]"      # + ROS image decoding
 ```
@@ -98,7 +96,7 @@ Output: `datasets/pioneer_v1_left_arm/real/001/` with LeRobot tree + `trajectori
 From `src/teleop/keyboard_teleop/`:
 
 ```bash
-pip install -e ../../../il[record]
+pip install -e ../../../robot_learning[record]
 
 PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p keyboard_teleop.py --record \
   --sink lerobot,hdf5 \
@@ -113,43 +111,9 @@ or `--cameras none`. Same S/N/D/Esc keys as real-arm recording.
 
 Output: `datasets/pioneer_v1_left_arm/sim/001/`.
 
-## Isaac Sim (SO101 teleop)
-
-**Keyboard** or **physical SO101 Leader** drives the SO101 follower in sim. From `src/teleop/so101_leader_teleop/`:
-
-```bash
-pip install -e ../../../il[record]
-
-# Keyboard (no USB arm)
-PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p so101_keyboard_teleop.py --record \
-  --sink lerobot,hdf5 --num_episodes 5 --task_description "so101 keyboard demo"
-
-# Physical leader
-PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p so101_leader_teleop.py --record \
-  --sink lerobot,hdf5 --num_episodes 5 --port /dev/ttyACM0
-```
-
-Uses `config/dataset_schema_so101_sim.yaml` (6 joints including gripper, leader raw units). Same S/N/D/Esc keys.
-
-Output: `datasets/record_so101_sim/001/`.
-
-**Vision + domain randomization** (NVIDIA workshop parity):
-
-```bash
-PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p so101_leader_teleop.py --record \
-  --cameras --domain_rand \
-  --schema ../../../il/config/dataset_schema_so101_sim_vision.yaml \
-  --sink lerobot,hdf5 --num_episodes 10 --port /dev/ttyACM0
-```
-
-- `humanoid_il/so101_cameras.py` — read TiledCamera RGB into LeRobot frames
-- `humanoid_il/so101_domain_rand.py` — vial/rack reset, mat, lighting, camera DR
-
-Output: `datasets/record_so101_sim_vision/001/`.
-
 ## Train (LeRobot)
 
-**SO101 vial sim IL (recommended):** inside `simulation_isaac` Docker — [`docker/simulation/isaac_lab/QUICKSTART.md`](../../docker/simulation/isaac_lab/QUICKSTART.md) (`il-train`, `--policy.push_to_hub=false`, `--steps=...`).
+**SO101 vial task:** inside `simulation_isaac` Docker — [`docker/simulation/isaac_lab/QUICKSTART.md`](../../docker/simulation/isaac_lab/QUICKSTART.md) (`train-policy`, `--policy.push_to_hub=false`, `--steps=...`).
 
 **Generic / host** (outside Isaac docker):
 

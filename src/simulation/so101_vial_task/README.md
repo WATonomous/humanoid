@@ -35,7 +35,7 @@ Cameras: `ego` (gripper), `external_D455` (lightbox) — matches [CursedRock17/s
 ## 1. Train ACT (inside `simulation_isaac` container)
 
 ```bash
-il-train \
+train-policy \
   --dataset.repo_id=CursedRock17/so101_teleop_vials_sim_and_real \
   --policy.type=act \
   --policy.push_to_hub=false \
@@ -78,14 +78,6 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_agent.py \
   --repo_root /workspace/humanoid/datasets/record_so101_gym/001 \
   --save_mp4 --depth --instance_id_seg
 ```
-
-## 4. Lightweight teleop (InteractiveScene)
-
-RGB-only path without Gym:
-
-`src/teleop/so101_leader_teleop/` + `src/il/` (`--record --cameras --domain_rand`).
-
-Use **this** package for depth/seg MP4 sidecars and automatic success scoring.
 
 ## Layout
 

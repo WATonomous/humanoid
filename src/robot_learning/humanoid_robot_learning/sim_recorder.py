@@ -12,7 +12,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from humanoid_il.episode_keys import EpisodeFlags, EpisodeKeyboard
+from humanoid_robot_learning.episode_keys import EpisodeFlags, EpisodeKeyboard
 
 
 def _encode_video_frames_subprocess(
