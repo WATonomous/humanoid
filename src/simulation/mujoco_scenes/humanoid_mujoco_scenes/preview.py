@@ -21,7 +21,7 @@ def main() -> None:
         raise SystemExit(f"unknown --scene {args.scene!r}; available: {list_scenes()}")
 
     from PIL import Image
-    from pioneer_humanoid.mujoco_arm import set_home
+    from pioneer_humanoid.mujoco_bimanual_arm import set_home
 
     model = make_model(args.scene)
     data = mujoco.MjData(model)

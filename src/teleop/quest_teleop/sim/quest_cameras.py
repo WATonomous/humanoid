@@ -1,7 +1,7 @@
 """Quest teleop cameras: ego_cam (re-aimed at the headset viewpoint at runtime) and wrist_cam.
 
 Specific to run_quest_bimanual_teleop.py. The robot's own mounted cameras (ego D455, wrist
-cameras) are in pioneer_humanoid.cameras.
+cameras) are in pioneer_humanoid.bimanual_arm (mounts in arm_params).
 
 Prim paths assume the robot is spawned at ``{ENV_REGEX_NS}/Robot``.
 """

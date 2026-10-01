@@ -12,6 +12,8 @@ services:
         - "${SIMULATION_MJ_IMAGE:?}:${TAG}"
         - "${SIMULATION_MJ_IMAGE:?}:main"
     image: "${SIMULATION_MJ_IMAGE:?}:${TAG}"
+    # /dev access for the USB leader arm (/dev/ttyACM*), as in simulation_isaac.
+    privileged: true
     network_mode: "bridge"
     ipc: "none"
     ports:
@@ -21,6 +23,9 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
       - ROS_DOMAIN_ID=0
       - FASTDDS_BUILTIN_TRANSPORTS=UDPv4
+      # MuJoCo viewer on the host's X server
+      - DISPLAY=${DISPLAY}
+      - XAUTHORITY=/tmp/.Xauthority
     command: sleep infinity
     deploy:
       resources:
@@ -34,3 +39,8 @@ services:
       - ${MONO_DIR}/src/teleop:/root/ament_ws/src/teleop
       - ${MONO_DIR}/src/common_msgs:/root/ament_ws/src/common_msgs
       - ${MONO_DIR}/src/interfacing/joint_command:/root/ament_ws/src/joint_command
+      # Whole repo for pioneer_leader_arm_teleop --target mujoco (assets/, src/, datasets/ output).
+      - ${MONO_DIR}:/workspace/humanoid:rw
+      - /dev:/dev
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTHORITY:-${HOME}/.Xauthority}:/tmp/.Xauthority:ro

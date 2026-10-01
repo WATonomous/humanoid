@@ -1,7 +1,7 @@
 # humanoid_mujoco_scenes
 
 Plain-MuJoCo scenes for the Pioneer arm — CPU only, no Isaac. One folder per scene, auto-discovered.
-The arm comes from `pioneer_humanoid.mujoco_arm` (the URDF plus the same joint limits and gains as
+The arm comes from `pioneer_humanoid.mujoco_bimanual_arm` (the URDF plus the same joint limits and gains as
 the Isaac config).
 
 ```bash
@@ -13,7 +13,7 @@ pip install -e src/pioneer_humanoid -e src/simulation/mujoco_scenes
 
 ```bash
 # leader-arm teleop (needs a display; on macOS use mjpython)
-python src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py --sim mujoco --scene peg_insert
+python src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert
 
 # headless check: render the scene with the arm at home
 MUJOCO_GL=egl python -m humanoid_mujoco_scenes.preview --scene peg_insert --png peg.png
@@ -53,3 +53,4 @@ def build(spec: mujoco.MjSpec) -> None:
 
 - Finger collisions are boxes fitted to each finger mesh (MuJoCo's convex hulls are rounded and let a held object slip).
 - Arm self-collisions are off, as in Isaac.
+- Robot cameras (`make_model(name, cameras={...})`) use the same mounts and lenses as Isaac (`pioneer_humanoid/arm_params.py`).

@@ -105,7 +105,7 @@ PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p keyboard_teleop.py --record \
 ```
 
 Uses `config/dataset_schema_pioneer_v1.yaml`: 6 joints (rad) + gripper closure (0 open, 1 closed), 25 fps
-(every 4th physics step). Cameras (640×480 RGB, defined in `pioneer_humanoid/cameras.py`): `ego` and
+(every 4th physics step). Cameras (640×480 RGB, defined in `pioneer_humanoid/arm_params.py`): `ego` and
 `wrist_left` by default, `wrist_right` off. Override with `--cameras ego`, `--cameras ego,wrist_left,wrist_right`
 or `--cameras none`. Same S/N/D/Esc keys as real-arm recording.
 

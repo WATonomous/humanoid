@@ -41,9 +41,12 @@ from pathlib import Path
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
+from isaaclab.sensors import CameraCfg
 
 from .arm_params import (  # noqa: F401 -- re-exported for existing call sites
     ACTUATOR_GROUPS,
+    CAMERA_NAMES,
+    CAMERAS,
     DEFAULT_JOINT_POS,
     LEFT_ARM_JOINTS,
     LEFT_GRIPPER_CLOSED,
@@ -53,6 +56,7 @@ from .arm_params import (  # noqa: F401 -- re-exported for existing call sites
     RIGHT_GRIPPER_CLOSED,
     RIGHT_GRIPPER_JOINTS,
     RIGHT_GRIPPER_OPEN,
+    vertical_aperture,
 )
 from .urdf_joint_limits import JOINT_POS_LIMITS
 
@@ -68,7 +72,7 @@ _ARM_USD_PATH = str(Path(_ARM_ROOT) / "usd" / "pioneer_bimanual_arm.usd")
 # joints actually enforce at runtime. Replaced an unverified +/-2pi (no-limit) placeholder.
 
 # --- Default (spawn) pose, joint names, gripper endpoints and actuator gains: arm_params.py
-# (simulator-neutral, shared with mujoco_arm.py).
+# (simulator-neutral, shared with mujoco_bimanual_arm.py).
 #
 # NOTE: InitialStateCfg.joint_pos only sets robot.data.default_joint_pos; PhysX still spawns at
 # the USD zero pose and the implicit actuators barely move it. run_simulator writes the state
@@ -96,8 +100,6 @@ RIGHT_FINGER_DISTAL_TIP_LOCAL = {
     "link7": (0.0, -0.151416, -0.045369),
     "link8": (0.0, 0.114416, -0.039825),
 }
-
-# Mounted cameras (ego D455, wrist cameras): cameras.py.
 
 
 def _joint_limit_key(name: str) -> str | None:
@@ -310,3 +312,26 @@ BIMANUAL_ARM_CFG = ArticulationCfg(
         for name, group in ACTUATOR_GROUPS.items()
     },
 )
+
+
+def make_camera_cfg(name: str, height: int, width: int) -> CameraCfg:
+    """Isaac CameraCfg for robot camera ``name`` (arm_params.CAMERAS) at height x width.
+
+    Vertical aperture follows the image aspect. Requires --enable_cameras. Prim paths assume the
+    robot is spawned at ``{ENV_REGEX_NS}/Robot``; cameras stay out of the arm asset.
+    """
+    cam = CAMERAS[name]
+    return CameraCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/" + f"{cam.body}/{cam.prim}",
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=cam.focal,
+            horizontal_aperture=cam.h_aperture,
+            vertical_aperture=vertical_aperture(name, height, width),
+            clipping_range=cam.clip,
+        ),
+        offset=CameraCfg.OffsetCfg(pos=cam.pos, rot=cam.rot, convention="opengl"),
+        height=height,
+        width=width,
+        update_period=0.0,
+        data_types=["rgb"],
+    )

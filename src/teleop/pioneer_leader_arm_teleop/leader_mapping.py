@@ -23,7 +23,7 @@ CONTROL_DT = 0.01
 
 
 def add_leader_args(parser: argparse.ArgumentParser, *, scene_help: str) -> None:
-    parser.add_argument("--sim", choices=("isaac", "mujoco"), default="isaac", help="simulator backend")
+    parser.add_argument("--target", choices=("isaac", "mujoco"), default="isaac", help="what the leader drives")
     parser.add_argument("--scene", type=str, default="bare", help=scene_help)
     parser.add_argument("--port", default="/dev/ttyACM0", help="leader serial port")
     parser.add_argument("--baud", type=int, default=1_000_000, help="leader serial baud rate")

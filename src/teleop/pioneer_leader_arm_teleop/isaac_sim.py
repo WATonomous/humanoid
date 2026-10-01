@@ -70,6 +70,7 @@ from isaaclab.scene import InteractiveScene
 
 from pioneer_humanoid.bimanual_arm import (
     BIMANUAL_ARM_CFG,
+    CAMERA_NAMES,
     LEFT_ARM_JOINTS,
     LEFT_GRIPPER_CLOSED,
     LEFT_GRIPPER_JOINTS,
@@ -78,10 +79,10 @@ from pioneer_humanoid.bimanual_arm import (
     RIGHT_GRIPPER_JOINTS,
     RIGHT_GRIPPER_OPEN,
     apply_joint_limits,
+    make_camera_cfg,
     resolve_joint_name,
 )
 from humanoid_isaac_scenes import list_scenes, make_scene_cfg, scene_camera
-from pioneer_humanoid.cameras import CAMERA_NAMES, make_camera_cfg
 
 
 def _joint_ids(robot, names: list[str]) -> list[int]:
