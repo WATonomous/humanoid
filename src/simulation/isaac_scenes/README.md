@@ -1,4 +1,4 @@
-# humanoid_scenes
+# humanoid_isaac_scenes
 
 Manipulation scenes for **pioneer bimanual-arm teleop data collection** — one
 folder per scene, auto-discovered. Adding a scene requires touching *only* this
@@ -7,18 +7,18 @@ package.
 ## Add a scene
 
 ```
-humanoid_scenes/my_scene/
+humanoid_isaac_scenes/my_scene/
 ├── __init__.py          # empty
 └── scene.py
 ```
 
 ```python
-# humanoid_scenes/my_scene/scene.py
+# humanoid_isaac_scenes/my_scene/scene.py
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.utils import configclass
 from dataclasses import MISSING
 
-from humanoid_scenes import scene
+from humanoid_isaac_scenes import scene
 
 
 @scene("my_scene", robot_pos=(0.0, 0.0, 0.0), camera=([1.5, -1.5, 0.5], [0.4, 0.0, 0.0]))

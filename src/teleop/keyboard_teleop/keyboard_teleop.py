@@ -42,7 +42,7 @@ parser.add_argument(
     type=str,
     default="bare",
     help="scene name: 'bare' (arm only), 'push', or any scene registered in "
-    "humanoid_scenes (validated after launch — pass an unknown name to list them)",
+    "humanoid_isaac_scenes (validated after launch — pass an unknown name to list them)",
 )
 add_record_args(parser, task_description="sim keyboard teleop demonstration")
 AppLauncher.add_app_launcher_args(parser)
@@ -83,7 +83,7 @@ from pioneer_humanoid.bimanual_arm import (
     compute_gripper_tip_pose_b,
     compute_tip_ik_jacobian,
 )
-from humanoid_scenes import list_scenes, make_scene_cfg, scene_camera
+from humanoid_isaac_scenes import list_scenes, make_scene_cfg, scene_camera
 from pioneer_humanoid.cameras import CAMERA_NAMES, make_camera_cfg
 
 

@@ -1,13 +1,13 @@
 """Scene registry: ``@scene``-decorated ``InteractiveSceneCfg`` classes,
-auto-discovered from ``humanoid_scenes/<name>/scene.py``.
+auto-discovered from ``humanoid_isaac_scenes/<name>/scene.py``.
 
 Adding a manipulation scene for teleop data collection is **one folder**:
 
-    humanoid_scenes/my_scene/
+    humanoid_isaac_scenes/my_scene/
         __init__.py      # empty
         scene.py         # @scene("my_scene") class MySceneCfg(InteractiveSceneCfg): ...
 
-Nothing else -- no edits to ``humanoid_scenes``, ``keyboard_teleop``
+Nothing else -- no edits to ``humanoid_isaac_scenes``, ``keyboard_teleop``
 or the Dockerfile. The scene declares ``robot = MISSING``; a teleop script plugs
 its own arm in via ``make_scene_cfg``.
 """
@@ -52,15 +52,15 @@ def _discover() -> None:
         return
     import warnings
 
-    import humanoid_scenes
+    import humanoid_isaac_scenes
 
-    for m in pkgutil.iter_modules(humanoid_scenes.__path__):
+    for m in pkgutil.iter_modules(humanoid_isaac_scenes.__path__):
         if m.name.startswith("_"):
             continue
         try:
-            importlib.import_module(f"humanoid_scenes.{m.name}.scene")
+            importlib.import_module(f"humanoid_isaac_scenes.{m.name}.scene")
         except Exception as e:  # noqa: BLE001 -- one broken scene must not hide the rest
-            warnings.warn(f"humanoid_scenes: skipping {m.name!r} -- {type(e).__name__}: {e}", stacklevel=2)
+            warnings.warn(f"humanoid_isaac_scenes: skipping {m.name!r} -- {type(e).__name__}: {e}", stacklevel=2)
     _DISCOVERED = True
 
 

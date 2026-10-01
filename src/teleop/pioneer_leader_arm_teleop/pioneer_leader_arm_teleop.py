@@ -53,7 +53,7 @@ parser.add_argument(
     "--scene",
     type=str,
     default="bare",
-    help="scene registered in humanoid_scenes (validated after launch; pass an unknown name to list them)",
+    help="scene registered in humanoid_isaac_scenes (validated after launch; pass an unknown name to list them)",
 )
 parser.add_argument("--port", default="/dev/ttyACM0", help="leader serial port")
 parser.add_argument("--baud", type=int, default=1_000_000, help="leader serial baud rate")
@@ -96,7 +96,7 @@ from pioneer_humanoid.bimanual_arm import (
     apply_joint_limits,
     resolve_joint_name,
 )
-from humanoid_scenes import list_scenes, make_scene_cfg, scene_camera
+from humanoid_isaac_scenes import list_scenes, make_scene_cfg, scene_camera
 from pioneer_humanoid.cameras import CAMERA_NAMES, make_camera_cfg
 
 from arm_limits import gripper_fraction, limited_target

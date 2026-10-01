@@ -8,7 +8,7 @@ from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.utils import configclass
 
-from humanoid_scenes import scene
+from humanoid_isaac_scenes import scene
 
 
 @scene("bare", camera=([2.5, 2.5, 2.0], [0.0, 0.0, 0.8]))

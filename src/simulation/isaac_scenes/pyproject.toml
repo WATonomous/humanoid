@@ -3,7 +3,7 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "humanoid-scenes"
+name = "humanoid-isaac-scenes"
 version = "0.1.0"
 description = "Manipulation scenes for pioneer-arm teleop data collection (one folder per scene, auto-discovered)"
 requires-python = ">=3.11"
@@ -12,4 +12,4 @@ dependencies = []
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["humanoid_scenes*"]
+include = ["humanoid_isaac_scenes*"]

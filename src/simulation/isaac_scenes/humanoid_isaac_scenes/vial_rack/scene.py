@@ -7,7 +7,7 @@ floor-stand lift) and a low table (top at ``TABLE_TOP_Z``) so the rack/vials sit
 in the arm's manipulation reach. Rack + vial USDs are the so101 vial task's
 assets.
 
-``robot`` / ``ee_frame`` are ``MISSING`` -- ``humanoid_scenes.make_scene_cfg``
+``robot`` / ``ee_frame`` are ``MISSING`` -- ``humanoid_isaac_scenes.make_scene_cfg``
 plugs in the caller's arm.
 
 FIRST PASS: the rack / vial xy placement is the harness starting point, pulled
@@ -26,7 +26,7 @@ from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors.frame_transformer.frame_transformer_cfg import FrameTransformerCfg
 from isaaclab.utils import configclass
 
-from humanoid_scenes import scene
+from humanoid_isaac_scenes import scene
 
 _ASSETS = Path(__file__).resolve().parents[5] / "assets" / "lerobot" / "so101_vial_task" / "usd"
 VIAL_RACK_USD = str(_ASSETS / "Vial_rack_simple.usda")
