@@ -50,7 +50,18 @@ Prompt: **Enter**=yes · id=correct id · **s**=skip · **q**=quit.
   special frames (`MIT_SET_ZERO` is refused; use `SET_ORIGIN`). Feedback is the servo frame, with
   `torque = current × kt`.
 
-Gains sent as `MotorCmd.kp/kd` are snapped to the drive's nearest 12-bit code.
+Per-joint gains live in `joint_command/config/safety_limits.yaml`; `joint_command` refuses to
+start if `quantised kp × mit_max_track_err > mit_max_torque`. Gains are snapped
+to the nearest 12-bit code. The gripper has no `ArmPose` slot, so nothing drives it yet.
+
+**AK bring-up, per joint** (arm supported, hardware E-stop in reach):
+1. `candump can0`: extended frames on `0000080<id>`, KP first, no `FF..FC` to the AK.
+2. Servo-mode and zero-gain-MIT readings at one pose agree within 0.5°. AK80-9s (11, 12, 104)
+   lose zero on every power cycle.
+3. Hold with low gains (kp 2, kd 0.3) first, watching torque, tracking error and temperature.
+4. Stop `joint_command` and record what the drive does on stream loss (the V3 manual documents
+   no CAN timeout).
+5. Hold 30 s, then ±5° moves.
 
 ---
 
