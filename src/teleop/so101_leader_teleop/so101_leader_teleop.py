@@ -1,7 +1,7 @@
 """SO101 Leader (USB) teleoperation of SO101 follower in Isaac Sim.
 
 Mirrors the NVIDIA Sim-to-Real SO101 workshop flow: physical leader arm drives
-the sim follower, with optional recording through ``humanoid_il``.
+the sim follower, with optional recording through ``humanoid_robot_learning``.
 
   R       Reset sim robot to default pose
   (record keys via pynput when --record: S / N / D / Esc)
@@ -15,8 +15,8 @@ from pathlib import Path
 
 from isaaclab.app import AppLauncher
 
-_IL_PKG = Path(__file__).resolve().parents[2] / "il"
-_DEFAULT_SCHEMA = _IL_PKG / "config" / "dataset_schema_so101_sim.yaml"
+_ROBOT_LEARNING_PKG = Path(__file__).resolve().parents[2] / "robot_learning"
+_DEFAULT_SCHEMA = _ROBOT_LEARNING_PKG / "config" / "dataset_schema_so101_sim.yaml"
 
 parser = argparse.ArgumentParser(
     description="SO101 Leader teleoperation for SO101 follower in Isaac Sim."
@@ -48,7 +48,7 @@ parser.add_argument(
 parser.add_argument(
     "--record",
     action="store_true",
-    help="Record demonstrations (requires: pip install -e src/il[record])",
+    help="Record demonstrations (requires: pip install -e src/robot_learning[record])",
 )
 parser.add_argument(
     "--sink",
@@ -106,19 +106,19 @@ import torch
 import isaaclab.sim as sim_utils
 from isaaclab.scene import InteractiveScene
 
-if str(_IL_PKG) not in sys.path:
-    sys.path.insert(0, str(_IL_PKG))
+if str(_ROBOT_LEARNING_PKG) not in sys.path:
+    sys.path.insert(0, str(_ROBOT_LEARNING_PKG))
 
-ensure_il_on_path()
+ensure_robot_learning_on_path()
 
-from humanoid_il.so101_sim import leader_action_to_array, leader_raw_to_sim_rad, sim_rad_to_leader_raw
+from humanoid_robot_learning.so101_sim import leader_action_to_array, leader_raw_to_sim_rad, sim_rad_to_leader_raw
 
 from so101_cfg import robot_joint_names
 from so101_teleop_runtime import (
     build_scene,
     build_sim_context,
     capture_record_images,
-    ensure_il_on_path,
+    ensure_robot_learning_on_path,
     maybe_apply_domain_rand,
 )
 
@@ -138,7 +138,7 @@ def _connect_leader(port: str, robot_id: str, recalibrate: bool):
     except ImportError as exc:
         raise ImportError(
             "SO101 Leader teleop requires LeRobot with SO101 support.\n"
-            "  pip install -e src/il[record]"
+            "  pip install -e src/robot_learning[record]"
         ) from exc
 
     cfg = SO101LeaderConfig(port=port, id=robot_id)
@@ -153,18 +153,18 @@ def _connect_leader(port: str, robot_id: str, recalibrate: bool):
 def _init_recorder(device: str):
     if not args_cli.record:
         return None, None
-    ensure_il_on_path()
+    ensure_robot_learning_on_path()
     try:
-        from humanoid_il.record_utils import resolve_config_path
-        from humanoid_il.schema import enabled_images, load_yaml
-        from humanoid_il.sim_recorder import SimLeRobotRecorder
+        from humanoid_robot_learning.record_utils import resolve_config_path
+        from humanoid_robot_learning.schema import enabled_images, load_yaml
+        from humanoid_robot_learning.sim_recorder import SimLeRobotRecorder
     except ImportError as exc:
         raise ImportError(
-            "Recording requires humanoid-il. Install with:\n"
-            "  pip install -e src/il[sim]"
+            "Recording requires humanoid-robot-learning. Install with:\n"
+            "  pip install -e src/robot_learning[sim]"
         ) from exc
 
-    schema_path = resolve_config_path(args_cli.schema, anchor=_IL_PKG)
+    schema_path = resolve_config_path(args_cli.schema, anchor=_ROBOT_LEARNING_PKG)
     cfg = load_yaml(schema_path)
     dataset_root = (
         Path(args_cli.dataset_root)

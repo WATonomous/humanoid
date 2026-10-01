@@ -3,7 +3,7 @@
 # with prefix-guided replanning every `execution_horizon` steps, instead of
 # the naive truncate-and-replace approach select_action() uses.
 #
-# The RTC driving logic itself lives in humanoid_il.rtc_driver.RTCDrivenPolicy
+# The RTC driving logic itself lives in humanoid_robot_learning.rtc_driver.RTCDrivenPolicy
 # (embodiment-agnostic); SO101RTCPolicy below is the thin, robot-specific
 # adapter around it.
 import argparse
@@ -47,7 +47,7 @@ import humanoid_so101_vial_task.tasks  # noqa: F401
 from humanoid_so101_vial_task.utils.keyboard import KeyboardControl
 from humanoid_so101_vial_task.utils.lerobot_interface import LeRobotSO101Interface
 
-from humanoid_il.rtc_driver import RTCDrivenPolicy
+from humanoid_robot_learning.rtc_driver import RTCDrivenPolicy
 
 
 class SO101RTCPolicy:

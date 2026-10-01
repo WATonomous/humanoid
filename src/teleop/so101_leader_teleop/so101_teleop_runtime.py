@@ -6,34 +6,34 @@ import sys
 from pathlib import Path
 from typing import Any
 
-_IL_PKG = Path(__file__).resolve().parents[2] / "il"
+_ROBOT_LEARNING_PKG = Path(__file__).resolve().parents[2] / "robot_learning"
 
 
-def ensure_il_on_path() -> Path:
-    if str(_IL_PKG) not in sys.path:
-        sys.path.insert(0, str(_IL_PKG))
-    return _IL_PKG
+def ensure_robot_learning_on_path() -> Path:
+    if str(_ROBOT_LEARNING_PKG) not in sys.path:
+        sys.path.insert(0, str(_ROBOT_LEARNING_PKG))
+    return _ROBOT_LEARNING_PKG
 
 
 def load_record_schema(schema_arg: str) -> dict[str, Any] | None:
     """Load YAML schema when recording or when an explicit schema path is given."""
-    ensure_il_on_path()
-    from humanoid_il.record_utils import resolve_config_path
-    from humanoid_il.schema import load_yaml
+    ensure_robot_learning_on_path()
+    from humanoid_robot_learning.record_utils import resolve_config_path
+    from humanoid_robot_learning.schema import load_yaml
 
-    path = resolve_config_path(schema_arg, anchor=_IL_PKG)
+    path = resolve_config_path(schema_arg, anchor=_ROBOT_LEARNING_PKG)
     return load_yaml(path)
 
 
 def prepare_launcher_args(args_cli) -> None:
     """Set Isaac Lab launcher flags (cameras) from CLI + schema."""
-    ensure_il_on_path()
-    from humanoid_il.so101_cameras import schema_needs_cameras
+    ensure_robot_learning_on_path()
+    from humanoid_robot_learning.so101_cameras import schema_needs_cameras
 
     if args_cli.cameras:
         args_cli.enable_cameras = True
         return
-    if args_cli.record or args_cli.schema != str(_IL_PKG / "config" / "dataset_schema_so101_sim.yaml"):
+    if args_cli.record or args_cli.schema != str(_ROBOT_LEARNING_PKG / "config" / "dataset_schema_so101_sim.yaml"):
         cfg = load_record_schema(args_cli.schema)
         if cfg and schema_needs_cameras(cfg):
             args_cli.enable_cameras = True
@@ -100,9 +100,9 @@ def build_scene(args_cli):
 def maybe_apply_domain_rand(scene, args_cli) -> None:
     if not args_cli.domain_rand or args_cli.scene != "vial":
         return
-    ensure_il_on_path()
+    ensure_robot_learning_on_path()
     import vial_task_assets as vta
-    from humanoid_il.so101_domain_rand import apply_vial_task_domain_rand
+    from humanoid_robot_learning.so101_domain_rand import apply_vial_task_domain_rand
 
     hdri_dir = vta.HDRI_DIR if Path(vta.HDRI_DIR).is_dir() else None
     apply_vial_task_domain_rand(scene, hdri_dir=hdri_dir, full_dr=True)
@@ -112,9 +112,9 @@ def maybe_apply_domain_rand(scene, args_cli) -> None:
 def capture_record_images(scene, cfg: dict | None) -> dict | None:
     if cfg is None:
         return None
-    ensure_il_on_path()
-    from humanoid_il.schema import enabled_images
-    from humanoid_il.so101_cameras import capture_rgb_images, schema_image_keys_to_scene
+    ensure_robot_learning_on_path()
+    from humanoid_robot_learning.schema import enabled_images
+    from humanoid_robot_learning.so101_cameras import capture_rgb_images, schema_image_keys_to_scene
 
     if not enabled_images(cfg):
         return None

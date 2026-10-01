@@ -1,7 +1,7 @@
 """Keyboard teleoperation for the SO101 follower in Isaac Sim.
 
 Uses Isaac Lab Se3Keyboard + differential IK on the 5 arm joints; gripper via K toggle.
-Optional recording through ``humanoid_il`` (same schema as leader teleop).
+Optional recording through ``humanoid_robot_learning`` (same schema as leader teleop).
 
 Bindings: https://isaac-sim.github.io/IsaacLab/v2.0.1/source/overview/teleop_imitation.html
 
@@ -24,8 +24,8 @@ from pathlib import Path
 
 from isaaclab.app import AppLauncher
 
-_IL_PKG = Path(__file__).resolve().parents[2] / "il"
-_DEFAULT_SCHEMA = _IL_PKG / "config" / "dataset_schema_so101_sim.yaml"
+_ROBOT_LEARNING_PKG = Path(__file__).resolve().parents[2] / "robot_learning"
+_DEFAULT_SCHEMA = _ROBOT_LEARNING_PKG / "config" / "dataset_schema_so101_sim.yaml"
 
 parser = argparse.ArgumentParser(
     description="Keyboard teleoperation for SO101 follower in Isaac Sim."
@@ -33,7 +33,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "--record",
     action="store_true",
-    help="Record demonstrations (requires: pip install -e src/il[record])",
+    help="Record demonstrations (requires: pip install -e src/robot_learning[record])",
 )
 parser.add_argument(
     "--sink",
@@ -86,7 +86,7 @@ parser.add_argument(
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 
-from so101_teleop_runtime import prepare_launcher_args, ensure_il_on_path
+from so101_teleop_runtime import prepare_launcher_args, ensure_robot_learning_on_path
 
 prepare_launcher_args(args_cli)
 
@@ -102,12 +102,12 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.scene import InteractiveScene
 from isaaclab.utils.math import subtract_frame_transforms
 
-if str(_IL_PKG) not in sys.path:
-    sys.path.insert(0, str(_IL_PKG))
+if str(_ROBOT_LEARNING_PKG) not in sys.path:
+    sys.path.insert(0, str(_ROBOT_LEARNING_PKG))
 
-ensure_il_on_path()
+ensure_robot_learning_on_path()
 
-from humanoid_il.so101_sim import sim_rad_to_leader_raw
+from humanoid_robot_learning.so101_sim import sim_rad_to_leader_raw
 
 from so101_cfg import (
     GRIPPER_CLOSED,
@@ -121,7 +121,7 @@ from so101_teleop_runtime import (
     build_scene,
     build_sim_context,
     capture_record_images,
-    ensure_il_on_path,
+    ensure_robot_learning_on_path,
     maybe_apply_domain_rand,
 )
 
@@ -147,18 +147,18 @@ def _resolve_ee_body(robot) -> str:
 def _init_recorder(device: str):
     if not args_cli.record:
         return None, None
-    ensure_il_on_path()
+    ensure_robot_learning_on_path()
     try:
-        from humanoid_il.record_utils import resolve_config_path
-        from humanoid_il.schema import enabled_images, load_yaml
-        from humanoid_il.sim_recorder import SimLeRobotRecorder
+        from humanoid_robot_learning.record_utils import resolve_config_path
+        from humanoid_robot_learning.schema import enabled_images, load_yaml
+        from humanoid_robot_learning.sim_recorder import SimLeRobotRecorder
     except ImportError as exc:
         raise ImportError(
-            "Recording requires humanoid-il. Install with:\n"
-            "  pip install -e src/il[sim]"
+            "Recording requires humanoid-robot-learning. Install with:\n"
+            "  pip install -e src/robot_learning[sim]"
         ) from exc
 
-    schema_path = resolve_config_path(args_cli.schema, anchor=_IL_PKG)
+    schema_path = resolve_config_path(args_cli.schema, anchor=_ROBOT_LEARNING_PKG)
     cfg = load_yaml(schema_path)
     dataset_root = (
         Path(args_cli.dataset_root)

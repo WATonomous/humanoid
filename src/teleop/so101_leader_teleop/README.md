@@ -1,6 +1,6 @@
 # SO101 teleoperation (sim)
 
-Teleoperate the **SO101 follower** in Isaac Sim and optionally record with **`src/il`**.
+Teleoperate the **SO101 follower** in Isaac Sim and optionally record with **`src/robot_learning`**.
 
 | Script | Input | Hardware needed |
 |--------|-------|-----------------|
@@ -9,8 +9,8 @@ Teleoperate the **SO101 follower** in Isaac Sim and optionally record with **`sr
 
 Shared config: `so101_cfg.py`. Vial props: `vial_task_assets.py` → `assets/lerobot/so101_vial_task/`.
 Dataset schemas:
-- `src/il/config/dataset_schema_so101_sim.yaml` — joint-only
-- `src/il/config/dataset_schema_so101_sim_vision.yaml` — joints + ego + external D455 cameras
+- `src/robot_learning/config/dataset_schema_so101_sim.yaml` — joint-only
+- `src/robot_learning/config/dataset_schema_so101_sim_vision.yaml` — joints + ego + external D455 cameras
 
 By default **`--scene vial`** loads lightbox, mat, tray, three vials, and rack.
 
@@ -28,13 +28,13 @@ By default **`--scene vial`** loads lightbox, mat, tray, three vials, and rack.
 ./assets/lerobot/sync_so101_vial_assets.sh --full   # tray + arm_camera + 23 HDRI + vial props
 ```
 
-IL helpers: `humanoid_il/so101_cameras.py`, `humanoid_il/so101_domain_rand.py`.
+Helpers: `humanoid_robot_learning/so101_cameras.py`, `humanoid_robot_learning/so101_domain_rand.py`.
 Scene configs: `SO101VialTaskDRSceneCfg`, `SO101VialTaskDRVisionSceneCfg` in `so101_cfg.py`.
 
 ## Prerequisites
 
 - Isaac Lab (`/home/hy/IsaacLab/isaaclab.sh`)
-- `pip install -e ../../../il[record]`
+- `pip install -e ../../../robot_learning[record]`
 - **Vial scene:** assets under `assets/lerobot/` (run `./assets/lerobot/sync_so101_vial_assets.sh` if missing)
 - **Leader path only:** SO101 Leader USB, `sudo chmod 666 /dev/ttyACM0`
 
@@ -78,7 +78,7 @@ Record with cameras and per-episode randomization:
 ```bash
 PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p so101_leader_teleop.py \
   --record --cameras --domain_rand \
-  --schema ../../../il/config/dataset_schema_so101_sim_vision.yaml \
+  --schema ../../../robot_learning/config/dataset_schema_so101_sim_vision.yaml \
   --sink lerobot,hdf5 --num_episodes 10 --port /dev/ttyACM0 \
   --task_description "vial to rack"
 ```
@@ -95,7 +95,7 @@ For workshop-parity **Gym envs**, automatic success detection, policy eval, and 
 
 Task reference: `src/simulation/so101_vial_task/README.md` (`lerobot_agent.py`, `lerobot_eval.py`).
 
-The InteractiveScene teleop above stays the lightweight RGB collection path via `humanoid_il`.
+The InteractiveScene teleop above stays the lightweight RGB collection path via `humanoid_robot_learning`.
 
 ## Train (LeRobot, external)
 
@@ -117,10 +117,10 @@ lerobot-train \
 | `observation.images.external_D455` | lightbox D455 (with `--cameras`) | RGB 480×640 |
 | `task` | `--task_description` | string |
 
-Mapping: `src/il/humanoid_il/so101_sim.py`. Cameras: `so101_cameras.py`. Domain rand: `so101_domain_rand.py`.
+Mapping: `src/robot_learning/humanoid_robot_learning/so101_sim.py`. Cameras: `so101_cameras.py`. Domain rand: `so101_domain_rand.py`.
 
 ## Troubleshooting
 
 - **Leader not found**: `ls /dev/ttyACM*`, fix permissions.
 - **Keyboard does nothing**: click the 3D viewport first.
-- **`ImportError: lerobot`**: leader teleop only; keyboard recording needs `humanoid-il[record]`.
+- **`ImportError: lerobot`**: leader teleop only; keyboard recording needs `humanoid-robot-learning[record]`.

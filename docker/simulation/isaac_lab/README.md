@@ -76,7 +76,7 @@ export RL_RUNNERS=/workspace/humanoid/src/simulation/humanoid_rl/humanoid_rl/scr
 export PYTHON=/workspace/isaaclab/_isaac_sim/python.sh
 ```
 
-Aliases: `il-train`, `il-record`, `il-eval`, `rl-train`, `rl-play`.
+Aliases: `train-policy`, `record-demos`, `eval-policy`, `rl-train`, `rl-play`.
 
 Open the plain Isaac Sim GUI (no Python task). Container is root, so set:
 
@@ -107,7 +107,7 @@ Checkpoints: `logs/rsl_rl/<experiment>/` (same path on host under `~/Desktop/hum
 
 See [QUICKSTART.md](QUICKSTART.md) §4–5.
 
-1. `il-train` with `--policy.type=act`, `--policy.push_to_hub=false`, `--steps=N`
+1. `train-policy` with `--policy.type=act`, `--policy.push_to_hub=false`, `--steps=N`
 2. `cd $TASK_ROOT` then `lerobot_eval.py` with `--policy_type lerobot`
 3. **No `--rename_map`** for local ACT
 
@@ -142,7 +142,7 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_eval.py \
 
 | Topic | Detail |
 |-------|--------|
-| Entry point | `il-train` → `$PYTHON -m lerobot.scripts.lerobot_train` |
+| Entry point | `train-policy` → `$PYTHON -m lerobot.scripts.lerobot_train` |
 | Not | bare `lerobot-train`, not `lerobot.scripts.train` |
 | Duration flag | `--steps` (default 100k), not `--training.num_epochs` |
 | Hub upload | `--policy.push_to_hub=false` for local checkpoints |
@@ -171,7 +171,7 @@ exit
 
 | Symptom | Fix |
 |---------|-----|
-| `No module named torch` / packaging error | rebuild image `--no-cache` (see Dockerfile humanoid-il fix) |
+| `No module named torch` / packaging error | rebuild image `--no-cache` (see Dockerfile humanoid-robot-learning fix) |
 | `KeyError: 'ego'` on eval | remove `--rename_map` |
 | `can't open file .../scripts/lerobot_eval.py` | `cd $TASK_ROOT` |
 | `policy.repo_id missing` on train | add `--policy.push_to_hub=false` |

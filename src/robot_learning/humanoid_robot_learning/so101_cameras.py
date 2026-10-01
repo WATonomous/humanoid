@@ -1,4 +1,4 @@
-"""Capture SO101 sim camera RGB frames for ``humanoid_il`` recording."""
+"""Capture SO101 sim camera RGB frames for ``humanoid_robot_learning`` recording."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 
-from humanoid_il.schema import enabled_images
+from humanoid_robot_learning.schema import enabled_images
 
 # Schema image keys → InteractiveScene sensor names (see so101_cfg.py).
 SO101_CAMERA_SCENE_KEYS: dict[str, str] = {

@@ -124,7 +124,7 @@ RUN $PYTHON -m pip install --no-deps "rerun-sdk>=0.24.0,<0.27.0" && \
     $PYTHON -m pip install --upgrade pip
 
 # ── Humanoid packages (editable; repo bind-mounted at runtime) ────────────────
-COPY src/il ${HUMANOID_ROOT}/src/il
+COPY src/robot_learning ${HUMANOID_ROOT}/src/robot_learning
 COPY src/simulation/so101_vial_task ${HUMANOID_ROOT}/src/simulation/so101_vial_task
 COPY src/simulation/humanoid_scenes ${HUMANOID_ROOT}/src/simulation/humanoid_scenes
 COPY src/simulation/humanoid_rl ${HUMANOID_ROOT}/src/simulation/humanoid_rl
@@ -134,7 +134,7 @@ COPY src/pioneer_humanoid ${HUMANOID_ROOT}/src/pioneer_humanoid
 # Humanoid packages: --no-deps (never [sim]/[lerobot] extras — they pull torch/lerobot with deps)
 # and --no-build-isolation (use the base image's setuptools; pip's PEP-517 isolated build env
 # can't reach an index for setuptools>=61 in this builder).
-RUN $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/il" && \
+RUN $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/robot_learning" && \
     $PYTHON -m pip install -c /tmp/constraints.txt psutil && \
     $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/so101_vial_task" && \
     $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/humanoid_scenes" && \
@@ -190,9 +190,9 @@ export ISAACLAB=/workspace/isaaclab
 export HUMANOID_ROOT=/workspace/humanoid
 export TASK_ROOT=/workspace/humanoid/src/simulation/so101_vial_task
 export RL_RUNNERS=/workspace/humanoid/src/simulation/humanoid_rl/humanoid_rl/scripts
-alias il-train='$PYTHON -m lerobot.scripts.lerobot_train'
-alias il-record='cd $TASK_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_agent.py'
-alias il-eval='cd $TASK_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_eval.py'
+alias train-policy='$PYTHON -m lerobot.scripts.lerobot_train'
+alias record-demos='cd $TASK_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_agent.py'
+alias eval-policy='cd $TASK_ROOT && PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_eval.py'
 # humanoid_rl / humanoid_rl_tasks are pip-installed (editable). Checkpoints go to
 # $HUMANOID_ROOT/outputs/rl/ regardless of cwd.
 alias rl-train='cd $HUMANOID_ROOT && $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/train.py'
