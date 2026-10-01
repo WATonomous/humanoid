@@ -89,7 +89,7 @@ humanoid-record --sink lerobot,hdf5 --num_episodes 10
 humanoid-record --dry_run --sink lerobot,hdf5 --num_episodes 2 --episode_time_s 3
 ```
 
-Output: `datasets/pioneer_v1_left_arm/real/001/` with LeRobot tree + `trajectories.h5`.
+Output: `<repo>/datasets/pioneer_v1_left_arm/real/001/` (next free number per session) with LeRobot tree + `trajectories.h5`.
 
 ## Isaac Sim (keyboard teleop)
 
@@ -105,11 +105,11 @@ PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p keyboard_teleop.py --record \
 ```
 
 Uses `config/dataset_schema_pioneer_v1.yaml`: 6 joints (rad) + gripper closure (0 open, 1 closed), 25 fps
-(every 4th physics step). Cameras (640×480 RGB, defined in `src/teleop/teleop_cameras.py`): `ego` and
+(every 4th physics step). Cameras (640×480 RGB, defined in `pioneer_humanoid/cameras.py`): `ego` and
 `wrist_left` by default, `wrist_right` off. Override with `--cameras ego`, `--cameras ego,wrist_left,wrist_right`
 or `--cameras none`. Same S/N/D/Esc keys as real-arm recording.
 
-Output: `datasets/pioneer_v1_left_arm/sim/001/`.
+Output: `<repo>/datasets/pioneer_v1_left_arm/sim/` (later sessions append to the same dataset).
 
 ## Train (LeRobot)
 
@@ -119,8 +119,8 @@ Output: `datasets/pioneer_v1_left_arm/sim/001/`.
 
 ```bash
 lerobot-train \
-  --dataset.repo_id=humanoid/local_left_arm \
-  --dataset.root=datasets/pioneer_v1_left_arm/real/001 \
+  --dataset.repo_id=humanoid/pioneer_v1_left_arm \
+  --dataset.root=datasets/pioneer_v1_left_arm/sim \
   --policy.type=act \
   --output_dir=outputs/train/humanoid_act_v1
 ```

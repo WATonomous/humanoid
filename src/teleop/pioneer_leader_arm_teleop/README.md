@@ -37,7 +37,7 @@ Scenes: `bare` (default), `push`, `vial_rack`, or any scene registered in `human
 - **Home pose:** hold the leader with the elbow bent like the sim arm and the gripper **open** at startup and whenever you press **R**. Leader zero maps to the sim home pose.
 - **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, restart with that entry flipped in `--signs` (order A..G, default `1,-1,-1,1,1,-1,1`).
 - **R:** re-zero the leader and reset the arm and every object in the scene. During a take, it also discards the take and recording restarts from home.
-- **`--record`:** `S` start · `N` save (then auto-reset) · `D` discard → `datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
+- **`--record`:** `S` start · `N` save (then auto-reset) · `D` discard → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
 - Other flags: `--port`, `--baud`, `--scale` (overall gain), `--filter-alpha` (target smoothing, default 0.35).
 
 Targets are clamped to the arm's URDF limits. Wrist damping is lowered to 2.5 in this script only, so the sim wrist keeps up with the leader.

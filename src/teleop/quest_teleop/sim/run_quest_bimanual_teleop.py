@@ -65,8 +65,6 @@ _SIM_DIR = _AUTONOMY / "simulation"
 # pioneer_humanoid package (canonical arm config). Editable-installed in the image; this fallback
 # keeps a bare bind-mounted checkout working.
 sys.path.insert(0, str(_AUTONOMY / "pioneer_humanoid"))
-# src/teleop/ for the shared teleop_cameras module
-sys.path.insert(0, str(_AUTONOMY / "teleop"))
 _ROBOT_LEARNING_PKG = _AUTONOMY / "robot_learning"
 
 
@@ -88,7 +86,7 @@ parser.add_argument("--schema", type=str,
 parser.add_argument("--sink", type=str, default="lerobot",
                     help="Output sinks when --record: lerobot, hdf5, or lerobot,hdf5")
 parser.add_argument("--dataset_root", type=str, default=None,
-                    help="Override record.root from schema")
+                    help="Output directory (default: <repo>/<schema record.root>)")
 parser.add_argument("--num_episodes", type=int, default=10)
 parser.add_argument("--task_description", type=str, default="pick up box and place it in container")
 parser.add_argument("--publish-real-left-arm", action="store_true",
@@ -137,7 +135,7 @@ from isaaclab.utils.math import (  # noqa: E402
 
 # No aliasing: LEFT_* is the L-suffixed chain (physical left = left Quest wrist), RIGHT_* the
 # unsuffixed one. This block used to swap them to undo a reversed upstream; don't bring that back.
-from teleop_cameras import (  # noqa: E402
+from quest_cameras import (  # noqa: E402
     WRIST_CAM_POS,
     make_ego_cam_cfg,
     make_wrist_cam_cfg,
@@ -652,7 +650,7 @@ _WRIST_CAM_FRAME_PATH_RIGHT = _POV_STATIC_DIR / "wrist_cam_right.jpg"
 # position instead put the marker at the operator's physical wrist. Temp-file-then-renamed.
 _MARKER_UV_PATH = _POV_STATIC_DIR / "marker_uv.json"
 
-# Draws a 2cm green sphere at teleop_cameras.WRIST_CAM_POS so the camera's mount point is
+# Draws a 2cm green sphere at quest_cameras.WRIST_CAM_POS so the camera's mount point is
 # visible in the viewport while tuning it. Visual only -- no collision or physics. Turn it off
 # before recording: it sits inside link6l and can appear in ego_cam/wrist_cam frames.
 _SHOW_WRIST_CAM_MARKER = False
@@ -686,7 +684,7 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
 
     # Data-collection / HUD cameras, not the headset display (the RSD455 pair, attached at
     # runtime). wrist_cam is on link6l (LEFT arm), wrist_cam_right its mirror on link6. Pose and
-    # lens live in src/teleop/teleop_cameras.py -- adjust there, not here. wrist_cam keeps its
+    # lens live in quest_cameras.py -- adjust there, not here. wrist_cam keeps its
     # unsuffixed name because _capture_record_images, the dataset schema, and the keyboard
     # teleop scenes all bind that key.
     ego_cam = make_ego_cam_cfg()
@@ -1106,7 +1104,7 @@ def _init_recorder(device: str):
         return None, None
     _ensure_robot_learning_on_path()
     try:
-        from humanoid_robot_learning.record_utils import resolve_config_path
+        from humanoid_robot_learning.record_utils import resolve_config_path, resolve_dataset_root
         from humanoid_robot_learning.schema import enabled_images, load_yaml
         from humanoid_robot_learning.sim_recorder import SimLeRobotRecorder
     except ImportError as exc:
@@ -1114,10 +1112,7 @@ def _init_recorder(device: str):
 
     schema_path = resolve_config_path(args_cli.schema, anchor=_ROBOT_LEARNING_PKG)
     cfg = load_yaml(schema_path)
-    dataset_root = (
-        Path(args_cli.dataset_root) if args_cli.dataset_root
-        else Path((cfg.get("record") or {}).get("root", "datasets/record_wato_arm_v2_push_box"))
-    )
+    dataset_root = resolve_dataset_root(cfg, args_cli.dataset_root, default="datasets/record_wato_arm_v2_push_box")
     cameras = {name: {"height": spec["height"], "width": spec["width"]} for name, spec in enabled_images(cfg).items()}
     # device="cpu" always: the recorder's multi-GB circular frame buffer on "cuda" competes with
     # Isaac Sim's own GPU memory and silently kills the process. buffer_capacity_s=30 (not the

@@ -11,7 +11,7 @@ from typing import Any
 
 from humanoid_robot_learning.record_loop import run_record_loop
 from humanoid_robot_learning.recorder import RecordSettings
-from humanoid_robot_learning.record_utils import resolve_config_path
+from humanoid_robot_learning.record_utils import resolve_config_path, resolve_dataset_root
 from humanoid_robot_learning.arm_pose_io import ARM_POSE_JOINT_NAMES
 from humanoid_robot_learning.schema import enabled_images, load_yaml, select_cameras
 from humanoid_robot_learning.sinks import parse_sink_names
@@ -43,7 +43,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--dataset_root",
         type=str,
         default=None,
-        help="Output directory (default: <schema record.root>/real)",
+        help="Output directory (default: <repo>/<schema record.root>/real)",
     )
     parser.add_argument(
         "--sink",
@@ -156,10 +156,7 @@ def main(argv: list[str] | None = None) -> int:
     image_shapes = {k: (int(v["height"]), int(v["width"])) for k, v in enabled_images(cfg).items()}
     dim = len(cfg["joint_names"])
 
-    if args.dataset_root:
-        record_root = Path(args.dataset_root)
-    else:
-        record_root = Path((cfg.get("record") or {}).get("root", "datasets/pioneer_v1_left_arm")) / "real"
+    record_root = resolve_dataset_root(cfg, args.dataset_root, subdir="real")
 
     settings = RecordSettings(
         num_episodes=args.num_episodes,
