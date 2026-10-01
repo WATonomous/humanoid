@@ -8,9 +8,8 @@
 #   tools/isaac_harness/isaac_session.sh start       # if not already running
 #   tools/isaac_harness/scenes/bimanual_vial_rack.sh
 #
-# Geometry matches the real pick_place_bimanual task's table
-# (humanoid_rl_tasks/pick_place/datagen/task_geometry.py: TABLE_TOP_Z=0.05,
-# TABLE_DIMS=(0.9,1.2,0.05), TABLE_X_MIN=0.18) and the so101_vial_task's
+# Table geometry from the archived pick_place_bimanual task
+# (TABLE_TOP_Z=0.05, TABLE_DIMS=(0.9,1.2,0.05), TABLE_X_MIN=0.18) and the so101_vial_task's
 # rack/vial assets (assets/lerobot/so101_vial_task/usd/).
 #
 # Vial spawn Z is 0.12, not the vials' resting height (~0.1) — spawning
@@ -27,7 +26,7 @@ C="python3 $TOOLS_DIR/isaac_session_client.py"
 
 VIAL_ASSETS="/workspace/humanoid/assets/lerobot/so101_vial_task/usd"
 
-# Table top lowered from the real pick_place_bimanual task's TABLE_TOP_Z (0.05)
+# Table top lowered from the archived pick_place_bimanual task's TABLE_TOP_Z (0.05)
 # to -0.25 for this visualization scene specifically — 0.05 (and an initial
 # attempt at -0.10) both sat too high for comfortable manipulation reach
 # relative to the robot's shoulder height. This is a demo-scene-only change;

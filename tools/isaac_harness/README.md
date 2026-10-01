@@ -101,8 +101,7 @@ The GUI path took real debugging to get to a *working* headless path: naively
 calling `omni.kit.viewport.utility.capture_viewport_to_file()` in headless
 mode silently no-ops — `get_active_viewport()` needs an actual GUI viewport
 that doesn't exist headless even with `--enable_cameras`. Route through an
-IsaacLab `Camera` sensor instead (same mechanism `pick_place_bimanual`'s task
-cameras already use).
+IsaacLab `Camera` sensor instead.
 
 **If Claude is driving this and it's not obvious which mode fits, it should
 ask which one you want** rather than silently picking one.

@@ -1,3 +1,0 @@
-# Stacking variant: place the object on top of the blue base cube.
-place:
-  mode: stack

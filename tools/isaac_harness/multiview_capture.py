@@ -32,7 +32,7 @@ def capture_views_headless(sim, simulation_app, views, out_dir="/tmp/isaac_multi
     # in headless mode — get_active_viewport() needs an actual GUI viewport,
     # which doesn't exist headless even with --enable_cameras. The real
     # headless render path in IsaacLab is a Camera sensor reading
-    # .data.output["rgb"] (same as pick_place_bimanual's cameras) and saving
+    # .data.output["rgb"] and saving
     # that tensor with PIL.
     import numpy as np
     import torch

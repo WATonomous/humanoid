@@ -722,9 +722,7 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
             collision_props=sim_utils.CollisionPropertiesCfg(),
         ),
     )
-    # Graspable box -- dynamic rigid body, same rigid/mass/collision pattern
-    # as pick_place_env_cfg.py's _cuboid_object_cfg, but referencing the
-    # imported block.usd mesh instead of a procedural CuboidCfg.
+    # Graspable box -- dynamic rigid body, using the imported block.usd mesh.
     box: RigidObjectCfg = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Box",
         init_state=RigidObjectCfg.InitialStateCfg(pos=_BOX_POS),
@@ -744,8 +742,7 @@ class ArmV2SceneCfg(InteractiveSceneCfg):
         ),
     )
     # Container -- kinematic (doesn't get knocked around, just needs to
-    # collide with the box), same pattern as pick_place_env_cfg.py's
-    # _tray_cfg.
+    # collide with the box).
     container: RigidObjectCfg = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Container",
         init_state=RigidObjectCfg.InitialStateCfg(pos=_CONTAINER_POS, rot=_CONTAINER_ROT),
