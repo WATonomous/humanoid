@@ -209,7 +209,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     left_arm_ids = robot_entity_cfg.joint_ids
     right_gripper_ids = _joint_ids(robot, RIGHT_GRIPPER_JOINTS)
     left_joint_ids = _joint_ids(robot, LEFT_ARM_JOINTS)
-    right_gripper_ids = _joint_ids(robot, ["joint7", "joint8"])
     left_default_pos = robot.data.default_joint_pos[:, left_joint_ids].clone()
 
     gripper_open_targets = torch.tensor(
