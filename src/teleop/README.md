@@ -17,6 +17,7 @@ The repo is bind-mounted at `/workspace/humanoid`. Shared arm config + IK helper
 | [`quest_isaac_teleop/`](quest_isaac_teleop/) | Quest 2 hand tracking | pioneer bimanual, both arms | weighted-DLS fingertip IK; see its README (certs, adb, setup) |
 | [`quest_teleop/`](quest_teleop/) | — | — | WebXR page + WSS bridge → `/quest_teleop` (C++ ROS 2 pkg); see its README |
 | **`keyboard_teleop/`** | keyboard + IK | pioneer bimanual, left arm | see below |
+| [`pioneer_leader_teleop/`](pioneer_leader_teleop/) | 7-servo leader arm (USB), no IK | pioneer bimanual, left arm | any `--scene`, `--record`; see its README |
 | [`task_space_controller/`](task_space_controller/) | viewport pose gizmo + IK | pioneer bimanual, left arm | `--publish-real-left-arm` drives the real arm — **its README covers the CAN pipeline + e-stop** |
 | `humanoid-record` (CLI) | ROS topics | real pioneer arm | `src/robot_learning` |
 
