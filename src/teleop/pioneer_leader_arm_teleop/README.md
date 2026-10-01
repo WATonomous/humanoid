@@ -14,22 +14,29 @@ joint to joint with no IK, in any registered scene. Optional recording in the sh
 | F | 7 | `joint6l` wrist | −1 | 1.0 |
 | G | 6 | gripper (41.5° open → 0° closed) | +1 | — |
 
-## Bring-up (no simulator)
-
-1. Plug in the leader: `ls -l /dev/ttyACM0`. You need the `dialout` group (`sudo usermod -aG dialout $USER`, then log out and in); in Docker, pass the device through.
-2. `python encoder_test.py`: move each joint by hand; all 7 servos should respond (`--ids 2,3 --raw` for a subset with encoder counts).
-
 ## Run
 
+The leader plugs in over USB (`/dev/ttyACM0`); the `simulation_isaac` container is privileged and mounts `/dev`. On the host you need the `dialout` group (`sudo usermod -aG dialout $USER`, then log out and in).
+
 ```bash
-# inside the simulation_isaac container:
+# on the host, once: build and start the Isaac container
+./watod build simulation_isaac_dev        # rebuild after pulling Dockerfile or package changes
+./watod up -d
+./watod -t simulation_isaac_dev           # shell inside the container
+
+# inside the container
 cd /workspace/humanoid/src/teleop/pioneer_leader_arm_teleop
-PYTHONPATH=$(pwd) /workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --scene push [--record]
+$PYTHON encoder_test.py                   # first time: all 7 servos respond? (--ids 2,3 --raw for a subset)
+
+PYTHONPATH=$(pwd) /workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --scene push
+PYTHONPATH=$(pwd) /workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --scene vial_rack --record
 ```
+
+Scenes: `bare` (default), `push`, `vial_rack`, or any scene registered in `humanoid_scenes` (an unknown name lists them).
 
 - **Home pose:** hold the leader with the elbow bent like the sim arm and the gripper **open** at startup and whenever you press **R**. Leader zero maps to the sim home pose.
 - **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, restart with that entry flipped in `--signs` (order A..G, default `1,-1,-1,1,1,-1,1`).
-- **R:** re-zero the leader and reset the arm and every object in the scene.
+- **R:** re-zero the leader and reset the arm and every object in the scene. During a take, it also discards the take and recording restarts from home.
 - **`--record`:** `S` start · `N` save (then auto-reset) · `D` discard → `datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
 - Other flags: `--port`, `--baud`, `--scale` (overall gain), `--filter-alpha` (target smoothing, default 0.35).
 
