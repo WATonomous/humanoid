@@ -111,3 +111,47 @@ def make_wrist_cam_cfg(body: str = "link6l", name: str = "wrist_cam", mirror: bo
         update_period=0.0,
         data_types=["rgb"],
     )
+
+
+# Recording cameras (keyboard_teleop --record), from PR #296's camera USD.
+# name: (parent link, prim, pos, rot wxyz [opengl], focal length, horizontal aperture, clipping)
+#   ego          RealSense D455 colour sensor, 40 deg down, ~90 deg hFOV
+#   wrist_left   between the fingers, ~60 deg hFOV
+#   wrist_right  mirror of wrist_left
+_RECORD_CAMS = {
+    "ego": (
+        "base_link", "record_ego_cam",
+        (0.08421, -0.00008, 0.26038), (0.640856, 0.298836, -0.298836, -0.640856),
+        1.93, 3.896, (0.01, 100.0),
+    ),
+    "wrist_left": (
+        "link6l", "record_wrist_cam_left",
+        (0.06179, 0.05297, -0.07077), (0.696364, -0.122788, 0.122788, -0.696364),
+        18.147562, 20.955, (0.05, 5.0),
+    ),
+    "wrist_right": (
+        "link6", "record_wrist_cam_right",
+        (0.06179, -0.04397, -0.07077), (0.696364, -0.122788, 0.122788, -0.696364),
+        18.147562, 20.955, (0.05, 5.0),
+    ),
+}
+RECORD_CAM_NAMES = tuple(_RECORD_CAMS)
+
+
+def make_record_cam_cfg(name: str, height: int, width: int) -> CameraCfg:
+    """CameraCfg for recording camera ``name``. Vertical aperture follows the aspect ratio (no stretch)."""
+    body, prim, pos, rot, focal, h_aperture, clip = _RECORD_CAMS[name]
+    return CameraCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/" + f"{body}/{prim}",
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=focal,
+            horizontal_aperture=h_aperture,
+            vertical_aperture=h_aperture * height / width,
+            clipping_range=clip,
+        ),
+        offset=CameraCfg.OffsetCfg(pos=pos, rot=rot, convention="opengl"),
+        height=height,
+        width=width,
+        update_period=0.0,
+        data_types=["rgb"],
+    )

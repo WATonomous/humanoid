@@ -12,6 +12,11 @@ Teleop bindings: https://isaac-sim.github.io/IsaacLab/v2.0.1/source/overview/tel
   T/G     Rotate along y-axis
   C/V     Rotate along z-axis
   R       Reset left arm to default pose
+
+Recording (--record, src/il/config/dataset_schema_sim.yaml), 25 fps = every 4th physics step:
+  observation.state  6 joints (rad) + gripper closure (0 open .. 1 closed, mean of both fingers)
+  action             6 IK targets (rad) + gripper command (1 = K closed, 0 = open)
+  observation.images.<name>  cameras enabled in the schema, or --cameras ego,wrist_left / none
 """
 
 import argparse
@@ -26,6 +31,8 @@ _DEFAULT_SIM_SCHEMA = _IL_PKG / "config" / "dataset_schema_sim.yaml"
 # pioneer_humanoid package (canonical arm config). Editable-installed in the image; this fallback
 # keeps a bare bind-mounted checkout working.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "pioneer_humanoid"))
+# src/teleop/ for teleop_cameras
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 parser = argparse.ArgumentParser(description="Keyboard teleoperation for the Pioneer bimanual arm (left only).")
 parser.add_argument(
@@ -60,8 +67,38 @@ parser.add_argument(
     help="scene name: 'bare' (arm only), 'push', or any scene registered in "
     "humanoid_scenes (validated after launch — pass an unknown name to list them)",
 )
+parser.add_argument(
+    "--cameras",
+    type=str,
+    default=None,
+    help="cameras to record, e.g. 'ego,wrist_left' or 'none' (default: schema's enabled images)",
+)
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
+if args_cli.cameras is not None and not args_cli.record:
+    parser.error("--cameras requires --record")
+
+# Schema is read before launch: recording cameras need --enable_cameras.
+_schema_path, _schema_cfg, _record_images = None, None, {}
+if args_cli.record:
+    if str(_IL_PKG) not in sys.path:
+        sys.path.insert(0, str(_IL_PKG))
+    from humanoid_il.record_utils import resolve_config_path
+    from humanoid_il.schema import enabled_images, load_yaml
+
+    _schema_path = resolve_config_path(args_cli.schema, anchor=_IL_PKG)
+    _schema_cfg = load_yaml(_schema_path)
+    if args_cli.cameras is None:
+        _record_images = enabled_images(_schema_cfg)
+    elif args_cli.cameras != "none":
+        _all_images = _schema_cfg.get("images") or {}
+        _names = [n.strip() for n in args_cli.cameras.split(",") if n.strip()]
+        _unknown = [n for n in _names if n not in _all_images]
+        if _unknown:
+            parser.error(f"--cameras {_unknown} not in {_schema_path} images {list(_all_images)}")
+        _record_images = {n: _all_images[n] for n in _names}
+    if _record_images:
+        args_cli.enable_cameras = True
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
@@ -89,6 +126,8 @@ from pioneer_humanoid.bimanual_arm import (
     LEFT_GRIPPER_JOINTS as RIGHT_GRIPPER_JOINTS,
     LEFT_FINGER_TIP_BODIES as RIGHT_FINGER_TIP_BODIES,
     RIGHT_ARM_JOINTS as LEFT_ARM_JOINTS,
+    RIGHT_GRIPPER_JOINTS as HELD_GRIPPER_JOINTS,
+    RIGHT_GRIPPER_OPEN as HELD_GRIPPER_OPEN,
     apply_joint_limits,
     resolve_joint_name,
     resolve_body_ids,
@@ -96,6 +135,18 @@ from pioneer_humanoid.bimanual_arm import (
     compute_tip_ik_jacobian,
 )
 from humanoid_scenes import list_scenes, make_scene_cfg, scene_camera
+from teleop_cameras import RECORD_CAM_NAMES, make_record_cam_cfg
+
+# Recorded joint order (real-robot names, joint_command_core.cpp); must match the schema.
+_RECORD_JOINT_NAMES = [
+    "left_shoulder_pitch",
+    "left_shoulder_roll",
+    "left_shoulder_yaw",
+    "left_elbow_pitch",
+    "left_elbow_roll",
+    "left_wrist_pitch",
+    "left_gripper",
+]
 
 
 def _joint_ids(robot, names: list[str]) -> list[int]:
@@ -103,14 +154,13 @@ def _joint_ids(robot, names: list[str]) -> list[int]:
     return [name_to_id[resolve_joint_name(robot, name)] for name in names]
 
 
-def _init_recorder(device: str):
+def _init_recorder(device: str, sim_dt: float):
+    """Return (recorder, record_every): record one frame every `record_every` physics steps."""
     if not args_cli.record:
-        return None, None
+        return None, 0
     if str(_IL_PKG) not in sys.path:
         sys.path.insert(0, str(_IL_PKG))
     try:
-        from humanoid_il.record_utils import resolve_config_path
-        from humanoid_il.schema import enabled_images, load_yaml
         from humanoid_il.sim_recorder import SimLeRobotRecorder
     except ImportError as exc:
         raise ImportError(
@@ -118,37 +168,50 @@ def _init_recorder(device: str):
             "  pip install -e src/il[sim]"
         ) from exc
 
-    schema_path = resolve_config_path(args_cli.schema, anchor=_IL_PKG)
-    cfg = load_yaml(schema_path)
+    schema_path, cfg = _schema_path, _schema_cfg
     dataset_root = (
         Path(args_cli.dataset_root)
         if args_cli.dataset_root
         else Path((cfg.get("record") or {}).get("root", "datasets/record_sim"))
     )
+    if list(cfg["joint_names"]) != _RECORD_JOINT_NAMES:
+        raise ValueError(
+            f"{schema_path}: joint_names must be {_RECORD_JOINT_NAMES} (6 arm joints + gripper), "
+            f"got {list(cfg['joint_names'])}"
+        )
+    fps = int(cfg.get("fps", 25))
+    physics_hz = 1.0 / sim_dt
+    record_every = round(physics_hz / fps)
+    if record_every < 1 or abs(record_every * fps - physics_hz) > 1e-6:
+        raise ValueError(f"{schema_path}: fps={fps} must divide the physics rate ({physics_hz:g} Hz)")
     cameras = {
         name: {"height": spec["height"], "width": spec["width"]}
-        for name, spec in enabled_images(cfg).items()
+        for name, spec in _record_images.items()
     }
     recorder = SimLeRobotRecorder(
         task_name=args_cli.task_description,
         repo_id=str(cfg.get("repo_id", "humanoid/sim")),
         dataset_root=dataset_root,
-        fps=int(cfg.get("fps", 30)),
+        fps=fps,
         device=device,
         joint_names=list(cfg["joint_names"]),
         cameras=cameras,
         num_episodes=args_cli.num_episodes,
+        robot_type=str(cfg.get("robot_id", "pioneer_v1_left_arm_sim")),
+        rate_limit=False,
     )
     recorder.init_dataset()
-    print(f"[RECORD] Writing to {dataset_root}")
+    print(f"[RECORD] Writing to {dataset_root} at {fps} fps (every {record_every} physics steps)")
+    if cameras:
+        print(f"[RECORD] Cameras: {sorted(cameras)}")
     print("[RECORD] Keys: S=start, N=save episode, D=discard, Esc=stop")
-    return recorder, cfg
+    return recorder, record_every
 
 
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     robot = scene["robot"]
     sim_dt = sim.get_physics_dt()
-    recorder, record_cfg = _init_recorder(sim.device)
+    recorder, record_every = _init_recorder(sim.device, sim_dt)
 
     import numpy as np
 
@@ -189,7 +252,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     left_arm_ids = robot_entity_cfg.joint_ids
     right_gripper_ids = _joint_ids(robot, RIGHT_GRIPPER_JOINTS)
     left_joint_ids = _joint_ids(robot, LEFT_ARM_JOINTS)
-    right_gripper_ids = _joint_ids(robot, ["joint7", "joint8"])
+    held_gripper_ids = _joint_ids(robot, HELD_GRIPPER_JOINTS)
     left_default_pos = robot.data.default_joint_pos[:, left_joint_ids].clone()
 
     joint_pos = robot.data.default_joint_pos.clone()
@@ -202,6 +265,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     )
     gripper_closed_targets = torch.tensor(
         [[GRIPPER_CLOSED[name] for name in RIGHT_GRIPPER_JOINTS]],
+        device=sim.device,
+    )
+    held_gripper_open_targets = torch.tensor(
+        [[HELD_GRIPPER_OPEN[name] for name in HELD_GRIPPER_JOINTS]],
         device=sim.device,
     )
 
@@ -238,7 +305,12 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     print("[INFO] Teleoperating left arm only. Right arm is held at default pose.")
     print("[INFO] Click the 3D viewport window, then W/A/S/D/Q/E to move. Hold SHIFT for fine control.")
 
+    # Called by tick() only on recorded frames.
+    def read_images():
+        return {name: scene[f"record_cam_{name}"].data.output["rgb"][0, ..., :3] for name in _record_images}
+
     debug_steps = 0
+    physics_step = 0
     while simulation_app.is_running():
         if recorder is not None and recorder.is_complete:
             print("[RECORD] Session complete.")
@@ -316,10 +388,17 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         joint_pos_des = diff_ik_controller.compute(tip_pos_b, tip_quat_b, jacobian, joint_pos)
         robot.set_joint_position_target(joint_pos_des, joint_ids=left_arm_ids)
 
-        if recorder is not None:
-            state = joint_pos[0].detach().cpu().numpy().astype(np.float32)
-            action = joint_pos_des[0].detach().cpu().numpy().astype(np.float32)
-            recorder.tick(action, state, {})
+        if recorder is not None and physics_step % record_every == 0:
+            finger_q = robot.data.joint_pos[:, right_gripper_ids]
+            closure = (
+                ((finger_q - gripper_open_targets) / (gripper_closed_targets - gripper_open_targets))
+                .mean(dim=-1)
+                .clamp(0.0, 1.0)
+            )
+            gripper_cmd = torch.full_like(closure, 1.0 if close_gripper else 0.0)
+            state = torch.cat([joint_pos[0], closure]).detach().cpu().numpy().astype(np.float32)
+            action = torch.cat([joint_pos_des[0], gripper_cmd]).detach().cpu().numpy().astype(np.float32)
+            recorder.tick(action, state, read_images)
 
         # Hold gripper fingers at synchronized open/closed pair (one GL40 motor on hardware).
         # High stiffness in cfg + zero velocity target prevents bounce when the arm moves.
@@ -328,15 +407,17 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         robot.set_joint_position_target(gripper_targets, joint_ids=right_gripper_ids)
         robot.set_joint_velocity_target(zero_gripper_vel, joint_ids=right_gripper_ids)
 
-        # Keep right arm fixed at default pose (including coupled gripper fingers)
+        # Keep right arm fixed at default pose, with its gripper fingers held open
         robot.set_joint_position_target(left_default_pos, joint_ids=left_joint_ids)
+        robot.set_joint_position_target(held_gripper_open_targets, joint_ids=held_gripper_ids)
         robot.set_joint_velocity_target(
-            torch.zeros(1, len(right_gripper_ids), device=sim.device),
-            joint_ids=right_gripper_ids,
+            torch.zeros(1, len(held_gripper_ids), device=sim.device),
+            joint_ids=held_gripper_ids,
         )
 
         scene.write_data_to_sim()
         sim.step()
+        physics_step += 1
         scene.update(sim_dt)
 
     if recorder is not None:
@@ -353,6 +434,12 @@ def main():
     sim.set_camera_view(*(scene_camera(args_cli.scene) or ([2.5, 2.5, 2.0], [0.0, 0.0, 0.8])))
 
     scene_cfg = make_scene_cfg(args_cli.scene, BIMANUAL_ARM_CFG, num_envs=1, env_spacing=2.0)
+    # Added after the robot: cameras are parented under it, and entities are created in order.
+    unknown = sorted(set(_record_images) - set(RECORD_CAM_NAMES))
+    if unknown:
+        raise SystemExit(f"{_schema_path}: unknown images {unknown}; available: {list(RECORD_CAM_NAMES)}")
+    for name, spec in _record_images.items():
+        setattr(scene_cfg, f"record_cam_{name}", make_record_cam_cfg(name, int(spec["height"]), int(spec["width"])))
     scene = InteractiveScene(scene_cfg)
 
     sim.reset()
