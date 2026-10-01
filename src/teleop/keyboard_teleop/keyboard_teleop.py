@@ -19,6 +19,9 @@ the schema's joint_names order (left_shoulder_pitch .. left_wrist_pitch, left_gr
                      the mean over both fingers of (q - open) / (closed - open), clamped to [0, 1]
   action             6 IK joint targets (rad) + gripper command (1.0 if K commands closed, else 0.0)
 Physics runs at 100 Hz; one frame is recorded every 4th physics step (25 fps).
+Cameras: if the schema lists images (e.g. --schema config/dataset_schema_sim_cams.yaml, relative to src/il),
+those cameras (ego, wrist_left; see teleop_cameras.make_record_cam_cfg) are added to the scene,
+recorded as observation.images.<name>, and --enable_cameras is turned on automatically.
 """
 
 import argparse
@@ -33,6 +36,8 @@ _DEFAULT_SIM_SCHEMA = _IL_PKG / "config" / "dataset_schema_sim.yaml"
 # pioneer_humanoid package (canonical arm config). Editable-installed in the image; this fallback
 # keeps a bare bind-mounted checkout working.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "pioneer_humanoid"))
+# src/teleop/ for the shared teleop_cameras module
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 parser = argparse.ArgumentParser(description="Keyboard teleoperation for the Pioneer bimanual arm (left only).")
 parser.add_argument(
@@ -70,6 +75,20 @@ parser.add_argument(
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 
+# Read the schema before launch: cameras in it need --enable_cameras at AppLauncher time.
+_schema_path, _schema_cfg, _record_images = None, None, {}
+if args_cli.record:
+    if str(_IL_PKG) not in sys.path:
+        sys.path.insert(0, str(_IL_PKG))
+    from humanoid_il.record_utils import resolve_config_path
+    from humanoid_il.schema import enabled_images, load_yaml
+
+    _schema_path = resolve_config_path(args_cli.schema, anchor=_IL_PKG)
+    _schema_cfg = load_yaml(_schema_path)
+    _record_images = enabled_images(_schema_cfg)
+    if _record_images:
+        args_cli.enable_cameras = True
+
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
@@ -105,6 +124,7 @@ from pioneer_humanoid.bimanual_arm import (
     compute_tip_ik_jacobian,
 )
 from humanoid_scenes import list_scenes, make_scene_cfg, scene_camera
+from teleop_cameras import RECORD_CAM_NAMES, make_record_cam_cfg
 
 # Recorded joint order (real-robot names, joint_command_core.cpp); must match the schema.
 _RECORD_JOINT_NAMES = [
@@ -130,8 +150,6 @@ def _init_recorder(device: str, sim_dt: float):
     if str(_IL_PKG) not in sys.path:
         sys.path.insert(0, str(_IL_PKG))
     try:
-        from humanoid_il.record_utils import resolve_config_path
-        from humanoid_il.schema import enabled_images, load_yaml
         from humanoid_il.sim_recorder import SimLeRobotRecorder
     except ImportError as exc:
         raise ImportError(
@@ -139,8 +157,7 @@ def _init_recorder(device: str, sim_dt: float):
             "  pip install -e src/il[sim]"
         ) from exc
 
-    schema_path = resolve_config_path(args_cli.schema, anchor=_IL_PKG)
-    cfg = load_yaml(schema_path)
+    schema_path, cfg = _schema_path, _schema_cfg
     dataset_root = (
         Path(args_cli.dataset_root)
         if args_cli.dataset_root
@@ -158,7 +175,7 @@ def _init_recorder(device: str, sim_dt: float):
         raise ValueError(f"{schema_path}: fps={fps} must divide the physics rate ({physics_hz:g} Hz)")
     cameras = {
         name: {"height": spec["height"], "width": spec["width"]}
-        for name, spec in enabled_images(cfg).items()
+        for name, spec in _record_images.items()
     }
     recorder = SimLeRobotRecorder(
         task_name=args_cli.task_description,
@@ -169,10 +186,13 @@ def _init_recorder(device: str, sim_dt: float):
         joint_names=list(cfg["joint_names"]),
         cameras=cameras,
         num_episodes=args_cli.num_episodes,
+        robot_type=str(cfg.get("robot_id", "pioneer_v1_left_arm_sim")),
         rate_limit=False,
     )
     recorder.init_dataset()
     print(f"[RECORD] Writing to {dataset_root} at {fps} fps (every {record_every} physics steps)")
+    if cameras:
+        print(f"[RECORD] Cameras: {sorted(cameras)}")
     print("[RECORD] Keys: S=start, N=save episode, D=discard, Esc=stop")
     return recorder, record_every
 
@@ -274,6 +294,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     print("[INFO] Teleoperating left arm only. Right arm is held at default pose.")
     print("[INFO] Click the 3D viewport window, then W/A/S/D/Q/E to move. Hold SHIFT for fine control.")
 
+    # Recorded images: read from the camera sensors only on frames the recorder actually pushes.
+    def read_images():
+        return {name: scene[f"record_cam_{name}"].data.output["rgb"][0, ..., :3] for name in _record_images}
+
     debug_steps = 0
     physics_step = 0
     while simulation_app.is_running():
@@ -363,7 +387,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             gripper_cmd = torch.full_like(closure, 1.0 if close_gripper else 0.0)
             state = torch.cat([joint_pos[0], closure]).detach().cpu().numpy().astype(np.float32)
             action = torch.cat([joint_pos_des[0], gripper_cmd]).detach().cpu().numpy().astype(np.float32)
-            recorder.tick(action, state, {})
+            recorder.tick(action, state, read_images)
 
         # Hold gripper fingers at synchronized open/closed pair (one GL40 motor on hardware).
         # High stiffness in cfg + zero velocity target prevents bounce when the arm moves.
@@ -399,6 +423,13 @@ def main():
     sim.set_camera_view(*(scene_camera(args_cli.scene) or ([2.5, 2.5, 2.0], [0.0, 0.0, 0.8])))
 
     scene_cfg = make_scene_cfg(args_cli.scene, BIMANUAL_ARM_CFG, num_envs=1, env_spacing=2.0)
+    # Recording cameras go after the robot (InteractiveScene creates entities in attribute order;
+    # the cameras are parented under Robot/base_link and Robot/link6l).
+    unknown = sorted(set(_record_images) - set(RECORD_CAM_NAMES))
+    if unknown:
+        raise SystemExit(f"{_schema_path}: unknown images {unknown}; available: {list(RECORD_CAM_NAMES)}")
+    for name, spec in _record_images.items():
+        setattr(scene_cfg, f"record_cam_{name}", make_record_cam_cfg(name, int(spec["height"]), int(spec["width"])))
     scene = InteractiveScene(scene_cfg)
 
     sim.reset()

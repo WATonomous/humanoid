@@ -1,0 +1,35 @@
+# Isaac Sim keyboard teleop — Pioneer v1 left arm WITH cameras (ego + left wrist).
+# Same 7 joint values and 25 fps as dataset_schema_sim.yaml, plus RGB images.
+# Camera poses/lenses: src/teleop/teleop_cameras.py (make_record_cam_cfg, from PR #296).
+# keyboard_teleop forces --enable_cameras when this schema lists images.
+robot_id: pioneer_v1_left_arm_sim
+repo_id: humanoid/pioneer_v1_left_arm_sim_cams
+fps: 25
+state_unit: rad (arm joints), 0-1 closure fraction (gripper)
+
+# Real-robot names (joint_command_core.cpp), in order; sim joints in comments.
+joint_names:
+  - left_shoulder_pitch  # joint1L
+  - left_shoulder_roll   # joint2l
+  - left_shoulder_yaw    # joint3l
+  - left_elbow_pitch     # joint4l
+  - left_elbow_roll      # joint5l
+  - left_wrist_pitch     # joint6l
+  - left_gripper         # joint7l/joint8l pair: 0 = open, 1 = closed
+
+# Keys become observation.images.<key>; each must be one of teleop_cameras.RECORD_CAM_NAMES.
+images:
+  ego:
+    height: 256
+    width: 256
+    enabled: true
+  wrist_left:
+    height: 256
+    width: 256
+    enabled: true
+
+record:
+  root: datasets/pioneer_v1_left_arm_sim_cams
+  use_videos: true
+  image_writer_threads: 4
+  image_writer_processes: 0
