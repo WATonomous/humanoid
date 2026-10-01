@@ -1101,8 +1101,7 @@ class _ArmDlsController:
 # ── recording (see dataset_schema_wato_arm_v2_push_box.yaml) ─────────────────
 
 def _init_recorder(device: str):
-    """Mirrors so101_leader_teleop.py's _init_recorder. Returns (recorder, schema_cfg)
-    or (None, None) if --record wasn't passed."""
+    """Returns (recorder, schema_cfg), or (None, None) if --record wasn't passed."""
     if not args_cli.record:
         return None, None
     _ensure_robot_learning_on_path()

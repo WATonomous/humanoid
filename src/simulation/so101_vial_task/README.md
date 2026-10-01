@@ -79,14 +79,6 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_agent.py \
   --save_mp4 --depth --instance_id_seg
 ```
 
-## 4. Lightweight teleop (InteractiveScene)
-
-RGB-only path without Gym:
-
-`src/teleop/so101_leader_teleop/` + `src/robot_learning/` (`--record --cameras --domain_rand`).
-
-Use **this** package for depth/seg MP4 sidecars and automatic success scoring.
-
 ## Layout
 
 ```
