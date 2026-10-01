@@ -11,7 +11,6 @@ src/simulation/
 ├── humanoid_rl_tasks/      # RL tasks, flat — one folder per task
 │   └── humanoid_rl_tasks/
 │       ├── inhand/         locomotion/
-│       ├── pick_place/     # ManagerBasedRLEnv, driven by Isaac Lab Mimic (not PPO)
 │       └── push_block/     # PPO + vision distillation; also a teleop scene
 ├── humanoid_scenes/        # teleop data-collection scenes — @scene-discovered
 │   └── humanoid_scenes/    #   bare/  vial_rack/  push_block/
