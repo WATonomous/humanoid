@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "humanoid-mujoco-scenes"
+version = "0.1.0"
+description = "Plain-MuJoCo (CPU) scenes for the Pioneer arm (one folder per scene, auto-discovered)"
+requires-python = ">=3.10"
+dependencies = ["mujoco>=3.3", "numpy"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["humanoid_mujoco_scenes*"]
