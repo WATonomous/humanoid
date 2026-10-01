@@ -37,3 +37,21 @@ def image_msg_to_hwc(msg) -> np.ndarray:
         )
 
     raise ValueError(f"Unsupported image encoding: {msg.encoding}")
+
+
+def fit_image(image: np.ndarray, height: int, width: int) -> np.ndarray:
+    """Center-crop to height:width aspect, then resize (no stretching)."""
+    h, w = image.shape[:2]
+    if (h, w) == (height, width):
+        return image
+    import cv2
+
+    if w * height > h * width:
+        crop_w = h * width // height
+        x0 = (w - crop_w) // 2
+        image = image[:, x0 : x0 + crop_w]
+    else:
+        crop_h = w * height // width
+        y0 = (h - crop_h) // 2
+        image = image[y0 : y0 + crop_h]
+    return np.ascontiguousarray(cv2.resize(image, (width, height), interpolation=cv2.INTER_AREA))

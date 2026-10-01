@@ -20,9 +20,9 @@ from humanoid_il.snapshot import ObservationSnapshot
 logger = logging.getLogger(__name__)
 
 
-def dry_snapshot(t: float, image_keys: list[str], dim: int) -> ObservationSnapshot:
+def dry_snapshot(t: float, image_shapes: dict[str, tuple[int, int]], dim: int) -> ObservationSnapshot:
     vec = np.array([0.2 * math.sin(t + i) for i in range(dim)], dtype=np.float32)
-    images = {key: np.zeros((480, 640, 3), dtype=np.uint8) for key in image_keys}
+    images = {key: np.zeros((h, w, 3), dtype=np.uint8) for key, (h, w) in image_shapes.items()}
     return joints_to_snapshot(vec, vec.copy(), images)
 
 
@@ -35,7 +35,7 @@ def run_record_loop(
     sink_names: list[str],
     dry_run: bool = False,
 ) -> Path:
-    image_keys = list(enabled_images(cfg).keys())
+    image_shapes = {k: (int(v["height"]), int(v["width"])) for k, v in enabled_images(cfg).items()}
     dim = len(cfg["joint_names"])
     fps = float(cfg.get("fps", 30))
     rate = RateLimiter(fps)
@@ -63,7 +63,7 @@ def run_record_loop(
                 try:
                     snapshot = source()
                     if dry_run:
-                        snapshot = dry_snapshot(time.monotonic() - t0, image_keys, dim)
+                        snapshot = dry_snapshot(time.monotonic() - t0, image_shapes, dim)
                     session.ingest_snapshot(snapshot)
                 except ValueError:
                     continue

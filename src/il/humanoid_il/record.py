@@ -12,14 +12,15 @@ from typing import Any
 from humanoid_il.record_loop import run_record_loop
 from humanoid_il.recorder import RecordSettings
 from humanoid_il.record_utils import resolve_config_path
-from humanoid_il.schema import enabled_images, load_yaml
+from humanoid_il.arm_pose_io import ARM_POSE_JOINT_NAMES
+from humanoid_il.schema import enabled_images, load_yaml, select_cameras
 from humanoid_il.sinks import parse_sink_names
 from humanoid_il.snapshot import ObservationSnapshot
 
 logger = logging.getLogger(__name__)
 
 _PKG_ROOT = Path(__file__).resolve().parents[1]
-_DEFAULT_SCHEMA = _PKG_ROOT / "config" / "dataset_schema.yaml"
+_DEFAULT_SCHEMA = _PKG_ROOT / "config" / "dataset_schema_pioneer_v1.yaml"
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -30,13 +31,19 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--schema",
         type=str,
         default=str(_DEFAULT_SCHEMA),
-        help="Path to dataset_schema.yaml",
+        help="dataset_schema YAML (default: config/dataset_schema_pioneer_v1.yaml)",
+    )
+    parser.add_argument(
+        "--cameras",
+        type=str,
+        default=None,
+        help="cameras to record, e.g. 'wrist_left' or 'none' (default: schema's enabled images)",
     )
     parser.add_argument(
         "--dataset_root",
         type=str,
         default=None,
-        help="Override record.root base directory (e.g. datasets/record)",
+        help="Output directory (default: <schema record.root>/real)",
     )
     parser.add_argument(
         "--sink",
@@ -73,6 +80,22 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _check_real_support(cfg: dict[str, Any]) -> None:
+    """Fail fast on schema fields the real arm cannot supply yet."""
+    problems = []
+    names = list(cfg["joint_names"])
+    if names != list(ARM_POSE_JOINT_NAMES):
+        missing = [n for n in names if n not in ARM_POSE_JOINT_NAMES]
+        problems.append(
+            f"joint_names {missing or names} have no ROS source (ArmPose supplies {list(ARM_POSE_JOINT_NAMES)})"
+        )
+    no_topic = [k for k, spec in enabled_images(cfg).items() if not spec.get("topic")]
+    if no_topic:
+        problems.append(f"cameras {no_topic} have no ROS topic (use --cameras to pick others)")
+    if problems:
+        raise SystemExit("Real recording not supported for this schema yet:\n  " + "\n  ".join(problems))
+
+
 class _SnapshotSource:
     def maybe_spin(self) -> None:
         pass
@@ -82,15 +105,15 @@ class _SnapshotSource:
 
 
 class _DryRunSource(_SnapshotSource):
-    def __init__(self, image_keys: list[str], dim: int) -> None:
-        self._image_keys = image_keys
+    def __init__(self, image_shapes: dict[str, tuple[int, int]], dim: int) -> None:
+        self._image_shapes = image_shapes
         self._dim = dim
         self._t0 = time.monotonic()
 
     def __call__(self) -> ObservationSnapshot:
         from humanoid_il.record_loop import dry_snapshot
 
-        return dry_snapshot(time.monotonic() - self._t0, self._image_keys, self._dim)
+        return dry_snapshot(time.monotonic() - self._t0, self._image_shapes, self._dim)
 
 
 class _RosSource(_SnapshotSource):
@@ -124,14 +147,19 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     schema_path = resolve_config_path(args.schema, anchor=_PKG_ROOT)
-    cfg = load_yaml(schema_path)
-    image_keys = list(enabled_images(cfg).keys())
+    try:
+        cfg = select_cameras(load_yaml(schema_path), args.cameras)
+    except ValueError as exc:
+        raise SystemExit(f"--cameras: {exc}") from exc
+    if not args.dry_run:
+        _check_real_support(cfg)
+    image_shapes = {k: (int(v["height"]), int(v["width"])) for k, v in enabled_images(cfg).items()}
     dim = len(cfg["joint_names"])
 
     if args.dataset_root:
         record_root = Path(args.dataset_root)
     else:
-        record_root = Path((cfg.get("record") or {}).get("root", "datasets/record"))
+        record_root = Path((cfg.get("record") or {}).get("root", "datasets/pioneer_v1_left_arm")) / "real"
 
     settings = RecordSettings(
         num_episodes=args.num_episodes,
@@ -143,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
     sink_names = parse_sink_names(args.sink)
 
     if args.dry_run:
-        source: _SnapshotSource = _DryRunSource(image_keys, dim)
+        source: _SnapshotSource = _DryRunSource(image_shapes, dim)
     else:
         source = _RosSource(cfg)
 

@@ -13,7 +13,7 @@ Teleop bindings: https://isaac-sim.github.io/IsaacLab/v2.0.1/source/overview/tel
   C/V     Rotate along z-axis
   R       Reset left arm to default pose
 
-Recording (--record, src/il/config/dataset_schema_sim.yaml), 25 fps = every 4th physics step:
+Recording (--record, src/il/config/dataset_schema_pioneer_v1.yaml), 25 fps = every 4th physics step:
   observation.state  6 joints (rad) + gripper closure (0 open .. 1 closed, mean of both fingers)
   action             6 IK targets (rad) + gripper command (1 = K closed, 0 = open)
   observation.images.<name>  cameras enabled in the schema, or --cameras ego,wrist_left / none
@@ -26,7 +26,7 @@ from pathlib import Path
 from isaaclab.app import AppLauncher
 
 _IL_PKG = Path(__file__).resolve().parents[2] / "il"
-_DEFAULT_SIM_SCHEMA = _IL_PKG / "config" / "dataset_schema_sim.yaml"
+_DEFAULT_SCHEMA = _IL_PKG / "config" / "dataset_schema_pioneer_v1.yaml"
 
 # pioneer_humanoid package (canonical arm config). Editable-installed in the image; this fallback
 # keeps a bare bind-mounted checkout working.
@@ -49,14 +49,14 @@ parser.add_argument(
 parser.add_argument(
     "--schema",
     type=str,
-    default=str(_DEFAULT_SIM_SCHEMA),
-    help="dataset_schema YAML (default: src/il/config/dataset_schema_sim.yaml)",
+    default=str(_DEFAULT_SCHEMA),
+    help="dataset_schema YAML (default: src/il/config/dataset_schema_pioneer_v1.yaml)",
 )
 parser.add_argument(
     "--dataset_root",
     type=str,
     default=None,
-    help="Override record.root from schema (e.g. datasets/record_sim)",
+    help="Output directory (default: <schema record.root>/sim)",
 )
 parser.add_argument("--num_episodes", type=int, default=10)
 parser.add_argument("--task_description", type=str, default="sim keyboard teleop demonstration")
@@ -84,19 +84,14 @@ if args_cli.record:
     if str(_IL_PKG) not in sys.path:
         sys.path.insert(0, str(_IL_PKG))
     from humanoid_il.record_utils import resolve_config_path
-    from humanoid_il.schema import enabled_images, load_yaml
+    from humanoid_il.schema import enabled_images, load_yaml, select_cameras
 
     _schema_path = resolve_config_path(args_cli.schema, anchor=_IL_PKG)
-    _schema_cfg = load_yaml(_schema_path)
-    if args_cli.cameras is None:
-        _record_images = enabled_images(_schema_cfg)
-    elif args_cli.cameras != "none":
-        _all_images = _schema_cfg.get("images") or {}
-        _names = [n.strip() for n in args_cli.cameras.split(",") if n.strip()]
-        _unknown = [n for n in _names if n not in _all_images]
-        if _unknown:
-            parser.error(f"--cameras {_unknown} not in {_schema_path} images {list(_all_images)}")
-        _record_images = {n: _all_images[n] for n in _names}
+    try:
+        _schema_cfg = select_cameras(load_yaml(_schema_path), args_cli.cameras)
+    except ValueError as exc:
+        parser.error(f"--cameras: {exc}")
+    _record_images = enabled_images(_schema_cfg)
     if _record_images:
         args_cli.enable_cameras = True
 
@@ -172,7 +167,7 @@ def _init_recorder(device: str, sim_dt: float):
     dataset_root = (
         Path(args_cli.dataset_root)
         if args_cli.dataset_root
-        else Path((cfg.get("record") or {}).get("root", "datasets/record_sim"))
+        else Path((cfg.get("record") or {}).get("root", "datasets/pioneer_v1_left_arm")) / "sim"
     )
     if list(cfg["joint_names"]) != _RECORD_JOINT_NAMES:
         raise ValueError(
@@ -197,7 +192,7 @@ def _init_recorder(device: str, sim_dt: float):
         joint_names=list(cfg["joint_names"]),
         cameras=cameras,
         num_episodes=args_cli.num_episodes,
-        robot_type=str(cfg.get("robot_id", "pioneer_v1_left_arm_sim")),
+        robot_type=str(cfg.get("robot_id", "pioneer_v1_left_arm")),
         rate_limit=False,
     )
     recorder.init_dataset()

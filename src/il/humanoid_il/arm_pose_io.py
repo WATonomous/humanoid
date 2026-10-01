@@ -14,6 +14,15 @@ if TYPE_CHECKING:
 JOINT_ORDER_DOC = (
     "shoulder pitch, roll, yaw; elbow pitch, roll; wrist pitch"
 )
+# Schema joint names ArmPose can supply, in arm_pose_to_vector order.
+ARM_POSE_JOINT_NAMES = (
+    "left_shoulder_pitch",
+    "left_shoulder_roll",
+    "left_shoulder_yaw",
+    "left_elbow_pitch",
+    "left_elbow_roll",
+    "left_wrist_pitch",
+)
 
 
 def deg_to_rad(values: np.ndarray) -> np.ndarray:

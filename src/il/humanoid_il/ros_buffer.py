@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 
 from humanoid_il.arm_pose_io import arm_pose_to_vector
-from humanoid_il.observation import image_msg_to_hwc
+from humanoid_il.observation import fit_image, image_msg_to_hwc
 from humanoid_il.schema import enabled_images
 from humanoid_il.snapshot import ObservationSnapshot
 
@@ -89,7 +89,8 @@ class RosRecordBuffer:
 
     def _on_image(self, key: str, msg) -> None:
         try:
-            image = image_msg_to_hwc(msg)
+            spec = self._cfg["images"][key]
+            image = fit_image(image_msg_to_hwc(msg), int(spec["height"]), int(spec["width"]))
         except Exception:
             logger.exception("Failed to decode image for %s", key)
             return
