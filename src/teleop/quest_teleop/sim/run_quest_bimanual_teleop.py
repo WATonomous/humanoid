@@ -60,7 +60,7 @@ from isaaclab.app import AppLauncher
 
 # ── path setup (must be before AppLauncher so PYTHONPATH is correct) ─────────
 _THIS_DIR = Path(__file__).resolve().parent
-_AUTONOMY = _THIS_DIR.parents[1]  # src/teleop/quest_isaac_teleop -> src
+_AUTONOMY = _THIS_DIR.parents[2]  # src/teleop/quest_teleop/sim -> src
 _SIM_DIR = _AUTONOMY / "simulation"
 # pioneer_humanoid package (canonical arm config). Editable-installed in the image; this fallback
 # keeps a bare bind-mounted checkout working.
@@ -600,7 +600,7 @@ def _write_pov_jpeg(camera, file_path) -> None:
 # _POV_CAPTURE_EVERY_N_STEPS steps -- the same constant that gates `render=`, so a capture
 # always lands on freshly-rendered pixels. Sim-time render rate is 1/(n*dt); the headset sees
 # that scaled by RTF, which is why the fps diagnostic prints both.
-_POV_STATIC_DIR = _SIM_DIR.parent / "teleop" / "quest_teleop" / "static"
+_POV_STATIC_DIR = _SIM_DIR.parent / "teleop" / "quest_teleop" / "bridge" / "static"
 _POV_FRAME_PATH_LEFT = _POV_STATIC_DIR / "pov_left.jpg"
 _POV_FRAME_PATH_RIGHT = _POV_STATIC_DIR / "pov_right.jpg"
 # THE render/capture cadence -- single source of truth. main()'s SimulationCfg reads this, and

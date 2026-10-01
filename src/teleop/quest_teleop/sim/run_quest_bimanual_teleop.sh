@@ -6,7 +6,7 @@
 #   ./watod -t simulation_isaac_dev
 #
 # Then inside the container:
-#   cd /workspace/humanoid/src/teleop/quest_isaac_teleop
+#   cd /workspace/humanoid/src/teleop/quest_teleop/sim
 #   ./run_quest_bimanual_teleop.sh
 
 set -e
@@ -14,7 +14,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ISAAC_LAB="${ISAAC_LAB:-/workspace/isaaclab}"
 
-export PYTHONPATH="${SCRIPT_DIR}:${SCRIPT_DIR}/../keyboard_teleop:${PYTHONPATH}"
+export PYTHONPATH="${SCRIPT_DIR}:${SCRIPT_DIR}/../../keyboard_teleop:${PYTHONPATH}"
 
 
 # --device MUST stay "cuda": the box grasp holds on GPU PhysX and slips on CPU PhysX. Confirmed

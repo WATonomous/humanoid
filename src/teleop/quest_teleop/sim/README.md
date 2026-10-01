@@ -208,7 +208,7 @@ cd ~/Documents/Wato/humanoid && ./watod -t simulation_isaac_dev
 Wait for `Summary: 2 packages finished`, then:
 
 ```bash
-python3 /workspace/humanoid/src/teleop/quest_teleop/scripts/webxr_server.py
+python3 /workspace/humanoid/src/teleop/quest_teleop/bridge/scripts/webxr_server.py
 ```
 
 Wait for `Serving at https://0.0.0.0:8443`. Leave running.
@@ -222,7 +222,7 @@ cd ~/Documents/Wato/humanoid && ./watod -t simulation_isaac_dev
 Wait for `Summary: 2 packages finished`, then:
 
 ```bash
-cd /workspace/humanoid/src/teleop/quest_isaac_teleop
+cd /workspace/humanoid/src/teleop/quest_teleop/sim
 ./run_quest_bimanual_teleop.sh
 ```
 
