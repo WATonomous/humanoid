@@ -1,5 +1,7 @@
 #include "joint_command_core.hpp"
 
+#include "gravity_model.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -12,6 +14,7 @@ namespace {
 constexpr double kDegToRad = 3.14159265358979323846 / 180.0;
 // 12-bit gain fields (every CubeMars MIT drive).
 constexpr double kMitGainCodes = 4096.0;
+constexpr double kGravityFfRampSec = 1.0;
 
 // ArmPose joint order, shared by both config files.
 const std::vector<std::pair<std::string, std::string>>& jointPaths() {
@@ -49,6 +52,7 @@ JointConfig JointCommandCore::loadJointConfig(const YAML::Node& joint_node) {
 
 bool JointCommandCore::loadFromYaml(const YAML::Node& config, const std::string& arm_side) {
   joints_.clear();
+  arm_side_ = arm_side;
 
   if (!config[arm_side]) {
     return false;
@@ -116,6 +120,7 @@ JointCommandCore::seedPrevTargetsFromFeedback(const std::map<int, double>& motor
   }
   prev_targets_ = std::move(seeded);
   have_prev_targets_ = true;
+  gravity_ff_ramp_ = 0.0;
   return report;
 }
 
@@ -235,11 +240,54 @@ JointSafetyConfig JointCommandCore::loadJointSafetyConfig(const YAML::Node& join
   if (joint_node["mit_fault_kd"]) {
     cfg.mit_fault_kd = joint_node["mit_fault_kd"].as<double>();
   }
+  if (joint_node["gravity_ff_scale"]) {
+    cfg.gravity_ff_scale = joint_node["gravity_ff_scale"].as<double>();
+  }
+  if (joint_node["gravity_ff_max_torque"]) {
+    cfg.gravity_ff_max_torque = joint_node["gravity_ff_max_torque"].as<double>();
+  }
+  if (joint_node["urdf_direction"]) {
+    cfg.urdf_direction = joint_node["urdf_direction"].as<int>();
+  }
+  if (joint_node["urdf_offset_deg"]) {
+    cfg.urdf_offset_deg = joint_node["urdf_offset_deg"].as<double>();
+  }
+  if (joint_node["gravity_assume_deg"]) {
+    cfg.gravity_assume_deg = joint_node["gravity_assume_deg"].as<double>();
+  }
   return cfg;
 }
 
 bool JointCommandCore::validateMitGains() {
   std::ostringstream errors;
+  for (size_t i = 0; i < joints_.size(); ++i) {
+    const JointSafetyConfig& s = safety_[i];
+    const std::string name = jointName(i);
+    if (s.urdf_direction != 1 && s.urdf_direction != -1) {
+      errors << "\n  " << name << ": urdf_direction must be 1 or -1 (got " << s.urdf_direction
+             << ")";
+    }
+    if (s.gravity_assume_deg.has_value() && !std::isfinite(*s.gravity_assume_deg)) {
+      errors << "\n  " << name << ": gravity_assume_deg must be finite";
+    }
+    if (s.gravity_ff_scale < 0.0 || s.gravity_ff_scale > 2.0) {
+      errors << "\n  " << name << ": gravity_ff_scale must be in [0, 2] (got " << s.gravity_ff_scale
+             << ")";
+    }
+    if (s.gravity_ff_scale > 0.0) {
+      if (!isMitJoint(i)) {
+        errors << "\n  " << name << ": gravity_ff_scale > 0 needs control_type 0 (MIT) -- "
+               << "POSITION_LOOP has no torque field";
+      }
+      if (arm_side_ != "left") {
+        errors << "\n  " << name << ": the gravity model is the LEFT arm (joint1L..joint6l); "
+               << "arm_side is '" << arm_side_ << "'";
+      }
+      if (s.gravity_ff_max_torque <= 0.0) {
+        errors << "\n  " << name << ": gravity_ff_scale > 0 needs gravity_ff_max_torque > 0";
+      }
+    }
+  }
   for (size_t i = 0; i < joints_.size(); ++i) {
     if (!isMitJoint(i)) {
       continue;
@@ -256,13 +304,15 @@ bool JointCommandCore::validateMitGains() {
                 "oscillate / run away";
     }
     // Worst case is a stalled joint: the tracking fault caps PD torque at kp * mit_max_track_err.
-    // Uses the quantised kp the drive applies.
+    // Uses the quantised kp the drive applies; feed-forward adds on top.
     const double kp_q = quantiseKp(s.mit_kp);
-    const double worst = kp_q * s.mit_max_track_err * kDegToRad;
+    const double ff_max = s.gravity_ff_scale > 0.0 ? s.gravity_ff_max_torque : 0.0;
+    const double worst = kp_q * s.mit_max_track_err * kDegToRad + ff_max;
     if (worst > s.mit_max_torque) {
       errors << "\n  " << name << ": mit_kp " << kp_q << " N.m/rad (quantised) x "
-             << s.mit_max_track_err << " deg = " << worst << " N.m exceeds mit_max_torque "
-             << s.mit_max_torque << " N.m -- lower mit_kp or mit_max_track_err";
+             << s.mit_max_track_err << " deg + gravity_ff_max_torque " << ff_max
+             << " N.m = " << worst << " N.m exceeds mit_max_torque " << s.mit_max_torque
+             << " N.m -- lower mit_kp, mit_max_track_err or gravity_ff_max_torque";
     }
     // Damp must damp, within the 12-bit kd field's 5.0 ceiling.
     if (s.mit_fault_action == MitFaultAction::Damp &&
@@ -358,6 +408,32 @@ common_msgs::msg::MotorCmd JointCommandCore::mitSafeCommand(size_t joint) const 
                ? static_cast<float>(safety_[joint].mit_fault_kd)
                : 0.0f;
   return cmd;
+}
+
+std::vector<double>
+JointCommandCore::gravityTorqueMotor(const std::vector<double>& cmd_targets_deg) const {
+  std::vector<double> out(joints_.size(), 0.0);
+  // One unknown angle makes every load unknown. Unpowered joints may use gravity_assume_deg;
+  // out-of-range ones never do.
+  std::array<double, 6> q_urdf{};
+  for (size_t i = 0; i < q_urdf.size(); ++i) {
+    const JointSafetyConfig& s = safety_[i];
+    double q_cmd = cmd_targets_deg[i];
+    if (isUnpowered(i) && s.gravity_assume_deg.has_value() &&
+        !(i < blocked_.size() && blocked_[i])) {
+      q_cmd = *s.gravity_assume_deg;
+    } else if (isBlocked(i)) {
+      return out;
+    }
+    q_urdf[i] = (s.urdf_direction * q_cmd + s.urdf_offset_deg) * kDegToRad;
+  }
+  const std::array<double, 6> tau = leftArmGravityHoldTorque(q_urdf);
+  for (size_t i = 0; i < q_urdf.size(); ++i) {
+    // Torque follows the angle's sign mapping: urdf -> cmd -> motor.
+    const double dir = joints_[i].direction == 0 ? 1.0 : joints_[i].direction;
+    out[i] = dir * safety_[i].urdf_direction * tau[i];
+  }
+  return out;
 }
 
 std::vector<common_msgs::msg::MotorCmd> JointCommandCore::mitSafeCommands(bool damped_only) const {
@@ -460,6 +536,7 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
 
   std::vector<common_msgs::msg::MotorCmd> commands;
   commands.reserve(joints_.size());
+  std::vector<std::pair<size_t, size_t>> mit_cmds; // (index in commands, joint)
   std::vector<double> next_targets = prev_targets_;
 
   if (safety_.size() != joints_.size()) {
@@ -535,16 +612,27 @@ JointCommandCore::armPoseToMotorCmds(const common_msgs::msg::ArmPose& pose,
     if (control_type == common_msgs::msg::MotorCmd::MIT_CONTROL) {
       // can_node's MIT path expects position in RADIANS (CubeMars manual MIT protocol),
       // unlike POSITION_LOOP's PositionDeg which is degrees -- see can_node.cpp packMitValue.
-      // velocity/torque feed-forward left at 0 (pure position+PD hold via kp/kd).
+      // velocity feed-forward left at 0; torque gets gravity feed-forward below.
       cmd.position = static_cast<float>(calibrated_deg * kDegToRad);
       cmd.velocity = 0.0f;
       cmd.torque = 0.0f;
       cmd.kp = static_cast<float>(safety.mit_kp);
       cmd.kd = static_cast<float>(safety.mit_kd);
+      mit_cmds.emplace_back(commands.size(), i);
     } else {
       cmd.position = static_cast<float>(calibrated_deg);
     }
     commands.push_back(cmd);
+  }
+
+  // After the loop: each load depends on every joint. Uses commanded targets, not feedback.
+  last_gravity_torque_motor_ = gravityTorqueMotor(next_targets);
+  gravity_ff_ramp_ = std::min(1.0, gravity_ff_ramp_ + 1.0 / (control_rate_hz_ * kGravityFfRampSec));
+  for (const auto& [k, i] : mit_cmds) {
+    const JointSafetyConfig& s = safety_[i];
+    const double ff = s.gravity_ff_scale * gravity_ff_ramp_ * last_gravity_torque_motor_[i];
+    commands[k].torque =
+        static_cast<float>(std::clamp(ff, -s.gravity_ff_max_torque, s.gravity_ff_max_torque));
   }
 
   prev_targets_ = std::move(next_targets);

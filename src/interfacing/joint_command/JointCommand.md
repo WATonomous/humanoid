@@ -62,13 +62,37 @@ A MIT joint is a PD drive with no internal limit checking, so `joint_command` ad
 | `mit_fault_kd` | damping for `damp`, in (0, 5] |
 
 **Startup rule** (the node refuses to launch otherwise): quantised `mit_kp` × `mit_max_track_err`
-(rad) ≤ `mit_max_torque`.
+(rad) + `gravity_ff_max_torque` ≤ `mit_max_torque`.
 
 Lifecycle: `MIT_ENTER` at startup, zero-stiffness frames until seeded, then gains, then
 zero-stiffness frames again when the stream goes stale. A fault latches: `limp` joints get
 `MIT_EXIT`, `damp` joints keep getting damping frames (a silent AK trips its CAN timeout and drops
 the arm). On Ctrl-C, `damp` joints are damped for `mit_shutdown_damp_sec` (default 2 s), then every
 MIT joint is exited. Stop `joint_command` **before** `can_node`, with the arm supported.
+
+## Gravity feed-forward
+
+MIT joints can be sent the torque that holds the arm's weight, in `MotorCmd.torque`:
+
+$$\tau_{\mathrm{ff}} = \mathrm{clip}\big(\texttt{gravity\_ff\_scale} \cdot r \cdot \tau_{\mathrm{model}},\ \pm\texttt{gravity\_ff\_max\_torque}\big)$$
+
+$\tau_{\mathrm{model}}$ ([gravity_model.cpp](src/gravity_model.cpp)) is the left arm's static load
+from the URDF masses at the commanded pose; $r$ ramps 0 → 1 over 1 s after each seed. It is zeroed
+while any joint's angle is unknown, unless an unpowered joint sets `gravity_assume_deg` (valid
+only while that joint is strapped at that angle).
+
+The model needs URDF angles: `q_urdf = urdf_direction * q_cmd + urdf_offset_deg` on every joint.
+The shipped `1` / `0` are guesses. URDF zero is the arm hanging straight down, elbow straight;
+positive shoulder pitch swings the arm forward, shoulder roll out to the side, elbow pitch backward.
+
+Bring-up, one joint at a time, arm supported, `gravity_ff_scale: 0`:
+1. Put the arm in URDF zero and set `urdf_offset_deg = -urdf_direction * q_cmd` from the seed log.
+2. Jog each joint positive and check its direction against the list above.
+3. At a few poses, the `Gravity model ... pred X meas Y` log (every 5 s) must agree in sign and
+   roughly in size.
+4. Set `gravity_ff_scale: 0.5`, confirm the sag shrinks, then go to 1.0.
+
+A wrong sign doubles the sag; the startup rule and the tracking watchdog bound it.
 
 ## Excluded joints
 
@@ -100,7 +124,7 @@ Start conservative on hardware, then increase until motion is responsive without
 | `low_pass_alpha` | Higher → smoother/slower (e.g. `0.85`) |
 | `enable_*` | Toggle each stage without recompiling |
 | `control_type` | Per joint; `0` = MIT_CONTROL, `4` = POSITION_LOOP, `-1` = node default |
-| `mit_*` | MIT gains and fault thresholds (see above) |
+| `mit_*`, `gravity_*` | MIT gains, fault thresholds and feed-forward (see above) |
 
 ## Tests
 

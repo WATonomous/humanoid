@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <chrono>
+#include <cstdio>
 #include <functional>
 #include <stdexcept>
 #include <string>
@@ -163,6 +164,13 @@ bool JointCommandNode::trySeedFromFeedback() {
                 "seed (after the ArmPose stream goes stale).",
                 core_.jointName(i).c_str(), static_cast<int>(core_.motorId(i)),
                 core_.isMitJoint(i) ? " (MIT: held at kp=0)" : "");
+    const auto& assume = core_.safety(i).gravity_assume_deg;
+    if (assume.has_value()) {
+      RCLCPP_WARN(this->get_logger(),
+                  "Gravity model ASSUMES %s is at %.1f deg (cmd frame, gravity_assume_deg). "
+                  "Only true while that limp joint is strapped there.",
+                  core_.jointName(i).c_str(), *assume);
+    }
   }
 
   if (!report.out_of_range.empty()) {
@@ -301,10 +309,27 @@ void JointCommandNode::controlTimerCallback() {
 
   try {
     publishMotorCommands(core_.armPoseToMotorCmds(latest_pose_, control_type_));
+    logGravityModel();
   } catch (const std::exception& e) {
     RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
                           "Failed to process ArmPose: %s", e.what());
   }
+}
+
+void JointCommandNode::logGravityModel() {
+  // Bring-up check: with gravity_ff_scale = 0, pred and meas should agree (sign included).
+  const auto& pred = core_.lastGravityTorqueMotor();
+  std::string s;
+  for (size_t i = 0; i < pred.size(); ++i) {
+    const auto it = latest_feedback_full_.find(static_cast<int>(core_.motorId(i)));
+    char buf[96];
+    std::snprintf(buf, sizeof(buf), "%s%s pred %+.2f meas %+.2f", i ? " | " : "",
+                  core_.jointName(i).c_str(), pred[i],
+                  it == latest_feedback_full_.end() ? 0.0 : it->second.torque_nm);
+    s += buf;
+  }
+  RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                       "Gravity model, motor frame N.m: %s", s.c_str());
 }
 
 void JointCommandNode::publishMotorCommands(const std::vector<common_msgs::msg::MotorCmd>& cmds) {

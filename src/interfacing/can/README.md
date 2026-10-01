@@ -51,7 +51,7 @@ Prompt: **Enter**=yes · id=correct id · **s**=skip · **q**=quit.
   `torque = current × kt`.
 
 Per-joint gains live in `joint_command/config/safety_limits.yaml`; `joint_command` refuses to
-start if `quantised kp × mit_max_track_err > mit_max_torque`. Gains are snapped
+start if `quantised kp × mit_max_track_err (+ feed-forward) > mit_max_torque`. Gains are snapped
 to the nearest 12-bit code. The gripper has no `ArmPose` slot, so nothing drives it yet.
 
 **AK bring-up, per joint** (arm supported, hardware E-stop in reach):

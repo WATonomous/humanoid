@@ -23,6 +23,7 @@ private:
   void motorFeedbackCallback(const common_msgs::msg::MotorFeedback::SharedPtr msg);
   void controlTimerCallback();
   void publishMotorCommands(const std::vector<common_msgs::msg::MotorCmd>& cmds);
+  void logGravityModel();
   bool trySeedFromFeedback();
   void mitFault(const std::string& reason);
   // MIT_EXIT (sent 3x) to every MIT joint, or only the Limp ones.
