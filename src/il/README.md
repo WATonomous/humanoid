@@ -29,7 +29,7 @@ Training stays outside this repo (`lerobot-train` on the LeRobot folder). HDF5 o
 src/il/
 ├── config/
 │   ├── dataset_schema.yaml       # real robot (ROS + wrist camera)
-│   ├── dataset_schema_sim.yaml   # WATO keyboard sim (joint-only)
+│   ├── dataset_schema_sim.yaml   # Pioneer v1 keyboard sim (6 joints + gripper, joint-only)
 │   └── dataset_schema_so101_sim.yaml  # SO101 leader sim (6-DOF + gripper)
 ├── humanoid_il/
 │   ├── snapshot.py               # ObservationSnapshot
@@ -102,9 +102,11 @@ PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p keyboard_teleop.py --record \
   --task_description "reach and grasp"
 ```
 
-Uses `config/dataset_schema_sim.yaml` (joint-only, no camera). Same S/N/D/Esc keys as real-arm recording.
+Uses `config/dataset_schema_sim.yaml` (joint-only, no camera). Each frame is 7 values: the 6 left-arm
+joints (rad) plus gripper closure (0 = open, 1 = closed). Recorded at 25 fps, i.e. one frame every 4th
+physics step (physics runs at 100 Hz). Same S/N/D/Esc keys as real-arm recording.
 
-Output: `datasets/record_sim/001/`.
+Output: `datasets/pioneer_v1_left_arm_sim/001/`.
 
 ## Isaac Sim (SO101 teleop)
 
