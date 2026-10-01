@@ -29,8 +29,7 @@ Training stays outside this repo (`lerobot-train` on the LeRobot folder). HDF5 o
 src/il/
 ├── config/
 │   ├── dataset_schema.yaml       # real robot (ROS + wrist camera)
-│   ├── dataset_schema_sim.yaml   # Pioneer v1 keyboard sim (6 joints + gripper, joint-only)
-│   ├── dataset_schema_sim_cams.yaml  # same + ego / wrist_left RGB cameras
+│   ├── dataset_schema_sim.yaml   # Pioneer v1 keyboard sim (6 joints + gripper, cameras)
 │   └── dataset_schema_so101_sim.yaml  # SO101 leader sim (6-DOF + gripper)
 ├── humanoid_il/
 │   ├── snapshot.py               # ObservationSnapshot
@@ -103,18 +102,12 @@ PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p keyboard_teleop.py --record \
   --task_description "reach and grasp"
 ```
 
-Uses `config/dataset_schema_sim.yaml` (joint-only, no camera). Each frame is 7 values: the 6 left-arm
-joints (rad) plus gripper closure (0 = open, 1 = closed). Recorded at 25 fps, i.e. one frame every 4th
-physics step (physics runs at 100 Hz). Same S/N/D/Esc keys as real-arm recording.
+Uses `config/dataset_schema_sim.yaml`: 6 joints (rad) + gripper closure (0 open, 1 closed), 25 fps
+(every 4th physics step). Cameras (256×256 RGB, defined in `src/teleop/teleop_cameras.py`): `ego` and
+`wrist_left` by default, `wrist_right` off. Override with `--cameras ego`, `--cameras ego,wrist_left,wrist_right`
+or `--cameras none`. Same S/N/D/Esc keys as real-arm recording.
 
 Output: `datasets/pioneer_v1_left_arm_sim/001/`.
-
-**With cameras:** add `--schema config/dataset_schema_sim_cams.yaml` (relative paths resolve against `src/il/`). This also records
-`observation.images.ego` (RealSense colour view from the base, 40° down) and
-`observation.images.wrist_left` (left wrist, looking between the fingers), both 256×256 RGB.
-Camera poses and lenses come from PR #296 and are defined in code in
-`src/teleop/teleop_cameras.py` (`make_record_cam_cfg`). `--enable_cameras` is turned on
-automatically. Output: `datasets/pioneer_v1_left_arm_sim_cams/001/`.
 
 ## Isaac Sim (SO101 teleop)
 

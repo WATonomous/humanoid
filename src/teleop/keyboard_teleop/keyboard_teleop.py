@@ -13,15 +13,10 @@ Teleop bindings: https://isaac-sim.github.io/IsaacLab/v2.0.1/source/overview/tel
   C/V     Rotate along z-axis
   R       Reset left arm to default pose
 
-Recording (--record): uses src/il/config/dataset_schema_sim.yaml. Each frame is 7 values in
-the schema's joint_names order (left_shoulder_pitch .. left_wrist_pitch, left_gripper):
-  observation.state  6 measured arm joints (rad) + gripper closure (0 = open, 1 = closed),
-                     the mean over both fingers of (q - open) / (closed - open), clamped to [0, 1]
-  action             6 IK joint targets (rad) + gripper command (1.0 if K commands closed, else 0.0)
-Physics runs at 100 Hz; one frame is recorded every 4th physics step (25 fps).
-Cameras: if the schema lists images (e.g. --schema config/dataset_schema_sim_cams.yaml, relative to src/il),
-the enabled ones (ego, wrist_left; wrist_right is off by default; see teleop_cameras.make_record_cam_cfg) are added,
-recorded as observation.images.<name>, and --enable_cameras is turned on automatically.
+Recording (--record, src/il/config/dataset_schema_sim.yaml), 25 fps = every 4th physics step:
+  observation.state  6 joints (rad) + gripper closure (0 open .. 1 closed, mean of both fingers)
+  action             6 IK targets (rad) + gripper command (1 = K closed, 0 = open)
+  observation.images.<name>  cameras enabled in the schema, or --cameras ego,wrist_left / none
 """
 
 import argparse
@@ -36,7 +31,7 @@ _DEFAULT_SIM_SCHEMA = _IL_PKG / "config" / "dataset_schema_sim.yaml"
 # pioneer_humanoid package (canonical arm config). Editable-installed in the image; this fallback
 # keeps a bare bind-mounted checkout working.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "pioneer_humanoid"))
-# src/teleop/ for the shared teleop_cameras module
+# src/teleop/ for teleop_cameras
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 parser = argparse.ArgumentParser(description="Keyboard teleoperation for the Pioneer bimanual arm (left only).")
@@ -72,10 +67,18 @@ parser.add_argument(
     help="scene name: 'bare' (arm only), 'push', or any scene registered in "
     "humanoid_scenes (validated after launch — pass an unknown name to list them)",
 )
+parser.add_argument(
+    "--cameras",
+    type=str,
+    default=None,
+    help="cameras to record, e.g. 'ego,wrist_left' or 'none' (default: schema's enabled images)",
+)
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
+if args_cli.cameras is not None and not args_cli.record:
+    parser.error("--cameras requires --record")
 
-# Read the schema before launch: cameras in it need --enable_cameras at AppLauncher time.
+# Schema is read before launch: recording cameras need --enable_cameras.
 _schema_path, _schema_cfg, _record_images = None, None, {}
 if args_cli.record:
     if str(_IL_PKG) not in sys.path:
@@ -85,7 +88,15 @@ if args_cli.record:
 
     _schema_path = resolve_config_path(args_cli.schema, anchor=_IL_PKG)
     _schema_cfg = load_yaml(_schema_path)
-    _record_images = enabled_images(_schema_cfg)
+    if args_cli.cameras is None:
+        _record_images = enabled_images(_schema_cfg)
+    elif args_cli.cameras != "none":
+        _all_images = _schema_cfg.get("images") or {}
+        _names = [n.strip() for n in args_cli.cameras.split(",") if n.strip()]
+        _unknown = [n for n in _names if n not in _all_images]
+        if _unknown:
+            parser.error(f"--cameras {_unknown} not in {_schema_path} images {list(_all_images)}")
+        _record_images = {n: _all_images[n] for n in _names}
     if _record_images:
         args_cli.enable_cameras = True
 
@@ -294,7 +305,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     print("[INFO] Teleoperating left arm only. Right arm is held at default pose.")
     print("[INFO] Click the 3D viewport window, then W/A/S/D/Q/E to move. Hold SHIFT for fine control.")
 
-    # Recorded images: read from the camera sensors only on frames the recorder actually pushes.
+    # Called by tick() only on recorded frames.
     def read_images():
         return {name: scene[f"record_cam_{name}"].data.output["rgb"][0, ..., :3] for name in _record_images}
 
@@ -423,8 +434,7 @@ def main():
     sim.set_camera_view(*(scene_camera(args_cli.scene) or ([2.5, 2.5, 2.0], [0.0, 0.0, 0.8])))
 
     scene_cfg = make_scene_cfg(args_cli.scene, BIMANUAL_ARM_CFG, num_envs=1, env_spacing=2.0)
-    # Recording cameras go after the robot (InteractiveScene creates entities in attribute order;
-    # the cameras are parented under Robot/base_link and Robot/link6l).
+    # Added after the robot: cameras are parented under it, and entities are created in order.
     unknown = sorted(set(_record_images) - set(RECORD_CAM_NAMES))
     if unknown:
         raise SystemExit(f"{_schema_path}: unknown images {unknown}; available: {list(RECORD_CAM_NAMES)}")

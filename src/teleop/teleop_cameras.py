@@ -7,10 +7,6 @@ ships no cameras (the superseded armWithStand.usd baked them into its sensor
 layer), so they are defined and SPAWNED in code, which also keeps a future
 re-export from silently dropping them.
 
-The recording cameras at the bottom (make_record_cam_cfg: ego, wrist_left, wrist_right; PR #296's poses)
-are a separate set, used by keyboard_teleop --record. wrist_right is defined but the default
-camera schema leaves it disabled (the right arm is held still in left-arm teleop).
-
 Prim paths assume the robot is spawned at ``{ENV_REGEX_NS}/Robot``.
 """
 import math
@@ -117,16 +113,11 @@ def make_wrist_cam_cfg(body: str = "link6l", name: str = "wrist_cam", mirror: bo
     )
 
 
-# --- Recording cameras: pose and lens from PR #296's camera USD, defined here in code so the arm
-# asset stays camera-free. Used by keyboard_teleop --record; separate from the Quest cameras above.
-#
-# Each entry: (parent link, prim name, pos, rot wxyz in USD/opengl camera axes, focal length,
-# horizontal aperture, clipping range). Poses are #296's composed prim transforms, relative to the
-# parent link:
-#   ego         RealSense D455 colour sensor (OV9782) on base_link: faces +X, 40 deg down
-#               (#296 env v3 tilt). Lens from Isaac 5.1's rsd455.usd, ~90 deg horizontal FOV.
-#   wrist_left  link6l, looking between the fingers. ~60 deg horizontal FOV.
-#   wrist_right link6, mirror of wrist_left (same orientation in its own link frame).
+# Recording cameras (keyboard_teleop --record), from PR #296's camera USD.
+# name: (parent link, prim, pos, rot wxyz [opengl], focal length, horizontal aperture, clipping)
+#   ego          RealSense D455 colour sensor, 40 deg down, ~90 deg hFOV
+#   wrist_left   between the fingers, ~60 deg hFOV
+#   wrist_right  mirror of wrist_left
 _RECORD_CAMS = {
     "ego": (
         "base_link", "record_ego_cam",
@@ -148,10 +139,7 @@ RECORD_CAM_NAMES = tuple(_RECORD_CAMS)
 
 
 def make_record_cam_cfg(name: str, height: int, width: int) -> CameraCfg:
-    """Fresh CameraCfg for recording camera ``name`` (see RECORD_CAM_NAMES) at height x width.
-
-    Requires launching with --enable_cameras. The vertical aperture follows the output aspect
-    ratio, so the horizontal FOV is fixed and the image is never stretched."""
+    """CameraCfg for recording camera ``name``. Vertical aperture follows the aspect ratio (no stretch)."""
     body, prim, pos, rot, focal, h_aperture, clip = _RECORD_CAMS[name]
     return CameraCfg(
         prim_path="{ENV_REGEX_NS}/Robot/" + f"{body}/{prim}",
