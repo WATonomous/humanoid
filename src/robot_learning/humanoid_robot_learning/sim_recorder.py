@@ -194,6 +194,11 @@ class SimLeRobotRecorder:
         return False
 
     @property
+    def num_buffered_frames(self) -> int:
+        """Frames in the current (unsaved) episode."""
+        return self._current_frame
+
+    @property
     def is_complete(self) -> bool:
         return (
             self.num_episodes is not None

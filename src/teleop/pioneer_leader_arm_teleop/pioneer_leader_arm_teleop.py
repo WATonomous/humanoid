@@ -302,6 +302,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                 break
             if reset_requested["v"]:
                 reset_requested["v"] = False
+                if recorder is not None and recorder.num_buffered_frames > 0:
+                    # Frames either side of a reset are not one demo: drop the take, keep recording.
+                    recorder.cancel_recording()
+                    print("[RECORD] Reset mid-episode: take discarded, recording restarts from home.")
                 reset_all()
                 print("[LEADER] Re-zeroed; arm and scene reset.", flush=True)
 
@@ -386,10 +390,10 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     finally:
         leader.close()
         print("\n[INFO] Stopped. Leader torque is OFF.", flush=True)
-
-    if recorder is not None:
-        recorder.finalize()
-        print(f"[RECORD] Saved under {recorder.dataset_root}")
+        # Also on errors: flushes episodes still being written in the background.
+        if recorder is not None:
+            recorder.finalize()
+            print(f"[RECORD] Saved under {recorder.dataset_root}")
 
 
 def main():
