@@ -1,7 +1,7 @@
 # humanoid_mujoco_scenes
 
 Plain-MuJoCo scenes for the Pioneer arm — CPU only, no Isaac. One folder per scene, auto-discovered.
-The arm comes from `pioneer_humanoid.mujoco_arm` (the URDF plus the same joint limits and gains as
+The arm comes from `pioneer_humanoid.mujoco_bimanual_arm` (the URDF plus the same joint limits and gains as
 the Isaac config).
 
 ```bash
@@ -53,4 +53,4 @@ def build(spec: mujoco.MjSpec) -> None:
 
 - Finger collisions are boxes fitted to each finger mesh (MuJoCo's convex hulls are rounded and let a held object slip).
 - Arm self-collisions are off, as in Isaac.
-- Robot cameras (`make_model(name, cameras={...})`) use the same mounts and lenses as Isaac (`pioneer_humanoid/camera_params.py`).
+- Robot cameras (`make_model(name, cameras={...})`) use the same mounts and lenses as Isaac (`pioneer_humanoid/arm_params.py`).

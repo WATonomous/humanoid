@@ -58,8 +58,8 @@ def run() -> None:
         LEFT_GRIPPER_JOINTS,
         LEFT_GRIPPER_OPEN,
     )
-    from pioneer_humanoid.camera_params import CAMERA_NAMES
-    from pioneer_humanoid.mujoco_arm import set_home
+    from pioneer_humanoid.arm_params import CAMERA_NAMES
+    from pioneer_humanoid.mujoco_bimanual_arm import set_home
 
     if args.scene not in list_scenes():
         raise SystemExit(f"unknown --scene {args.scene!r}; available: {list_scenes()}")

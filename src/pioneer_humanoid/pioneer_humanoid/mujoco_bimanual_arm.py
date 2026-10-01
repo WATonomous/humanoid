@@ -11,8 +11,7 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-from .arm_params import ACTUATOR_GROUPS, DEFAULT_JOINT_POS
-from .camera_params import CAMERAS, vertical_fov_deg
+from .arm_params import ACTUATOR_GROUPS, CAMERAS, DEFAULT_JOINT_POS, vertical_fov_deg
 from .urdf_joint_limits import JOINT_POS_LIMITS, URDF_PATH
 
 _MESH_DIR = Path(URDF_PATH).resolve().parents[1] / "meshes"
@@ -28,7 +27,7 @@ FINGER_BODIES = ("link7", "link8", "link7l", "link8l")
 def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec:
     """MjSpec of the arm: base_link fixed at the origin, one position actuator per joint (named after it).
 
-    ``cameras``: {name: (height, width)} from camera_params.CAMERAS, added as MuJoCo cameras of that name.
+    ``cameras``: {name: (height, width)} from arm_params.CAMERAS, added as MuJoCo cameras of that name.
     """
     urdf = Path(URDF_PATH).read_text()
     urdf = re.sub(r'filename="package://[^"]*/meshes/', 'filename="', urdf)

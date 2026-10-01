@@ -68,6 +68,7 @@ from isaaclab.utils.math import compute_pose_error, quat_from_angle_axis, quat_m
 # names (RIGHT_* = the actuated arm) so the body is unchanged.
 from pioneer_humanoid.bimanual_arm import (
     BIMANUAL_ARM_CFG,
+    CAMERA_NAMES,
     LEFT_GRIPPER_CLOSED as GRIPPER_CLOSED,
     LEFT_GRIPPER_OPEN as GRIPPER_OPEN,
     LEFT_ARM_JOINTS as RIGHT_ARM_JOINTS,
@@ -82,9 +83,9 @@ from pioneer_humanoid.bimanual_arm import (
     resolve_body_ids,
     compute_gripper_tip_pose_b,
     compute_tip_ik_jacobian,
+    make_camera_cfg,
 )
 from humanoid_isaac_scenes import list_scenes, make_scene_cfg, scene_camera
-from pioneer_humanoid.cameras import CAMERA_NAMES, make_camera_cfg
 
 
 def _joint_ids(robot, names: list[str]) -> list[int]:

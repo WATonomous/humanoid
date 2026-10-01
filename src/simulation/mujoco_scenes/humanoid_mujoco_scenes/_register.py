@@ -2,7 +2,7 @@
 ``humanoid_mujoco_scenes/<name>/scene.py``.
 
 A scene is one function that adds world geometry to an ``mujoco.MjSpec``; ``make_model``
-attaches the Pioneer arm (pioneer_humanoid.mujoco_arm) at ``robot_pos`` and compiles.
+attaches the Pioneer arm (pioneer_humanoid.mujoco_bimanual_arm) at ``robot_pos`` and compiles.
 CPU only: no Isaac imports anywhere in this package.
 """
 from __future__ import annotations
@@ -85,9 +85,9 @@ def add_floor(spec: mujoco.MjSpec) -> None:
 def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjModel:
     """Compile scene ``name`` with the arm attached; joint/actuator names are the URDF joint names.
 
-    ``cameras``: robot cameras to mount, {name: (height, width)} (pioneer_humanoid.camera_params).
+    ``cameras``: robot cameras to mount, {name: (height, width)} (pioneer_humanoid.arm_params.CAMERAS).
     """
-    from pioneer_humanoid.mujoco_arm import arm_spec
+    from pioneer_humanoid.mujoco_bimanual_arm import arm_spec
 
     _discover()
     entry = _REGISTRY[name]
