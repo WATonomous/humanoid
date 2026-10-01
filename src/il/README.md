@@ -28,8 +28,7 @@ Training stays outside this repo (`lerobot-train` on the LeRobot folder). HDF5 o
 ```
 src/il/
 ├── config/
-│   ├── dataset_schema.yaml       # real robot (ROS + wrist camera)
-│   ├── dataset_schema_sim.yaml   # Pioneer v1 keyboard sim (6 joints + gripper, cameras)
+│   ├── dataset_schema_pioneer_v1.yaml  # Pioneer v1 left arm, shared by sim and real
 │   └── dataset_schema_so101_sim.yaml  # SO101 leader sim (6-DOF + gripper)
 ├── humanoid_il/
 │   ├── snapshot.py               # ObservationSnapshot
@@ -56,6 +55,10 @@ pip install -e ".[record,ros]"      # + ROS image decoding
 ```
 
 ## Real robot (ROS 2)
+
+Uses `config/dataset_schema_pioneer_v1.yaml`, the same contract as sim. Not runnable yet: it stops at
+startup until the gripper (`left_gripper`) has a ROS source and each recorded camera has a `topic`.
+Camera frames are center-cropped and resized to the schema size.
 
 ```bash
 source /path/to/humanoid/install/setup.bash
@@ -87,7 +90,7 @@ humanoid-record --sink lerobot,hdf5 --num_episodes 10
 humanoid-record --dry_run --sink lerobot,hdf5 --num_episodes 2 --episode_time_s 3
 ```
 
-Output: `datasets/record/001/` with LeRobot tree + `trajectories.h5`.
+Output: `datasets/pioneer_v1_left_arm/real/001/` with LeRobot tree + `trajectories.h5`.
 
 ## Isaac Sim (keyboard teleop)
 
@@ -102,12 +105,12 @@ PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p keyboard_teleop.py --record \
   --task_description "reach and grasp"
 ```
 
-Uses `config/dataset_schema_sim.yaml`: 6 joints (rad) + gripper closure (0 open, 1 closed), 25 fps
+Uses `config/dataset_schema_pioneer_v1.yaml`: 6 joints (rad) + gripper closure (0 open, 1 closed), 25 fps
 (every 4th physics step). Cameras (256×256 RGB, defined in `src/teleop/teleop_cameras.py`): `ego` and
 `wrist_left` by default, `wrist_right` off. Override with `--cameras ego`, `--cameras ego,wrist_left,wrist_right`
 or `--cameras none`. Same S/N/D/Esc keys as real-arm recording.
 
-Output: `datasets/pioneer_v1_left_arm_sim/001/`.
+Output: `datasets/pioneer_v1_left_arm/sim/001/`.
 
 ## Isaac Sim (SO101 teleop)
 
@@ -152,7 +155,7 @@ Output: `datasets/record_so101_sim_vision/001/`.
 ```bash
 lerobot-train \
   --dataset.repo_id=humanoid/local_left_arm \
-  --dataset.root=datasets/record/001 \
+  --dataset.root=datasets/pioneer_v1_left_arm/real/001 \
   --policy.type=act \
   --output_dir=outputs/train/humanoid_act_v1
 ```
