@@ -61,7 +61,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN pip3 install --no-cache-dir mujoco mjviser numpy jax[cuda12] brax flax optax
 
-# ── Pioneer leader-arm teleop + recording (pioneer_leader_arm_teleop.py --sim mujoco) ───────
+# ── Pioneer leader-arm teleop + recording (pioneer_leader_arm_teleop.py --target mujoco) ───────
 # GL/X libs for the MuJoCo viewer and offscreen camera rendering.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl xz-utils git libgl1 libegl1 libosmesa6 \

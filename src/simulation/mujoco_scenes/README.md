@@ -13,7 +13,7 @@ pip install -e src/pioneer_humanoid -e src/simulation/mujoco_scenes
 
 ```bash
 # leader-arm teleop (needs a display; on macOS use mjpython)
-python src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py --sim mujoco --scene peg_insert
+python src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert
 
 # headless check: render the scene with the arm at home
 MUJOCO_GL=egl python -m humanoid_mujoco_scenes.preview --scene peg_insert --png peg.png

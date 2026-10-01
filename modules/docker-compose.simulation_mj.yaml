@@ -39,7 +39,7 @@ services:
       - ${MONO_DIR}/src/teleop:/root/ament_ws/src/teleop
       - ${MONO_DIR}/src/common_msgs:/root/ament_ws/src/common_msgs
       - ${MONO_DIR}/src/interfacing/joint_command:/root/ament_ws/src/joint_command
-      # Whole repo for pioneer_leader_arm_teleop --sim mujoco (assets/, src/, datasets/ output).
+      # Whole repo for pioneer_leader_arm_teleop --target mujoco (assets/, src/, datasets/ output).
       - ${MONO_DIR}:/workspace/humanoid:rw
       - /dev:/dev
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
