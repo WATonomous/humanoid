@@ -12,6 +12,7 @@ import mujoco
 import numpy as np
 
 from .arm_params import ACTUATOR_GROUPS, DEFAULT_JOINT_POS
+from .camera_params import CAMERAS, vertical_fov_deg
 from .urdf_joint_limits import JOINT_POS_LIMITS, URDF_PATH
 
 _MESH_DIR = Path(URDF_PATH).resolve().parents[1] / "meshes"
@@ -24,8 +25,11 @@ ARM_CONAFFINITY = 1
 FINGER_BODIES = ("link7", "link8", "link7l", "link8l")
 
 
-def arm_spec() -> mujoco.MjSpec:
-    """MjSpec of the arm: base_link fixed at the origin, one position actuator per joint (named after it)."""
+def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec:
+    """MjSpec of the arm: base_link fixed at the origin, one position actuator per joint (named after it).
+
+    ``cameras``: {name: (height, width)} from camera_params.CAMERAS, added as MuJoCo cameras of that name.
+    """
     urdf = Path(URDF_PATH).read_text()
     urdf = re.sub(r'filename="package://[^"]*/meshes/', 'filename="', urdf)
     urdf = urdf.replace(
@@ -55,6 +59,15 @@ def arm_spec() -> mujoco.MjSpec:
             act.forcerange = [-group["effort_limit"], group["effort_limit"]]
 
     _box_fingers(spec)
+    for name, (height, width) in (cameras or {}).items():
+        cam = CAMERAS[name]
+        spec.body(cam.body).add_camera(
+            name=name,
+            pos=list(cam.pos),
+            quat=list(cam.rot),  # OpenGL convention (-Z forward, +Y up) == MuJoCo's camera frame
+            fovy=vertical_fov_deg(name, height, width),
+            resolution=[width, height],
+        )
     return spec
 
 

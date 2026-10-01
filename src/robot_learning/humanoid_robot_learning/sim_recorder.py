@@ -354,26 +354,28 @@ class SimLeRobotRecorder:
         slots, allocated once and reused, keep memory constant and make the
         device-to-host DMA faster. Two slots also bound how many episodes
         can be in flight — save_episode() blocks when both are busy.
+        Pinning needs CUDA; without a GPU (MuJoCo on CPU) the slots are plain memory.
         """
+        pin = torch.cuda.is_available()
         dim = len(self.joint_names)
         cap = self._capacity
         for _ in range(self._NUM_CPU_SLOTS):
             slot: dict[str, Any] = {
                 "total_frames": 0,
-                "action": torch.empty((cap, dim), dtype=torch.float32, pin_memory=True),
-                "observation": torch.empty((cap, dim), dtype=torch.float32, pin_memory=True),
+                "action": torch.empty((cap, dim), dtype=torch.float32, pin_memory=pin),
+                "observation": torch.empty((cap, dim), dtype=torch.float32, pin_memory=pin),
                 "rgb": {}, "depth": {}, "seg": {}, "extras": {},
             }
             for name, spec in self.cameras.items():
                 h, w = spec["height"], spec["width"]
-                slot["rgb"][name] = torch.empty((cap, h, w, 3), dtype=torch.uint8, pin_memory=True)
+                slot["rgb"][name] = torch.empty((cap, h, w, 3), dtype=torch.uint8, pin_memory=pin)
                 if self.depth:
-                    slot["depth"][name] = torch.empty((cap, h, w, 1), dtype=torch.float32, pin_memory=True)
+                    slot["depth"][name] = torch.empty((cap, h, w, 1), dtype=torch.float32, pin_memory=pin)
                 if self.instance_id_seg:
-                    slot["seg"][name] = torch.empty((cap, h, w, 3), dtype=torch.uint8, pin_memory=True)
+                    slot["seg"][name] = torch.empty((cap, h, w, 3), dtype=torch.uint8, pin_memory=pin)
             for name, comp_names in self.extra_features.items():
                 slot["extras"][name] = torch.empty(
-                    (cap, len(comp_names)), dtype=torch.float32, pin_memory=True
+                    (cap, len(comp_names)), dtype=torch.float32, pin_memory=pin
                 )
             self._free_slots.put(slot)
 

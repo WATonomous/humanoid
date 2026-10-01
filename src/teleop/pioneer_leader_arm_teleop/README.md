@@ -2,7 +2,7 @@
 
 The 7-servo leader arm (STS3215, torque always off) drives the Pioneer left arm joint to joint,
 with no IK, in any registered scene: Isaac Sim (default) or plain MuJoCo (`--sim mujoco`, CPU).
-Optional recording (Isaac only, for now) in the shared `dataset_schema_pioneer_v1.yaml` format.
+Optional recording in the shared `dataset_schema_pioneer_v1.yaml` format, from either simulator.
 
 | Servo | Bus ID | Sim joint | Default sign | Scale |
 |-------|--------|-----------|--------------|-------|
@@ -36,10 +36,21 @@ Scenes: `bare` (default), `push`, `vial_rack`, or any scene registered in `human
 
 ## Run (MuJoCo)
 
-Any machine with a display, no GPU or Docker (`dialout` group as above):
+CPU only. Either in the `simulation_mj` container (needs the host's X display; it reserves a GPU for mjlab):
 
 ```bash
-pip install mujoco feetech-servo-sdk
+xhost +local:                              # on the host, once per login: let the container use the display
+./watod build simulation_mj && ./watod up -d simulation_mj
+./watod -t simulation_mj
+cd /workspace/humanoid/src/teleop/pioneer_leader_arm_teleop
+python3 pioneer_leader_arm_teleop.py --sim mujoco --scene peg_insert [--record]
+```
+
+or on any machine with a display, no Docker (`dialout` group as above):
+
+```bash
+pip install mujoco feetech-servo-sdk                  # teleop
+pip install torch "lerobot @ git+https://github.com/huggingface/lerobot.git@e670ac5daf9b76" pynput   # + --record (and ffmpeg with libsvtav1)
 python pioneer_leader_arm_teleop.py --sim mujoco --scene peg_insert   # macOS: mjpython
 ```
 
@@ -48,7 +59,8 @@ Scenes: `bare`, `peg_insert`, or any scene in `humanoid_mujoco_scenes` (see `src
 - **Home pose:** hold the leader with the elbow bent like the sim arm and the gripper **open** at startup and whenever you press **R**. Leader zero maps to the sim home pose.
 - **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, restart with that entry flipped in `--signs` (order A..G, default `1,-1,-1,1,1,-1,1`).
 - **R:** re-zero the leader and reset the arm and every object in the scene. During a take, it also discards the take and recording restarts from home.
-- **`--record`** (Isaac): `S` start · `N` save (then auto-reset) · `D` discard → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
+- **`--record`:** `S` start · `N` save (then auto-reset) · `D` discard → `<repo>/datasets/pioneer_v1_left_arm/sim/` · `--cameras ego,wrist_left` / `none`.
+  In the MuJoCo viewer these keys (and R) also toggle display flags (shadows, reflections, …); harmless.
 - Other flags: `--port`, `--baud`, `--scale` (overall gain), `--filter-alpha` (target smoothing, default 0.35).
 
 Targets are clamped to the arm's URDF limits. Wrist damping is lowered to 2.5 in this teleop only, so the sim wrist keeps up with the leader.

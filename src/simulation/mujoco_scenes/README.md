@@ -53,3 +53,4 @@ def build(spec: mujoco.MjSpec) -> None:
 
 - Finger collisions are boxes fitted to each finger mesh (MuJoCo's convex hulls are rounded and let a held object slip).
 - Arm self-collisions are off, as in Isaac.
+- Robot cameras (`make_model(name, cameras={...})`) use the same mounts and lenses as Isaac (`pioneer_humanoid/camera_params.py`).
