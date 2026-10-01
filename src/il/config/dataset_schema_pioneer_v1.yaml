@@ -16,19 +16,19 @@ joint_names:
 
 # Sim poses: src/teleop/teleop_cameras.py. Real: `topic`. `enabled` is the default; override with --cameras.
 images:
-  ego:
-    height: 256
-    width: 256
+  ego:  # D455 colour sensor: keep 16:10
+    height: 200
+    width: 320
     enabled: true
     topic: null  # no real camera yet
   wrist_left:
-    height: 256
-    width: 256
+    height: 240
+    width: 320
     enabled: true
     topic: /camera/color/image_raw
   wrist_right:  # not on the real arm yet
-    height: 256
-    width: 256
+    height: 240
+    width: 320
     enabled: false
     topic: null
 

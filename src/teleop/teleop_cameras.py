@@ -114,33 +114,38 @@ def make_wrist_cam_cfg(body: str = "link6l", name: str = "wrist_cam", mirror: bo
 
 
 # Recording cameras (keyboard_teleop --record), from PR #296's camera USD.
-# name: (parent link, prim, pos, rot wxyz [opengl], focal length, horizontal aperture, clipping)
-#   ego          RealSense D455 colour sensor, 40 deg down, ~90 deg hFOV
-#   wrist_left   between the fingers, ~60 deg hFOV
+# name: (parent link, prim, pos, rot wxyz [opengl], focal length, horizontal aperture, clipping,
+#        sensor aspect w/h or None)
+#   ego          RealSense D455 colour sensor (1280x800, 16:10), 40 deg down, ~90 x 65 deg FOV
+#   wrist_left   between the fingers, ~60 deg hFOV, real camera not chosen yet
 #   wrist_right  mirror of wrist_left
 _RECORD_CAMS = {
     "ego": (
         "base_link", "record_ego_cam",
         (0.08421, -0.00008, 0.26038), (0.640856, 0.298836, -0.298836, -0.640856),
-        1.93, 3.896, (0.01, 100.0),
+        1.93, 3.896, (0.01, 100.0), 16 / 10,
     ),
     "wrist_left": (
         "link6l", "record_wrist_cam_left",
         (0.06179, 0.05297, -0.07077), (0.696364, -0.122788, 0.122788, -0.696364),
-        18.147562, 20.955, (0.05, 5.0),
+        18.147562, 20.955, (0.05, 5.0), None,
     ),
     "wrist_right": (
         "link6", "record_wrist_cam_right",
         (0.06179, -0.04397, -0.07077), (0.696364, -0.122788, 0.122788, -0.696364),
-        18.147562, 20.955, (0.05, 5.0),
+        18.147562, 20.955, (0.05, 5.0), None,
     ),
 }
 RECORD_CAM_NAMES = tuple(_RECORD_CAMS)
 
 
 def make_record_cam_cfg(name: str, height: int, width: int) -> CameraCfg:
-    """CameraCfg for recording camera ``name``. Vertical aperture follows the aspect ratio (no stretch)."""
-    body, prim, pos, rot, focal, h_aperture, clip = _RECORD_CAMS[name]
+    """CameraCfg for recording camera ``name``. Vertical aperture follows the aspect ratio (no stretch).
+
+    A camera modelled on a real sensor must keep that sensor's aspect, so sim sees what the real one sees."""
+    body, prim, pos, rot, focal, h_aperture, clip, aspect = _RECORD_CAMS[name]
+    if aspect is not None and abs(width / height - aspect) > 0.02 * aspect:
+        raise ValueError(f"camera {name}: {width}x{height} must match its sensor aspect {aspect:.3g} (w/h)")
     return CameraCfg(
         prim_path="{ENV_REGEX_NS}/Robot/" + f"{body}/{prim}",
         spawn=sim_utils.PinholeCameraCfg(
