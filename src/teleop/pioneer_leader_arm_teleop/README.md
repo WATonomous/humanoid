@@ -32,7 +32,7 @@ PYTHONPATH=$(pwd) /workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.p
 PYTHONPATH=$(pwd) /workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --scene vial_rack --record
 ```
 
-Scenes: `bare` (default), `push`, `vial_rack`, or any scene registered in `humanoid_scenes` (an unknown name lists them).
+Scenes: `bare` (default), `push`, `vial_rack`, or any scene registered in `humanoid_isaac_scenes` (an unknown name lists them).
 
 - **Home pose:** hold the leader with the elbow bent like the sim arm and the gripper **open** at startup and whenever you press **R**. Leader zero maps to the sim home pose.
 - **Directions:** move one leader joint at a time. If a sim joint goes the wrong way, restart with that entry flipped in `--signs` (order A..G, default `1,-1,-1,1,1,-1,1`).

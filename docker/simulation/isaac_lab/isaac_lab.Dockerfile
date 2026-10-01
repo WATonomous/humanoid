@@ -126,7 +126,7 @@ RUN $PYTHON -m pip install --no-deps "rerun-sdk>=0.24.0,<0.27.0" && \
 # ── Humanoid packages (editable; repo bind-mounted at runtime) ────────────────
 COPY src/robot_learning ${HUMANOID_ROOT}/src/robot_learning
 COPY src/simulation/so101_vial_task ${HUMANOID_ROOT}/src/simulation/so101_vial_task
-COPY src/simulation/humanoid_scenes ${HUMANOID_ROOT}/src/simulation/humanoid_scenes
+COPY src/simulation/isaac_scenes ${HUMANOID_ROOT}/src/simulation/isaac_scenes
 COPY src/simulation/humanoid_rl ${HUMANOID_ROOT}/src/simulation/humanoid_rl
 COPY src/simulation/humanoid_rl_tasks ${HUMANOID_ROOT}/src/simulation/humanoid_rl_tasks
 COPY src/pioneer_humanoid ${HUMANOID_ROOT}/src/pioneer_humanoid
@@ -137,7 +137,7 @@ COPY src/pioneer_humanoid ${HUMANOID_ROOT}/src/pioneer_humanoid
 RUN $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/robot_learning" && \
     $PYTHON -m pip install -c /tmp/constraints.txt psutil && \
     $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/so101_vial_task" && \
-    $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/humanoid_scenes" && \
+    $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/isaac_scenes" && \
     $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/humanoid_rl" && \
     $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/simulation/humanoid_rl_tasks" && \
     $PYTHON -m pip install --no-deps --no-build-isolation -e "${HUMANOID_ROOT}/src/pioneer_humanoid"

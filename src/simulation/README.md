@@ -12,8 +12,8 @@ src/simulation/
 │   └── humanoid_rl_tasks/
 │       ├── inhand/         locomotion/
 │       └── push_block/     # PPO + vision distillation; also a teleop scene
-├── humanoid_scenes/        # teleop data-collection scenes — @scene-discovered
-│   └── humanoid_scenes/    #   bare/  vial_rack/  push_block/
+├── isaac_scenes/           # Isaac teleop data-collection scenes — @scene-discovered
+│   └── humanoid_isaac_scenes/  #   bare/  vial_rack/  push_block/
 ├── so101_vial_task/        # SO101 imitation-learning task
 └── badminton/              # mjlab (MuJoCo Warp) badminton receive RL — see badminton/README.md
 ```
@@ -27,8 +27,8 @@ whole_body_humanoid, props, lerobot}/`. Live RL checkpoints go to `outputs/rl/` 
 | you're adding… | put it in | registered by |
 |---|---|---|
 | an RL task (has a reward, gets PPO-trained) | `humanoid_rl_tasks/<task>/` | `import_packages` in `humanoid_rl_tasks/__init__.py` — auto |
-| a teleop-only scene (collect demos, no reward) | `humanoid_scenes/<name>/scene.py` with `@scene("<name>")` | `humanoid_scenes` discovery — auto |
-| a scene that is **both** (like `push_block`) | geometry + env live in `humanoid_rl_tasks/<task>/scene.py`; add a 1-line `humanoid_scenes/<name>/scene.py` that re-registers it (`from humanoid_rl_tasks.<task>.scene import ...; scene("<name>")(TheSceneCfg)`) | both, via the shim |
+| a teleop-only scene (collect demos, no reward) | `humanoid_isaac_scenes/<name>/scene.py` with `@scene("<name>")` | `humanoid_isaac_scenes` discovery — auto |
+| a scene that is **both** (like `push_block`) | geometry + env live in `humanoid_rl_tasks/<task>/scene.py`; add a 1-line `humanoid_isaac_scenes/<name>/scene.py` that re-registers it (`from humanoid_rl_tasks.<task>.scene import ...; scene("<name>")(TheSceneCfg)`) | both, via the shim |
 
 The scene cfg declares `robot = MISSING`; the RL env cfg and the teleop registry
 each plug their own arm in. Geometry constants live in exactly one `scene.py` —
@@ -36,7 +36,7 @@ never hand-copied between the RL env and teleop.
 
 ## Invoking a scene from teleop
 
-Teleop scripts resolve `--scene <name>` through `humanoid_scenes`:
+Teleop scripts resolve `--scene <name>` through `humanoid_isaac_scenes`:
 
 ```bash
 # inside the simulation_isaac container

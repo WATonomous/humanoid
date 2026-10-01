@@ -45,9 +45,9 @@ humanoid
 │   ├── simulation/          # Isaac Lab sim & learning — see src/simulation/README.md
 │   │   ├── humanoid_rl/         #   RL runners: train / play / distill / diagnose  ($RL_RUNNERS)
 │   │   ├── humanoid_rl_tasks/   #   RL tasks, flat — inhand, locomotion, push_block
-│   │   ├── humanoid_scenes/     #   teleop data-collection scenes (@scene-discovered) — bare, vial_rack, push_block
+│   │   ├── isaac_scenes/        #   Isaac teleop data-collection scenes (@scene-discovered) — bare, vial_rack, push_block
 │   │   └── so101_vial_task/     #   SO101 imitation-learning task
-│   ├── teleop/              # Drive the arm (sim or real): keyboard, Quest WebXR, task-space IK — resolve --scene via humanoid_scenes
+│   ├── teleop/              # Drive the arm (sim or real): keyboard, Quest WebXR, task-space IK — resolve --scene via humanoid_isaac_scenes
 │   ├── robot_learning/      # Learning from datasets: record demos (sim + real), train / eval policies (ACT, SmolVLA, pi0.5)
 │   └── embedded/            # STM32 / ESP32S3 motor-controller firmware
 ├── assets/                  # robot URDF/USD/meshes + scene props (backend-neutral, not tied to Isaac)
@@ -64,8 +64,8 @@ humanoid
 | adding… | goes in | how it registers |
 |---|---|---|
 | an RL task (has a reward, gets PPO-trained) | `src/simulation/humanoid_rl_tasks/<task>/` | auto (`import_packages`) |
-| a teleop-only scene (collect demos, no reward) | `src/simulation/humanoid_scenes/<name>/scene.py` + `@scene("<name>")` | auto (discovery) |
-| a scene that is **both** (e.g. `push_block`) | task owns the geometry in its `scene.py`; add a 1-line shim in `humanoid_scenes/` | both |
+| a teleop-only scene (collect demos, no reward) | `src/simulation/isaac_scenes/<name>/scene.py` + `@scene("<name>")` | auto (discovery) |
+| a scene that is **both** (e.g. `push_block`) | task owns the geometry in its `scene.py`; add a 1-line shim in `humanoid_isaac_scenes/` | both |
 
 Full detail — [src/simulation/README.md](src/simulation/README.md). Other areas: each has its own `README.md`.
 

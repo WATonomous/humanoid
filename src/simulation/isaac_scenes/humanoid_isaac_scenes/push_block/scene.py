@@ -8,7 +8,7 @@ its ``MISSING`` robot slot.
 """
 from __future__ import annotations
 
-from humanoid_scenes import scene
+from humanoid_isaac_scenes import scene
 from humanoid_rl_tasks.push_block.scene import PushBlockSceneCfg, ROBOT_STAND_LIFT_Z
 
 # Arm lifted onto its floor stand; camera framed on the table + ramp box.
