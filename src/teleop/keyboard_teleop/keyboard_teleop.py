@@ -25,39 +25,18 @@ from pathlib import Path
 
 from isaaclab.app import AppLauncher
 
-_ROBOT_LEARNING_PKG = Path(__file__).resolve().parents[2] / "robot_learning"
-_DEFAULT_SCHEMA = _ROBOT_LEARNING_PKG / "config" / "dataset_schema_pioneer_v1.yaml"
-
-# pioneer_humanoid package (canonical arm config). Editable-installed in the image; this fallback
-# keeps a bare bind-mounted checkout working.
+# pioneer_humanoid (canonical arm config) and humanoid_robot_learning (recording). Editable-installed
+# in the image; this fallback keeps a bare bind-mounted checkout working.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "pioneer_humanoid"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "robot_learning"))
+
+from humanoid_robot_learning.sim_teleop_record import (  # noqa: E402
+    add_record_args,
+    load_record_schema,
+    make_sim_recorder,
+)
 
 parser = argparse.ArgumentParser(description="Keyboard teleoperation for the Pioneer bimanual arm (left only).")
-parser.add_argument(
-    "--record",
-    action="store_true",
-    help="Record demonstrations (requires: pip install -e src/robot_learning[record])",
-)
-parser.add_argument(
-    "--sink",
-    type=str,
-    default="lerobot,hdf5",
-    help="Output sinks when --record: lerobot, hdf5, or lerobot,hdf5",
-)
-parser.add_argument(
-    "--schema",
-    type=str,
-    default=str(_DEFAULT_SCHEMA),
-    help="dataset_schema YAML (default: src/robot_learning/config/dataset_schema_pioneer_v1.yaml)",
-)
-parser.add_argument(
-    "--dataset_root",
-    type=str,
-    default=None,
-    help="Output directory (default: <repo>/<schema record.root>/sim)",
-)
-parser.add_argument("--num_episodes", type=int, default=10)
-parser.add_argument("--task_description", type=str, default="sim keyboard teleop demonstration")
 parser.add_argument(
     "--scene",
     type=str,
@@ -65,33 +44,10 @@ parser.add_argument(
     help="scene name: 'bare' (arm only), 'push', or any scene registered in "
     "humanoid_scenes (validated after launch — pass an unknown name to list them)",
 )
-parser.add_argument(
-    "--cameras",
-    type=str,
-    default=None,
-    help="cameras to record, e.g. 'ego,wrist_left' or 'none' (default: schema's enabled images)",
-)
+add_record_args(parser, task_description="sim keyboard teleop demonstration")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
-if args_cli.cameras is not None and not args_cli.record:
-    parser.error("--cameras requires --record")
-
-# Schema is read before launch: recording cameras need --enable_cameras.
-_schema_path, _schema_cfg, _record_images = None, None, {}
-if args_cli.record:
-    if str(_ROBOT_LEARNING_PKG) not in sys.path:
-        sys.path.insert(0, str(_ROBOT_LEARNING_PKG))
-    from humanoid_robot_learning.record_utils import resolve_config_path, resolve_dataset_root
-    from humanoid_robot_learning.schema import enabled_images, load_yaml, select_cameras
-
-    _schema_path = resolve_config_path(args_cli.schema, anchor=_ROBOT_LEARNING_PKG)
-    try:
-        _schema_cfg = select_cameras(load_yaml(_schema_path), args_cli.cameras)
-    except ValueError as exc:
-        parser.error(f"--cameras: {exc}")
-    _record_images = enabled_images(_schema_cfg)
-    if _record_images:
-        args_cli.enable_cameras = True
+_record = load_record_schema(parser, args_cli)
 
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
@@ -130,77 +86,18 @@ from pioneer_humanoid.bimanual_arm import (
 from humanoid_scenes import list_scenes, make_scene_cfg, scene_camera
 from pioneer_humanoid.cameras import CAMERA_NAMES, make_camera_cfg
 
-# Recorded joint order (real-robot names, joint_command_core.cpp); must match the schema.
-_RECORD_JOINT_NAMES = [
-    "left_shoulder_pitch",
-    "left_shoulder_roll",
-    "left_shoulder_yaw",
-    "left_elbow_pitch",
-    "left_elbow_roll",
-    "left_wrist_pitch",
-    "left_gripper",
-]
-
 
 def _joint_ids(robot, names: list[str]) -> list[int]:
     name_to_id = {name: i for i, name in enumerate(robot.data.joint_names)}
     return [name_to_id[resolve_joint_name(robot, name)] for name in names]
 
 
-def _init_recorder(device: str, sim_dt: float):
-    """Return (recorder, record_every): record one frame every `record_every` physics steps."""
-    if not args_cli.record:
-        return None, 0
-    if str(_ROBOT_LEARNING_PKG) not in sys.path:
-        sys.path.insert(0, str(_ROBOT_LEARNING_PKG))
-    try:
-        from humanoid_robot_learning.sim_recorder import SimLeRobotRecorder
-    except ImportError as exc:
-        raise ImportError(
-            "Recording requires humanoid-robot-learning. Install with:\n"
-            "  pip install -e src/robot_learning[sim]"
-        ) from exc
-
-    schema_path, cfg = _schema_path, _schema_cfg
-    dataset_root = resolve_dataset_root(cfg, args_cli.dataset_root, subdir="sim")
-    if list(cfg["joint_names"]) != _RECORD_JOINT_NAMES:
-        raise ValueError(
-            f"{schema_path}: joint_names must be {_RECORD_JOINT_NAMES} (6 arm joints + gripper), "
-            f"got {list(cfg['joint_names'])}"
-        )
-    fps = int(cfg.get("fps", 25))
-    physics_hz = 1.0 / sim_dt
-    record_every = round(physics_hz / fps)
-    if record_every < 1 or abs(record_every * fps - physics_hz) > 1e-6:
-        raise ValueError(f"{schema_path}: fps={fps} must divide the physics rate ({physics_hz:g} Hz)")
-    cameras = {
-        name: {"height": spec["height"], "width": spec["width"]}
-        for name, spec in _record_images.items()
-    }
-    recorder = SimLeRobotRecorder(
-        task_name=args_cli.task_description,
-        repo_id=str(cfg.get("repo_id", "humanoid/sim")),
-        dataset_root=dataset_root,
-        fps=fps,
-        device=device,
-        joint_names=list(cfg["joint_names"]),
-        cameras=cameras,
-        num_episodes=args_cli.num_episodes,
-        robot_type=str(cfg.get("robot_id", "pioneer_v1_left_arm")),
-        rate_limit=False,
-    )
-    recorder.init_dataset()
-    print(f"[RECORD] Writing to {dataset_root} at {fps} fps (every {record_every} physics steps)")
-    if cameras:
-        print(f"[RECORD] Cameras: {sorted(cameras)}")
-    print("[RECORD] Keys: S=start, N=save episode, D=discard, Esc=stop")
-    return recorder, record_every
-
-
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     robot = scene["robot"]
     sim_dt = sim.get_physics_dt()
-    recorder, record_every = _init_recorder(sim.device, sim_dt)
+    recorder, record_every = make_sim_recorder(args_cli, _record, device=sim.device, sim_dt=sim_dt)
+    if recorder is not None:
+        print("[RECORD] Keys: S=start, N=save episode, D=discard, Esc=stop")
 
     import numpy as np
 
@@ -296,7 +193,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     # Called by tick() only on recorded frames.
     def read_images():
-        return {name: scene[f"record_cam_{name}"].data.output["rgb"][0, ..., :3] for name in _record_images}
+        return {name: scene[f"record_cam_{name}"].data.output["rgb"][0, ..., :3] for name in _record.images}
 
     debug_steps = 0
     physics_step = 0
@@ -424,10 +321,10 @@ def main():
 
     scene_cfg = make_scene_cfg(args_cli.scene, BIMANUAL_ARM_CFG, num_envs=1, env_spacing=2.0)
     # Added after the robot: cameras are parented under it, and entities are created in order.
-    unknown = sorted(set(_record_images) - set(CAMERA_NAMES))
+    unknown = sorted(set(_record.images) - set(CAMERA_NAMES))
     if unknown:
-        raise SystemExit(f"{_schema_path}: unknown images {unknown}; available: {list(CAMERA_NAMES)}")
-    for name, spec in _record_images.items():
+        raise SystemExit(f"{_record.path}: unknown images {unknown}; available: {list(CAMERA_NAMES)}")
+    for name, spec in _record.images.items():
         setattr(scene_cfg, f"record_cam_{name}", make_camera_cfg(name, int(spec["height"]), int(spec["width"])))
     scene = InteractiveScene(scene_cfg)
 
