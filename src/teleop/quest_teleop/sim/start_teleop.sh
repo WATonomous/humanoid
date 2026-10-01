@@ -3,13 +3,13 @@
 # simulation_isaac container, sets up ADB port tunnels, and launches
 # quest_teleop_node + webxr_server.py + the Isaac Sim IK script inside it
 # (container_start_teleop.sh auto-detects which IK script exists on the
-# current branch). See src/teleop/quest_isaac_teleop/README.md for
+# current branch). See src/teleop/quest_teleop/sim/README.md for
 # the full manual step-by-step this consolidates, and for one-time setup
 # (image build, SSL certs, Quest developer mode).
 set -e
 
-# Script lives in src/teleop/quest_isaac_teleop/ ; walk up to the repo root.
-REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
+# Script lives in src/teleop/quest_teleop/sim/ ; walk up to the repo root.
+REPO="$(cd "$(dirname "$0")/../../../.." && pwd)"
 cd "$REPO"
 
 # Exported so it applies to every ./watod call below, not just the first --
@@ -36,4 +36,4 @@ echo "  Isaac Sim takes 1-3 min to load. Wait for:"
 echo "  [Quest] Ready. Waiting for /quest_teleop messages."
 echo ""
 ./watod exec simulation_isaac bash \
-    /workspace/humanoid/src/teleop/quest_isaac_teleop/container_start_teleop.sh "$@"
+    /workspace/humanoid/src/teleop/quest_teleop/sim/container_start_teleop.sh "$@"

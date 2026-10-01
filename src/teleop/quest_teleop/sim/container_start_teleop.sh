@@ -48,13 +48,13 @@ if pgrep -f "webxr_server.py" >/dev/null 2>&1; then
     echo "[teleop] webxr_server.py already running -- reusing (won't be stopped on exit)."
 else
     echo "[teleop] Starting webxr_server.py..."
-    python3 "${WORKSPACE}/src/teleop/quest_teleop/scripts/webxr_server.py" &
+    python3 "${WORKSPACE}/src/teleop/quest_teleop/bridge/scripts/webxr_server.py" &
     WEBXR_PID=$!
 fi
 
 sleep 2
 
-cd "${WORKSPACE}/src/teleop/quest_isaac_teleop"
+cd "${WORKSPACE}/src/teleop/quest_teleop/sim"
 if [ ! -x ./run_quest_bimanual_teleop.sh ]; then
     echo "[teleop] ERROR: run_quest_bimanual_teleop.sh not found in $(pwd). Nothing to launch."
     exit 1

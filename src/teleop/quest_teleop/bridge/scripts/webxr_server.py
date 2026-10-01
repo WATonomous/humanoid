@@ -11,7 +11,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PACKAGE_DIR = SCRIPT_DIR.parent
 
 STATIC_DIR = PACKAGE_DIR / "static"
-CERT_DIR = Path(os.environ.get("TELEOP_CERT_DIR", PACKAGE_DIR / "certs"))
+CERT_DIR = Path(os.environ.get("TELEOP_CERT_DIR", PACKAGE_DIR.parent / "certs"))  # src/teleop/quest_teleop/certs
 
 CERT_FILE = CERT_DIR / "cert.pem"
 KEY_FILE = CERT_DIR / "key.pem"
