@@ -15,8 +15,8 @@ judged on the cloth's particle geometry, not the robot.
 | Retargeted to one `pioneer_bimanual_arm` articulation | ✅ `GarmentPioneerEnv` (subclass; overrides `_setup_scene` / `_apply_action` / `_get_observations` / `_reset_idx`) |
 | Gym id `Humanoid-GarmentFold-Bimanual-Pioneer-v0` | ✅ |
 | Scene (`Scene_00_Apartment.usd`) + garment on the table | ✅ loads; verified in this repo's `isaac_lab` image (see below), not just LeHome's venv |
-| Arm base pose vs the garment | ⚠️ X/Y measured against the garment; **Z was wrong** — `0.68` put the robot's own stand more than half a meter below the floor (visually obvious: the stand appeared to sink into the ground). Fixed to `1.1997`, derived from the asset's own USD bounding box (`wato_arm_v2/armWithStand.usd`, 1.5m tall), not re-guessed. `+90° about Z` (front axis is `+X`) unaffected. |
-| **Arm default joint pose** | ⚠️ droops — `pioneer_humanoid.bimanual_arm._DEFAULT_JOINT_POS` is an asymmetric capture, not a fold-ready spread. **The real remaining blocker.** |
+| Arm base pose vs the garment | ✅ `(0, -0.40, 0.95)`, picked by sampling the arm's real reachable workspace (FK over joint limits, `scripts/fk_reach_check.py`) rather than guessed — gets a real reach test within ~1cm of the garment, down from ~10-25cm short. Trade-off: the stand's true floor-standing Z (`1.1997`, see git history) was reachability-infeasible from this distance, so this re-sinks it ~25cm into the floor — accepted, reach took priority. See `garment_pioneer_cfg.py` for the full reasoning. |
+| **Arm default joint pose** | ⚠️ droops at rest — `pioneer_humanoid.bimanual_arm._DEFAULT_JOINT_POS` is an asymmetric capture, not a fold-ready spread. Reach itself is now solved (see `scripts/reach_pose_ik.py`); this item is specifically about the *default/idle* pose, not reachability. |
 | Wrist camera offsets | ✅ fixed — now uses the canonical, CAD-sourced mount from `pioneer_humanoid.arm_params.CAMERAS` (was SO101-sized and unretargeted; see PR #219) |
 | Full 600-step episode / success-checker firing | ✅ episode runs clean end-to-end (~55s on an RTX 4060); success never fires with a no-op policy, as expected — not yet tried with anything that could actually fold |
 | Teleop → demos → LeRobot training | ❌ not wired |
@@ -119,25 +119,20 @@ patched by hand) as of PR #219.
 
 ## To finish
 
-1. **Symmetric fold-ready joint pose** + tune the 4 gripper prismatic joints for
-   pinching fabric. The real remaining blocker — the current default droops
-   and doesn't reach the table, so nothing can grip the garment yet.
-   `scripts/reach_pose_ik.py` attempts this. It went through a few bad
-   iterations (own from-scratch IK loop: stuck local minimum, then wrist
-   wind-up/divergence near the target -- see git history) before settling on
-   reusing `src/teleop/keyboard_teleop/keyboard_teleop.py`'s actual driving
-   formula verbatim, instead of writing a new one: a persistent target
-   integrated from small per-step deltas and *leashed* to stay within a
-   fixed distance of the tip's real current position every step (not just
-   ramped by elapsed time) -- the same technique that already works in
-   production teleop sessions on this robot. That fixed the instability: the
-   same target that previously diverged to ~0.87 error now settles into a
-   stable, bounded ~0.10-0.24m error with no wind-up, both arms visibly bent
-   forward in a controlled reach near the table (not frozen, not spun out).
-   Still not a full solve -- it plateaus there rather than reaching zero, so
-   either the target is still a bit past true reach for this base placement,
-   or there's a residual local minimum the leash alone doesn't escape. See
-   the script's docstring for the exact numbers and what to try next.
+1. **Reaching is solved; grasping/pinching is not.** `scripts/reach_pose_ik.py`
+   (reusing `keyboard_teleop.py`'s leashed-target IK driving, not a new
+   solver) gets within ~1-5mm of the garment now. Getting there took two real
+   fixes, both from measuring instead of guessing: (a) a persistent,
+   *leashed* target -- integrated from small per-step deltas, clamped near
+   the tip's actual position every step -- instead of commanding one big
+   jump (which caused wrist wind-up/divergence); (b) `robot_base_pos` picked
+   by sampling the arm's real reachable workspace (`scripts/fk_reach_check.py`,
+   forward kinematics over joint limits, no IK) instead of guessed -- the
+   previous position was 10-25cm outside true reach, no amount of IK tuning
+   fixes that. See git history for the dead ends.
+   **Still open:** the 4 gripper prismatic joints need tuning to actually
+   pinch fabric once the gripper is there, and the *default/idle* pose still
+   droops (separate from reach, which now works when actively driven).
 2. **Full garment set**: `hf download lehome/asset_challenge` →
    `garment_cfg_base_path`.
 3. **Data + training**: pioneer teleop (this repo's `src/teleop/` or

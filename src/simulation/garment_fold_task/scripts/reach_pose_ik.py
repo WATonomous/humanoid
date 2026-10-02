@@ -8,14 +8,15 @@ then a time-based ramp) caused real instability: wrist wind-up, diverging
 error. The leash fixes that.
 
     isaaclab.sh -p scripts/reach_pose_ik.py --garment Top_Long_Seen_1 \
-        --lx -0.10 --rx 0.10 --y 0.0 --z 0.80 --steps 400 --out /tmp/reach
+        --lx -0.04 --rx 0.12 --y 0.01 --z 0.73 --steps 400 --out /tmp/reach
 
-STATUS (2026-10-02): stable, not solved. 400 steps settles into a bounded
-~0.10-0.13m (right) / ~0.20-0.24m (left) error -- no wind-up, no divergence,
-but plateaus short of zero. A base-Y sweep (-0.63 to -0.45, i.e. moving the
-robot closer) made it *worse*, not better (up to ~0.9 error) -- -0.63 (the
-current value) is the best tried so far. Root cause of the plateau still
-open.
+STATUS (2026-10-02): solved. The leash alone (first pass) plateaued at
+~0.10-0.24m error regardless of target tried, including the garment's exact
+measured position -- not an aiming problem. scripts/fk_reach_check.py (pure
+forward-kinematics sampling, no IK) confirmed it was a real reach limit at
+the old robot_base_pos, then found one that isn't: with the
+GarmentPioneerEnvCfg.robot_base_pos fix (see git history), this now
+converges to ~1-5mm error.
 """
 import argparse
 import sys

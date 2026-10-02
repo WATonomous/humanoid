@@ -61,12 +61,21 @@ class GarmentPioneerEnvCfg(GarmentEnvCfg):
     robot: ArticulationCfg = BIMANUAL_ARM_CFG.replace(prim_path="/World/Robot")
 
     # Front axis is +X (see bimanual_vial_rack.sh / pick_place_bimanual); rotated
-    # +90 deg about Z so it faces the garment at world ~(0,0,0.63), 0.63m behind
-    # in -Y. Z=1.1997 puts the stand's foot at world Z=0 -- derived from the
-    # asset's own USD bbox (pioneer_bimanual_arm.usd, local Z in
-    # [-1.1997, 0.3003]); the old ~0.68 sank the stand half a meter into the
-    # floor, never checked against the asset until now.
-    robot_base_pos: tuple = (0.0, -0.63, 1.1997)
+    # +90 deg about Z to face the garment at world ~(0,0,0.73).
+    #
+    # Y=-0.40, Z=0.95: picked by sampling the arm's real reachable workspace
+    # (forward kinematics over its joint limits, not IK) at several base
+    # positions -- this one gets within ~1cm of the garment vs. ~10-25cm short
+    # at the previous (0,-0.63,1.1997), confirmed with a real reach test
+    # (scripts/reach_pose_ik.py). Z=1.1997 (the stand's true floor-standing
+    # height, see git history) was reachability-infeasible from this distance.
+    # Trade-off, accepted for now: the stand sinks ~25cm into the floor again
+    # at Z=0.95 -- same bug as before, reintroduced because reach needs
+    # priority over visual floor placement. Apartment scene's table isn't
+    # independently raisable (Scene_00_Apartment.usd bakes floor+table into
+    # one prim; the Table038 fallback could be raised alone, at the cost of
+    # losing the photoreal backdrop -- not done here).
+    robot_base_pos: tuple = (0.0, -0.40, 0.95)
     robot_base_rot: tuple = (0.7071068, 0.0, 0.0, 0.7071068)  # wxyz, +90 deg Z
 
     # Optional photoreal NuRec backdrop (visual only, no collision). Off by
