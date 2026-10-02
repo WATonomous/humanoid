@@ -44,7 +44,7 @@ services:
       dockerfile: docker/simulation/isaac_lab/isaac_lab_garment.Dockerfile
       args:
         SIMULATION_ISAAC_IMAGE: "${SIMULATION_ISAAC_IMAGE:?}"
-        TAG: "${TAG:?}"
+        TAG: "${TAG}"
       cache_from:
         - "${SIMULATION_ISAAC_GARMENT_IMAGE:?}:${TAG}"
         - "${SIMULATION_ISAAC_GARMENT_IMAGE:?}:main"
