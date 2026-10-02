@@ -92,7 +92,6 @@ ENTRYPOINT ["./wato_ros_entrypoint.sh"]
 ################################ Develop ################################
 # Run as the host user so bind-mounted files aren't root-owned. The base image
 # ships a `bolty` user at uid 1000; remap it to the host user (or make a new one).
-# No `usermod -m`: ${AMENT_WS} lives in the old home, where WORKDIR still points.
 FROM build AS develop
 ARG USER_UID=1000
 ARG USER_GID=1000
