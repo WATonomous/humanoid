@@ -123,24 +123,28 @@ patched by hand) as of PR #219.
    pinching fabric. The real remaining blocker — the current default droops
    and doesn't reach the table, so nothing can grip the garment yet.
    `scripts/reach_pose_ik.py` has a real differential-IK attempt at this
-   (reusing `src/teleop/task_space_controller/task_space_ik.py`'s approach,
-   verified working on this robot) -- not solved yet. Two rounds of findings:
+   (reusing `src/teleop/task_space_controller/task_space_ik.py`'s approach
+   and, for the fix below, `src/teleop/keyboard_teleop/keyboard_teleop.py`'s
+   small-increment driving style -- both verified working on this robot) --
+   not solved yet. Three rounds of findings, see the script's docstring for
+   the full detail:
    - With the old (wrong, see `robot_base_pos` above) base height, a target
      centered on the garment flatlined well short of zero for hundreds of
      steps straight -- a stuck local minimum, not slow convergence.
-   - After fixing the base height, that specific flatline is gone, but a
-     *different* failure shows up instead: the wrist joint winds up to
-     exactly +-2*pi (a full spin) and the position error oscillates/diverges
-     rather than converging, on both arms, at two target heights tried. This
-     looks like a quaternion double-cover bug in the IK orientation command
-     (q and -q represent the same rotation; a controller that doesn't check
-     `dot(q_current, q_target) < 0` and flip one can command "the long way
-     around," winding the joint instead of taking the short rotation) --
-     plausible given this script commands the *current* tip orientation as
-     the target every step (meant to be a no-op), but not confirmed by
-     reading the controller's internals. Next step: check
-     `isaaclab.controllers.DifferentialIKController`'s orientation-error
-     computation for this, before trying anything else.
+   - After fixing the base height, a *different* failure appeared: the wrist
+     joint would wind up several radians and the error oscillate/diverge,
+     commanding the full far-off goal from step 0.
+   - Ramping the commanded target smoothly from the arm's actual start
+     position to the goal (one small step at a time, the way
+     `keyboard_teleop.py` actually drives this exact controller, instead of
+     one big jump) fixed the *approach* -- clean, low-error tracking for
+     ~65% of the way. But instability still recurs once near the actual
+     final target. That points at the target configuration being near a
+     kinematic singularity for this arm/pose (where damped-least-squares IK
+     is known to blow up even with small steps), not a jump-size or
+     quaternion-sign issue as earlier notes here guessed. Not confirmed by
+     computing the Jacobian's condition number directly -- the real next
+     step, before trying a different target region or IK method/damping.
 2. **Full garment set**: `hf download lehome/asset_challenge` →
    `garment_cfg_base_path`.
 3. **Data + training**: pioneer teleop (this repo's `src/teleop/` or

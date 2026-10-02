@@ -21,15 +21,32 @@ After fixing robot_base_pos.z (the robot's own stand was more than half a
 meter below the floor -- unrelated bug, found by inspection, fixed from the
 asset's own USD bounding box, not guessed), that specific flatline symptom
 is gone, but reaching still isn't solved: a *different* failure shows up at
-two target heights tried -- the wrist joint winds up to exactly +-2*pi (a
-full spin) and the position error oscillates/diverges instead of converging,
-on both arms. This looks like a quaternion double-cover bug in the
-orientation command (q and -q are the same rotation; without checking
-dot(q_current, q_target) < 0 and flipping one, a controller can command "the
-long way around" and wind the joint) -- plausible since this script commands
-the *current* tip orientation as the target every step (meant to be a
-no-op), but not confirmed by reading DifferentialIKController's internals.
-Next step: check that before trying anything else.
+two target heights tried -- the wrist joint winds up multiple radians and
+the position error oscillates/diverges instead of converging, on both arms.
+
+Ruled out one cause: the orientation command here is always the tip's
+*current* orientation (meant as a no-op), re-set every step -- there's no
+commanded orientation error by construction, so a quaternion double-cover
+sign flip (q vs -q) isn't the direct cause, despite looking like one at
+first (an earlier version of this note said otherwise; corrected).
+
+Tried commanding the goal with a ramp -- ``--steps``/2 to interpolate
+linearly from the arm's actual starting tip position to the goal, instead of
+the full jump from step 0 (this is closer to how
+``src/teleop/keyboard_teleop/keyboard_teleop.py`` actually drives this same
+DifferentialIKController: one small per-keypress delta, never one big
+target). This measurably helped the *approach*: error tracks the moving
+sub-target cleanly (down to ~0.02-0.05) for roughly the first 65% of the
+ramp. But instability still recurs once near the actual final target --
+error grows again (up to ~0.87) specifically in that region, not from the
+jump itself (there wasn't one this time). That points more precisely at the
+target configuration itself being near a kinematic singularity for this
+arm/pose (where damped-least-squares IK is known to blow up even with small
+steps, since the Jacobian's condition number explodes near a singularity),
+rather than purely a large-single-jump or redundant-DOF issue. Not
+confirmed by computing the Jacobian's condition number directly -- the next
+real step, before trying a different target region or a different IK
+method/damping.
 """
 import argparse
 import sys
@@ -147,13 +164,31 @@ class ArmIK:
 left_ik = ArmIK(LEFT_ARM_JOINTS, LEFT_EE_BODY, LEFT_FINGER_TIP_BODIES)
 right_ik = ArmIK(RIGHT_ARM_JOINTS, RIGHT_EE_BODY, RIGHT_FINGER_TIP_BODIES)
 
-left_target_w = torch.tensor([[args.lx, args.y, args.z]], device=device)
-right_target_w = torch.tensor([[args.rx, args.y, args.z]], device=device)
+left_goal_w = torch.tensor([[args.lx, args.y, args.z]], device=device)
+right_goal_w = torch.tensor([[args.rx, args.y, args.z]], device=device)
 hold_quat = torch.tensor([[1.0, 0.0, 0.0, 0.0]], device=device)
+
+# Commanding the full, far-off goal from step 0 (what this script originally did) let the
+# wrist joint wind up a full 2*pi and the error diverge -- keyboard_teleop.py never does this;
+# it only ever moves the IK target a small amount per keypress. Reproduce that here: ramp the
+# commanded target linearly from the arm's actual starting tip position to the goal over the
+# first half of the run, instead of a single big jump. Small per-step target deltas keep the
+# solver away from the redundant-DOF (wrist-roll) drift a single large jump seems to trigger.
+root_pose_w0 = robot.data.root_state_w[:, 0:7]
+left_start_b, _ = compute_gripper_tip_pose_b(robot, root_pose_w0, left_ik.body_id, left_ik.finger_ids)
+right_start_b, _ = compute_gripper_tip_pose_b(robot, root_pose_w0, right_ik.body_id, right_ik.finger_ids)
+root_pos0, root_quat0 = root_pose_w0[:, 0:3], root_pose_w0[:, 3:7]
+from isaaclab.utils.math import combine_frame_transforms
+left_start_w, _ = combine_frame_transforms(root_pos0, root_quat0, left_start_b)
+right_start_w, _ = combine_frame_transforms(root_pos0, root_quat0, right_start_b)
+ramp_steps = max(1, args.steps // 2)
 
 sim_dt = env.sim.get_physics_dt()
 save_frame("_step0000.png")
 for st in range(args.steps):
+    frac = min(1.0, (st + 1) / ramp_steps)
+    left_target_w = left_start_w + frac * (left_goal_w - left_start_w)
+    right_target_w = right_start_w + frac * (right_goal_w - right_start_w)
     lt = left_ik.step(left_target_w, hold_quat)
     rt = right_ik.step(right_target_w, hold_quat)
     # bypassing env.step() -- GarmentPioneerEnv._apply_action() would overwrite
@@ -171,10 +206,14 @@ for st in range(args.steps):
         root_pose_w = robot.data.root_state_w[:, 0:7]
         lp_b, _ = subtract_frame_transforms(root_pose_w[:, 0:3], root_pose_w[:, 3:7], left_target_w, hold_quat)
         rp_b, _ = subtract_frame_transforms(root_pose_w[:, 0:3], root_pose_w[:, 3:7], right_target_w, hold_quat)
+        lg_b, _ = subtract_frame_transforms(root_pose_w[:, 0:3], root_pose_w[:, 3:7], left_goal_w, hold_quat)
+        rg_b, _ = subtract_frame_transforms(root_pose_w[:, 0:3], root_pose_w[:, 3:7], right_goal_w, hold_quat)
         l_err = (lp_b - lt).norm().item()
         r_err = (rp_b - rt).norm().item()
-        print(f"DBG st={st} left_tip_b={lt.squeeze(0).tolist()} left_target_b={lp_b.squeeze(0).tolist()} err={l_err:.4f}")
-        print(f"DBG st={st} right_tip_b={rt.squeeze(0).tolist()} right_target_b={rp_b.squeeze(0).tolist()} err={r_err:.4f}")
+        l_goal_err = (lg_b - lt).norm().item()
+        r_goal_err = (rg_b - rt).norm().item()
+        print(f"DBG st={st} frac={frac:.3f} left_tip_b={lt.squeeze(0).tolist()} err_to_subtarget={l_err:.4f} err_to_FINAL_GOAL={l_goal_err:.4f}")
+        print(f"DBG st={st} frac={frac:.3f} right_tip_b={rt.squeeze(0).tolist()} err_to_subtarget={r_err:.4f} err_to_FINAL_GOAL={r_goal_err:.4f}")
     if (st + 1) % 25 == 0:
         save_frame(f"_step{st + 1:04d}.png")
 
