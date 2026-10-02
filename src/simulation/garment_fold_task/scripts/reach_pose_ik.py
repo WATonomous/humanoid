@@ -9,21 +9,27 @@ visually and numerically, and prints the final joint angles reached.
     isaaclab.sh -p scripts/reach_pose_ik.py --garment Top_Long_Seen_1 \
         --lx -0.10 --rx 0.10 --y 0.0 --z 0.80 --steps 200 --out /tmp/reach
 
-STATUS (checked 2026-10-02, not solved): with the robot_base_pos/rot
-currently in GarmentPioneerEnvCfg, a target centered on the garment's actual
-table position (world ~(0,0,0.73)) is unreachable -- the position error
-plateaus hard and flatlines (e.g. 0.4154, exactly, for hundreds of
-consecutive steps; not slow convergence, a genuine stuck local minimum/joint
-lock) well short of zero, for both arms, at multiple target distances tried.
-The final joint angles at convergence land very close to +-pi on the wrist
-joint (joint6/joint6l) -- looks like a joint-limit lock, not confirmed
-against the articulation's actual limits (an attempt to query
-robot.data.joint_pos_limits directly hit an unrelated setup error not worth
-chasing further in this pass). Two real next steps, not yet tried: (1) move
-the robot's base closer to the table (robot_base_pos) and see if a nearer
-target converges cleanly -- would confirm this is a base-placement problem
-rather than an IK-tuning one; (2) actually confirm/raise the wrist joint
-limit if that's really what's being hit.
+STATUS (checked 2026-10-02, not solved, updated after the robot_base_pos.z
+fix -- see GarmentPioneerEnvCfg): originally, with the old (wrong) base
+height, a target centered on the garment's table position was unreachable --
+the position error flatlined hard (e.g. exactly 0.4154 for hundreds of
+consecutive steps; a stuck local minimum, not slow convergence) for both
+arms at every target distance tried, with final joint angles landing near
++-pi on the wrist joint.
+
+After fixing robot_base_pos.z (the robot's own stand was more than half a
+meter below the floor -- unrelated bug, found by inspection, fixed from the
+asset's own USD bounding box, not guessed), that specific flatline symptom
+is gone, but reaching still isn't solved: a *different* failure shows up at
+two target heights tried -- the wrist joint winds up to exactly +-2*pi (a
+full spin) and the position error oscillates/diverges instead of converging,
+on both arms. This looks like a quaternion double-cover bug in the
+orientation command (q and -q are the same rotation; without checking
+dot(q_current, q_target) < 0 and flipping one, a controller can command "the
+long way around" and wind the joint) -- plausible since this script commands
+the *current* tip orientation as the target every step (meant to be a
+no-op), but not confirmed by reading DifferentialIKController's internals.
+Next step: check that before trying anything else.
 """
 import argparse
 import sys
@@ -79,6 +85,15 @@ device = env.device
 os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
 
 
+try:
+    env.scene_camera.set_world_poses_from_view(
+        eyes=torch.tensor([[1.9, -2.3, 1.35]], device=device),
+        targets=torch.tensor([[0.0, -0.1, 0.55]], device=device),
+    )
+except Exception as e:
+    print("scene cam aim failed:", e)
+
+
 def save_frame(suffix):
     try:
         a = np.asarray(env.top_camera.data.output["rgb"][0].cpu().numpy())
@@ -87,6 +102,8 @@ def save_frame(suffix):
         Image.fromarray(a2[..., :3].astype(np.uint8)).save(f"{args.out}_lwrist{suffix}")
         a3 = np.asarray(env.right_camera.data.output["rgb"][0].cpu().numpy())
         Image.fromarray(a3[..., :3].astype(np.uint8)).save(f"{args.out}_rwrist{suffix}")
+        a4 = np.asarray(env.scene_camera.data.output["rgb"][0].cpu().numpy())
+        Image.fromarray(a4[..., :3].astype(np.uint8)).save(f"{args.out}_scene{suffix}")
     except Exception as e:
         print("frame save failed:", e)
 

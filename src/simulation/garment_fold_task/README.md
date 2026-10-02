@@ -15,7 +15,7 @@ judged on the cloth's particle geometry, not the robot.
 | Retargeted to one `pioneer_bimanual_arm` articulation | ✅ `GarmentPioneerEnv` (subclass; overrides `_setup_scene` / `_apply_action` / `_get_observations` / `_reset_idx`) |
 | Gym id `Humanoid-GarmentFold-Bimanual-Pioneer-v0` | ✅ |
 | Scene (`Scene_00_Apartment.usd`) + garment on the table | ✅ loads; verified in this repo's `isaac_lab` image (see below), not just LeHome's venv |
-| Arm base pose vs the garment | ✅ measured — `(0, -0.63, 0.68)` + `+90° about Z` (front axis is `+X`) |
+| Arm base pose vs the garment | ⚠️ X/Y measured against the garment; **Z was wrong** — `0.68` put the robot's own stand more than half a meter below the floor (visually obvious: the stand appeared to sink into the ground). Fixed to `1.1997`, derived from the asset's own USD bounding box (`wato_arm_v2/armWithStand.usd`, 1.5m tall), not re-guessed. `+90° about Z` (front axis is `+X`) unaffected. |
 | **Arm default joint pose** | ⚠️ droops — `pioneer_humanoid.bimanual_arm._DEFAULT_JOINT_POS` is an asymmetric capture, not a fold-ready spread. **The real remaining blocker.** |
 | Wrist camera offsets | ✅ fixed — now uses the canonical, CAD-sourced mount from `pioneer_humanoid.arm_params.CAMERAS` (was SO101-sized and unretargeted; see PR #219) |
 | Full 600-step episode / success-checker firing | ✅ episode runs clean end-to-end (~55s on an RTX 4060); success never fires with a no-op policy, as expected — not yet tried with anything that could actually fold |
@@ -124,12 +124,23 @@ patched by hand) as of PR #219.
    and doesn't reach the table, so nothing can grip the garment yet.
    `scripts/reach_pose_ik.py` has a real differential-IK attempt at this
    (reusing `src/teleop/task_space_controller/task_space_ik.py`'s approach,
-   verified working on this robot) -- not solved yet: a target centered on
-   the garment's actual table position is unreachable with the current
-   `robot_base_pos`, the position error flatlines well short of zero (stuck
-   local minimum / possible wrist joint-limit lock, not confirmed), for both
-   arms, at every distance tried. See the script's docstring for what's
-   verified vs. still open.
+   verified working on this robot) -- not solved yet. Two rounds of findings:
+   - With the old (wrong, see `robot_base_pos` above) base height, a target
+     centered on the garment flatlined well short of zero for hundreds of
+     steps straight -- a stuck local minimum, not slow convergence.
+   - After fixing the base height, that specific flatline is gone, but a
+     *different* failure shows up instead: the wrist joint winds up to
+     exactly +-2*pi (a full spin) and the position error oscillates/diverges
+     rather than converging, on both arms, at two target heights tried. This
+     looks like a quaternion double-cover bug in the IK orientation command
+     (q and -q represent the same rotation; a controller that doesn't check
+     `dot(q_current, q_target) < 0` and flip one can command "the long way
+     around," winding the joint instead of taking the short rotation) --
+     plausible given this script commands the *current* tip orientation as
+     the target every step (meant to be a no-op), but not confirmed by
+     reading the controller's internals. Next step: check
+     `isaaclab.controllers.DifferentialIKController`'s orientation-error
+     computation for this, before trying anything else.
 2. **Full garment set**: `hf download lehome/asset_challenge` →
    `garment_cfg_base_path`.
 3. **Data + training**: pioneer teleop (this repo's `src/teleop/` or

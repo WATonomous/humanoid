@@ -70,9 +70,21 @@ class GarmentPioneerEnvCfg(GarmentEnvCfg):
     # tools/isaac_harness/scenes/bimanual_vial_rack.sh and pick_place_bimanual
     # (robot at identity; TABLE_X_MIN=0.18, TABLE_TOP_Z=0.05, table centre x=0.63).
     # LeHome's garment sits at world ~(0, 0, 0.63), so rotate the base +90 deg
-    # about Z to face +Y toward it, sit 0.63 m behind in -Y and ~0.05 m above.
-    # Measured EE at this pose: link6l (LEFT wrist) world ~(-0.24, -0.11, 0.55).
-    robot_base_pos: tuple = (0.0, -0.63, 0.68)
+    # about Z to face +Y toward it, sit 0.63 m behind in -Y.
+    #
+    # Z = 1.1997, not the ~0.68 this line previously carried. That value put
+    # the robot's own base (pioneer_bimanual_arm.usd, originally
+    # "wato_arm_v2/armWithStand.usd" -- a stand-mounted arm, 1.5m tall per its
+    # own USD bounding box, not a desktop arm) more than half a meter *below*
+    # the ground plane -- visually confirmed (the stand appeared to sink into
+    # the floor) and then measured directly from the asset's own USD bbox
+    # (local Z range [-1.1997, 0.3003], i.e. the local origin sits 1.1997m
+    # above the physical base of the stand). 1.1997 is exactly that value, so
+    # the stand's foot now sits at world Z=0 -- derived from the asset's own
+    # geometry, not re-guessed. This was never checked against the asset
+    # before; the previous ~0.68 was picked purely to put the *previous*
+    # (also unverified) EE rest position near the table.
+    robot_base_pos: tuple = (0.0, -0.63, 1.1997)
     robot_base_rot: tuple = (0.7071068, 0.0, 0.0, 0.7071068)  # wxyz, +90 deg Z
 
     # Optional photoreal NuRec backdrop (visual only, no collision). Off by
