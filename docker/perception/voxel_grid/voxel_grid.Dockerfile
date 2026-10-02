@@ -104,7 +104,8 @@ ARG USERNAME=dev
 RUN old=$(getent passwd "${USER_UID}" | cut -d: -f1 || true); \
     if [ -n "$old" ] && [ "$old" != "${USERNAME}" ]; then \
         groupmod -n "${USERNAME}" "$(getent group "${USER_GID}" | cut -d: -f1)" 2>/dev/null || true; \
-        usermod  -l "${USERNAME}" -d "/home/${USERNAME}" -m "$old"; \
+        usermod  -l "${USERNAME}" -d "/home/${USERNAME}" "$old"; \
+        mkdir -p "/home/${USERNAME}" && cp -rT /etc/skel "/home/${USERNAME}"; \
     fi; \
     id -u "${USERNAME}" >/dev/null 2>&1 || { \
         getent group "${USER_GID}" >/dev/null || groupadd --gid "${USER_GID}" "${USERNAME}"; \
