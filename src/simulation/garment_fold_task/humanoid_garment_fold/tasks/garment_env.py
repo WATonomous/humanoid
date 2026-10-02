@@ -454,7 +454,10 @@ class GarmentEnv(DirectRLEnv):
         else:
             return bool(result)
 
-    def _get_success(self) -> tuple[torch.Tensor, torch.Tensor]:
+    def _get_success(self) -> torch.Tensor:
+        # NOTE: this used to be annotated as returning `tuple[torch.Tensor,
+        # torch.Tensor]`, but it has only ever returned a single per-env bool
+        # tensor (`episode_success` below). Fixed the annotation to match.
         if self.object is None:
             success = False
             result = None

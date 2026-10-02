@@ -3,6 +3,7 @@
     isaaclab.sh -p scripts/smoke_test.py --garment Top_Long_Seen_1 --out /tmp/gf
 """
 import argparse
+import sys
 from isaaclab.app import AppLauncher
 
 parser = argparse.ArgumentParser()
@@ -59,4 +60,11 @@ for suf, cam in [("_top.png", "top_camera"), ("_scene.png", "scene_camera"),
         print(cam, "failed:", e)
 
 print("SMOKE_OK")
+# os._exit skips the normal interpreter teardown, including flushing buffered
+# stdout/stderr -- when run with output redirected to a file (not a TTY), this
+# silently dropped everything printed after the last implicit flush, including
+# this message, every "saved ..." line, and any "<cam> failed: ..." line. Flush
+# explicitly first.
+sys.stdout.flush()
+sys.stderr.flush()
 os._exit(0)

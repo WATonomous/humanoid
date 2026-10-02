@@ -19,6 +19,17 @@ from humanoid_garment_fold.assets.robots.bimanual_arm import (
     LEFT_GRIPPER_JOINTS,
     RIGHT_GRIPPER_JOINTS,
 )
+# Canonical pioneer wrist-camera mount: CAD/USD-sourced (see arm_params.py's
+# "poses from PR #296's camera USD"), not a teleop-tuned approximation. This
+# package is pip-installed and importable here, so import directly instead of
+# copying constants.
+#
+# The offset this file originally carried was copied straight from LeHome's
+# upstream SO101 task and does not fit the pioneer wrist geometry at all:
+# left_wrist ended up aimed into empty space and right_wrist buried in the
+# gripper housing (visually confirmed via scripts/smoke_test.py).
+from pioneer_humanoid.arm_params import CAMERAS as _PIONEER_CAMERAS
+from pioneer_humanoid.arm_params import vertical_aperture as _pioneer_vertical_aperture
 
 __all__ = [
     "GarmentPioneerEnvCfg",
@@ -26,10 +37,19 @@ __all__ = [
     "LEFT_GRIPPER_JOINTS", "RIGHT_GRIPPER_JOINTS",
 ]
 
-_WRIST_OPTICS = sim_utils.PinholeCameraCfg(
-    focal_length=36.5, focus_distance=400.0, horizontal_aperture=36.83,
-    clipping_range=(0.01, 50.0), lock_camera=True,
-)
+_WRIST_RES = (480, 640)  # height, width -- matches the rest of this task's cameras
+
+
+def _wrist_optics(name: str) -> sim_utils.PinholeCameraCfg:
+    cam = _PIONEER_CAMERAS[name]
+    h, w = _WRIST_RES
+    return sim_utils.PinholeCameraCfg(
+        focal_length=cam.focal, horizontal_aperture=cam.h_aperture,
+        vertical_aperture=_pioneer_vertical_aperture(name, h, w),
+        clipping_range=cam.clip,
+    )
+
+
 _TOP_OPTICS = sim_utils.PinholeCameraCfg(
     focal_length=28.7, focus_distance=400.0, horizontal_aperture=38.11,
     clipping_range=(0.01, 50.0), lock_camera=True,
@@ -65,22 +85,22 @@ class GarmentPioneerEnvCfg(GarmentEnvCfg):
     left_wrist: TiledCameraCfg = TiledCameraCfg(
         prim_path="/World/Robot/link6l/left_wrist_camera",
         offset=TiledCameraCfg.OffsetCfg(
-            pos=(-0.001, 0.1, -0.04),
-            rot=(-0.404379, -0.912179, -0.0451242, 0.0486914),
-            convention="ros",
+            pos=_PIONEER_CAMERAS["wrist_left"].pos,
+            rot=_PIONEER_CAMERAS["wrist_left"].rot,
+            convention="opengl",
         ),
-        data_types=["rgb"], spawn=_WRIST_OPTICS,
-        width=640, height=480, update_period=1 / 30.0,
+        data_types=["rgb"], spawn=_wrist_optics("wrist_left"),
+        width=_WRIST_RES[1], height=_WRIST_RES[0], update_period=1 / 30.0,
     )
     right_wrist: TiledCameraCfg = TiledCameraCfg(
         prim_path="/World/Robot/link6/right_wrist_camera",
         offset=TiledCameraCfg.OffsetCfg(
-            pos=(-0.001, 0.1, -0.04),
-            rot=(-0.404379, -0.912179, -0.0451242, 0.0486914),
-            convention="ros",
+            pos=_PIONEER_CAMERAS["wrist_right"].pos,
+            rot=_PIONEER_CAMERAS["wrist_right"].rot,
+            convention="opengl",
         ),
-        data_types=["rgb"], spawn=_WRIST_OPTICS,
-        width=640, height=480, update_period=1 / 30.0,
+        data_types=["rgb"], spawn=_wrist_optics("wrist_right"),
+        width=_WRIST_RES[1], height=_WRIST_RES[0], update_period=1 / 30.0,
     )
     top_camera: TiledCameraCfg = TiledCameraCfg(
         prim_path="/World/TopCam",
