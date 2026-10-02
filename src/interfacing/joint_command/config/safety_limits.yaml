@@ -28,7 +28,7 @@ safety:
     mit_kp: 0.0   # 0 = MIT_CONTROL is a safe no-op until set per-joint below
     mit_kd: 0.0
     mit_max_torque: 0.3        # N.m, fault above
-    mit_max_track_err: 12.0    # deg, fault above
+    mit_max_track_err: 60.0    # deg, fault above
     mit_feedback_timeout: 0.2  # s without feedback -> fault
     # gl2 (GL40) or ak (AK10-9 / AK80-9): they disagree on the status byte.
     mit_family: gl2
@@ -59,7 +59,7 @@ safety:
         delta_max: 2.0
         control_type: 0
         mit_family: ak
-        mit_kp: 55.0                  # stall 11.5 N.m
+        mit_kp: 10.0                  # stall 11.5 N.m
         mit_kd: 0.8
         mit_max_torque: 54.0
         mit_fault_kd: 1.0
@@ -72,7 +72,7 @@ safety:
         delta_max: 2.0
         control_type: 0
         mit_family: ak
-        mit_kp: 15.0                  # stall 3.1 N.m
+        mit_kp: 10.0                  # stall 3.1 N.m
         mit_kd: 0.8
         mit_max_torque: 54.0
         mit_fault_kd: 1.0
@@ -85,7 +85,7 @@ safety:
         delta_max: 2.0
         control_type: 0
         mit_family: ak
-        mit_kp: 60.0                  # stall 12.6 N.m
+        mit_kp: 10.0                  # stall 12.6 N.m
         mit_kd: 0.4
         mit_max_torque: 18.0
         mit_fault_kd: 0.5
@@ -99,7 +99,7 @@ safety:
         delta_max: 1.6
         control_type: 0
         mit_family: ak
-        mit_kp: 32.0                  # stall 6.7 N.m + 3.59 ff
+        mit_kp: 1.0                  # stall 6.7 N.m + 3.59 ff
         mit_kd: 0.4
         mit_max_torque: 18.0
         mit_fault_kd: 0.5
@@ -113,7 +113,7 @@ safety:
         delta_max: 1.6
         control_type: 0
         mit_family: ak
-        mit_kp: 36.0                  # stall 7.5 N.m
+        mit_kp: 10.0                  # stall 7.5 N.m
         mit_kd: 0.4
         mit_max_torque: 18.0
         mit_fault_kd: 0.5
