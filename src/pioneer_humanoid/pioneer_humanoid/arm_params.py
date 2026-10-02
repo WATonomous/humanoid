@@ -12,7 +12,10 @@ def _deg(degrees: float) -> float:
     return degrees * math.pi / 180.0
 
 
-# --- Default (spawn) pose: URDF zero, except the elbows flexed to +/-75 deg.
+# --- Default (spawn / home) pose: URDF zero (arms hanging), except the elbows flexed to +/-90 deg.
+#
+# Also the leader-teleop home: forearm forward, above the table, so returning to it never sweeps
+# through the table. URDF zero = the real arm's and the leader's calibrated hanging pose.
 #
 # At URDF zero both arms hang straight down at the elbow EXTENSION SINGULARITY (manipulability
 # ~2e-06, cond(J) ~2560), with the least-controllable direction almost exactly the +Z that
@@ -21,15 +24,14 @@ def _deg(degrees: float) -> float:
 # and starts the arm in the flexion branch.
 #
 # Signs are OPPOSITE (joint4/joint4l axes are (0,-1,0)/(0,1,0)); both put the forearm forward
-# toward +X. Opposite-and-equal is what makes the pose mirror-symmetric. 75 not 90 drops the
-# fingertip ~10cm (measured via compute_gripper_tip_pose_b, sweeping theta) -- ~6% manipulability
-# cost, still 3 orders clear of the singularity; don't go below ~60 (tip nears the table).
-# Both well inside the URDF limits (57.5 deg margin each side).
+# toward +X. Opposite-and-equal is what makes the pose mirror-symmetric. 90 holds the forearm
+# level (fingertip ~10cm higher than the previous 75); don't go below ~60 (tip nears the table).
+# Both inside the URDF limits (42.5 deg margin to joint4l's 132.5).
 DEFAULT_JOINT_POS = {
     "joint1": 0.0,
     "joint2": 0.0,
     "joint3": 0.0,
-    "joint4": _deg(75.0),
+    "joint4": _deg(90.0),
     "joint5": 0.0,
     "joint6": 0.0,
     "joint7": 0.0,
@@ -38,7 +40,7 @@ DEFAULT_JOINT_POS = {
     "joint1L": 0.0,
     "joint2l": 0.0,
     "joint3l": 0.0,
-    "joint4l": _deg(-75.0),
+    "joint4l": _deg(-90.0),
     "joint5l": 0.0,
     "joint6l": 0.0,
     "joint7l": 0.0,

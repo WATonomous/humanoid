@@ -2,7 +2,7 @@
 
 Same leader mapping as the Isaac backend (leader_mapping.py). Scenes: humanoid_mujoco_scenes.
 
-  R   re-zero the leader, reset the arm and every object in the scene
+  R   reset the arm and every object in the scene; bring the leader back to home to resume
 
 Recording (--record): same schema, keys and features as the Isaac backend (S start, N save then
 auto-reset, D discard); output under <repo>/datasets/<schema record.root>/sim. Needs a display for
@@ -109,18 +109,16 @@ def run() -> None:
         return images
 
     def reset_all():
-        """Arm and every object back to their defaults; the leader re-zeros to match."""
+        """Arm and every object back to their defaults; the arm waits for the leader at home."""
         mujoco.mj_resetData(model, data)
         set_home(model, data)
         mujoco.mj_forward(model, data)
-        # Re-zero with the arm, so the next read does not command a jump.
-        leader.rezero()
         mapping.reset()
 
     leader = LeaderInput(args)
     clock = WallClock(control_dt)
     step = 0
-    print("[INFO] Hold the leader in the home pose (elbow bent, gripper open). R = re-zero + reset.", flush=True)
+    print("[INFO] Leader calibrated (hanging = 0). Move it to home: elbow bent 90 deg, forearm forward, gripper open. R = reset.", flush=True)
     try:
         with mujoco.viewer.launch_passive(model, data, key_callback=on_key) as viewer:
             for key, value in (scene_camera(args.scene) or {}).items():
@@ -136,13 +134,14 @@ def run() -> None:
                         recorder.cancel_recording()
                         print("\n[RECORD] Reset mid-episode: take discarded, recording restarts from home.")
                     reset_all()
-                    print("\n[LEADER] Re-zeroed; arm and scene reset.", flush=True)
+                    print("\n[LEADER] Arm and scene reset; bring the leader back to home.", flush=True)
 
                 target, grip = mapping.update(leader.read())
                 data.ctrl[arm_acts] = target
                 data.ctrl[grip_acts] = [o + grip * (c - o) for o, c in zip(grip_open, grip_closed)]
 
-                if recorder is not None and step % record_every == 0:
+                # No frames until the leader is at home: a take starts from home.
+                if recorder is not None and mapping.engaged and step % record_every == 0:
                     # Same features as the Isaac backend: 6 joints + mean finger closure / 6 targets + leader grip.
                     closure = sum(
                         (data.qpos[q] - o) / (c - o) for q, o, c in zip(grip_qpos, grip_open, grip_closed)
@@ -159,7 +158,7 @@ def run() -> None:
                 step += 1
                 viewer.sync()
 
-                leader.report(grip)
+                leader.report(mapping)
                 clock.wait()
     finally:
         leader.close()

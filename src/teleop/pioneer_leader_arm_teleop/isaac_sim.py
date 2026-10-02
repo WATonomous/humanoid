@@ -8,11 +8,11 @@
     F (servo ID 7) -> joint6l (wrist)
     G (servo ID 6) -> gripper (starts open at 41.5 deg, closes toward 0)
 
-The leader is zeroed at startup and on R: hold it in the sim home pose (elbow bent, gripper
-open). Leader zero maps to the arm's default pose; targets are clamped to the URDF limits.
-Leader torque is always off; the physical leader is an input device only.
+Leader angles map 1:1 from its calibrated hanging pose (calibrate_leader.py), clamped to the URDF
+limits. The arm starts at home (elbow bent 90 deg) and follows once the leader is within 3 deg of
+home (see leader_mapping.py). Leader torque is always off; it is an input device only.
 
-  R   re-zero the leader, reset the arm and every object in the scene
+  R   reset the arm and every object in the scene; bring the leader back to home to resume
 
 Recording (--record, src/robot_learning/config/dataset_schema_pioneer_v1.yaml), 25 fps = every
 4th physics step. Keys S start, N save (then auto-reset), D discard:
@@ -141,7 +141,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     )
 
     def reset_all():
-        """Arm and every rigid object back to their defaults; the leader re-zeros to match."""
+        """Arm and every rigid object back to their defaults; the arm waits for the leader at home."""
         robot.write_joint_state_to_sim(default_pos, default_vel)
         robot.reset()
         for obj in scene.rigid_objects.values():
@@ -150,12 +150,9 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             obj.write_root_pose_to_sim(root[:, :7])
             obj.write_root_velocity_to_sim(root[:, 7:])
             obj.reset()
-        # Re-zero with the arm: otherwise the next read commands a jump equal to how far the
-        # leader has moved since its last zero.
-        leader.rezero()
         mapping.reset()
 
-    print("[INFO] Hold the leader in the home pose (elbow bent, gripper open). R = re-zero + reset.", flush=True)
+    print("[INFO] Leader calibrated (hanging = 0). Move it to home: elbow bent 90 deg, forearm forward, gripper open. R = reset.", flush=True)
 
     physics_step = 0
     clock = WallClock(sim_dt)
@@ -171,7 +168,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
                     recorder.cancel_recording()
                     print("[RECORD] Reset mid-episode: take discarded, recording restarts from home.")
                 reset_all()
-                print("[LEADER] Re-zeroed; arm and scene reset.", flush=True)
+                print("\n[LEADER] Arm and scene reset; bring the leader back to home.", flush=True)
 
             target_list, grip = mapping.update(leader.read())
             target = torch.tensor([target_list], device=sim.device)
@@ -185,7 +182,8 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             robot.set_joint_position_target(held_gripper_open, joint_ids=held_gripper_ids)
             robot.set_joint_velocity_target(zero_gripper_vel, joint_ids=held_gripper_ids)
 
-            if recorder is not None and physics_step % record_every == 0:
+            # No frames until the leader is at home: a take starts from home.
+            if recorder is not None and mapping.engaged and physics_step % record_every == 0:
                 finger_q = robot.data.joint_pos[:, gripper_ids]
                 closure = (
                     ((finger_q - gripper_open) / (gripper_closed - gripper_open))
@@ -208,7 +206,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             physics_step += 1
             scene.update(sim_dt)
 
-            leader.report(grip)
+            leader.report(mapping)
             clock.wait()
     finally:
         leader.close()

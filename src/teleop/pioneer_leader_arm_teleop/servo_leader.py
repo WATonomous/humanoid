@@ -10,8 +10,10 @@ moves is the simulated arm.
 """
 from __future__ import annotations
 
+import json
 import math
 import time
+from pathlib import Path
 
 # Servo label -> bus ID. A..F map onto the arm's six joints (joint1L..joint6l) in
 # order; G is the gripper. Iteration order matters: read_radians() returns a tuple
@@ -142,13 +144,18 @@ def wrapped_count_delta(position: int, previous: int) -> int:
 
 
 class ServoLeader:
-    """Read every leader servo as startup-relative radians while keeping all torque off."""
+    """Read every leader servo in radians while keeping all torque off.
+
+    With ``zeros`` (raw counts per servo ID, from a calibration file) angles are relative to that
+    calibrated pose; without, relative to wherever the leader sits at startup.
+    """
 
     def __init__(
         self,
         port_name: str,
         baud: int,
         servo_ids: dict[str, int] | None = None,
+        zeros: dict[int, int] | None = None,
     ):
         # servo_ids lets a bring-up tool watch a subset (or a different bus layout)
         # without touching the module-level map the teleop scripts rely on.
@@ -159,10 +166,25 @@ class ServoLeader:
         self._relative_counts: dict[int, int] = {}
         open_port(self._port, port_name, baud)
         try:
-            self.rezero()
+            self.rezero(announce=zeros is None)
+            if zeros is not None:
+                self._apply_zeros(zeros)
         except Exception:
             self.close()
             raise
+
+    def _apply_zeros(self, zeros: dict[int, int]) -> None:
+        """Measure from calibrated zeros instead of the startup pose.
+
+        The startup offset takes the shortest way round (within +/-180 deg), so start the leader
+        near its calibrated pose; reads then unwrap incrementally as usual.
+        """
+        missing = [sid for sid in self.servo_ids.values() if sid not in zeros]
+        if missing:
+            raise RuntimeError(f"leader calibration has no zero for servo IDs {missing}")
+        for servo_id, start in self._last_positions.items():
+            self._relative_counts[servo_id] = wrapped_count_delta(start, zeros[servo_id])
+        self._zeros = {sid: zeros[sid] for sid in self.servo_ids.values()}
 
     def _read_position(self, label: str, servo_id: int) -> int:
         position, result, error = self._servo.read2ByteTxRx(
@@ -175,7 +197,7 @@ class ServoLeader:
             )
         return int(position)
 
-    def rezero(self) -> None:
+    def rezero(self, announce: bool = True) -> None:
         """Disable torque on every servo and latch the current pose as zero."""
         zeros: dict[int, int] = {}
         for label, servo_id in self.servo_ids.items():
@@ -192,6 +214,8 @@ class ServoLeader:
         self._zeros = zeros
         self._last_positions = zeros.copy()
         self._relative_counts = {servo_id: 0 for servo_id in zeros}
+        if not announce:
+            return
         print(
             "[INFO] Leader zeroed: "
             + ", ".join(
@@ -230,6 +254,26 @@ class ServoLeader:
             self._port.closePort()
         except Exception:
             pass
+
+
+def save_calibration(path: Path, positions: dict[int, int], servo_ids: dict[str, int] | None = None) -> None:
+    """Write raw zero counts, keyed by servo label (with its bus ID, checked on load)."""
+    servo_ids = SERVO_IDS if servo_ids is None else servo_ids
+    data = {label: {"id": sid, "zero": int(positions[sid])} for label, sid in servo_ids.items()}
+    Path(path).write_text(json.dumps(data, indent=2) + "\n")
+
+
+def load_calibration(path: Path, servo_ids: dict[str, int] | None = None) -> dict[int, int]:
+    """Raw zero counts keyed by servo ID; fails if the file's bus IDs disagree with ``servo_ids``."""
+    servo_ids = SERVO_IDS if servo_ids is None else servo_ids
+    data = json.loads(Path(path).read_text())
+    zeros = {}
+    for label, sid in servo_ids.items():
+        entry = data.get(label)
+        if entry is None or entry.get("id") != sid:
+            raise ValueError(f"{path}: servo {label} must have id {sid}, got {entry}")
+        zeros[sid] = int(entry["zero"])
+    return zeros
 
 
 def parse_signs(
