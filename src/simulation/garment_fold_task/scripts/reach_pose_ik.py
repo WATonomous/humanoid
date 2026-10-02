@@ -1,38 +1,21 @@
-"""Reach-pose attempt for the "fold-ready joint pose" TODO: drives both
-grippers toward fixed world-frame targets above the garment with a
-*scripted replay* of src/teleop/keyboard_teleop/keyboard_teleop.py's own
-driving logic -- not a from-scratch IK solve.
-
-Earlier versions of this script wrote a fresh DifferentialIKController loop
-that commanded a single far-off target (or a time-based linear ramp toward
-one). Both caused real instability (see git history / STATUS below). The
-actual fix, pointed out in review: keyboard_teleop.py already solves this
-exact problem, in production, for this exact robot -- a *persistent target*
-integrated from small per-step deltas and *leashed* to stay within a fixed
-distance of the tip's real current position every step (not just ramped by
-elapsed time), so the solver is never asked for something far from where
-the arm actually is right now. This script reuses that formula verbatim
-(same compute_pose_error + clamp, same _MAX_LEAD_M/_MAX_LEAD_RAD), just
-replacing keyboard_teleop.py's live Se3Keyboard reader with a scripted
-per-step delta toward a fixed goal -- a scripted teleop session, not a new
-controller.
+"""Reach-pose attempt for the "fold-ready joint pose" TODO. Drives both
+grippers toward fixed world-frame targets above the garment, reusing
+src/teleop/keyboard_teleop/keyboard_teleop.py's own driving logic verbatim
+(persistent target, integrated from small per-step deltas, leashed to stay
+within _MAX_LEAD_M of the tip's real current position every step) instead of
+writing a new IK loop -- earlier from-scratch attempts (one big target jump,
+then a time-based ramp) caused real instability: wrist wind-up, diverging
+error. The leash fixes that.
 
     isaaclab.sh -p scripts/reach_pose_ik.py --garment Top_Long_Seen_1 \
         --lx -0.10 --rx 0.10 --y 0.0 --z 0.80 --steps 400 --out /tmp/reach
 
-STATUS (checked 2026-10-02): earlier attempts (single far target from step 0;
-a time-based linear ramp) both let the wrist joint wind up several radians
-and the position error oscillate/diverge once near the target region. This
-leashed version (below) fixes that: 400 steps toward the same target that
-previously diverged to ~0.87 error now settles into a *stable, bounded*
-~0.10-0.13m (right arm) / ~0.20-0.24m (left arm) error -- no more wind-up, no
-more divergence, visually both arms end bent forward in a controlled reach
-posture near the table, not frozen or spun out. Not a full solve: it
-plateaus there rather than reaching exactly zero, so either the target is
-still somewhat past true reach for this base placement/pose, or there's a
-residual local minimum the leash alone doesn't escape. Worth trying next:
-nearer target, more steps, or a small secondary objective (e.g. favor
-elbow-down) to help the leash climb out of whatever it's plateauing against.
+STATUS (2026-10-02): stable, not solved. 400 steps settles into a bounded
+~0.10-0.13m (right) / ~0.20-0.24m (left) error -- no wind-up, no divergence,
+but plateaus short of zero. A base-Y sweep (-0.63 to -0.45, i.e. moving the
+robot closer) made it *worse*, not better (up to ~0.9 error) -- -0.63 (the
+current value) is the best tried so far. Root cause of the plateau still
+open.
 """
 import argparse
 import sys
@@ -117,14 +100,10 @@ _MAX_LEAD_M = 0.06
 
 
 class LeashedArmIK:
-    """Reach_pose_ik's own port of keyboard_teleop.py's driving loop: a persistent
-    target integrated from small per-step deltas, leashed to stay within
-    _MAX_LEAD_M of the tip's *actual current* position every step (recomputed
-    from where the arm really is, not from elapsed time like this script's
-    earlier linear-ramp attempt). Orientation is left alone -- always
-    commanded as the tip's current orientation, so there is never a nonzero
-    orientation error to resolve (matches keyboard_teleop.py when no
-    rotation keys are held).
+    """Port of keyboard_teleop.py's driving loop: a persistent target integrated
+    from small per-step deltas, leashed to within _MAX_LEAD_M of the tip's
+    actual current position every step. Orientation always = current tip
+    orientation (no rotation commanded, matches keyboard_teleop.py idle).
     """
 
     def __init__(self, arm_joints, ee_body, finger_bodies, goal_pos_w):

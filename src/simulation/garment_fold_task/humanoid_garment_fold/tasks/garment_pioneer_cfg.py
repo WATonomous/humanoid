@@ -12,22 +12,16 @@ from isaaclab.sensors import TiledCameraCfg
 from isaaclab.utils import configclass
 
 from humanoid_garment_fold.tasks.garment_env_cfg import GarmentEnvCfg
-from humanoid_garment_fold.assets.robots.bimanual_arm import (
+from pioneer_humanoid.bimanual_arm import (
     BIMANUAL_ARM_CFG,
     LEFT_ARM_JOINTS,
     RIGHT_ARM_JOINTS,
     LEFT_GRIPPER_JOINTS,
     RIGHT_GRIPPER_JOINTS,
 )
-# Canonical pioneer wrist-camera mount: CAD/USD-sourced (see arm_params.py's
-# "poses from PR #296's camera USD"), not a teleop-tuned approximation. This
-# package is pip-installed and importable here, so import directly instead of
-# copying constants.
-#
-# The offset this file originally carried was copied straight from LeHome's
-# upstream SO101 task and does not fit the pioneer wrist geometry at all:
-# left_wrist ended up aimed into empty space and right_wrist buried in the
-# gripper housing (visually confirmed via scripts/smoke_test.py).
+# CAD-sourced wrist-camera mount (arm_params.py), not the SO101 offset this
+# file originally carried (aimed left_wrist into empty space, buried
+# right_wrist in the gripper housing -- see scripts/smoke_test.py).
 from pioneer_humanoid.arm_params import CAMERAS as _PIONEER_CAMERAS
 from pioneer_humanoid.arm_params import vertical_aperture as _pioneer_vertical_aperture
 
@@ -66,24 +60,12 @@ class GarmentPioneerEnvCfg(GarmentEnvCfg):
     # one articulation, replaces upstream left_robot + right_robot
     robot: ArticulationCfg = BIMANUAL_ARM_CFG.replace(prim_path="/World/Robot")
 
-    # The pioneer arm's REACH/FRONT axis is +X -- established by this repo's
-    # tools/isaac_harness/scenes/bimanual_vial_rack.sh and pick_place_bimanual
-    # (robot at identity; TABLE_X_MIN=0.18, TABLE_TOP_Z=0.05, table centre x=0.63).
-    # LeHome's garment sits at world ~(0, 0, 0.63), so rotate the base +90 deg
-    # about Z to face +Y toward it, sit 0.63 m behind in -Y.
-    #
-    # Z = 1.1997, not the ~0.68 this line previously carried. That value put
-    # the robot's own base (pioneer_bimanual_arm.usd, originally
-    # "wato_arm_v2/armWithStand.usd" -- a stand-mounted arm, 1.5m tall per its
-    # own USD bounding box, not a desktop arm) more than half a meter *below*
-    # the ground plane -- visually confirmed (the stand appeared to sink into
-    # the floor) and then measured directly from the asset's own USD bbox
-    # (local Z range [-1.1997, 0.3003], i.e. the local origin sits 1.1997m
-    # above the physical base of the stand). 1.1997 is exactly that value, so
-    # the stand's foot now sits at world Z=0 -- derived from the asset's own
-    # geometry, not re-guessed. This was never checked against the asset
-    # before; the previous ~0.68 was picked purely to put the *previous*
-    # (also unverified) EE rest position near the table.
+    # Front axis is +X (see bimanual_vial_rack.sh / pick_place_bimanual); rotated
+    # +90 deg about Z so it faces the garment at world ~(0,0,0.63), 0.63m behind
+    # in -Y. Z=1.1997 puts the stand's foot at world Z=0 -- derived from the
+    # asset's own USD bbox (pioneer_bimanual_arm.usd, local Z in
+    # [-1.1997, 0.3003]); the old ~0.68 sank the stand half a meter into the
+    # floor, never checked against the asset until now.
     robot_base_pos: tuple = (0.0, -0.63, 1.1997)
     robot_base_rot: tuple = (0.7071068, 0.0, 0.0, 0.7071068)  # wxyz, +90 deg Z
 
