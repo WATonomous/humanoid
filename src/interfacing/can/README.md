@@ -61,7 +61,33 @@ to the nearest 12-bit code. The gripper has no `ArmPose` slot, so nothing drives
 3. Hold with low gains (kp 2, kd 0.3) first, watching torque, tracking error and temperature.
 4. Stop `joint_command` and record what the drive does on stream loss (the V3 manual documents
    no CAN timeout).
-5. Hold 30 s, then ±5° moves.
+5. Hold 30 s, then ±5°: `tools/arm_roundtrip.sh --joints shoulder.pitch --offset "5,0,0,0,0,0"`.
+
+### Angle benchmarks (`arm_roundtrip.py`)
+
+`tools/arm_roundtrip.sh` runs `scripts/arm_roundtrip.py` in the `joint_command` container. It
+publishes `ArmPose` like teleop, so the clamp, `velocity_max` and MIT watchdog all apply.
+
+```bash
+tools/arm_roundtrip.sh --joints elbow.roll --offset "0,0,0,0,5,0"    # one joint, +5 deg
+tools/arm_roundtrip.sh --offset "3,1.5,5,5,5,10" --dwell 5            # all six at once
+```
+
+It holds at the origin, ramps out (cosine, ≤ `--vel` and `velocity_max`), dwells, returns and
+rests. It refuses to start if something else publishes `/arm/joint_targets`, a moving joint is
+silent or near a limit, a move exceeds `--max-delta`, or `joint_command`'s installed configs
+differ from the repo's (rebuild after every calibration or limits edit). Ctrl-C ramps back, a
+second Ctrl-C stops streaming, and lost feedback freezes in place. `--exercise-limits` sends an
+over-limit request and checks that `joint_command` clamped it.
+
+### Telemetry
+
+Runs write `outputs/gl40_bench/<run>/` (`telemetry.csv`, `run.json`; `--no-log` opts out). Plot on
+the host:
+
+```bash
+uv run --with matplotlib --with numpy tools/gl40_telemetry_plot.py outputs/gl40_bench/<run>
+```
 
 ---
 
