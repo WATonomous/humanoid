@@ -14,11 +14,11 @@ judged on the cloth's particle geometry, not the robot.
 | LeHome's `GarmentEnv` + particle cloth + success checker + reward | ✅ vendored (`lehome@a805ad2`, Apache-2.0, see `NOTICE`) |
 | Retargeted to one `pioneer_bimanual_arm` articulation | ✅ `GarmentPioneerEnv` (subclass; overrides `_setup_scene` / `_apply_action` / `_get_observations` / `_reset_idx`) |
 | Gym id `Humanoid-GarmentFold-Bimanual-Pioneer-v0` | ✅ |
-| Scene (`Scene_00_Apartment.usd`) + garment on the table | ✅ loads; runs in LeHome's venv (verified) |
+| Scene (`Scene_00_Apartment.usd`) + garment on the table | ✅ loads; verified in this repo's `isaac_lab` image (see below), not just LeHome's venv |
 | Arm base pose vs the garment | ✅ measured — `(0, -0.63, 0.68)` + `+90° about Z` (front axis is `+X`) |
-| **Arm default joint pose** | ⚠️ droops — `pioneer_humanoid.bimanual_arm._DEFAULT_JOINT_POS` is an asymmetric capture, not a fold-ready spread |
-| **Wrist camera offsets** | ⚠️ SO101-sized, currently buried in the pioneer wrist link |
-| Full 600-step episode / success-checker firing | ❌ not verified |
+| **Arm default joint pose** | ⚠️ droops — `pioneer_humanoid.bimanual_arm._DEFAULT_JOINT_POS` is an asymmetric capture, not a fold-ready spread. **The real remaining blocker.** |
+| Wrist camera offsets | ✅ fixed — now uses the canonical, CAD-sourced mount from `pioneer_humanoid.arm_params.CAMERAS` (was SO101-sized and unretargeted; see PR #219) |
+| Full 600-step episode / success-checker firing | ✅ episode runs clean end-to-end (~55s on an RTX 4060); success never fires with a no-op policy, as expected — not yet tried with anything that could actually fold |
 | Teleop → demos → LeRobot training | ❌ not wired |
 
 ## Layout
@@ -78,27 +78,53 @@ USD is `.gitignore`d (~19 MB) — copy it in.
 
 ## Run it
 
-Today it runs in **LeHome's own venv** (has Isaac Sim 5.1 + all deps). To run in
-this repo's `isaac_lab` image:
+Use the **`simulation_isaac_garment`** watod module, not `simulation_isaac`.
+It's the same published `isaac_lab` image plus two fixes this task needs that
+aren't safe to bake into the shared `isaac_lab.Dockerfile` without broader
+testing against `so101_vial_task`/`humanoid_rl*` first (see
+`docker/simulation/isaac_lab/isaac_lab_garment.Dockerfile` for exactly what
+and why, and PR #219 for the investigation):
 
-1. `pip install omegaconf` in the image (the Dockerfile already does this) and
-   `pip install -e src/simulation/garment_fold_task`.
-2. Copy the **whole** `Assets/scenes/marble/` folder from the LeHome challenge
-   into `vendor_assets/scenes/marble/` — the `.usd` references the `.usdz` next
-   to it and won't load without both.
-3. `isaaclab.sh -p scripts/smoke_test.py --garment Top_Long_Seen_1` — builds the
-   env, resets, writes 4 camera PNGs.
+1. **Isaac Lab 2.3.0 downgrade.** Stock 2.3.2's `isaaclab/sim/views/xform_prim_view.py`
+   has a Fabric-cache-backed pose path that serves stale poses to `TiledCamera`
+   — camera feeds visually freeze a few frames in and never update again. Not
+   fixable by this task's own `cfg.sim.use_fabric = False` (already set —
+   doesn't help; the bug is inside `isaaclab`'s own Fabric plumbing, confirmed
+   by directly testing a continuously-driven action and diffing consecutive
+   frames). Fixed by overlaying the `isaaclab` source package from the
+   [`lehome-official/IsaacLab`](https://github.com/lehome-official/IsaacLab)
+   fork (pinned to 2.3.0) — same public API, no caller needs to change.
+2. **`open3d` + `libusb1.0`.** `success_checker_garment_fold`'s primary
+   particle-point read path needs `open3d`, which isn't a dependency of the
+   base image; without it, every success check throws and falls back to a
+   second path that also fails (deprecated `ClothPrim` API), so the checker
+   never fires at all.
+
+```bash
+# Copy the whole Assets/scenes/marble/ folder from the LeHome challenge into
+# vendor_assets/scenes/marble/ first -- the .usd references the .usdz next to
+# it and won't load without both.
+ACTIVE_MODULES="simulation_isaac_garment" ./watod up -d
+./watod -t simulation_isaac_garment_dev
+# inside the container:
+pip install -e src/pioneer_humanoid src/simulation/garment_fold_task --no-deps --no-build-isolation
+cd src/simulation/garment_fold_task
+isaaclab.sh -p scripts/smoke_test.py --garment Top_Long_Seen_1       # builds the env, resets, writes 4 camera PNGs
+isaaclab.sh -p scripts/full_episode_test.py --garment Top_Long_Seen_1 --steps 600  # full episode, no crash expected
+```
+
+Both scripts above are verified working end-to-end against a real
+`docker build` of `isaac_lab_garment.Dockerfile` (not just a live container
+patched by hand) as of PR #219.
 
 ## To finish
 
 1. **Symmetric fold-ready joint pose** + tune the 4 gripper prismatic joints for
-   pinching fabric.
-2. **Fix the wrist-cam offsets** for the pioneer wrist link.
-3. **Full-episode smoke test** — 600 steps, confirm `success_checker_garment_fold`
-   fires and the per-garment `check_point` particle indices still line up.
-4. **Full garment set**: `hf download lehome/asset_challenge` →
+   pinching fabric. The real remaining blocker — the current default droops
+   and doesn't reach the table, so nothing can grip the garment yet.
+2. **Full garment set**: `hf download lehome/asset_challenge` →
    `garment_cfg_base_path`.
-5. **Data + training**: pioneer teleop (this repo's `src/teleop/` or
+3. **Data + training**: pioneer teleop (this repo's `src/teleop/` or
    `quest_isaac_teleop`, both IK) → record demos → `lerobot-train` with LeHome's
    ACT / DP / SmolVLA configs.
 
