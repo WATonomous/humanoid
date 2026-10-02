@@ -29,7 +29,7 @@ MitProfile gl40Profile() {
   return p;
 }
 
-// AK80-9 as configured in config/mit_profiles.yaml (ids 10, 11, 13).
+// AK80-9 as configured in config/mit_profiles.yaml (ids 11, 12, 104).
 MitProfile ak809Profile() {
   MitProfile p;
   p.p_min = -12.56;

@@ -29,4 +29,17 @@ install(DIRECTORY launch config DESTINATION share/${PROJECT_NAME})
 find_package(ament_lint_auto REQUIRED)
 ament_lint_auto_find_test_dependencies()
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  # Runs against the SHIPPED config (CONFIG_DIR): an unsafe config fails the build, not the arm.
+  ament_add_gtest(test_joint_command_core
+    test/test_joint_command_core.cpp
+    src/joint_command_core.cpp)
+  ament_target_dependencies(test_joint_command_core rclcpp common_msgs)
+  target_include_directories(test_joint_command_core PRIVATE include)
+  target_link_libraries(test_joint_command_core yaml-cpp)
+  target_compile_definitions(test_joint_command_core
+    PRIVATE CONFIG_DIR="${CMAKE_CURRENT_SOURCE_DIR}/config")
+endif()
+
 ament_package()

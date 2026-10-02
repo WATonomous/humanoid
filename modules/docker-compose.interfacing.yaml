@@ -56,3 +56,5 @@ services:
     command: tail -F anything
     volumes:
       - ${MONO_DIR}/src/interfacing/joint_command:/root/ament_ws/src/joint_command
+      # Overlay the installed config so calibration/limit edits apply on node restart
+      - ${MONO_DIR}/src/interfacing/joint_command/config:/opt/watonomous/joint_command/share/joint_command/config:ro
