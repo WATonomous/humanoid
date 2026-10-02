@@ -122,6 +122,14 @@ patched by hand) as of PR #219.
 1. **Symmetric fold-ready joint pose** + tune the 4 gripper prismatic joints for
    pinching fabric. The real remaining blocker — the current default droops
    and doesn't reach the table, so nothing can grip the garment yet.
+   `scripts/reach_pose_ik.py` has a real differential-IK attempt at this
+   (reusing `src/teleop/task_space_controller/task_space_ik.py`'s approach,
+   verified working on this robot) -- not solved yet: a target centered on
+   the garment's actual table position is unreachable with the current
+   `robot_base_pos`, the position error flatlines well short of zero (stuck
+   local minimum / possible wrist joint-limit lock, not confirmed), for both
+   arms, at every distance tried. See the script's docstring for what's
+   verified vs. still open.
 2. **Full garment set**: `hf download lehome/asset_challenge` →
    `garment_cfg_base_path`.
 3. **Data + training**: pioneer teleop (this repo's `src/teleop/` or
