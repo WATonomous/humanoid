@@ -1,6 +1,7 @@
 #pragma once
 
 #include "can_core.hpp"
+#include "mit_protocol.hpp"
 
 // Libraries
 #include <ament_index_cpp/get_package_share_directory.hpp>
@@ -23,18 +24,6 @@
 #include "common_msgs/msg/motor_cmd.hpp"
 #include "common_msgs/msg/motor_feedback.hpp"
 #include "std_msgs/msg/string.hpp"
-
-// Per-motor MIT (Force Control) protocol scaling constants -- see config/mit_profiles.yaml.
-// Physical position/velocity/torque/kp/kd MIN..MAX for THIS motor model, used to pack
-// floats into the MIT CAN frame's raw fixed-point fields. Differs per AK motor model
-// (e.g. AK10-9 vs AK80-9 have different velocity/torque ranges).
-struct MitProfile {
-  double p_min, p_max;
-  double v_min, v_max;
-  double t_min, t_max;
-  double kp_min, kp_max;
-  double kd_min, kd_max;
-};
 
 class CanNode : public rclcpp::Node {
 public:
@@ -64,11 +53,18 @@ private:
   void receiveCanMessages();
 
   // MIT (Force Control) support: per-motor scaling constants + the manual's float_to_uint
-  // packing formula. See config/mit_profiles.yaml and can/README.md / MIT protocol section
-  // of the CubeMars AK-series manual.
+  // packing formula (mit_protocol.hpp). See config/mit_profiles.yaml and can/README.md / MIT
+  // protocol section of the CubeMars AK-series manual.
   std::unordered_map<int, MitProfile> mit_profiles_;
   void loadMitProfiles();
-  static uint32_t packMitValue(double phys, double min, double max, unsigned bits);
+
+  // GL II reply id ("master id", default 0x000). Its feedback carries only the motor id's low
+  // nibble, so it is matched against the gl2 profiles, not the DBC.
+  int mit_master_id_{0};
+  bool handleMitFeedback(const CanMessage& message);
+  void publishAkFeedback(int motor_id, const MitAkFeedback& fb);
+  void publishFeedback(const common_msgs::msg::MotorFeedback& feedback_msg);
+  void sendMitSpecialFrame(int motor_id, uint8_t code, const char* what);
 
   // Subscribers and publishers
   std::unordered_map<std::string, rclcpp::SubscriptionBase::SharedPtr> _subscribers;

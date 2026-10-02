@@ -11,3 +11,6 @@ can_node:
     publish_rate_hz: 50                # Rate for checking incoming CAN messages
     receive_timeout_ms: 10000          # Timeout for receiving CAN messages
     receive_poll_interval_ms: 10           # Interval for polling CAN messages in milliseconds
+
+    # MIT: CAN id the GL II drives reply on ("master id", default 0x000).
+    mit_master_id: 0
