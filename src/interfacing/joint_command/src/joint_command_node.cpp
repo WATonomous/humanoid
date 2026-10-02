@@ -86,6 +86,15 @@ void JointCommandNode::armPoseCallback(const common_msgs::msg::ArmPose::SharedPt
   // called publishMotorCommands() directly, so with ArmPose already arriving at ~50Hz from
   // task_space_real.py, motor commands were sent from two independent, phase-unrelated 50Hz
   // sources at once (up to ~100Hz combined, jittery), not the intended steady 50Hz.
+  for (const auto* joints : {&msg->shoulder, &msg->elbow, &msg->wrist}) {
+    for (const double a : joints->position) {
+      if (!std::isfinite(a)) {
+        RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                              "ArmPose has a non-finite angle -- ignored, holding the last pose");
+        return;
+      }
+    }
+  }
   latest_pose_ = *msg;
   have_latest_pose_ = true;
   last_armpose_time_ = this->get_clock()->now();
