@@ -57,6 +57,15 @@ struct JointSafetyConfig {
   MitFaultAction mit_fault_action{MitFaultAction::Limp};
   bool mit_fault_action_explicit{false};
   double mit_fault_kd{0.0}; // N.m.s/rad, used by Damp (must be > 0)
+
+  // Gravity feed-forward (MIT joints only), sent as MotorCmd.torque. scale 0 = off.
+  double gravity_ff_scale{0.0};
+  double gravity_ff_max_torque{0.0}; // N.m, |feed-forward| is clamped to this
+  // cmd -> URDF frame for the gravity model: q_urdf = urdf_direction * q_cmd + urdf_offset_deg.
+  int urdf_direction{1};
+  double urdf_offset_deg{0.0};
+  // Cmd-frame angle assumed while this joint is unpowered. Unset = feed-forward off.
+  std::optional<double> gravity_assume_deg;
 };
 
 // One motor's latest feedback for the MIT watchdog (ROS-free so it is unit-testable).
@@ -129,6 +138,11 @@ public:
     return last_motor_cmd_deg_;
   }
 
+  // Unscaled gravity-model torque for the last command, MOTOR frame (N.m).
+  const std::vector<double>& lastGravityTorqueMotor() const {
+    return last_gravity_torque_motor_;
+  }
+
   size_t jointCount() const {
     return joints_.size();
   }
@@ -155,6 +169,7 @@ private:
   static double applyLowPass(double target, double previous, double alpha);
   bool validateMitGains();
   common_msgs::msg::MotorCmd mitSafeCommand(size_t joint) const;
+  std::vector<double> gravityTorqueMotor(const std::vector<double>& cmd_targets_deg) const;
 
   std::vector<JointConfig> joints_;
   std::vector<JointSafetyConfig> safety_;
@@ -162,6 +177,10 @@ private:
   std::vector<double> last_motor_cmd_deg_;
   std::vector<bool> blocked_;
   std::vector<bool> unpowered_; // no feedback at the last seed; recomputed every seed
+  std::vector<double> last_gravity_torque_motor_;
+  // 0 -> 1 after every seed, so feed-forward never steps on.
+  double gravity_ff_ramp_{0.0};
+  std::string arm_side_;
   bool have_prev_targets_{false};
   double control_rate_hz_{50.0};
   std::string last_error_;

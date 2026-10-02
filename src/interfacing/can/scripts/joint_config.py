@@ -47,7 +47,9 @@ MIT_PROFILES = [
 # JointCommandCore::loadJointSafetyConfig does.
 _SAFETY_KEYS = ("velocity_max", "delta_max", "control_type", "mit_kp", "mit_kd",
                 "mit_max_torque", "mit_max_track_err", "mit_feedback_timeout", "mit_family",
-                "mit_fault_kd", "enable_position_clamp", "enable_velocity_limit")
+                "mit_fault_kd", "enable_position_clamp", "enable_velocity_limit",
+                "gravity_ff_scale", "gravity_ff_max_torque", "urdf_direction", "urdf_offset_deg",
+                "gravity_assume_deg")
 
 
 def _first_existing(candidates: List[str]) -> Optional[Path]:

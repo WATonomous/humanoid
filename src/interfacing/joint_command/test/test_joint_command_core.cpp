@@ -5,9 +5,11 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <string>
 
+#include "gravity_model.hpp"
 #include "joint_command_core.hpp"
 
 namespace {
@@ -567,4 +569,221 @@ TEST_F(ShippedConfig, RejectsAMalformedArmPose) {
   common_msgs::msg::ArmPose pose;
   pose.shoulder.position = {1.0}; // too few
   EXPECT_THROW(core.armPoseToMotorCmds(pose, kPositionLoop), std::runtime_error);
+}
+
+// ---------------------------------------------------------------------------
+// Gravity feed-forward
+// ---------------------------------------------------------------------------
+
+namespace {
+
+constexpr size_t kShoulderPitch = 0;
+constexpr double kDeg = 3.14159265358979323846 / 180.0;
+
+std::array<double, 6> degToRad(const std::array<double, 6>& deg) {
+  std::array<double, 6> rad{};
+  for (size_t i = 0; i < deg.size(); ++i) {
+    rad[i] = deg[i] * kDeg;
+  }
+  return rad;
+}
+
+// Shoulder pitch pinned to known AK MIT values (independent of bench tuning) with gravity
+// feed-forward.
+YAML::Node configWithShoulderPitchFf(double scale = 1.0, double max_torque = 5.5) {
+  YAML::Node cfg = YAML::LoadFile(configPath("safety_limits.yaml"))["safety"];
+  YAML::Node j = cfg["joints"]["shoulder"]["pitch"];
+  j["control_type"] = 0;
+  j["mit_family"] = "ak";
+  j["mit_kp"] = 15.0; // quantised 15.01 * 12 deg = 3.14 N.m
+  j["mit_kd"] = 0.8;
+  j["mit_max_torque"] = 10.0; // AK10-9 testing ceiling
+  j["mit_fault_kd"] = 1.0;
+  j["gravity_ff_scale"] = scale;
+  j["gravity_ff_max_torque"] = max_torque;
+  return cfg;
+}
+
+} // namespace
+
+// Reference values from an independent numpy evaluation of the same URDF chain.
+TEST(GravityModel, MatchesTheUrdfReference) {
+  const auto hang = leftArmGravityHoldTorque(degToRad({0, 0, 0, 0, 0, 0}));
+  for (const double t : hang) {
+    EXPECT_LT(std::abs(t), 0.2) << "arm hanging straight down carries almost no joint load";
+  }
+
+  const auto out = leftArmGravityHoldTorque(degToRad({90, 0, 0, 0, 0, 0}));
+  EXPECT_NEAR(out[0], 4.794, 0.01) << "2.78 kg arm straight out forward";
+  EXPECT_NEAR(out[3], -1.208, 0.01);
+
+  const auto back = leftArmGravityHoldTorque(degToRad({-30, 0, 0, 0, 0, 0}));
+  EXPECT_NEAR(back[0], -2.539, 0.01) << "swung back: the holding torque flips sign";
+
+  const std::array<double, 6> expected = {0.592, 1.614, 0.151, 0.254, 0.016, -0.022};
+  const auto mixed = leftArmGravityHoldTorque(degToRad({20, 30, -40, 50, 10, -20}));
+  for (size_t i = 0; i < 6; ++i) {
+    EXPECT_NEAR(mixed[i], expected[i], 0.01) << "joint " << i;
+  }
+}
+
+TEST_F(ShippedConfig, ShippedFeedForwardOnlyWhereEnabledAndWithinItsCap) {
+  seedAtCommandZero();
+  for (int tick = 0; tick < 60; ++tick) {
+    for (const auto& cmd : core.armPoseToMotorCmds(makePose(30, 0, -30, 30, 0, 0), kPositionLoop)) {
+      const auto& s = core.safety(jointOf(cmd.motor_id));
+      if (s.gravity_ff_scale <= 0.0) {
+        EXPECT_FLOAT_EQ(cmd.torque, 0.0f) << "motor " << static_cast<int>(cmd.motor_id);
+      } else {
+        EXPECT_LE(std::abs(cmd.torque), s.gravity_ff_max_torque + 1e-6)
+            << "motor " << static_cast<int>(cmd.motor_id);
+      }
+    }
+  }
+}
+
+TEST_F(ShippedConfig, FeedForwardRampsInAfterSeedingAndMatchesTheModel) {
+  ASSERT_TRUE(core.loadSafetyFromYaml(configWithShoulderPitchFf(), kRateHz)) << core.lastError();
+  const auto pose = makePose(60, 0, 0, 0, 0, 0);
+  std::map<int, double> fb = feedbackForCommandFrame(0.0);
+  fb[core.motorId(kShoulderPitch)] =
+      core.joint(kShoulderPitch).direction * (60.0 - core.joint(kShoulderPitch).zero_offset);
+  ASSERT_TRUE(core.seedPrevTargetsFromFeedback(fb).out_of_range.empty());
+
+  const double full = core.joint(kShoulderPitch).direction * 4.0696; // numpy reference
+  const int id = core.motorId(kShoulderPitch);
+  auto torqueOf = [&](const std::vector<common_msgs::msg::MotorCmd>& cmds) {
+    for (const auto& cmd : cmds) {
+      if (cmd.motor_id == id) {
+        return static_cast<double>(cmd.torque);
+      }
+    }
+    ADD_FAILURE() << "no command for shoulder pitch";
+    return 0.0;
+  };
+
+  EXPECT_NEAR(torqueOf(core.armPoseToMotorCmds(pose, kPositionLoop)), full / kRateHz, 1e-3)
+      << "first tick after a seed carries 1/50 of the feed-forward, not all of it";
+  double t = 0.0;
+  for (int tick = 0; tick < 60; ++tick) {
+    t = torqueOf(core.armPoseToMotorCmds(pose, kPositionLoop));
+  }
+  EXPECT_NEAR(t, full, 0.01);
+  EXPECT_NEAR(core.lastGravityTorqueMotor()[kShoulderPitch], full, 0.01);
+
+  core.seedPrevTargetsFromFeedback(fb);
+  EXPECT_LT(std::abs(torqueOf(core.armPoseToMotorCmds(pose, kPositionLoop))), 0.1)
+      << "a re-seed restarts the ramp";
+}
+
+TEST_F(ShippedConfig, FeedForwardIsClampedAndFollowsTheUrdfMapping) {
+  YAML::Node cfg = configWithShoulderPitchFf(1.0, 1.0);
+  const auto pose = makePose(0, 0, 0, 0, 0, 0);
+  const int dir = core.joint(kShoulderPitch).direction;
+  const int id = core.motorId(kShoulderPitch);
+  auto settle = [&]() {
+    float torque = 0.0f;
+    for (int tick = 0; tick < 60; ++tick) {
+      for (const auto& cmd : core.armPoseToMotorCmds(pose, kPositionLoop)) {
+        if (cmd.motor_id == id) {
+          torque = cmd.torque;
+        }
+      }
+    }
+    return torque;
+  };
+
+  // cmd 0 -> URDF 90 (arm straight out): 4.79 N.m wanted, clamped to 1.0.
+  cfg["joints"]["shoulder"]["pitch"]["urdf_offset_deg"] = 90.0;
+  ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
+  core.seedPrevTargetsFromFeedback(feedbackForCommandFrame(0.0));
+  EXPECT_FLOAT_EQ(settle(), static_cast<float>(dir * 1.0));
+
+  // Flipping urdf_direction flips the torque the motor is sent.
+  cfg["joints"]["shoulder"]["pitch"]["urdf_direction"] = -1;
+  ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
+  core.seedPrevTargetsFromFeedback(feedbackForCommandFrame(0.0));
+  EXPECT_FLOAT_EQ(settle(), static_cast<float>(-dir * 1.0));
+}
+
+TEST_F(ShippedConfig, BlockedJointZeroesAllFeedForward) {
+  YAML::Node cfg = configWithShoulderPitchFf();
+  cfg["joints"]["shoulder"]["pitch"]["urdf_offset_deg"] = 90.0;
+  ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
+  core.seedPrevTargetsFromFeedback(feedbackForCommandFrame(0.0));
+  core.blockJoints({kElbowRoll});
+  for (int tick = 0; tick < 60; ++tick) {
+    for (const auto& cmd : core.armPoseToMotorCmds(uniformPose(0.0), kPositionLoop)) {
+      EXPECT_FLOAT_EQ(cmd.torque, 0.0f) << "an unknown joint angle makes every load unknown";
+    }
+  }
+}
+
+TEST_F(ShippedConfig, UnsafeGravityFeedForwardConfigIsRefused) {
+  EXPECT_FALSE(core.loadSafetyFromYaml(configWithShoulderPitchFf(1.0, 7.0), kRateHz))
+      << "3.14 N.m of PD + 7 N.m of feed-forward exceeds the 10 N.m ceiling";
+  EXPECT_NE(core.lastError().find("gravity_ff_max_torque"), std::string::npos) << core.lastError();
+
+  EXPECT_FALSE(core.loadSafetyFromYaml(configWithShoulderPitchFf(1.0, 0.0), kRateHz));
+
+  YAML::Node cfg = YAML::LoadFile(configPath("safety_limits.yaml"))["safety"];
+  cfg["joints"]["elbow"]["pitch"]["control_type"] = kPositionLoop;
+  cfg["joints"]["elbow"]["pitch"]["gravity_ff_scale"] = 1.0;
+  EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
+  EXPECT_NE(core.lastError().find("POSITION_LOOP"), std::string::npos) << core.lastError();
+
+  cfg = configWithShoulderPitchFf();
+  cfg["joints"]["elbow"]["roll"]["urdf_direction"] = 0;
+  EXPECT_FALSE(core.loadSafetyFromYaml(cfg, kRateHz));
+
+  YAML::Node mapping = YAML::LoadFile(configPath("hardware_mapping.yaml"));
+  mapping["right"] = mapping["left"];
+  ASSERT_TRUE(core.loadFromYaml(mapping, "right"));
+  EXPECT_FALSE(core.loadSafetyFromYaml(configWithShoulderPitchFf(), kRateHz))
+      << "the model is the left arm only";
+}
+
+TEST_F(ShippedConfig, UnpoweredJointUsesItsGravityAssumptionOnlyWhenSet) {
+  constexpr size_t kElbowPitch = 3;
+  const auto pose = makePose(60, 0, 0, 0, 0, 0);
+  const int pitch_id = core.motorId(kShoulderPitch);
+  auto seedWithElbowPitchSilent = [&]() {
+    std::map<int, double> fb = feedbackForCommandFrame(0.0);
+    fb[pitch_id] =
+        core.joint(kShoulderPitch).direction * (60.0 - core.joint(kShoulderPitch).zero_offset);
+    fb.erase(core.motorId(kElbowPitch));
+    const SeedReport report = core.seedPrevTargetsFromFeedback(fb);
+    ASSERT_EQ(report.unmatched.size(), 1u);
+  };
+  auto settledTorque = [&]() {
+    double t = 0.0;
+    for (int tick = 0; tick < 60; ++tick) {
+      for (const auto& cmd : core.armPoseToMotorCmds(pose, kPositionLoop)) {
+        if (cmd.motor_id == pitch_id) {
+          t = cmd.torque;
+        }
+      }
+    }
+    return t;
+  };
+
+  // Elbow pitch: identity URDF mapping and no assumption, whatever the shipped file says.
+  YAML::Node cfg = configWithShoulderPitchFf();
+  cfg["joints"]["elbow"]["pitch"]["urdf_direction"] = 1;
+  cfg["joints"]["elbow"]["pitch"]["urdf_offset_deg"] = 0.0;
+  cfg["joints"]["elbow"]["pitch"].remove("gravity_assume_deg");
+  ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
+  seedWithElbowPitchSilent();
+  EXPECT_FLOAT_EQ(settledTorque(), 0.0f) << "unpowered with no assumption: angle unknown";
+
+  cfg["joints"]["elbow"]["pitch"]["gravity_assume_deg"] = -90.0;
+  ASSERT_TRUE(core.loadSafetyFromYaml(cfg, kRateHz)) << core.lastError();
+  seedWithElbowPitchSilent();
+  EXPECT_NEAR(settledTorque(), core.joint(kShoulderPitch).direction * 3.6219, 0.01)
+      << "numpy reference: pitch 60, elbow assumed -90";
+
+  // Out of range is a calibration mismatch, not an unpowered joint: never assumed.
+  core.seedPrevTargetsFromFeedback(feedbackForCommandFrame(0.0));
+  core.blockJoints({kElbowPitch});
+  EXPECT_FLOAT_EQ(settledTorque(), 0.0f);
 }
