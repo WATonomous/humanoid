@@ -231,6 +231,13 @@ void CanNode::motorCMDCallback(const common_msgs::msg::MotorCmd::SharedPtr msg) 
                      static_cast<int>(msg->motor_id));
         return;
       }
+      if (!std::isfinite(msg->position) || !std::isfinite(msg->velocity) ||
+          !std::isfinite(msg->kp) || !std::isfinite(msg->kd) || !std::isfinite(msg->torque)) {
+        RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                              "MIT command for motor %d has a non-finite field -- not sent",
+                              static_cast<int>(msg->motor_id));
+        return;
+      }
       const MitProfile& p = it->second;
       if (p.family == MitFamily::Ak) {
         // AK V3: extended id 0x800|id, KP-first payload.
