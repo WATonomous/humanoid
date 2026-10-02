@@ -122,29 +122,22 @@ patched by hand) as of PR #219.
 1. **Symmetric fold-ready joint pose** + tune the 4 gripper prismatic joints for
    pinching fabric. The real remaining blocker — the current default droops
    and doesn't reach the table, so nothing can grip the garment yet.
-   `scripts/reach_pose_ik.py` has a real differential-IK attempt at this
-   (reusing `src/teleop/task_space_controller/task_space_ik.py`'s approach
-   and, for the fix below, `src/teleop/keyboard_teleop/keyboard_teleop.py`'s
-   small-increment driving style -- both verified working on this robot) --
-   not solved yet. Three rounds of findings, see the script's docstring for
-   the full detail:
-   - With the old (wrong, see `robot_base_pos` above) base height, a target
-     centered on the garment flatlined well short of zero for hundreds of
-     steps straight -- a stuck local minimum, not slow convergence.
-   - After fixing the base height, a *different* failure appeared: the wrist
-     joint would wind up several radians and the error oscillate/diverge,
-     commanding the full far-off goal from step 0.
-   - Ramping the commanded target smoothly from the arm's actual start
-     position to the goal (one small step at a time, the way
-     `keyboard_teleop.py` actually drives this exact controller, instead of
-     one big jump) fixed the *approach* -- clean, low-error tracking for
-     ~65% of the way. But instability still recurs once near the actual
-     final target. That points at the target configuration being near a
-     kinematic singularity for this arm/pose (where damped-least-squares IK
-     is known to blow up even with small steps), not a jump-size or
-     quaternion-sign issue as earlier notes here guessed. Not confirmed by
-     computing the Jacobian's condition number directly -- the real next
-     step, before trying a different target region or IK method/damping.
+   `scripts/reach_pose_ik.py` attempts this. It went through a few bad
+   iterations (own from-scratch IK loop: stuck local minimum, then wrist
+   wind-up/divergence near the target -- see git history) before settling on
+   reusing `src/teleop/keyboard_teleop/keyboard_teleop.py`'s actual driving
+   formula verbatim, instead of writing a new one: a persistent target
+   integrated from small per-step deltas and *leashed* to stay within a
+   fixed distance of the tip's real current position every step (not just
+   ramped by elapsed time) -- the same technique that already works in
+   production teleop sessions on this robot. That fixed the instability: the
+   same target that previously diverged to ~0.87 error now settles into a
+   stable, bounded ~0.10-0.24m error with no wind-up, both arms visibly bent
+   forward in a controlled reach near the table (not frozen, not spun out).
+   Still not a full solve -- it plateaus there rather than reaching zero, so
+   either the target is still a bit past true reach for this base placement,
+   or there's a residual local minimum the leash alone doesn't escape. See
+   the script's docstring for the exact numbers and what to try next.
 2. **Full garment set**: `hf download lehome/asset_challenge` →
    `garment_cfg_base_path`.
 3. **Data + training**: pioneer teleop (this repo's `src/teleop/` or

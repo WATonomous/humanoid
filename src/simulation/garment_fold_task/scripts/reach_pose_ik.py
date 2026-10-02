@@ -1,52 +1,38 @@
-"""Reach-pose IK diagnostic for the "fold-ready joint pose" TODO: drives both
-grippers toward fixed world-frame targets above the garment using the same
-differential-IK machinery src/teleop/task_space_controller/task_space_ik.py
-already uses successfully for this exact robot (DifferentialIKController +
-compute_tip_ik_jacobian/compute_gripper_tip_pose_b). Saves camera frames and
-prints a position-error trace every 50 steps so progress can be checked both
-visually and numerically, and prints the final joint angles reached.
+"""Reach-pose attempt for the "fold-ready joint pose" TODO: drives both
+grippers toward fixed world-frame targets above the garment with a
+*scripted replay* of src/teleop/keyboard_teleop/keyboard_teleop.py's own
+driving logic -- not a from-scratch IK solve.
+
+Earlier versions of this script wrote a fresh DifferentialIKController loop
+that commanded a single far-off target (or a time-based linear ramp toward
+one). Both caused real instability (see git history / STATUS below). The
+actual fix, pointed out in review: keyboard_teleop.py already solves this
+exact problem, in production, for this exact robot -- a *persistent target*
+integrated from small per-step deltas and *leashed* to stay within a fixed
+distance of the tip's real current position every step (not just ramped by
+elapsed time), so the solver is never asked for something far from where
+the arm actually is right now. This script reuses that formula verbatim
+(same compute_pose_error + clamp, same _MAX_LEAD_M/_MAX_LEAD_RAD), just
+replacing keyboard_teleop.py's live Se3Keyboard reader with a scripted
+per-step delta toward a fixed goal -- a scripted teleop session, not a new
+controller.
 
     isaaclab.sh -p scripts/reach_pose_ik.py --garment Top_Long_Seen_1 \
-        --lx -0.10 --rx 0.10 --y 0.0 --z 0.80 --steps 200 --out /tmp/reach
+        --lx -0.10 --rx 0.10 --y 0.0 --z 0.80 --steps 400 --out /tmp/reach
 
-STATUS (checked 2026-10-02, not solved, updated after the robot_base_pos.z
-fix -- see GarmentPioneerEnvCfg): originally, with the old (wrong) base
-height, a target centered on the garment's table position was unreachable --
-the position error flatlined hard (e.g. exactly 0.4154 for hundreds of
-consecutive steps; a stuck local minimum, not slow convergence) for both
-arms at every target distance tried, with final joint angles landing near
-+-pi on the wrist joint.
-
-After fixing robot_base_pos.z (the robot's own stand was more than half a
-meter below the floor -- unrelated bug, found by inspection, fixed from the
-asset's own USD bounding box, not guessed), that specific flatline symptom
-is gone, but reaching still isn't solved: a *different* failure shows up at
-two target heights tried -- the wrist joint winds up multiple radians and
-the position error oscillates/diverges instead of converging, on both arms.
-
-Ruled out one cause: the orientation command here is always the tip's
-*current* orientation (meant as a no-op), re-set every step -- there's no
-commanded orientation error by construction, so a quaternion double-cover
-sign flip (q vs -q) isn't the direct cause, despite looking like one at
-first (an earlier version of this note said otherwise; corrected).
-
-Tried commanding the goal with a ramp -- ``--steps``/2 to interpolate
-linearly from the arm's actual starting tip position to the goal, instead of
-the full jump from step 0 (this is closer to how
-``src/teleop/keyboard_teleop/keyboard_teleop.py`` actually drives this same
-DifferentialIKController: one small per-keypress delta, never one big
-target). This measurably helped the *approach*: error tracks the moving
-sub-target cleanly (down to ~0.02-0.05) for roughly the first 65% of the
-ramp. But instability still recurs once near the actual final target --
-error grows again (up to ~0.87) specifically in that region, not from the
-jump itself (there wasn't one this time). That points more precisely at the
-target configuration itself being near a kinematic singularity for this
-arm/pose (where damped-least-squares IK is known to blow up even with small
-steps, since the Jacobian's condition number explodes near a singularity),
-rather than purely a large-single-jump or redundant-DOF issue. Not
-confirmed by computing the Jacobian's condition number directly -- the next
-real step, before trying a different target region or a different IK
-method/damping.
+STATUS (checked 2026-10-02): earlier attempts (single far target from step 0;
+a time-based linear ramp) both let the wrist joint wind up several radians
+and the position error oscillate/diverge once near the target region. This
+leashed version (below) fixes that: 400 steps toward the same target that
+previously diverged to ~0.87 error now settles into a *stable, bounded*
+~0.10-0.13m (right arm) / ~0.20-0.24m (left arm) error -- no more wind-up, no
+more divergence, visually both arms end bent forward in a controlled reach
+posture near the table, not frozen or spun out. Not a full solve: it
+plateaus there rather than reaching exactly zero, so either the target is
+still somewhat past true reach for this base placement/pose, or there's a
+residual local minimum the leash alone doesn't escape. Worth trying next:
+nearer target, more steps, or a small secondary objective (e.g. favor
+elbow-down) to help the leash climb out of whatever it's plateauing against.
 """
 import argparse
 import sys
@@ -55,13 +41,15 @@ from isaaclab.app import AppLauncher
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--garment", default="Top_Long_Seen_1")
-parser.add_argument("--steps", type=int, default=200)
+parser.add_argument("--steps", type=int, default=400)
 parser.add_argument("--out", default="/tmp/reach")
-# target centerpoint offsets, world frame (robot base sits at world (0,-0.63,0.68))
+# target centerpoint offsets, world frame
 parser.add_argument("--lx", type=float, default=-0.10, help="left gripper target world X")
 parser.add_argument("--rx", type=float, default=0.10, help="right gripper target world X")
 parser.add_argument("--y", type=float, default=0.0, help="both grippers' target world Y")
 parser.add_argument("--z", type=float, default=0.80, help="both grippers' target world Z")
+# per-step "held key" speed, same units/scale as keyboard_teleop.py's Se3Keyboard command
+parser.add_argument("--speed", type=float, default=0.01, help="per-step position delta magnitude (m)")
 AppLauncher.add_app_launcher_args(parser)
 args = parser.parse_args()
 args.headless = True
@@ -76,7 +64,7 @@ import gymnasium as gym
 from PIL import Image
 from isaaclab.controllers import DifferentialIKController, DifferentialIKControllerCfg
 from isaaclab.managers import SceneEntityCfg
-from isaaclab.utils.math import subtract_frame_transforms
+from isaaclab.utils.math import subtract_frame_transforms, compute_pose_error
 from isaaclab_tasks.utils import parse_env_cfg
 import humanoid_garment_fold  # noqa: F401
 from pioneer_humanoid.bimanual_arm import (
@@ -101,7 +89,6 @@ robot = env.robot
 device = env.device
 os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
 
-
 try:
     env.scene_camera.set_world_poses_from_view(
         eyes=torch.tensor([[1.9, -2.3, 1.35]], device=device),
@@ -125,8 +112,22 @@ def save_frame(suffix):
         print("frame save failed:", e)
 
 
-class ArmIK:
-    def __init__(self, arm_joints, ee_body, finger_bodies):
+# Same constants keyboard_teleop.py uses to leash the persistent target to the actual tip.
+_MAX_LEAD_M = 0.06
+
+
+class LeashedArmIK:
+    """Reach_pose_ik's own port of keyboard_teleop.py's driving loop: a persistent
+    target integrated from small per-step deltas, leashed to stay within
+    _MAX_LEAD_M of the tip's *actual current* position every step (recomputed
+    from where the arm really is, not from elapsed time like this script's
+    earlier linear-ramp attempt). Orientation is left alone -- always
+    commanded as the tip's current orientation, so there is never a nonzero
+    orientation error to resolve (matches keyboard_teleop.py when no
+    rotation keys are held).
+    """
+
+    def __init__(self, arm_joints, ee_body, finger_bodies, goal_pos_w):
         names = [resolve_joint_name(robot, n) for n in arm_joints]
         self.joint_ids = [robot.data.joint_names.index(n) for n in names]
         entity = SceneEntityCfg("robot", joint_names=names, body_names=[ee_body])
@@ -139,18 +140,39 @@ class ArmIK:
             num_envs=1, device=device,
         )
         self.ctrl.reset(env_ids=torch.arange(1, device=device))
+        self.goal_pos_w = goal_pos_w
+        self.target_pos_b = None  # seeded from the tip on first step
 
-    def step(self, target_pos_w, target_quat_b):
+    def step(self, speed):
         root_pose_w = robot.data.root_state_w[:, 0:7]
-        target_pos_b, _ = subtract_frame_transforms(
-            root_pose_w[:, 0:3], root_pose_w[:, 3:7], target_pos_w, target_quat_b
-        )
+        root_pos, root_quat = root_pose_w[:, 0:3], root_pose_w[:, 3:7]
         tip_pos_b, tip_quat_b = compute_gripper_tip_pose_b(
             robot, root_pose_w, self.body_id, self.finger_ids
         )
-        self.ctrl.set_command(torch.cat([target_pos_b, tip_quat_b], dim=-1), ee_quat=tip_quat_b)
+        if self.target_pos_b is None:
+            self.target_pos_b = tip_pos_b.clone()
+
+        # "held key" delta: a fixed-size step toward the goal, same role as one
+        # tick of a held W/S/A/D/Q/E key in keyboard_teleop.py.
+        goal_pos_b, _ = subtract_frame_transforms(root_pos, root_quat, self.goal_pos_w)
+        to_goal = goal_pos_b - self.target_pos_b
+        dist = to_goal.norm()
+        if float(dist) > 1e-6:
+            step_vec = to_goal * min(speed / float(dist), 1.0)
+        else:
+            step_vec = torch.zeros_like(to_goal)
+        self.target_pos_b = self.target_pos_b + step_vec
+
+        # Leash to the tip's real current position -- verbatim from
+        # keyboard_teleop.py (orientation part omitted: no rotation commanded here).
+        pos_err, _ = compute_pose_error(
+            tip_pos_b, tip_quat_b, self.target_pos_b, tip_quat_b, rot_error_type="axis_angle"
+        )
+        self.target_pos_b = tip_pos_b + pos_err.clamp(-_MAX_LEAD_M, _MAX_LEAD_M)
+
+        self.ctrl.set_command(torch.cat([self.target_pos_b, tip_quat_b], dim=-1), ee_quat=tip_quat_b)
         ee_pos_w = robot.data.body_state_w[:, self.body_id, 0:3]
-        ee_pos_b, _ = subtract_frame_transforms(root_pose_w[:, 0:3], root_pose_w[:, 3:7], ee_pos_w)
+        ee_pos_b, _ = subtract_frame_transforms(root_pos, root_quat, ee_pos_w)
         jacobian = compute_tip_ik_jacobian(
             robot, robot.root_physx_view.get_jacobians()[:, self.jacobi_idx, :, self.joint_ids],
             ee_pos_b, tip_pos_b,
@@ -158,63 +180,34 @@ class ArmIK:
         joint_pos = robot.data.joint_pos[:, self.joint_ids]
         joint_pos_des = self.ctrl.compute(tip_pos_b, tip_quat_b, jacobian, joint_pos)
         robot.set_joint_position_target(joint_pos_des, joint_ids=self.joint_ids)
-        return tip_pos_b
+        return tip_pos_b, goal_pos_b
 
-
-left_ik = ArmIK(LEFT_ARM_JOINTS, LEFT_EE_BODY, LEFT_FINGER_TIP_BODIES)
-right_ik = ArmIK(RIGHT_ARM_JOINTS, RIGHT_EE_BODY, RIGHT_FINGER_TIP_BODIES)
 
 left_goal_w = torch.tensor([[args.lx, args.y, args.z]], device=device)
 right_goal_w = torch.tensor([[args.rx, args.y, args.z]], device=device)
-hold_quat = torch.tensor([[1.0, 0.0, 0.0, 0.0]], device=device)
 
-# Commanding the full, far-off goal from step 0 (what this script originally did) let the
-# wrist joint wind up a full 2*pi and the error diverge -- keyboard_teleop.py never does this;
-# it only ever moves the IK target a small amount per keypress. Reproduce that here: ramp the
-# commanded target linearly from the arm's actual starting tip position to the goal over the
-# first half of the run, instead of a single big jump. Small per-step target deltas keep the
-# solver away from the redundant-DOF (wrist-roll) drift a single large jump seems to trigger.
-root_pose_w0 = robot.data.root_state_w[:, 0:7]
-left_start_b, _ = compute_gripper_tip_pose_b(robot, root_pose_w0, left_ik.body_id, left_ik.finger_ids)
-right_start_b, _ = compute_gripper_tip_pose_b(robot, root_pose_w0, right_ik.body_id, right_ik.finger_ids)
-root_pos0, root_quat0 = root_pose_w0[:, 0:3], root_pose_w0[:, 3:7]
-from isaaclab.utils.math import combine_frame_transforms
-left_start_w, _ = combine_frame_transforms(root_pos0, root_quat0, left_start_b)
-right_start_w, _ = combine_frame_transforms(root_pos0, root_quat0, right_start_b)
-ramp_steps = max(1, args.steps // 2)
+left_ik = LeashedArmIK(LEFT_ARM_JOINTS, LEFT_EE_BODY, LEFT_FINGER_TIP_BODIES, left_goal_w)
+right_ik = LeashedArmIK(RIGHT_ARM_JOINTS, RIGHT_EE_BODY, RIGHT_FINGER_TIP_BODIES, right_goal_w)
 
 sim_dt = env.sim.get_physics_dt()
 save_frame("_step0000.png")
 for st in range(args.steps):
-    frac = min(1.0, (st + 1) / ramp_steps)
-    left_target_w = left_start_w + frac * (left_goal_w - left_start_w)
-    right_target_w = right_start_w + frac * (right_goal_w - right_start_w)
-    lt = left_ik.step(left_target_w, hold_quat)
-    rt = right_ik.step(right_target_w, hold_quat)
-    # bypassing env.step() -- GarmentPioneerEnv._apply_action() would overwrite
-    # the joint targets the IK controllers just set with its own `self.actions`.
-    # Mirror task_space_ik.py's lower-level loop instead: push targets into the
-    # physics buffers, step, then refresh robot.data.* from the new sim state.
-    # (Calling env.sim.step() alone, as an earlier version of this script did,
-    # silently never moves anything -- set_joint_position_target only writes a
-    # buffer; nothing pushes it into physics or refreshes the read-back tensors
-    # without these two calls.)
+    lt, lg = left_ik.step(args.speed)
+    rt, rg = right_ik.step(args.speed)
+    # bypassing env.step() -- GarmentPioneerEnv._apply_action() would overwrite the
+    # joint targets the IK controllers just set. Mirror keyboard_teleop.py's own
+    # lower-level loop instead: push targets into the physics buffers, step, then
+    # refresh robot.data.* from the new sim state (set_joint_position_target alone
+    # writes a buffer that nothing applies without these two calls).
     env.scene.write_data_to_sim()
     env.sim.step(render=True)
     env.scene.update(sim_dt)
     if st % 50 == 0:
-        root_pose_w = robot.data.root_state_w[:, 0:7]
-        lp_b, _ = subtract_frame_transforms(root_pose_w[:, 0:3], root_pose_w[:, 3:7], left_target_w, hold_quat)
-        rp_b, _ = subtract_frame_transforms(root_pose_w[:, 0:3], root_pose_w[:, 3:7], right_target_w, hold_quat)
-        lg_b, _ = subtract_frame_transforms(root_pose_w[:, 0:3], root_pose_w[:, 3:7], left_goal_w, hold_quat)
-        rg_b, _ = subtract_frame_transforms(root_pose_w[:, 0:3], root_pose_w[:, 3:7], right_goal_w, hold_quat)
-        l_err = (lp_b - lt).norm().item()
-        r_err = (rp_b - rt).norm().item()
-        l_goal_err = (lg_b - lt).norm().item()
-        r_goal_err = (rg_b - rt).norm().item()
-        print(f"DBG st={st} frac={frac:.3f} left_tip_b={lt.squeeze(0).tolist()} err_to_subtarget={l_err:.4f} err_to_FINAL_GOAL={l_goal_err:.4f}")
-        print(f"DBG st={st} frac={frac:.3f} right_tip_b={rt.squeeze(0).tolist()} err_to_subtarget={r_err:.4f} err_to_FINAL_GOAL={r_goal_err:.4f}")
-    if (st + 1) % 25 == 0:
+        l_err = (lg - lt).norm().item()
+        r_err = (rg - rt).norm().item()
+        print(f"DBG st={st} left_tip_b={lt.squeeze(0).tolist()} err_to_goal={l_err:.4f}")
+        print(f"DBG st={st} right_tip_b={rt.squeeze(0).tolist()} err_to_goal={r_err:.4f}")
+    if (st + 1) % 50 == 0:
         save_frame(f"_step{st + 1:04d}.png")
 
 save_frame(f"_step{args.steps:04d}_final.png")
