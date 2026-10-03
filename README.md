@@ -1,16 +1,31 @@
 # Pioneer - UWaterloo's First Humanoid Robot 
 
-Published docs: https://watonomous.github.io/humanoid-docs/index.html
+We are a team of undergraduate student from UWaterloo building a 160 cm humanoid robot. We are the first engineering design team in Canada building a humanoid!
 
-## Quick start (watod)
+Our humanoid robot will feature 2 arms + 2 legs and we are also developing a 22 DOF humanoid hand that can be modularly switchable with the arm gripper.
+
+More info at Pioneer's website: https://watonomous.github.io/humanoid-docs/index.html
+
+## Find your subteam
+
+| Subteam | Start here |
+|---|---|
+| Software: manipulation | [`src/teleop`](src/teleop) · [`src/robot_learning`](src/robot_learning) · [`src/simulation`](src/simulation) |
+| Software: locomotion | [`src/simulation/humanoid_rl`](src/simulation/humanoid_rl) · [`src/simulation/humanoid_rl_tasks`](src/simulation/humanoid_rl_tasks) |
+| Firmware / interfacing | [`src/embedded`](src/embedded) · [`src/interfacing`](src/interfacing) |
+| Perception | [`src/perception`](src/perception) |
+
+## Quick start
+
+`watod` is our Docker Compose wrapper: it spins up one dev container per module (interfacing, perception, simulation, …), so you only run the stack your subteam needs.
 
 ```bash
-cp watod-config.sh watod-config.local.sh   # set ACTIVE_MODULES
+cp watod-config.sh watod-config.local.sh   # set your ACTIVE_MODULES
 ./watod up -d
-./watod -t <service>                        # shell into a module
+./watod -t <service>
 ```
 
-One editable container per module — code is bind-mounted from `src/<module>`, so edits are live. Full setup and dev workflow: **[DEVELOPING.md](DEVELOPING.md)**.
+Your `src/<module>` folder is mounted into the container, so edits on your machine show up inside it immediately without rebuild. Full setup and dev workflow: **[DEVELOPING.md](DEVELOPING.md)**.
 
 | `ACTIVE_MODULES` | What it runs |
 |------------------|--------------|
@@ -32,59 +47,24 @@ Two workflows share this repo:
 
 ```
 humanoid
-├── watod                    # Compose orchestrator (one editable container per module)
-├── watod-config.sh          # Module defaults — copy → watod-config.local.sh
-├── watod_scripts/           # Dev-env / Docker helpers
-├── modules/                 # docker-compose.<module>.yaml (one per ACTIVE_MODULE)
-├── docker/                  # Dockerfiles per stack (interfacing, perception, simulation/{isaac_lab,mjlabs})
+├── watod, watod-config.sh   # container orchestrator + module config
+├── modules/  docker/        # compose files + Dockerfiles, per module
 ├── src/
-│   ├── common_msgs/         # Shared ROS 2 message definitions
-│   ├── interfacing/         # CAN ⇄ ROS 2 bridge, DBC, joint_command (ArmPose → per-motor CAN); real-arm bring-up
-│   ├── perception/          # Perception nodes + voxel_grid (depth → occupancy grid)
-│   ├── pioneer_humanoid/    # THE robot definition — arm/hand/whole-body articulation, joint limits, IK, cameras (imported everywhere)
-│   ├── simulation/          # Sim & learning (Isaac Lab, MuJoCo) — see src/simulation/README.md
-│   │   ├── humanoid_rl/         #   RL runners: train / play / distill / diagnose  ($RL_RUNNERS)
-│   │   ├── humanoid_rl_tasks/   #   RL tasks, flat — inhand, locomotion, push_block
-│   │   ├── isaac_scenes/        #   Isaac teleop data-collection scenes (@scene-discovered) — bare, vial_rack, push_block
-│   │   ├── mujoco_scenes/       #   plain-MuJoCo (CPU) scenes — bare, peg_insert
-│   │   └── so101_vial_task/     #   SO101 imitation-learning task
-│   ├── teleop/              # Drive the arm (sim or real): keyboard, Quest WebXR, task-space IK — resolve --scene via humanoid_isaac_scenes
-│   ├── robot_learning/      # Learning from datasets: record demos (sim + real), train / eval policies (ACT, SmolVLA, pi0.5)
-│   └── embedded/            # STM32 / ESP32S3 motor-controller firmware
-├── assets/                  # robot URDF/USD/meshes + scene props (backend-neutral, not tied to Isaac)
-│   ├── pioneer_bimanual_arm/  pioneer_hand/  whole_body_humanoid/
-│   ├── props/                  #   block.usd, box.usd, table.usd
-│   └── lerobot/                #   SO101 arm + vial-task USDs + HDRIs (external-synced)
-├── models/                  # frozen RL policy baselines (checked in) — see models/README.md
-├── outputs/                 # live training runs / checkpoints (gitignored) — rl/ , train/
-└── docs/                    # Pointer to the humanoid-docs site
+│   ├── pioneer_humanoid/    # the robot definition (imported everywhere)
+│   ├── interfacing/         # CAN ⇄ ROS 2 bridge, real-arm bring-up
+│   ├── embedded/            # STM32 / ESP32S3 motor firmware
+│   ├── perception/          # cameras, voxel grid
+│   ├── simulation/          # Isaac Lab + MuJoCo: RL tasks, teleop scenes
+│   ├── teleop/              # drive the arm (sim or real)
+│   ├── robot_learning/      # record demos, train / eval policies
+│   └── common_msgs/         # shared ROS 2 messages
+├── assets/                  # robot URDF / USD / meshes, scene props
+├── models/                  # frozen RL policy baselines
+├── outputs/                 # training runs (gitignored)
+└── docs/                    # pointer to the docs site
 ```
 
-**RL task vs teleop scene** — the split a contributor needs first:
-
-| adding… | goes in | how it registers |
-|---|---|---|
-| an RL task (has a reward, gets PPO-trained) | `src/simulation/humanoid_rl_tasks/<task>/` | auto (`import_packages`) |
-| a teleop-only scene (collect demos, no reward) | `src/simulation/isaac_scenes/<name>/scene.py` + `@scene("<name>")` | auto (discovery) |
-| a scene that is **both** (e.g. `push_block`) | task owns the geometry in its `scene.py`; add a 1-line shim in `humanoid_isaac_scenes/` | both |
-
 Full detail — [src/simulation/README.md](src/simulation/README.md). Other areas: each has its own `README.md`.
-
-## Simulation
-
-| Stack | Module | Docs |
-|-------|--------|------|
-| Isaac Lab 2.3.2 / Sim 5.1 (SO101 robot learning, RL tasks, Quest) | `simulation_isaac` | [QUICKSTART](docker/simulation/isaac_lab/QUICKSTART.md) · [full README](docker/simulation/isaac_lab/README.md) |
-| MuJoCo / mjlab | `simulation_mj` | [README](docker/simulation/mjlabs/README.md) |
-| SO101 vial Gym envs | (inside `simulation_isaac`) | [so101_vial_task](src/simulation/so101_vial_task/README.md) |
-| Quest bimanual teleop | (inside `simulation_isaac`) | [quest_teleop](src/teleop/quest_teleop/README.md) |
-| Other teleop variants | host or container | [teleop/README.md](src/teleop/README.md) |
-
-Isaac Lab needs Linux, NVIDIA GPU, Docker GPU passthrough, and X11 (`xhost +local:docker`).
-
-## Development
-
-Setup, per-module dev loop, CI/linting, and per-area guides: **[DEVELOPING.md](DEVELOPING.md)**.
 
 ## CAN / arm bring-up
 
@@ -94,14 +74,6 @@ Full checklist (power, CANable udev, calibrate, smoke test):
 
 For the full **calibrate → visualize → move** sequence: [ARM_BRINGUP.md](ARM_BRINGUP.md)
 
-Open arm work (sim mirror of calibrated joints in Isaac Lab, VR teleop, etc.) is listed there under **Open arm tasks**.
-
 ```bash
 ./src/interfacing/can/scripts/can_udev.sh install   # once per host → /dev/canable
 ```
-
-## Requirements
-
-- Ubuntu ≥ 22.04 (WSL / macOS may work for non-GPU stacks)
-- Docker + watod (`./watod`)
-- NVIDIA GPU + drivers for Isaac Lab, perception, and mjlab

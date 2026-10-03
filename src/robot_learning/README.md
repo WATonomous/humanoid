@@ -113,7 +113,7 @@ Output: `<repo>/datasets/pioneer_v1_left_arm/sim/` (later sessions append to the
 
 ## Train (LeRobot)
 
-**SO101 vial task:** inside `simulation_isaac` Docker — [`docker/simulation/isaac_lab/QUICKSTART.md`](../../docker/simulation/isaac_lab/QUICKSTART.md) (`train-policy`, `--policy.push_to_hub=false`, `--steps=...`).
+**SO101 vial task:** inside `simulation_isaac` Docker — [`src/simulation/so101_vial_task/README.md`](../simulation/so101_vial_task/README.md) (`train-policy`, `--policy.push_to_hub=false`, `--steps=...`).
 
 **Generic / host** (outside Isaac docker):
 
