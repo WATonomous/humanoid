@@ -5,8 +5,6 @@ ported from the [LeHome Challenge](https://github.com/lehome-official/lehome-cha
 (ICRA 2026). Fold long/short tops and long/short pants on a table; success is
 judged on the cloth's particle geometry, not the robot.
 
-![pioneer arm in LeHome's garment scene](docs/images/pioneer_scene.png)
-
 ## Status
 
 | Piece | State |
