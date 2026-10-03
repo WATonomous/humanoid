@@ -1,22 +1,14 @@
 """Scene registry: ``@scene``-decorated ``InteractiveSceneCfg`` classes,
 auto-discovered from ``humanoid_isaac_scenes/<name>/scene.py``.
 
-Adding a manipulation scene for teleop data collection is normally **one
-folder**:
+Adding a scene is normally one folder: ``@scene("my_scene") class
+MySceneCfg(InteractiveSceneCfg): ...``, with ``robot = MISSING`` -- a teleop
+script plugs its own arm in via ``make_scene_cfg``.
 
-    humanoid_isaac_scenes/my_scene/
-        __init__.py      # empty
-        scene.py         # @scene("my_scene") class MySceneCfg(InteractiveSceneCfg): ...
-
-No edits to ``humanoid_isaac_scenes`` or the Dockerfile needed for that case.
-The scene declares ``robot = MISSING``; a teleop script plugs its own arm in
-via ``make_scene_cfg``.
-
-A scene with assets that can't be a declarative cfg field (e.g. a
-particle-cloth object built with a live constructor call, not a spawn-able
-``AssetBaseCfg``) can also pass ``post_init`` to ``@scene(...)``: a
-``post_init(scene, sim)`` run once after ``InteractiveScene``/``sim.reset()``
-exist. ``keyboard_teleop.py`` calls this for every scene (a no-op if unset).
+For assets that can't be a declarative cfg field (e.g. a particle-cloth
+object built with a live constructor call, not a spawn-able ``AssetBaseCfg``),
+``@scene(...)`` also takes ``post_init(scene, sim)``, run once after
+``InteractiveScene``/``sim.reset()`` exist. No-op if unset.
 """
 from __future__ import annotations
 
