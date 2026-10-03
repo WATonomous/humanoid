@@ -82,7 +82,7 @@ from pioneer_humanoid.bimanual_arm import (
     make_camera_cfg,
     resolve_joint_name,
 )
-from humanoid_isaac_scenes import list_scenes, make_scene_cfg, scene_camera
+from humanoid_isaac_scenes import list_scenes, make_scene_cfg, scene_camera, scene_post_init
 
 
 def _joint_ids(robot, names: list[str]) -> list[int]:
@@ -242,6 +242,9 @@ def main():
     scene = InteractiveScene(scene_cfg)
 
     sim.reset()
+    post_init = scene_post_init(args_cli.scene)
+    if post_init is not None:
+        post_init(scene, sim)
     print("[INFO]: Setup complete. Move the leader arm to drive the left arm.")
     run_simulator(sim, scene)
 
