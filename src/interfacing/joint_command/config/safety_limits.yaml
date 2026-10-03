@@ -49,7 +49,7 @@ safety:
   joints:
     # --- AK10-9 / AK80-9, MIT --------------------------------------------------
     # Limits come from calibrate_arm.py's software zero-mode (see hardware_mapping.yaml).
-    # Re-run calibration after any power cycle: AK80-9 joints lose their zero (ARM_BRINGUP.md).
+    # Re-run calibration after any power cycle: AK80-9 joints lose their zero (src/interfacing/README.md).
     # Stall torque = quantised kp * 12 deg (0.2094 rad) [+ gravity_ff_max_torque]. Testing
     # ceilings (real-hardware-safety skill): AK10-9 10 N.m, AK80-9 5 N.m -- these bench gains
     # exceed them, and mit_max_torque is set to each motor's full range.

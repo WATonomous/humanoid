@@ -15,11 +15,11 @@ Task setup and MDP code are adapted from [Isaac Lab](https://github.com/isaac-si
 
 ## Train & play
 
-Run inside the **`simulation_isaac`** container (Isaac Lab 2.3.2 / Sim 5.1). Host setup: [`docker/simulation/isaac_lab/QUICKSTART.md`](../../../../../../../../docker/simulation/isaac_lab/QUICKSTART.md) §0–2.
+Run inside the **`simulation_isaac`** container (Isaac Lab 2.3.2 / Sim 5.1). Host setup: [`docker/simulation/isaac_lab/README.md`](../../../../../docker/simulation/isaac_lab/README.md) §1–2.
 
 ```bash
 # Host: start container
-cd ~/Desktop/humanoid && ./watod up -d && ./watod -t simulation_isaac_dev
+cd ~/Desktop/humanoid && ./watod up -d && ./watod -t simulation_isaac
 
 # Inside container — run from $HUMANOID_ROOT (src/simulation/humanoid_rl/)
 cd $HUMANOID_ROOT

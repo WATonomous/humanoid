@@ -1,8 +1,84 @@
-# SO101 sim IL (watod `simulation_isaac`)
+# Isaac Lab container (watod `simulation_isaac`)
 
-Workshop-parity Docker stack for SO101 **imitation learning** in sim: teleop, record, ACT/GR00T eval.
+Docker stack for Isaac Lab sim: Pioneer **RL tasks** (in-hand, locomotion, push), Quest teleop, and SO101 imitation learning.
+Stack: Isaac Lab 2.3.2 / Sim 5.1 / RSL-RL — full versions under [Reference](#reference).
 
-**Quick copy-paste commands:** [QUICKSTART.md](QUICKSTART.md)
+## 1. One-time host setup
+
+```bash
+cd ~/Desktop/humanoid
+
+xhost +local:docker
+mkdir -p ~/docker/isaac-sim/{cache/kit,cache/ov,cache/pip,cache/glcache,cache/computecache,logs,data}
+```
+
+Create `watod-config.local.sh` in the repo root (git-ignored):
+
+```bash
+cat > watod-config.local.sh <<'EOF'
+ACTIVE_MODULES="simulation_isaac"
+MODE_OF_OPERATION="develop"
+EOF
+```
+
+GUI uses **X11 to host display** (same as [workshop `teleop-docker`](https://github.com/isaac-sim/Sim-to-Real-SO-101-Workshop)). Not WebRTC.
+
+## 2. Build and launch
+
+```bash
+./watod build simulation_isaac          # first time ~12 min (large NGC pull); rebuild ~5–15 min
+./watod up -d
+./watod -t simulation_isaac             # bash inside container
+```
+
+Rebuild clean after Dockerfile changes, or if `import torch` fails inside the container (packaging error):
+
+```bash
+./watod build --no-cache simulation_isaac
+./watod down && ./watod up -d
+```
+
+## 3. Workflows (inside container)
+
+### A. RL tasks — RSL-RL train / play
+
+```bash
+cd $HUMANOID_ROOT
+
+# In-hand cube reorientation — train, then play (GUI; omit --headless)
+rl-train --task=Isaac-Repose-Cube-PioneerHand-v0 --headless
+rl-play --task=Isaac-Repose-Cube-PioneerHand-Play-v0 --num_envs=1
+
+# Locomotion — Pioneer humanoid V1 (flat)
+rl-train --task=Isaac-Locomotion-Flat-PioneerHumanoid-v0 --headless
+rl-play --task=Isaac-Locomotion-Flat-PioneerHumanoid-Play-v0 --num_envs=1
+```
+
+Checkpoints: `outputs/rl/<experiment>/` (same path on host under `~/Desktop/humanoid/...`).
+
+Tasks and runners: [`src/simulation/README.md`](../../../src/simulation/README.md). Per-task docs: `src/simulation/humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md`.
+
+### B. Quest teleop
+
+See [`src/teleop/quest_teleop/README.md`](../../../src/teleop/quest_teleop/README.md).
+
+### C. SO101 imitation learning — ACT train, sim eval, record demos, GR00T eval
+
+Commands, pitfalls and asset sync: [`src/simulation/so101_vial_task/README.md`](../../../src/simulation/so101_vial_task/README.md).
+
+## If Isaac hangs (host)
+
+Ctrl+C often fails after an Isaac crash. From the host:
+
+```bash
+./watod down
+# or: docker kill $(docker ps -q --filter name=simulation_isaac)
+./watod up -d
+```
+
+## Reference
+
+### Versions
 
 | Component | Version |
 |-----------|---------|
@@ -14,57 +90,7 @@ Workshop-parity Docker stack for SO101 **imitation learning** in sim: teleop, re
 
 Based on [NVIDIA SO-101 workshop](https://github.com/isaac-sim/Sim-to-Real-SO-101-Workshop) `teleop-docker` LeRobot install pattern (`--no-deps` + pip constraints).
 
-## vs other environments
-
-| Environment | Use |
-|-------------|-----|
-| **`simulation_isaac`** (this) | SO101 IL + RL tasks + Quest / Wato teleop |
-| **`simulation_mj`** | MuJoCo / mjlab |
-
-## Files
-
-| Path | Role |
-|------|------|
-| `docker/simulation/isaac_lab/isaac_lab.Dockerfile` | Image build |
-| `modules/docker-compose.simulation_isaac.yaml` | watod compose service |
-| `src/simulation/so101_vial_task/` | Gym envs + `lerobot_agent.py` / `lerobot_eval.py` |
-| `assets/lerobot/` | Workshop USD/HDRI assets |
-
-## One-time host setup
-
-```bash
-cd ~/Desktop/humanoid
-
-xhost +local:docker
-./assets/lerobot/sync_so101_vial_assets.sh --full
-mkdir -p ~/docker/isaac-sim/{cache/kit,cache/ov,cache/pip,cache/glcache,cache/computecache,logs,data}
-```
-
-`watod-config.local.sh` (create in repo root, do not commit):
-
-```bash
-ACTIVE_MODULES="simulation_isaac"
-MODE_OF_OPERATION="develop"
-```
-
-GUI uses **X11 to host display** (same as [workshop `teleop-docker`](https://github.com/isaac-sim/Sim-to-Real-SO-101-Workshop)). Not WebRTC.
-
-## Build and launch
-
-```bash
-./watod build simulation_isaac_dev          # first time: large NGC pull
-./watod up -d
-./watod -t simulation_isaac_dev             # bash inside container
-```
-
-Rebuild after Dockerfile changes or broken torch:
-
-```bash
-./watod build --no-cache simulation_isaac_dev
-./watod down && ./watod up -d
-```
-
-## Inside container — environment
+### Container environment
 
 Set automatically in `.bashrc`:
 
@@ -76,113 +102,24 @@ export RL_RUNNERS=/workspace/humanoid/src/simulation/humanoid_rl/humanoid_rl/scr
 export PYTHON=/workspace/isaaclab/_isaac_sim/python.sh
 ```
 
-Aliases: `train-policy`, `record-demos`, `eval-policy`, `rl-train`, `rl-play`.
+Aliases: `rl-train`, `rl-play`, `train-policy`, `record-demos`, `eval-policy`.
 
-Open the plain Isaac Sim GUI (no Python task). Container is root, so set:
+Plain Isaac Sim GUI, no task (container is root, hence the flag): `OMNI_KIT_ALLOW_ROOT=1 $ISAACLAB/isaaclab.sh -s`
 
-```bash
-OMNI_KIT_ALLOW_ROOT=1 $ISAACLAB/isaaclab.sh -s
-```
+### Files
 
-Sanity:
+| Path | Role |
+|------|------|
+| `docker/simulation/isaac_lab/isaac_lab.Dockerfile` | Image build |
+| `modules/docker-compose.simulation_isaac.yaml` | watod compose service |
+| `src/simulation/humanoid_rl/` | RL runners: train / play (`$RL_RUNNERS`) |
+| `src/simulation/humanoid_rl_tasks/` | RL tasks — in-hand, locomotion, push_block |
+| `src/simulation/so101_vial_task/` | SO101 Gym envs + `lerobot_agent.py` / `lerobot_eval.py` |
+| `assets/lerobot/` | SO101 workshop USD/HDRI assets |
 
-```bash
-$PYTHON -c "import torch; print(torch.__version__)"
-$PYTHON -c "import lerobot; print('ok')"
-```
+### vs other environments
 
-## Workflows
-
-### A. RL tasks — RSL-RL train / play
-
-```bash
-cd $HUMANOID_ROOT
-rl-train --task=Isaac-Repose-Cube-PioneerHand-v0 --headless
-rl-play --task=Isaac-Repose-Cube-PioneerHand-Play-v0 --num_envs=1
-```
-
-Checkpoints: `logs/rsl_rl/<experiment>/` (same path on host under `~/Desktop/humanoid/...`).
-
-### B. Lazy IL — HF dataset → ACT train → sim eval (no arm)
-
-See [QUICKSTART.md](QUICKSTART.md) §4–5.
-
-1. `train-policy` with `--policy.type=act`, `--policy.push_to_hub=false`, `--steps=N`
-2. `cd $TASK_ROOT` then `lerobot_eval.py` with `--policy_type lerobot`
-3. **No `--rename_map`** for local ACT
-
-### C. Record demos (USB leader)
-
-```bash
-cd $TASK_ROOT
-PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_agent.py \
-  --task Lerobot-So101-Teleop-Vials-To-Rack-DR \
-  --port /dev/ttyACM0 \
-  --repo_root /workspace/humanoid/datasets/record_so101_gym/001 \
-  --save_mp4 --depth --instance_id_seg
-```
-
-Keys: **S** start/stop episode, **R** reset, **C** cancel while recording.
-
-### D. GR00T eval (remote server)
-
-```bash
-cd $TASK_ROOT
-PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p scripts/lerobot_eval.py \
-  --task Lerobot-So101-Teleop-Vials-To-Rack-DR-Eval \
-  --policy_type groot \
-  --policy_host localhost \
-  --policy_port 5555 \
-  --rename_map '{"external_D455": "front", "ego": "wrist"}'
-```
-
-`--rename_map` is for GR00T / mismatched camera names, not local ACT.
-
-## Training notes (LeRobot 0.4.3)
-
-| Topic | Detail |
-|-------|--------|
-| Entry point | `train-policy` → `$PYTHON -m lerobot.scripts.lerobot_train` |
-| Not | bare `lerobot-train`, not `lerobot.scripts.train` |
-| Duration flag | `--steps` (default 100k), not `--training.num_epochs` |
-| Hub upload | `--policy.push_to_hub=false` for local checkpoints |
-| Dataset example | `CursedRock17/so101_teleop_vials_sim_and_real` — 140 episodes |
-| 10k steps | ~3 epochs over 140 demos (smoke test) |
-| 50k–100k steps | more typical for usable ACT |
-
-## Eval notes
-
-| Topic | Detail |
-|-------|--------|
-| Working directory | must be `$TASK_ROOT` |
-| ACT checkpoint | `--policy_type lerobot --policy_path .../pretrained_model` |
-| `rename_map` | omit for ACT on matching `ego` / `external_D455` cameras |
-| Success | printed at end; env terminates on rack placement |
-| Hang on exit | `./watod down` from host — Ctrl+C often fails after Isaac crash |
-
-## Stop
-
-```bash
-exit
-./watod down
-```
-
-## Troubleshooting
-
-| Symptom | Fix |
-|---------|-----|
-| `No module named torch` / packaging error | rebuild image `--no-cache` (see Dockerfile humanoid-robot-learning fix) |
-| `KeyError: 'ego'` on eval | remove `--rename_map` |
-| `can't open file .../scripts/lerobot_eval.py` | `cd $TASK_ROOT` |
-| `policy.repo_id missing` on train | add `--policy.push_to_hub=false` |
-| `No textures found` | `./assets/lerobot/sync_so101_vial_assets.sh --full` on host |
-| Isaac frozen | `./watod down` from host |
-
-## Upgrade image
-
-```bash
-./watod build --no-cache simulation_isaac_dev
-./watod down && ./watod up -d
-```
-
-Repo code is bind-mounted at `/workspace/humanoid` — Python edits on host apply without rebuild.
+| Environment | Use |
+|-------------|-----|
+| **`simulation_isaac`** (this) | RL tasks + Quest teleop + SO101 IL |
+| **`simulation_mj`** | MuJoCo / mjlab |

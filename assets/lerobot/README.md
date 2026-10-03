@@ -31,7 +31,7 @@ git add assets/lerobot/
 Source: [isaac-sim/Sim-to-Real-SO-101-Workshop](https://github.com/isaac-sim/Sim-to-Real-SO-101-Workshop) (Apache-2.0).
 
 Used by:
-- `simulation_isaac` watod Docker — [`docker/simulation/isaac_lab/QUICKSTART.md`](../../docker/simulation/isaac_lab/QUICKSTART.md)
+- `simulation_isaac` watod Docker — [`docker/simulation/isaac_lab/README.md`](../../docker/simulation/isaac_lab/README.md)
 - `src/simulation/so101_vial_task/`
 
 Run `./assets/lerobot/sync_so101_vial_assets.sh --full` before first sim IL eval if you see `[WARNING] No textures found`.

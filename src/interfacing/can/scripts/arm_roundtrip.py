@@ -30,7 +30,7 @@ Sequence (command-frame degrees):
 Stopping: Ctrl-C or tracking error > --max-track-err ramps back to the origin; a second Ctrl-C
 stops streaming; lost feedback freezes in place. Then joint_command's stale-stream handling
 applies. The node's installed configs must match the repo's. Recalibrate the AK80-9s after every
-power-on (ARM_BRINGUP.md).
+power-on (src/interfacing/README.md).
 
 HARDWARE E-STOP within reach for every run. See .claude/skills/real-hardware-safety/SKILL.md.
 """

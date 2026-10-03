@@ -94,7 +94,7 @@ uv run --with matplotlib --with numpy tools/gl40_telemetry_plot.py outputs/gl40_
 ## Open arm tasks (onboarding / assignable)
 
 Live joint mirror, mjlab sim parity, and interactive calibration are done — see
-[ARM_BRINGUP.md](../../../ARM_BRINGUP.md) for calibrate → visualize → move.
+[../README.md](../README.md) for calibrate → visualize → move.
 
 | Status | Task | Why |
 |--------|------|-----|

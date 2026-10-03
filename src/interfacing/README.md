@@ -8,7 +8,7 @@ Per-joint zero + limits, from live motor feedback. **Re-run after every power-on
 elbow.pitch, elbow.roll, and shoulder.yaw (AK80-9 motors) — their single-turn absolute
 encoders don't reliably survive a power cycle; shoulder.pitch/roll (AK10-9) have so far.
 
-→ [src/interfacing/can/README.md](src/interfacing/can/README.md) — hardware
+→ [can/README.md](can/README.md) — hardware
 bring-up, `can_node`, `calibrate_arm.py` usage.
 
 ## 2. Visualize
@@ -17,13 +17,20 @@ before commanding anything.
 
 ```bash
 ./watod -t simulation_mj
-python3 src/simulation/Humanoid_Wato/pioneer_bimanual_arm/live_arm_mjviser.py \
-  --arm-side left --urdf-side right
+python3 /workspace/humanoid/src/interfacing/can/scripts/live_arm_mjviser.py --arm-side left
 # open http://localhost:8080
 ```
-→ script docstring in `live_arm_mjviser.py` for full flag reference (`--flip`, `--offset`, etc).
+
+> **Not yet verified on hardware.** The script was rewritten for `pioneer_bimanual_arm.urdf`,
+> whose joint axes differ from the old URDF. Before trusting the view: move each of the six
+> joints by hand, one at a time, and confirm the on-screen joint turns the same way and stops
+> at the same angle. Fix mismatches with `--flip JOINT` / `--offset JOINT=DEG`, then write the
+> working values into `urdf_direction` / `urdf_offset_deg` in
+> [joint_command/config/safety_limits.yaml](joint_command/config/safety_limits.yaml).
+
+→ script docstring in `live_arm_mjviser.py` for the angle math and full flag reference.
 
 ## 3. Move (optional, real motor control)
 Only after 1–2 look right. Rate-limited, seeds from live feedback (no startup slam).
 
-→ [src/interfacing/joint_command/MOVE_ARM_RUNBOOK.md](src/interfacing/joint_command/MOVE_ARM_RUNBOOK.md)
+→ [joint_command/MOVE_ARM_RUNBOOK.md](joint_command/MOVE_ARM_RUNBOOK.md)

@@ -1,134 +1,82 @@
-# Robot learning: record datasets, train and evaluate policies
+# Robot learning: record datasets, train policies
 
-Record teleoperation into **LeRobot** and/or **HDF5** datasets. One shared `RecordSession` for multiple collection paths:
+Teleoperate the Pioneer left arm, record the demos as a **LeRobot** dataset, train a policy (ACT, SmolVLA, pi0.5, …) on it and run evals.
 
-- **Real WATO arm** — ROS 2 (`humanoid-record`)
-- **Isaac Sim + keyboard** — WATO bimanual left arm IK teleop
+## 1. Collect demos
 
-Policies (ACT, SmolVLA, pi0.5, …) train on these datasets with LeRobot (`train-policy` in the Isaac image). RL is sim-based and lives in `src/simulation/humanoid_rl*`. HDF5 output is a single `trajectories.h5` with `action`, `proprio`, optional `pixels`, `ep_len`, and `ep_offset`.
-
-## Data contract
-
-**6-DOF left arm** — same joint order as `joint_command_core.cpp`:
-
-1. shoulder pitch, roll, yaw  
-2. elbow pitch, roll  
-3. wrist pitch  
-
-| Field | Source | Units |
-|-------|--------|-------|
-| `observation.state` / `proprio` | measured joint positions | rad |
-| `action` | commanded joint targets (IK output on sim, `/arm/joint_targets` on robot) | rad |
-| `observation.images.*` / `pixels` | cameras in schema (optional for sim) | uint8 |
-| `task` | `--task_description` | string |
-
-## Layout
-
-```
-src/robot_learning/
-├── config/
-│   └── dataset_schema_pioneer_v1.yaml  # Pioneer v1 left arm, shared by sim and real
-├── humanoid_robot_learning/
-│   ├── snapshot.py               # ObservationSnapshot
-│   ├── frame.py                  # build_lerobot_frame()
-│   ├── so101_sim.py              # SO101 leader ↔ sim joint mapping (so101_vial_task)
-│   ├── recorder.py               # RecordSession (episode flags + sinks)
-│   ├── record_loop.py            # blocking loop for ROS CLI
-│   ├── sim_session.py            # helper for Isaac sim scripts
-│   ├── sinks/
-│   │   ├── lerobot.py            # Parquet + MP4
-│   │   └── hdf5.py               # trajectories.h5
-│   ├── schema.py
-│   ├── record.py                 # humanoid-record CLI
-│   └── ros_buffer.py
-└── README.md
-```
-
-## Install
+Add `--record` to the leader-arm teleop (or any other teleop method of your choice), in Isaac or MuJoCo:
 
 ```bash
-cd src/robot_learning
-pip install -e ".[record]"          # real arm + sim recording
-pip install -e ".[record,ros]"      # + ROS image decoding
+# simulation_isaac container
+cd /workspace/humanoid/src/teleop/pioneer_leader_arm_teleop
+/workspace/isaaclab/isaaclab.sh -p pioneer_leader_arm_teleop.py --scene vial_rack --record \
+  --task_description "put the vial in the rack" --num_episodes 20
+
+# simulation_mj container (CPU)
+python3 pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert --record
 ```
-
-## Real robot (ROS 2)
-
-Uses `config/dataset_schema_pioneer_v1.yaml`, the same contract as sim. Not runnable yet: it stops at
-startup until the gripper (`left_gripper`) has a ROS source and each recorded camera has a `topic`.
-Cameras capture 640×480 (D455: `rgb_camera.color_profile: 640x480x30`); frames are resized to the
-schema size (center-cropped first if the aspect differs).
-
-```bash
-source /path/to/humanoid/install/setup.bash
-
-humanoid-record \
-  --task_description "reach forward" \
-  --num_episodes 10 \
-  --sink lerobot
-```
-
-Both formats:
-
-```bash
-humanoid-record --sink lerobot,hdf5 --num_episodes 10
-```
-
-**Keyboard** (needs `pynput`):
 
 | Key | Effect |
 |-----|--------|
-| S | Start logging frames for this episode |
-| N | Finish episode → `save_episode` |
-| D | Discard buffer, re-record same episode |
-| Esc | Abort and `finalize` |
+| S | Start the take |
+| N | Save the take, then the scene resets |
+| D | Discard the take and redo it |
+| R | Reset arm and scene (discards a take in progress) |
 
-**Dry run** (no robot):
+More info: [`src/teleop/pioneer_leader_arm_teleop/README.md`](../teleop/pioneer_leader_arm_teleop/README.md).
+
+Output: `<repo>/datasets/pioneer_v1_left_arm/sim/`. Later sessions append to the same dataset.
+
+## 2. Data contract
+
+`config/dataset_schema_pioneer_v1.yaml`, shared by sim and real. **7 values**, 25 fps:
+
+| # | Name | Unit |
+|---|------|------|
+| 1–3 | `left_shoulder_pitch`, `left_shoulder_roll`, `left_shoulder_yaw` | rad |
+| 4–5 | `left_elbow_pitch`, `left_elbow_roll` | rad |
+| 6 | `left_wrist_pitch` | rad |
+| 7 | `left_gripper` | 0 open … 1 closed |
+
+| Field | Content |
+|-------|---------|
+| `observation.state` | measured joint positions + gripper closure |
+| `action` | commanded joint targets + gripper command |
+| `observation.images.<name>` | `ego` and `wrist_left` by default, 640×480 RGB (`wrist_right` off) |
+| `task` | `--task_description` |
+
+Camera poses and lenses: `pioneer_humanoid/arm_params.py`.
+
+## 3. Train
+
+In the `simulation_isaac` container, you can train a end2end policy with methods like ACT like listed below or use any other method to push for a high eval success rate:
 
 ```bash
+train-policy \
+  --dataset.repo_id=humanoid/pioneer_v1_left_arm \
+  --dataset.root=/workspace/humanoid/datasets/pioneer_v1_left_arm/sim \
+  --policy.type=act \
+  --policy.push_to_hub=false \
+  --policy.device=cuda \
+  --output_dir=/workspace/humanoid/outputs/train/pioneer_act
+```
+
+Flag pitfalls (`--steps`, not epochs; always `--policy.push_to_hub=false` for local runs) are listed in the [SO101 README](../simulation/so101_vial_task/README.md), which uses the same command.
+
+There is no sim rollout script for a trained Pioneer policy yet. Will be added soon. There are other scripts like `rtc_driver.py` as the Real-Time Chunking driver for flow-matching policies (pi0 / pi0.5 / SmolVLA) that can be used and will be polished more soon.
+
+## 4. Real arm (planned)
+
+Not runnable yet. The plan is the same leader arm and the same schema, saved under `datasets/pioneer_v1_left_arm/real/`:
+
+- [#327](https://github.com/WATonomous/pioneer_humanoid/issues/327) — `pioneer_leader_arm_teleop.py --target real`: dry-run by default, `--live` to command the arm; adds the gripper command path.
+- [#328](https://github.com/WATonomous/pioneer_humanoid/issues/328) — real demo recording (cameras, state from motor feedback). Still open there: a separate `humanoid-record` process, or `--target real --record`.
+
+`humanoid-record` (ROS 2, `humanoid_robot_learning/record.py`) exists today but stops at startup until the gripper has a ROS source and each recorded camera has a `topic` in the schema. Its write path can be tested with no robot:
+
+```bash
+pip install -e "src/robot_learning[record]"
 humanoid-record --dry_run --sink lerobot,hdf5 --num_episodes 2 --episode_time_s 3
 ```
 
-Output: `<repo>/datasets/pioneer_v1_left_arm/real/001/` (next free number per session) with LeRobot tree + `trajectories.h5`.
-
-## Isaac Sim (keyboard teleop)
-
-From `src/teleop/keyboard_teleop/`:
-
-```bash
-pip install -e ../../../robot_learning[record]
-
-PYTHONPATH=$(pwd) /home/hy/IsaacLab/isaaclab.sh -p keyboard_teleop.py --record \
-  --sink lerobot,hdf5 \
-  --num_episodes 5 \
-  --task_description "reach and grasp"
-```
-
-Uses `config/dataset_schema_pioneer_v1.yaml`: 6 joints (rad) + gripper closure (0 open, 1 closed), 25 fps
-(every 4th physics step). Cameras (640×480 RGB, defined in `pioneer_humanoid/arm_params.py`): `ego` and
-`wrist_left` by default, `wrist_right` off. Override with `--cameras ego`, `--cameras ego,wrist_left,wrist_right`
-or `--cameras none`. Same S/N/D/Esc keys as real-arm recording.
-
-Output: `<repo>/datasets/pioneer_v1_left_arm/sim/` (later sessions append to the same dataset).
-
-## Train (LeRobot)
-
-**SO101 vial task:** inside `simulation_isaac` Docker — [`docker/simulation/isaac_lab/QUICKSTART.md`](../../docker/simulation/isaac_lab/QUICKSTART.md) (`train-policy`, `--policy.push_to_hub=false`, `--steps=...`).
-
-**Generic / host** (outside Isaac docker):
-
-```bash
-lerobot-train \
-  --dataset.repo_id=humanoid/pioneer_v1_left_arm \
-  --dataset.root=datasets/pioneer_v1_left_arm/sim \
-  --policy.type=act \
-  --output_dir=outputs/train/humanoid_act_v1
-```
-
-## Sinks
-
-| `--sink` | Output | Use case |
-|----------|--------|----------|
-| `lerobot` | `data/`, `videos/`, `meta/` | `lerobot-train`, HuggingFace Hub |
-| `hdf5` | `trajectories.h5` | custom HDF5 loaders, offline analysis |
-| `lerobot,hdf5` | both under same `001/` folder | sim validation + BC training |
+`--sink` (`lerobot`, `hdf5`, or both) exists only on `humanoid-record` and the Quest teleop; the sim leader and keyboard teleop always write LeRobot.
