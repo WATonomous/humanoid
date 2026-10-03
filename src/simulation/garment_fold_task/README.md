@@ -16,7 +16,9 @@ Known gaps:
 * **Grasping/pinching untuned** -- the gripper hasn't been tuned against fabric.
 * **Arm base pose is a trade-off**: `(0, -0.40, 0.95)` was picked for reach,
   which re-sinks the stand ~25cm into the floor -- see `garment_pioneer_cfg.py`.
-* **Teleop → demos → LeRobot training pipeline not wired.**
+* **Not yet trained on.** Demo recording itself (`keyboard_teleop.py --record`)
+  is generic and already used by other scenes, so nothing needs wiring there --
+  but nobody's recorded a real dataset or run `lerobot-train` on this task yet.
 
 ## Layout
 
