@@ -36,6 +36,26 @@ from humanoid_garment_fold.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def fix_garment_asset_paths(garment_loader, garment_config, garment_name, garment_cfg_base_path, garment_version):
+    """Upstream resolves the garment json's `asset_path` ("/Assets/...") against
+    os.getcwd() (the challenge repo root). We keep garments under
+    `vendor_assets/garments/<version>/<type>/<name>/`, so rewrite the mesh path
+    to sit next to the json we just loaded. Mutates `garment_config` in place.
+
+    Standalone (not a GarmentPioneerEnv method) so the teleop scene registration
+    (humanoid_isaac_scenes/garment_fold) can build a GarmentObject the same way
+    without going through the full DirectRLEnv lifecycle.
+    """
+    gtype = garment_loader._get_garment_type(garment_name)
+    gdir = os.path.join(garment_cfg_base_path, garment_version, gtype, garment_name)
+    raw = garment_config.get("asset_path", "")
+    if raw:
+        garment_config.asset_path = os.path.join(gdir, os.path.basename(raw))
+    fixed = [os.path.join(gdir, os.path.basename(v))
+             for v in (garment_config.get("visual_usd_paths", []) or []) if v]
+    garment_config.visual_usd_paths = fixed
+
+
 class GarmentPioneerEnv(GarmentEnv):
     cfg: GarmentPioneerEnvCfg
 
@@ -75,20 +95,10 @@ class GarmentPioneerEnv(GarmentEnv):
 
     # ------------------------------------------------------------------ assets
     def _fix_garment_asset_paths(self, cfg: GarmentPioneerEnvCfg) -> None:
-        """Upstream resolves the garment json's `asset_path` ("/Assets/...")
-        against os.getcwd() (the challenge repo root). We keep garments under
-        `vendor_assets/garments/<version>/<type>/<name>/`, so rewrite the mesh
-        path to sit next to the json we just loaded."""
-        gtype = self.garment_loader._get_garment_type(cfg.garment_name)
-        gdir = os.path.join(
-            cfg.garment_cfg_base_path, cfg.garment_version, gtype, cfg.garment_name
+        fix_garment_asset_paths(
+            self.garment_loader, self.garment_config,
+            cfg.garment_name, cfg.garment_cfg_base_path, cfg.garment_version,
         )
-        raw = self.garment_config.get("asset_path", "")
-        if raw:
-            self.garment_config.asset_path = os.path.join(gdir, os.path.basename(raw))
-        fixed = [os.path.join(gdir, os.path.basename(v))
-                 for v in (self.garment_config.get("visual_usd_paths", []) or []) if v]
-        self.garment_config.visual_usd_paths = fixed
 
     # ------------------------------------------------------------------ scene
     def _setup_scene(self):

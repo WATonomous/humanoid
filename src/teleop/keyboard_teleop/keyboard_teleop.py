@@ -85,7 +85,7 @@ from pioneer_humanoid.bimanual_arm import (
     compute_tip_ik_jacobian,
     make_camera_cfg,
 )
-from humanoid_isaac_scenes import list_scenes, make_scene_cfg, scene_camera
+from humanoid_isaac_scenes import list_scenes, make_scene_cfg, scene_camera, scene_post_init
 
 
 def _joint_ids(robot, names: list[str]) -> list[int]:
@@ -330,6 +330,9 @@ def main():
     scene = InteractiveScene(scene_cfg)
 
     sim.reset()
+    post_init = scene_post_init(args_cli.scene)
+    if post_init is not None:
+        post_init(scene, sim)
     print("[INFO]: Setup complete. Use keyboard to teleoperate the left arm.")
     run_simulator(sim, scene)
 

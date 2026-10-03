@@ -19,7 +19,8 @@ judged on the cloth's particle geometry, not the robot.
 | **Arm default joint pose** | ⚠️ droops at rest — `pioneer_humanoid.bimanual_arm._DEFAULT_JOINT_POS` is an asymmetric capture, not a fold-ready spread. Reach itself is now solved (see `scripts/reach_pose_ik.py`); this item is specifically about the *default/idle* pose, not reachability. |
 | Wrist camera offsets | ✅ fixed — now uses the canonical, CAD-sourced mount from `pioneer_humanoid.arm_params.CAMERAS` (was SO101-sized and unretargeted; see PR #219) |
 | Full 600-step episode / success-checker firing | ✅ episode runs clean end-to-end (~55s on an RTX 4060); success never fires with a no-op policy, as expected — not yet tried with anything that could actually fold |
-| Teleop → demos → LeRobot training | ❌ not wired |
+| `keyboard_teleop.py --scene garment_fold` | ✅ registered in `humanoid_isaac_scenes` (see "Interactive teleop" below) — scene build + `sim.reset()` + garment construction verified headless (`scripts/scene_flag_check.py`); the live keyboard loop itself needs a real display, not yet checked |
+| Teleop → demos → LeRobot training | ❌ recording/training pipeline not wired (the scene itself is reachable via teleop now, see above) |
 
 ## Layout
 
@@ -116,6 +117,30 @@ isaaclab.sh -p scripts/full_episode_test.py --garment Top_Long_Seen_1 --steps 60
 Both scripts above are verified working end-to-end against a real
 `docker build` of `isaac_lab_garment.Dockerfile` (not just a live container
 patched by hand) as of PR #219.
+
+### Interactive teleop
+
+`src/teleop/keyboard_teleop/keyboard_teleop.py --scene garment_fold` drives
+the real arm into this scene with a live keyboard -- useful for personally
+checking gripper-to-garment contact without writing a script. Needs a real
+display (not headless) and `src/simulation/isaac_scenes` installed alongside
+this package:
+
+```bash
+pip install -e src/pioneer_humanoid src/simulation/garment_fold_task src/simulation/isaac_scenes --no-deps --no-build-isolation
+cd src/teleop/keyboard_teleop
+GARMENT_NAME=Top_Long_Seen_1 isaaclab.sh -p keyboard_teleop.py --scene garment_fold --enable_cameras
+```
+
+The garment-specific piece (`humanoid_garment_fold/tasks/teleop_scene.py`)
+declares the worksurface + cameras the same way every other registered scene
+does, but the particle-cloth garment itself can't be a declarative cfg field
+(`GarmentObject` is a live constructor call + `.initialize()`, not a
+spawn-able `AssetBaseCfg`) -- it's built by a `post_init(scene, sim)` hook,
+a small addition to `humanoid_isaac_scenes/_register.py` and
+`keyboard_teleop.py` for scenes that need one (a no-op for every scene that
+doesn't). `scripts/scene_flag_check.py` verifies the whole path headless
+short of the live keyboard loop itself.
 
 ## To finish
 
