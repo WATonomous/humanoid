@@ -1,0 +1,13 @@
+# Build / cache
+__pycache__/
+*.egg-info/
+.venv/
+
+# Large LeHome assets (apartment backdrop ~226MB, full garment set) — too big
+# to commit; falls back to a smaller committed scene/sample set without them.
+# See README "Run it" for how to fetch them.
+vendor_assets/scenes/marble/
+*.nurec
+*.usdz
+*.glb
+vendor_assets/garments/Holdout/
