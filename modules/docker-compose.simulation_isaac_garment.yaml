@@ -1,8 +1,6 @@
-# garment_fold_task-only variant of simulation_isaac: same image, plus the
-# Isaac Lab 2.3.0 downgrade + open3d that task needs (see
-# docker/simulation/isaac_lab/isaac_lab_garment.Dockerfile and
-# src/simulation/garment_fold_task/README.md for why this is a separate
-# service rather than a change to simulation_isaac itself).
+# garment_fold_task-only variant of simulation_isaac: same image plus the
+# Isaac Lab 2.3.0 downgrade + open3d it needs (see isaac_lab_garment.Dockerfile
+# and garment_fold_task/README.md for why this is a separate service).
 #
 # Usage: ACTIVE_MODULES="simulation_isaac_garment" ./watod up -d && \
 #        ./watod -t simulation_isaac_garment_dev
