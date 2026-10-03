@@ -9,16 +9,15 @@ judged on the cloth's particle geometry, not the robot.
 
 | Piece | State |
 |---|---|
-| LeHome's `GarmentEnv` + particle cloth + success checker + reward | ✅ vendored (`lehome@a805ad2`, Apache-2.0, see `NOTICE`) |
-| Retargeted to one `pioneer_bimanual_arm` articulation | ✅ `GarmentPioneerEnv` (subclass; overrides `_setup_scene` / `_apply_action` / `_get_observations` / `_reset_idx`) |
-| Gym id `Humanoid-GarmentFold-Bimanual-Pioneer-v0` | ✅ |
-| Scene (`Scene_00_Apartment.usd`) + garment on the table | ✅ loads; verified in this repo's `isaac_lab` image (see below), not just LeHome's venv |
-| Arm base pose vs the garment | ✅ `(0, -0.40, 0.95)`, picked by sampling the arm's real reachable workspace (FK over joint limits, `scripts/fk_reach_check.py`) rather than guessed — gets a real reach test within ~1cm of the garment, down from ~10-25cm short. Trade-off: the stand's true floor-standing Z (`1.1997`, see git history) was reachability-infeasible from this distance, so this re-sinks it ~25cm into the floor — accepted, reach took priority. See `garment_pioneer_cfg.py` for the full reasoning. |
-| **Arm default joint pose** | ⚠️ droops at rest — `pioneer_humanoid.bimanual_arm._DEFAULT_JOINT_POS` is an asymmetric capture, not a fold-ready spread. Reach itself is now solved (see `scripts/reach_pose_ik.py`); this item is specifically about the *default/idle* pose, not reachability. |
-| Wrist camera offsets | ✅ fixed — now uses the canonical, CAD-sourced mount from `pioneer_humanoid.arm_params.CAMERAS` (was SO101-sized and unretargeted; see PR #219) |
-| Full 600-step episode / success-checker firing | ✅ episode runs clean end-to-end (~55s on an RTX 4060); success never fires with a no-op policy, as expected — not yet tried with anything that could actually fold |
-| `keyboard_teleop.py --scene garment_fold` | ✅ registered in `humanoid_isaac_scenes` (see "Interactive teleop" below) — scene build + `sim.reset()` + garment construction verified headless (`scripts/scene_flag_check.py`); the live keyboard loop itself needs a real display, not yet checked |
-| Teleop → demos → LeRobot training | ❌ recording/training pipeline not wired (the scene itself is reachable via teleop now, see above) |
+| `GarmentEnv` + particle cloth + success checker + reward | ✅ vendored (`lehome@a805ad2`, Apache-2.0, see `NOTICE`) |
+| Retargeted to one `pioneer_bimanual_arm` | ✅ `GarmentPioneerEnv`, gym id `Humanoid-GarmentFold-Bimanual-Pioneer-v0` |
+| Scene + garment on the table | ✅ loads, verified in this repo's `isaac_lab` image |
+| Arm base pose vs. the garment | ✅ `(0, -0.40, 0.95)` -- reach-tested (`scripts/fk_reach_check.py`); re-sinks the stand ~25cm into the floor as a trade-off, see `garment_pioneer_cfg.py` |
+| **Arm default joint pose** | ⚠️ droops at rest -- idle pose isn't fold-ready. Reach *while driven* works fine; this is only about the resting pose. |
+| Wrist camera offsets | ✅ fixed -- CAD-sourced mount from `pioneer_humanoid.arm_params.CAMERAS` |
+| Full 600-step episode / success-checker | ✅ runs clean end-to-end (~55s on an RTX 4060) |
+| `keyboard_teleop.py --scene garment_fold` | ✅ works -- see "Interactive teleop" below |
+| Teleop → demos → LeRobot training | ❌ recording/training pipeline not wired |
 
 ## Layout
 
@@ -37,11 +36,11 @@ garment_fold_task/
     │   ├── challenge_garment_loader.py  VENDORED
     │   ├── garment_pioneer_cfg.py    NEW — pioneer config
     │   ├── garment_pioneer_env.py    NEW — pioneer env (subclass)
+    │   ├── teleop_scene.py           NEW — keyboard_teleop.py --scene registration
     │   └── __init__.py               gym.register(...)
     ├── assets/
     │   ├── garment_object.py         VENDORED — PhysX particle-cloth garment
-    │   ├── scene.py                  adapted — scene USD paths
-    │   └── robots/bimanual_arm.py    NEW — re-export of the repo's BIMANUAL_ARM_CFG
+    │   └── scene.py                  adapted — scene USD paths
     ├── utils/
     │   ├── success_checker_garment.py  VENDORED — fold-quality check
     │   └── logger.py                 NEW — console shim
@@ -50,54 +49,25 @@ garment_fold_task/
 
 ## The retarget
 
-Upstream drives **two SO101 follower arms** (`left_arm` + `right_arm`, 12-dim
-action). This drives **one `pioneer_bimanual_arm`**:
+Upstream drives two SO101 follower arms (`left_arm`/`right_arm`, 12-dim action).
+This drives **one `pioneer_bimanual_arm`** instead: left chain `joint1L..joint6l`
++ gripper, EE `link6l`; right chain `joint1..joint6` + gripper, EE `link6`.
+Action stays 12-dim (`[left ×6, right ×6]` joint-position targets); grippers
+held open. Names/cfg come from `pioneer_humanoid` (see `bimanual_arm.py`).
 
-* left chain `joint1L`, `joint2l..joint6l` (+ gripper `joint7l`/`joint8l`), EE `link6l`
-* right chain `joint1..joint6` (+ gripper `joint7`/`joint8`), EE `link6`
-
-(L-suffix = LEFT, matching the repo's corrected convention. The joint/body name
-lists and `BIMANUAL_ARM_CFG` are imported from the `pioneer_humanoid` package —
-see `assets/robots/bimanual_arm.py`.)
-
-Action stays **12-dim**: `[left arm ×6, right arm ×6]` joint-position targets;
-grippers are held open. Joint names → articulation indices are resolved once in
-`__init__`.
-
-**Front axis.** The pioneer arm reaches into `+X` at identity rotation — from
-this repo's `tools/isaac_harness/scenes/bimanual_vial_rack.sh` and
-`pick_place_bimanual` (`TABLE_X_MIN=0.18`, `TABLE_TOP_Z=0.05`, table centre
-`x=0.63`). LeHome's garment sits at world `~(0, 0, 0.63)`, so the base is rotated
-`+90°` about Z and placed `0.63 m` behind in `-Y`.
-
-**Scene.** `_build_worksurface()` tries, in order: (1) optional NuRec backdrop,
-(2) `Scene_00_Apartment.usd` at `/World/Scene` (default — the photoreal apartment
-+ table), (3) ground + vendored `Table038.usd`, (4) ground only. The apartment
-USD is `.gitignore`d (~19 MB) — copy it in.
+The pioneer arm's front axis is `+X`; the garment sits at world `~(0,0,0.63)`,
+so the base is rotated +90° about Z. `_build_worksurface()` tries, in order:
+optional NuRec backdrop, `Scene_00_Apartment.usd` (default — gitignored,
+~19MB, copy it in), ground + vendored `Table038.usd`, ground only.
 
 ## Run it
 
-Use the **`simulation_isaac_garment`** watod module, not `simulation_isaac`.
-It's the same published `isaac_lab` image plus two fixes this task needs that
-aren't safe to bake into the shared `isaac_lab.Dockerfile` without broader
-testing against `so101_vial_task`/`humanoid_rl*` first (see
+Use the **`simulation_isaac_garment`** watod module, not `simulation_isaac` --
+same published `isaac_lab` image plus two fixes (Isaac Lab 2.3.0 downgrade for
+a `TiledCamera` freeze bug, `open3d` for the success checker) that aren't safe
+to bake into the shared Dockerfile without broader testing. See
 `docker/simulation/isaac_lab/isaac_lab_garment.Dockerfile` for exactly what
-and why, and PR #219 for the investigation):
-
-1. **Isaac Lab 2.3.0 downgrade.** Stock 2.3.2's `isaaclab/sim/views/xform_prim_view.py`
-   has a Fabric-cache-backed pose path that serves stale poses to `TiledCamera`
-   — camera feeds visually freeze a few frames in and never update again. Not
-   fixable by this task's own `cfg.sim.use_fabric = False` (already set —
-   doesn't help; the bug is inside `isaaclab`'s own Fabric plumbing, confirmed
-   by directly testing a continuously-driven action and diffing consecutive
-   frames). Fixed by overlaying the `isaaclab` source package from the
-   [`lehome-official/IsaacLab`](https://github.com/lehome-official/IsaacLab)
-   fork (pinned to 2.3.0) — same public API, no caller needs to change.
-2. **`open3d` + `libusb1.0`.** `success_checker_garment_fold`'s primary
-   particle-point read path needs `open3d`, which isn't a dependency of the
-   base image; without it, every success check throws and falls back to a
-   second path that also fails (deprecated `ClothPrim` API), so the checker
-   never fires at all.
+and why.
 
 ```bash
 # Copy the whole Assets/scenes/marble/ folder from the LeHome challenge into
@@ -112,17 +82,14 @@ isaaclab.sh -p scripts/smoke_test.py --garment Top_Long_Seen_1       # builds th
 isaaclab.sh -p scripts/full_episode_test.py --garment Top_Long_Seen_1 --steps 600  # full episode, no crash expected
 ```
 
-Both scripts above are verified working end-to-end against a real
-`docker build` of `isaac_lab_garment.Dockerfile` (not just a live container
-patched by hand) as of PR #219.
+Both verified against a real `docker build` of `isaac_lab_garment.Dockerfile`,
+not just a hand-patched container.
 
 ### Interactive teleop
 
 `src/teleop/keyboard_teleop/keyboard_teleop.py --scene garment_fold` drives
 the real arm into this scene with a live keyboard -- useful for personally
-checking gripper-to-garment contact without writing a script. Needs a real
-display (not headless) and `src/simulation/isaac_scenes` installed alongside
-this package:
+checking gripper-to-garment contact. Needs a real display (not headless):
 
 ```bash
 pip install -e src/pioneer_humanoid src/simulation/garment_fold_task src/simulation/isaac_scenes --no-deps --no-build-isolation
@@ -130,37 +97,22 @@ cd src/teleop/keyboard_teleop
 GARMENT_NAME=Top_Long_Seen_1 isaaclab.sh -p keyboard_teleop.py --scene garment_fold --enable_cameras
 ```
 
-The garment-specific piece (`humanoid_garment_fold/tasks/teleop_scene.py`)
-declares the worksurface + cameras the same way every other registered scene
-does, but the particle-cloth garment itself can't be a declarative cfg field
-(`GarmentObject` is a live constructor call + `.initialize()`, not a
-spawn-able `AssetBaseCfg`) -- it's built by a `post_init(scene, sim)` hook,
-a small addition to `humanoid_isaac_scenes/_register.py` and
-`keyboard_teleop.py` for scenes that need one (a no-op for every scene that
-doesn't). `scripts/scene_flag_check.py` verifies the whole path headless
-short of the live keyboard loop itself.
+The garment (a particle cloth, not a declarative `AssetBaseCfg`) is built by a
+`post_init(scene, sim)` hook -- a small, generic addition to
+`humanoid_isaac_scenes/_register.py` and `keyboard_teleop.py`, a no-op for
+every scene that doesn't need one. `tasks/teleop_scene.py` is the single
+source of truth; `scripts/scene_flag_check.py` verifies the whole path
+headless, short of the live keyboard loop itself.
 
 ## To finish
 
-1. **Reaching is solved; grasping/pinching is not.** `scripts/reach_pose_ik.py`
-   (reusing `keyboard_teleop.py`'s leashed-target IK driving, not a new
-   solver) gets within ~1-5mm of the garment now. Getting there took two real
-   fixes, both from measuring instead of guessing: (a) a persistent,
-   *leashed* target -- integrated from small per-step deltas, clamped near
-   the tip's actual position every step -- instead of commanding one big
-   jump (which caused wrist wind-up/divergence); (b) `robot_base_pos` picked
-   by sampling the arm's real reachable workspace (`scripts/fk_reach_check.py`,
-   forward kinematics over joint limits, no IK) instead of guessed -- the
-   previous position was 10-25cm outside true reach, no amount of IK tuning
-   fixes that. See git history for the dead ends.
-   **Still open:** the 4 gripper prismatic joints need tuning to actually
-   pinch fabric once the gripper is there, and the *default/idle* pose still
-   droops (separate from reach, which now works when actively driven).
-2. **Full garment set**: `hf download lehome/asset_challenge` →
-   `garment_cfg_base_path`.
-3. **Data + training**: pioneer teleop (this repo's `src/teleop/` or
-   `quest_isaac_teleop`, both IK) → record demos → `lerobot-train` with LeHome's
-   ACT / DP / SmolVLA configs.
+1. **Reach works; grasping/pinching doesn't.** `scripts/reach_pose_ik.py`
+   gets within ~1-5mm of the garment. The 4 gripper prismatic joints still
+   need tuning to actually pinch fabric, and the *default/idle* pose droops
+   (separate from reach, which works fine when actively driven).
+2. **Full garment set**: `hf download lehome/asset_challenge` → `garment_cfg_base_path`.
+3. **Data + training**: pioneer teleop → record demos → `lerobot-train` with
+   LeHome's ACT / DP / SmolVLA configs.
 
 ## Notes from the port
 
