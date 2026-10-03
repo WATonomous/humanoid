@@ -26,7 +26,7 @@ judged on the cloth's particle geometry, not the robot.
 
 ```
 garment_fold_task/
-├── LICENSE / NOTICE            Apache-2.0 + what was vendored/modified (§4)
+├── NOTICE                       what was vendored/modified, §4 of the repo's own Apache-2.0 LICENSE
 ├── pyproject.toml
 ├── vendor_assets/
 │   ├── garments/Release/       1 sample garment per category (committed, ~6 MB)

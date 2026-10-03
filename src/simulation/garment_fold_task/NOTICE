@@ -6,7 +6,8 @@ This package is DERIVED FROM the LeHome Challenge:
     https://github.com/lehome-official/lehome-challenge
     @ commit a805ad2f7ab52a4583066fc4ee5180459a7f9d15
     Copyright the LeHome Challenge authors.
-    Licensed under the Apache License, Version 2.0 (see ./LICENSE).
+    Licensed under the Apache License, Version 2.0 (same as this repo's own
+    ./LICENSE -- this directory has no separate copy).
 
 Per section 4 of the Apache License, the vendored files and their modifications
 are listed below. Every vendored file carries a header pointing here.
