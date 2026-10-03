@@ -1,10 +1,10 @@
 # Robot learning: record datasets, train policies
 
-Teleoperate the Pioneer left arm, record the demos as a **LeRobot** dataset, train a policy (ACT, SmolVLA, pi0.5, …) on it. This package is the recording side: one schema and one recorder shared by every teleop script. RL is separate and lives in `src/simulation/humanoid_rl*`.
+Teleoperate the Pioneer left arm, record the demos as a **LeRobot** dataset, train a policy (ACT, SmolVLA, pi0.5, …) on it and run evals.
 
-## 1. Collect demos (leader arm, sim)
+## 1. Collect demos
 
-Add `--record` to the leader-arm teleop, in Isaac or MuJoCo:
+Add `--record` to the leader-arm teleop (or any other teleop method of your choice), in Isaac or MuJoCo:
 
 ```bash
 # simulation_isaac container
@@ -23,11 +23,9 @@ python3 pioneer_leader_arm_teleop.py --target mujoco --scene peg_insert --record
 | D | Discard the take and redo it |
 | R | Reset arm and scene (discards a take in progress) |
 
-Other flags: `--cameras ego,wrist_left` / `none`, `--dataset_root`, `--schema`. Leader setup, calibration and scenes: [`src/teleop/pioneer_leader_arm_teleop/README.md`](../teleop/pioneer_leader_arm_teleop/README.md).
+More info: [`src/teleop/pioneer_leader_arm_teleop/README.md`](../teleop/pioneer_leader_arm_teleop/README.md).
 
 Output: `<repo>/datasets/pioneer_v1_left_arm/sim/`. Later sessions append to the same dataset.
-
-Isaac keyboard teleop (`src/teleop/keyboard_teleop/keyboard_teleop.py`, task-space IK) takes the same `--record` flags and writes the same format.
 
 ## 2. Data contract
 
@@ -51,7 +49,7 @@ Camera poses and lenses: `pioneer_humanoid/arm_params.py`.
 
 ## 3. Train
 
-In the `simulation_isaac` container (`train-policy` is `lerobot_train` at the pinned LeRobot commit):
+In the `simulation_isaac` container, you can train a end2end policy with methods like ACT like listed below or use any other method to push for a high eval success rate:
 
 ```bash
 train-policy \
@@ -65,7 +63,7 @@ train-policy \
 
 Flag pitfalls (`--steps`, not epochs; always `--policy.push_to_hub=false` for local runs) are listed in the [SO101 README](../simulation/so101_vial_task/README.md), which uses the same command.
 
-There is no sim rollout script for a trained Pioneer policy yet. `rtc_driver.py` is the Real-Time Chunking driver for flow-matching policies (pi0 / pi0.5 / SmolVLA) that such a script would use.
+There is no sim rollout script for a trained Pioneer policy yet. Will be added soon. There are other scripts like `rtc_driver.py` as the Real-Time Chunking driver for flow-matching policies (pi0 / pi0.5 / SmolVLA) that can be used and will be polished more soon.
 
 ## 4. Real arm (planned)
 
