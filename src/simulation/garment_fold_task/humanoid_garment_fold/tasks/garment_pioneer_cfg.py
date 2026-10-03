@@ -63,15 +63,13 @@ class GarmentPioneerEnvCfg(GarmentEnvCfg):
     # Front axis is +X (see bimanual_vial_rack.sh); rotated +90deg about Z to
     # face the garment at world ~(0,0,0.73).
     #
-    # Y=-0.40, Z=0.95: found by sampling real reachable workspace (FK over
-    # joint limits, scripts/fk_reach_check.py) -- gets within ~1cm of the
-    # garment vs. ~10-25cm short at the prior (0,-0.63,1.1997), confirmed with
-    # scripts/reach_pose_ik.py. Trade-off: Z=1.1997 is the stand's true
-    # floor-standing height but was reach-infeasible from there, so this
-    # re-sinks the stand ~25cm into the floor -- accepted, reach over visual
-    # placement. (The apartment scene's floor+table are one baked prim, not
-    # independently raisable; the Table038 fallback could be, at the cost of
-    # the photoreal backdrop -- not done here.)
+    # Y=-0.40, Z=0.95: reach-tested, gets within ~1cm of the garment vs.
+    # ~10-25cm short at the prior (0,-0.63,1.1997). Trade-off: Z=1.1997 is the
+    # stand's true floor-standing height but was reach-infeasible from there,
+    # so this re-sinks the stand ~25cm into the floor -- accepted, reach over
+    # visual placement. (The apartment scene's floor+table are one baked
+    # prim, not independently raisable; the Table038 fallback could be, at
+    # the cost of the photoreal backdrop -- not done here.)
     robot_base_pos: tuple = (0.0, -0.40, 0.95)
     robot_base_rot: tuple = (0.7071068, 0.0, 0.0, 0.7071068)  # wxyz, +90 deg Z
 

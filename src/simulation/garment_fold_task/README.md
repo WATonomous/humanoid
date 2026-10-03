@@ -11,7 +11,7 @@ on a table; success is judged on the cloth's particle geometry.
 | `GarmentEnv` + particle cloth + success checker + reward | ✅ vendored (`lehome@a805ad2`, Apache-2.0, see `NOTICE`) |
 | Retargeted to one `pioneer_bimanual_arm` | ✅ `GarmentPioneerEnv`, gym id `Humanoid-GarmentFold-Bimanual-Pioneer-v0` |
 | Scene + garment on the table | ✅ loads, verified in this repo's `isaac_lab` image |
-| Arm base pose vs. the garment | ✅ `(0, -0.40, 0.95)` -- reach-tested (`scripts/fk_reach_check.py`); re-sinks the stand ~25cm into the floor as a trade-off, see `garment_pioneer_cfg.py` |
+| Arm base pose vs. the garment | ✅ `(0, -0.40, 0.95)` -- reach-tested; re-sinks the stand ~25cm into the floor as a trade-off, see `garment_pioneer_cfg.py` |
 | **Arm default joint pose** | ⚠️ droops at rest -- idle pose isn't fold-ready. Reach *while driven* works fine; this is only about the resting pose. |
 | Wrist camera offsets | ✅ fixed -- CAD-sourced mount from `pioneer_humanoid.arm_params.CAMERAS` |
 | Full 600-step episode / success-checker | ✅ runs clean end-to-end (~55s on an RTX 4060) |
@@ -105,10 +105,10 @@ headless, short of the live keyboard loop itself.
 
 ## To finish
 
-1. **Reach works; grasping/pinching doesn't.** `scripts/reach_pose_ik.py`
-   gets within ~1-5mm of the garment. The 4 gripper prismatic joints still
-   need tuning to actually pinch fabric, and the *default/idle* pose droops
-   (separate from reach, which works fine when actively driven).
+1. **Reach works (within ~1-5mm, IK-driven); grasping/pinching doesn't.** The
+   4 gripper prismatic joints still need tuning to actually pinch fabric, and
+   the *default/idle* pose droops (separate from reach, which works fine
+   when actively driven).
 2. **Full garment set**: `hf download lehome/asset_challenge` → `garment_cfg_base_path`.
 3. **Data + training**: pioneer teleop → record demos → `lerobot-train` with
    LeHome's ACT / DP / SmolVLA configs.
