@@ -76,7 +76,7 @@ Full checklist (power, CANable udev, calibrate, smoke test):
 
 → [src/interfacing/can/README.md](src/interfacing/can/README.md)
 
-For the full **calibrate → visualize → move** sequence: [ARM_BRINGUP.md](ARM_BRINGUP.md)
+For the full **calibrate → visualize → move** sequence: [src/interfacing/README.md](src/interfacing/README.md)
 
 ```bash
 ./src/interfacing/can/scripts/can_udev.sh install   # once per host → /dev/canable
