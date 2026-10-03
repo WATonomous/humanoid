@@ -1,8 +1,8 @@
 # humanoid-garment-fold
 
 Bimanual **garment-folding** Isaac Lab task for the WATonomous `pioneer_bimanual_arm`,
-ported from the LeHome Challenge (ICRA 2026). Fold long/short tops and
-long/short pants on a table; success is judged on the cloth's particle geometry.
+ported from the LeHome Challenge. Fold long/short tops and long/short pants
+on a table; success is judged on the cloth's particle geometry.
 
 ## Status
 
