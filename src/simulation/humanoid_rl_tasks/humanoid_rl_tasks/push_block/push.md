@@ -1,17 +1,17 @@
-# Push-Block Task (SO-ARM101)
+# Push-Block Task (bimanual arm)
 
 The arm pushes a cube along a table, up a full-width ramp, and onto the flat
 elevated interior floor of an open box. The gripper is **not** actuated — it is
 held closed and used purely as a pushing tool, so the policy can only push, never
 grasp.
 
-- **Task package:** `isaac_so_arm101.tasks.push`
+- **Task package:** `humanoid_rl_tasks.push_block`
 - **Gym IDs:**
-  - `Isaac-SO-ARM101-Push-Block-v0` — training (512 envs by default)
-  - `Isaac-SO-ARM101-Push-Block-Play-v0` — evaluation (16 envs, no obs corruption)
-  - `Isaac-SO-ARM101-Push-Block-Distill-v0` — vision distillation (camera + teacher/student obs)
-  - `Isaac-SO-ARM101-Push-Block-Distill-Play-v0` — play distilled student
-- **RL agent:** RSL-RL PPO (`agents/rsl_rl_ppo_cfg.py`), experiment name `push_so101`
+  - `Isaac-Bimanual-Push-Block-v0` — training (512 envs by default)
+  - `Isaac-Bimanual-Push-Block-Play-v0` — evaluation (16 envs, no obs corruption)
+  - `Isaac-Bimanual-Push-Block-Distill-v0` — vision distillation (camera + teacher/student obs)
+  - `Isaac-Bimanual-Push-Block-Distill-Play-v0` — play distilled student
+- **RL agent:** RSL-RL PPO (`agents/rsl_rl_ppo_cfg.py`), experiment name `push_bimanual`
 
 ---
 
@@ -59,14 +59,14 @@ uv run list_envs | grep Push
 Sanity-check the environment with dummy agents (opens the GUI):
 
 ```bash
-uv run zero_agent   --task Isaac-SO-ARM101-Push-Block-Play-v0   # zero actions
-uv run random_agent --task Isaac-SO-ARM101-Push-Block-Play-v0   # random actions
+uv run zero_agent   --task Isaac-Bimanual-Push-Block-Play-v0   # zero actions
+uv run random_agent --task Isaac-Bimanual-Push-Block-Play-v0   # random actions
 ```
 
 ### Train
 
 ```bash
-uv run train --task Isaac-SO-ARM101-Push-Block-v0 --headless
+uv run train --task Isaac-Bimanual-Push-Block-v0 --headless
 ```
 
 Useful flags (provided by the host project's RSL-RL training entry point):
@@ -82,7 +82,7 @@ Checkpoints are written to `outputs/rl/push_block/<timestamp>[_<run_name>]/`
 **Resume / finetune** from an existing checkpoint:
 
 ```bash
-uv run train --task Isaac-SO-ARM101-Push-Block-v0 --headless \
+uv run train --task Isaac-Bimanual-Push-Block-v0 --headless \
   --resume --load_run <folder_name> --checkpoint model_1998.pt \
   --run_name my_finetune --max_iterations 3000
 ```
@@ -90,7 +90,7 @@ uv run train --task Isaac-SO-ARM101-Push-Block-v0 --headless \
 ### Evaluate (play)
 
 ```bash
-uv run play --task Isaac-SO-ARM101-Push-Block-Play-v0 --load_run <folder_name>
+uv run play --task Isaac-Bimanual-Push-Block-Play-v0 --load_run <folder_name>
 ```
 
 Play exports `exported/policy.pt` (TorchScript) and `policy.onnx` before the
@@ -191,8 +191,8 @@ not RSL-RL's MLP-only DistillationRunner.
 
 ```bash
 PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/distill_push.py \
-  --task Isaac-SO-ARM101-Push-Block-Distill-v0 --headless --enable_cameras \
-  --teacher outputs/rl/push_so101/<run>/model_XXXX.pt \
+  --task Isaac-Bimanual-Push-Block-Distill-v0 --headless --enable_cameras \
+  --teacher outputs/rl/push_bimanual/<run>/model_XXXX.pt \
   --num_envs 64 --max_iterations 2000
 ```
 
@@ -200,7 +200,7 @@ PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/distill_push.py \
 
 ```bash
 PYTHONPATH=$(pwd) $ISAACLAB/isaaclab.sh -p $RL_RUNNERS/play_distill_push.py \
-  --task Isaac-SO-ARM101-Push-Block-Distill-Play-v0 --enable_cameras \
+  --task Isaac-Bimanual-Push-Block-Distill-Play-v0 --enable_cameras \
   --checkpoint outputs/rl/push_distill/<run>/nn/student_XXXX.pt --num_envs 16
 ```
 

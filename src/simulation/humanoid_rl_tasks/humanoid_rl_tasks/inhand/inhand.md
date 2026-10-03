@@ -19,7 +19,7 @@ Run inside the **`simulation_isaac`** container (Isaac Lab 2.3.2 / Sim 5.1). Hos
 
 ```bash
 # Host: start container
-cd ~/Desktop/humanoid && ./watod up -d && ./watod -t simulation_isaac_dev
+cd ~/Desktop/humanoid && ./watod up -d && ./watod -t simulation_isaac
 
 # Inside container — run from $HUMANOID_ROOT (src/simulation/humanoid_rl/)
 cd $HUMANOID_ROOT

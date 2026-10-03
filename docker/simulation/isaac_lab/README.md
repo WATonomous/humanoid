@@ -26,15 +26,15 @@ GUI uses **X11 to host display** (same as [workshop `teleop-docker`](https://git
 ## 2. Build and launch
 
 ```bash
-./watod build simulation_isaac_dev          # first time ~12 min (large NGC pull); rebuild ~5–15 min
+./watod build simulation_isaac          # first time ~12 min (large NGC pull); rebuild ~5–15 min
 ./watod up -d
-./watod -t simulation_isaac_dev             # bash inside container
+./watod -t simulation_isaac             # bash inside container
 ```
 
 Rebuild clean after Dockerfile changes, or if `import torch` fails inside the container (packaging error):
 
 ```bash
-./watod build --no-cache simulation_isaac_dev
+./watod build --no-cache simulation_isaac
 ./watod down && ./watod up -d
 ```
 

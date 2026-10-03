@@ -9,7 +9,7 @@ hand poses over WSS to `quest_teleop_node`, which publishes:
 
 For the full Quest + Isaac Sim workflow, prefer
 [sim/README.md](../sim/README.md)
-(`ACTIVE_MODULES="simulation_isaac"`, shell into `simulation_isaac_dev`).
+(`ACTIVE_MODULES="simulation_isaac"`, shell into `simulation_isaac`).
 
 ## Start the Controller (standalone)
 
@@ -21,7 +21,7 @@ ACTIVE_MODULES="simulation_isaac"
 MODE_OF_OPERATION="develop"
 
 ./watod up -d
-./watod -t simulation_isaac_dev
+./watod -t simulation_isaac
 ```
 
 ### 2. Build and source the workspace
@@ -48,7 +48,7 @@ This starts the secure WebSocket server on port `9090`.
 From a second host terminal:
 
 ```bash
-./watod -t simulation_isaac_dev
+./watod -t simulation_isaac
 python3 /workspace/humanoid/src/teleop/quest_teleop/bridge/scripts/webxr_server.py
 ```
 

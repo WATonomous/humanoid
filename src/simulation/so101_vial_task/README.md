@@ -16,7 +16,7 @@ Use the **`simulation_isaac`** watod Docker image (Isaac Lab 2.3.2 + LeRobot). D
 ```bash
 # host
 ACTIVE_MODULES="simulation_isaac"   # in watod-config.local.sh
-./watod up -d && ./watod -t simulation_isaac_dev
+./watod up -d && ./watod -t simulation_isaac
 ```
 
 Assets (once, on host): `./assets/lerobot/sync_so101_vial_assets.sh --full` (see [`assets/lerobot/README.md`](../../../assets/lerobot/README.md)).

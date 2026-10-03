@@ -38,7 +38,7 @@ The harness does not stop your script afterward — when you're done iterating,
 stop it yourself with a graceful signal (see Gotchas below):
 
 ```bash
-docker exec watod_hy-simulation_isaac_dev-1 bash -c 'kill -SIGINT <pid>'
+docker exec watod_hy-simulation_isaac-1 bash -c 'kill -SIGINT <pid>'
 ```
 
 ### Multiple views in one launch, GUI mode
@@ -82,7 +82,7 @@ See "Two modes" below for when to reach for which.
 All three drivers accept `--cwd DIR` / `--timeout SECONDS` / an output path
 option, and `ISAAC_CONTAINER` / `ISAACLAB_SH_PATH` env vars if your container
 name or `isaaclab.sh` location differs from the WATonomous default
-(`watod_hy-simulation_isaac_dev-1`, `/workspace/isaaclab/isaaclab.sh`).
+(`watod_hy-simulation_isaac-1`, `/workspace/isaaclab/isaaclab.sh`).
 
 ## Two modes: GUI (xwd) vs headless (Camera sensor)
 
@@ -93,7 +93,7 @@ rather than assuming one is strictly better:
 |---|---|---|
 | How it captures | Real GUI window + `xwd` + manual PNG decode | `isaaclab.sensors.Camera` reading `.data.output["rgb"]`, saved with PIL |
 | Needs `$DISPLAY`/X11 | Yes | No |
-| Measured time (3-view capture, this repo's `simulation_isaac_dev` container, warm shader cache) | ~42s | ~37s (~12% faster) |
+| Measured time (3-view capture, this repo's `simulation_isaac` container, warm shader cache) | ~42s | ~37s (~12% faster) |
 | Output | Exactly what's on screen, including any UI you left open | Clean render, no UI chrome — usually the better default for "just show me the scene" |
 | When to prefer it | Debugging something UI-specific, or confirming what a human would actually see live on the desktop | Everything else — faster, no display dependency, more reliable for repeated iteration |
 

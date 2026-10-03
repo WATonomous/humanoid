@@ -22,7 +22,7 @@ run_quest_bimanual_teleop.py                   │
 Isaac Sim 5.1  (rendered on host monitor) ◄────┘
 ```
 
-All four processes run inside `simulation_isaac_dev`. The Quest browser connects
+All four processes run inside `simulation_isaac`. The Quest browser connects
 back to the host via `adb reverse` USB tunnels — no Wi-Fi or external network
 needed.
 
@@ -128,7 +128,7 @@ Isaac Sim's ~1-3 minute boot time (for the sim script).
 
 ```bash
 # From the host — is the container already up?
-docker ps --filter "name=simulation_isaac_dev"
+docker ps --filter "name=simulation_isaac"
 
 # Inside that container — are the ROS node / WebXR server / Isaac Sim
 # script already running?
@@ -172,10 +172,10 @@ adb reverse tcp:9090 tcp:9090
 No output = success. Run `adb devices` first to confirm the Quest is detected.
 This terminal is done.
 
-### Terminal 3 — simulation_isaac_dev: ROS 2 hand tracking node
+### Terminal 3 — simulation_isaac: ROS 2 hand tracking node
 
 ```bash
-cd ~/Documents/Wato/humanoid && ./watod -t simulation_isaac_dev
+cd ~/Documents/Wato/humanoid && ./watod -t simulation_isaac
 ```
 
 `.bashrc` automatically runs `colcon build` when you shell in. Wait for:
@@ -199,10 +199,10 @@ Wait for `[INFO] WSS server listening on port 9090`. Leave running.
 > `/root/ament_ws/install/quest_teleop/lib/quest_teleop/quest_teleop_node`
 > Then rebuild the image to get `ros2` CLI support.
 
-### Terminal 4 — simulation_isaac_dev: HTTPS WebXR page server
+### Terminal 4 — simulation_isaac: HTTPS WebXR page server
 
 ```bash
-cd ~/Documents/Wato/humanoid && ./watod -t simulation_isaac_dev
+cd ~/Documents/Wato/humanoid && ./watod -t simulation_isaac
 ```
 
 Wait for `Summary: 2 packages finished`, then:
@@ -213,10 +213,10 @@ python3 /workspace/humanoid/src/teleop/quest_teleop/bridge/scripts/webxr_server.
 
 Wait for `Serving at https://0.0.0.0:8443`. Leave running.
 
-### Terminal 5 — simulation_isaac_dev: Isaac Sim + IK script
+### Terminal 5 — simulation_isaac: Isaac Sim + IK script
 
 ```bash
-cd ~/Documents/Wato/humanoid && ./watod -t simulation_isaac_dev
+cd ~/Documents/Wato/humanoid && ./watod -t simulation_isaac
 ```
 
 Wait for `Summary: 2 packages finished`, then:

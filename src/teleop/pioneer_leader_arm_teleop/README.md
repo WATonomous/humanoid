@@ -32,9 +32,9 @@ The leader plugs in over USB (`/dev/ttyACM0`); the `simulation_isaac` container 
 
 ```bash
 # on the host, once: build and start the Isaac container
-./watod build simulation_isaac_dev        # rebuild after pulling Dockerfile or package changes
+./watod build simulation_isaac        # rebuild after pulling Dockerfile or package changes
 ./watod up -d
-./watod -t simulation_isaac_dev           # shell inside the container
+./watod -t simulation_isaac           # shell inside the container
 
 # inside the container
 cd /workspace/humanoid/src/teleop/pioneer_leader_arm_teleop
