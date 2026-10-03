@@ -1,9 +1,8 @@
 # humanoid-garment-fold
 
 Bimanual **garment-folding** Isaac Lab task for the WATonomous `pioneer_bimanual_arm`,
-ported from the [LeHome Challenge](https://github.com/lehome-official/lehome-challenge)
-(ICRA 2026). Fold long/short tops and long/short pants on a table; success is
-judged on the cloth's particle geometry, not the robot.
+ported from the LeHome Challenge (ICRA 2026). Fold long/short tops and
+long/short pants on a table; success is judged on the cloth's particle geometry.
 
 ## Status
 
@@ -120,5 +119,3 @@ headless, short of the live keyboard loop itself.
   photoreal apartment (NuRec `.usdz`) renders through the full Isaac Sim
   pipeline. Both are in the LeHome `Assets/scenes/marble/`; `scene_v1.usd` (the
   room mesh) ships in neither the repo nor the HF dataset.
-* Only the **fold** task is real. LeHome registers a `...-fling-v0` env but the
-  entry-point files aren't in the repo.
