@@ -49,16 +49,13 @@ _WRIST_RES = (480, 640)  # height, width
 
 
 def _wrist_cam_cfg(name: str) -> TiledCameraCfg:
-    """TiledCameraCfg for wrist camera `name`, mounted under the teleop
-    scene's `{ENV_REGEX_NS}/Robot` (not GarmentPioneerEnvCfg's `/World/Robot`
-    -- the registry always spawns the robot under the env-namespaced path).
-    Deliberately TiledCameraCfg, not the plain `Camera`/`CameraCfg` that
-    `pioneer_humanoid.bimanual_arm.make_camera_cfg` builds: a plain `Camera`
-    failed `_initialize_impl`'s `/isaaclab/cameras_enabled` carb check under
-    this scene's InteractiveScene+sim.reset() flow (verified -- RuntimeError
-    "spawned without --enable_cameras" even with the flag set); TiledCamera
-    doesn't hit that path and this is already the camera class
-    GarmentPioneerEnvCfg itself uses for every one of its cameras.
+    """TiledCameraCfg for wrist camera `name` under `{ENV_REGEX_NS}/Robot`
+    (not GarmentPioneerEnvCfg's `/World/Robot` -- the registry namespaces the
+    robot per-env). Deliberately not `pioneer_humanoid.bimanual_arm
+    .make_camera_cfg`, which builds a plain `Camera`: that fails the
+    `/isaaclab/cameras_enabled` check under this InteractiveScene+sim.reset()
+    flow even with --enable_cameras set (verified). TiledCamera doesn't hit
+    that check and is what GarmentPioneerEnvCfg's own cameras already use.
     """
     cam = _PIONEER_CAMERAS[name]
     h, w = _WRIST_RES

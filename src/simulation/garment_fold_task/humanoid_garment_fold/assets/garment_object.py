@@ -541,15 +541,11 @@ class GarmentObject(SingleClothPrim):
                 is_unique_fn=lambda x: not is_prim_path_valid(x),
             )
 
-            # MODIFIED (WATonomous): the committed vendor_assets sample garments
-            # don't ship their fabric texture USDs (only the full HF download
-            # does, see README "To finish"), so `path` is routinely missing
-            # here. Upstream's behavior in that case -- skip binding, leaving
-            # the mesh's bare default material -- renders the garment plain
-            # white, visually camouflaged against the (also white) marble
-            # table: only its shadow is visible, not the garment itself.
-            # Fall back to a flat, visibly-colored PreviewSurface instead so
-            # the garment is always distinguishable, texture or not.
+            # MODIFIED (WATonomous): committed vendor_assets garments don't
+            # ship their fabric texture USDs (full set = HF download, see
+            # README), so `path` is routinely missing. Upstream then leaves
+            # the mesh unbound -- plain white, invisible against the equally
+            # white table. Fall back to a flat visible color instead.
             if not os.path.isfile(path):
                 logger.warning(f"[GarmentObject] material USD not found, using a flat fallback color: {path}")
                 fallback = PreviewSurface(prim_path=mat_prim_path, color=np.array([0.65, 0.25, 0.2]))

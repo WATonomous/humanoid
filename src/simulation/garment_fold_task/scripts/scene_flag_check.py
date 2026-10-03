@@ -9,13 +9,8 @@ interactive part itself still needs to be checked on your own machine):
 STATUS (2026-10-03): passes. garment_fold registers correctly, the scene
 (worksurface + cameras) builds, sim.reset() succeeds, and post_init builds
 the GarmentObject -- confirmed the robot lands at the same reach-tested base
-pose GarmentPioneerEnvCfg uses. One real bug found and fixed getting here:
-the wrist cameras from `pioneer_humanoid.bimanual_arm.make_camera_cfg` build
-a plain `Camera` (not `TiledCamera`), which failed `_initialize_impl`'s
-`/isaaclab/cameras_enabled` carb check under this InteractiveScene+sim.reset()
-flow even with --enable_cameras set -- GarmentPioneerEnvCfg's own cameras are
-all TiledCamera, which doesn't hit that path. teleop_scene.py now builds its
-own TiledCameraCfg wrist cams instead of reusing make_camera_cfg.
+pose GarmentPioneerEnvCfg uses. See teleop_scene.py's `_wrist_cam_cfg` for a
+real camera-sensor bug this caught along the way.
 """
 import argparse
 

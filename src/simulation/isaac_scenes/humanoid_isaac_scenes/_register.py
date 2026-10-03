@@ -12,13 +12,11 @@ No edits to ``humanoid_isaac_scenes`` or the Dockerfile needed for that case.
 The scene declares ``robot = MISSING``; a teleop script plugs its own arm in
 via ``make_scene_cfg``.
 
-A scene whose assets can't be expressed as declarative cfg fields (e.g. a
+A scene with assets that can't be a declarative cfg field (e.g. a
 particle-cloth object built with a live constructor call, not a spawn-able
-``AssetBaseCfg``) can additionally pass ``post_init`` to ``@scene(...)``: a
-``post_init(scene, sim)`` callable run once, after ``InteractiveScene`` and
-``sim.reset()`` both exist, to finish constructing anything declarative cfg
-can't reach. ``keyboard_teleop.py`` calls this for every scene (a no-op for
-scenes that don't set one) -- see ``scene_post_init`` below.
+``AssetBaseCfg``) can also pass ``post_init`` to ``@scene(...)``: a
+``post_init(scene, sim)`` run once after ``InteractiveScene``/``sim.reset()``
+exist. ``keyboard_teleop.py`` calls this for every scene (a no-op if unset).
 """
 from __future__ import annotations
 
