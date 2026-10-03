@@ -6,17 +6,17 @@ on a table; success is judged on the cloth's particle geometry.
 
 ## Status
 
-| Piece | State |
-|---|---|
-| `GarmentEnv` + particle cloth + success checker + reward | ✅ vendored (`lehome@a805ad2`, Apache-2.0, see `NOTICE`) |
-| Retargeted to one `pioneer_bimanual_arm` | ✅ `GarmentPioneerEnv`, gym id `Humanoid-GarmentFold-Bimanual-Pioneer-v0` |
-| Scene + garment on the table | ✅ loads, verified in this repo's `isaac_lab` image |
-| Arm base pose vs. the garment | ✅ `(0, -0.40, 0.95)` -- reach-tested; re-sinks the stand ~25cm into the floor as a trade-off, see `garment_pioneer_cfg.py` |
-| **Arm default joint pose** | ⚠️ droops at rest -- idle pose isn't fold-ready. Reach *while driven* works fine; this is only about the resting pose. |
-| Wrist camera offsets | ✅ fixed -- CAD-sourced mount from `pioneer_humanoid.arm_params.CAMERAS` |
-| Full 600-step episode / success-checker | ✅ runs clean end-to-end (~55s on an RTX 4060) |
-| `keyboard_teleop.py --scene garment_fold` | ✅ works -- see "Interactive teleop" below |
-| Teleop → demos → LeRobot training | ❌ recording/training pipeline not wired |
+Runs end-to-end: scene + garment load, a full episode runs clean, and
+`keyboard_teleop.py --scene garment_fold` lets you drive the arm and touch
+the garment live (see "Interactive teleop" below).
+
+Known gaps:
+* **Default/idle pose droops** -- not fold-ready at rest (reach while
+  actively driven works fine; see `garment_pioneer_cfg.py`).
+* **Grasping/pinching untuned** -- the gripper hasn't been tuned against fabric.
+* **Arm base pose is a trade-off**: `(0, -0.40, 0.95)` was picked for reach,
+  which re-sinks the stand ~25cm into the floor -- see `garment_pioneer_cfg.py`.
+* **Teleop → demos → LeRobot training pipeline not wired.**
 
 ## Layout
 
