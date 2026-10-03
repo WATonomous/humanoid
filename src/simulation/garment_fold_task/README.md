@@ -75,13 +75,10 @@ ACTIVE_MODULES="simulation_isaac_garment" ./watod up -d
 ./watod -t simulation_isaac_garment_dev
 # inside the container:
 pip install -e src/pioneer_humanoid src/simulation/garment_fold_task --no-deps --no-build-isolation
-cd src/simulation/garment_fold_task
-isaaclab.sh -p scripts/smoke_test.py --garment Top_Long_Seen_1       # builds the env, resets, writes 4 camera PNGs
-isaaclab.sh -p scripts/full_episode_test.py --garment Top_Long_Seen_1 --steps 600  # full episode, no crash expected
 ```
 
-Both verified against a real `docker build` of `isaac_lab_garment.Dockerfile`,
-not just a hand-patched container.
+Verified against a real `docker build` of `isaac_lab_garment.Dockerfile`, not
+just a hand-patched container. See "Interactive teleop" below to actually try it.
 
 ### Interactive teleop
 
@@ -99,8 +96,7 @@ The garment (a particle cloth, not a declarative `AssetBaseCfg`) is built by a
 `post_init(scene, sim)` hook -- a small, generic addition to
 `humanoid_isaac_scenes/_register.py` and `keyboard_teleop.py`, a no-op for
 every scene that doesn't need one. `tasks/teleop_scene.py` is the single
-source of truth; `scripts/scene_flag_check.py` verifies the whole path
-headless, short of the live keyboard loop itself.
+source of truth.
 
 ## To finish
 
