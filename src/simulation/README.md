@@ -58,4 +58,4 @@ rl-play  --task=Isaac-Repose-Cube-PioneerHand-Play-v0 --num_envs=1
 ```
 
 Per-task notes: `humanoid_rl_tasks/humanoid_rl_tasks/<task>/*.md`. Full walkthrough:
-`docker/simulation/isaac_lab/QUICKSTART.md`.
+`docker/simulation/isaac_lab/README.md`.

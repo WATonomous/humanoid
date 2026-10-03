@@ -21,8 +21,10 @@ More info at Pioneer's website: https://watonomous.github.io/humanoid-docs/index
 
 ```bash
 cp watod-config.sh watod-config.local.sh   # set your ACTIVE_MODULES
-./watod up -d
-./watod -t <service>
+./watod up -d                 # start your modules
+./watod -t <service>          # shell into one (interfacing, perception, simulation_mj, ...)
+./watod build <service>       # rebuild after a Dockerfile / dependency change
+./watod down                  # stop
 ```
 
 Your `src/<module>` folder is mounted into the container, so edits on your machine show up inside it immediately without rebuild. Full setup and dev workflow: **[DEVELOPING.md](DEVELOPING.md)**.
@@ -34,7 +36,7 @@ Your `src/<module>` folder is mounted into the container, so edits on your machi
 | `simulation_isaac` | **Isaac Lab 2.3.2** — SO101 robot learning, RL tasks, Quest teleop |
 | `simulation_mj` | MuJoCo / mjlab RL |
 
-**Isaac Lab sim (recommended):** see [docker/simulation/isaac_lab/QUICKSTART.md](docker/simulation/isaac_lab/QUICKSTART.md).
+**Isaac Lab sim (recommended):** see [docker/simulation/isaac_lab/README.md](docker/simulation/isaac_lab/README.md).
 
 ## Repo map
 

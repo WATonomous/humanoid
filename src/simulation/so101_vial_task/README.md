@@ -11,8 +11,7 @@ Use the **`simulation_isaac`** watod Docker image (Isaac Lab 2.3.2 + LeRobot). D
 
 | Doc | Contents |
 |-----|----------|
-| **[`docker/simulation/isaac_lab/QUICKSTART.md`](../../../docker/simulation/isaac_lab/QUICKSTART.md)** | Container copy-paste: host setup, build, start, stop |
-| **[`docker/simulation/isaac_lab/README.md`](../../../docker/simulation/isaac_lab/README.md)** | Full container reference, troubleshooting |
+| **[`docker/simulation/isaac_lab/README.md`](../../../docker/simulation/isaac_lab/README.md)** | Container setup: host setup, build, launch, reference |
 
 ```bash
 # host
