@@ -27,7 +27,9 @@ cp watod-config.sh watod-config.local.sh   # set your ACTIVE_MODULES
 ./watod down                  # stop
 ```
 
-Your `src/<module>` folder is mounted into the container, so edits on your machine show up inside it immediately without rebuild. Full setup and dev workflow: **[DEVELOPING.md](DEVELOPING.md)**.
+Your `src/<module>` folder is mounted into the container, so edits on your machine show up inside it immediately without rebuild.
+
+`watod-config.sh` is shared defaults and is CI-guarded, so don't commit personal changes to it. Everything local goes in `watod-config.local.sh` (gitignored).
 
 | `ACTIVE_MODULES` | What it runs |
 |------------------|--------------|
@@ -79,3 +81,8 @@ For the full **calibrate → visualize → move** sequence: [ARM_BRINGUP.md](ARM
 ```bash
 ./src/interfacing/can/scripts/can_udev.sh install   # once per host → /dev/canable
 ```
+
+## Things to know
+
+- CI does **not** build `simulation_*` or `embedded`. A green check on those means nothing was built, so test them yourself.
+- Set a unique `ROS_DOMAIN_ID` (0–232) in `watod-config.local.sh` if someone else runs ROS on the same subnet, or you will see each other's topics.
