@@ -23,6 +23,12 @@ ARM_CONAFFINITY = 1
 
 FINGER_BODIES = ("link7", "link8", "link7l", "link8l")
 
+# Reflected motor inertia (kg m^2) on every revolute arm joint; the URDF has none. Without it the
+# light distal links (forearm roll ~7e-4 kg m^2 against kp 1550) form a mode too fast for the
+# 1-2 ms step: grasp contacts excite it, the fingers chatter, and a held object spins out of the
+# jaws. Any geared motor has far more than this. Isaac's implicit PD drives don't need it.
+ARM_ARMATURE = 0.01
+
 
 def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec:
     """MjSpec of the arm: base_link fixed at the origin, one position actuator per joint (named after it).
@@ -47,7 +53,7 @@ def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec
             geom.contype = ARM_CONTYPE
             geom.conaffinity = ARM_CONAFFINITY
 
-    for group in ACTUATOR_GROUPS.values():
+    for group_name, group in ACTUATOR_GROUPS.items():
         for name in group["joints"]:
             act = spec.add_actuator()
             act.name = name
@@ -56,6 +62,8 @@ def arm_spec(cameras: dict[str, tuple[int, int]] | None = None) -> mujoco.MjSpec
             act.set_to_position(kp=group["stiffness"], kv=group["damping"])
             act.forcelimited = mujoco.mjtLimited.mjLIMITED_TRUE
             act.forcerange = [-group["effort_limit"], group["effort_limit"]]
+            if "gripper" not in group_name:
+                spec.joint(name).armature = ARM_ARMATURE
 
     _box_fingers(spec)
     for name, (height, width) in (cameras or {}).items():
