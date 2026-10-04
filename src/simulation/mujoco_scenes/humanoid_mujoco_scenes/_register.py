@@ -13,9 +13,19 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 import mujoco
+import numpy as np
 
 # base_link lift that puts the stand's feet on the floor (z=0); same value as Isaac's push scene.
 ROBOT_STAND_LIFT_Z = 1.1997
+
+# 1 ms: at 2 ms a carried object still shifts ~4 mm in the jaws (2 mm at 1 ms). CPU cost is ~20 ms per
+# simulated second, far below the camera rendering when recording.
+TIMESTEP = 0.001
+# Contact time constant 4 ms (>= 2 x TIMESTEP), solimp near 1: ~0.5 mm penetration under a grasp.
+CONTACT_SOLREF = [0.004, 1.0]
+CONTACT_SOLIMP = [0.95, 0.99, 0.001, 0.5, 2.0]
+_DEFAULT_SOLREF = [0.02, 1.0]
+_DEFAULT_SOLIMP = [0.9, 0.95, 0.001, 0.5, 2.0]
 
 
 @dataclass
@@ -93,12 +103,22 @@ def make_model(name: str, cameras: dict[str, tuple[int, int]] | None = None) -> 
     entry = _REGISTRY[name]
     spec = mujoco.MjSpec()
     spec.modelname = name
-    spec.option.timestep = 0.002
+    spec.option.timestep = TIMESTEP
     # Implicit damping keeps the stiff arm PD (kp up to 2270) stable at this step.
     spec.option.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
+    # Grasping: elliptic friction cones with impratio 10 hold a squeezed object instead of
+    # letting it creep (MuJoCo's defaults, pyramidal + 1, are soft in the tangential direction).
+    spec.option.cone = mujoco.mjtCone.mjCONE_ELLIPTIC
+    spec.option.impratio = 10.0
     spec.visual.global_.offwidth = 1280
     spec.visual.global_.offheight = 960
     entry.build(spec)
     frame = spec.worldbody.add_frame(pos=list(entry.robot_pos))
     frame.attach_body(arm_spec(cameras).body("base_link"), "", "")
+    for geom in spec.geoms:
+        # Stiffer than MuJoCo's default contact (0.02 s, 0.9-0.95), which lets a 50 g peg sink mm
+        # into the fingers and eats a 1 mm insertion clearance. Geoms a scene tuned are left alone.
+        if np.allclose(geom.solref, _DEFAULT_SOLREF) and np.allclose(geom.solimp, _DEFAULT_SOLIMP):
+            geom.solref = CONTACT_SOLREF
+            geom.solimp = CONTACT_SOLIMP
     return spec.compile()

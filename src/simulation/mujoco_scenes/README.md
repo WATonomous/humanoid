@@ -52,5 +52,9 @@ def build(spec: mujoco.MjSpec) -> None:
 ## Differences from Isaac
 
 - Finger collisions are boxes fitted to each finger mesh (MuJoCo's convex hulls are rounded and let a held object slip).
+- Contact settings for grasping (`_register.py`): 1 ms step, elliptic friction cones with `impratio` 10, and
+  stiffer contacts (`solref` 0.004 s, `solimp` 0.95–0.99) on every geom a scene leaves at MuJoCo's defaults.
+  Arm joints carry 0.01 kg m² armature (`mujoco_bimanual_arm.ARM_ARMATURE`). Without these a grasped object
+  spins and slides out of the jaws and sinks millimetres into them.
 - Arm self-collisions are off, as in Isaac.
 - Robot cameras (`make_model(name, cameras={...})`) use the same mounts and lenses as Isaac (`pioneer_humanoid/arm_params.py`).
