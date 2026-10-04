@@ -17,9 +17,6 @@ python src/teleop/pioneer_leader_arm_teleop/pioneer_leader_arm_teleop.py --targe
 
 # headless check: render the scene with the arm at home
 MUJOCO_GL=egl python -m humanoid_mujoco_scenes.preview --scene peg_insert --png peg.png
-
-# headless contact check: scripted pick-lift-carry of the peg; exit 1 if it slips, spins or chatters
-python -m humanoid_mujoco_scenes.grasp_check --scene peg_insert --object peg
 ```
 
 ## Add a scene
@@ -58,6 +55,6 @@ def build(spec: mujoco.MjSpec) -> None:
 - Contact settings for grasping (`_register.py`): 1 ms step, elliptic friction cones with `impratio` 10, and
   stiffer contacts (`solref` 0.004 s, `solimp` 0.95–0.99) on every geom a scene leaves at MuJoCo's defaults.
   Arm joints carry 0.01 kg m² armature (`mujoco_bimanual_arm.ARM_ARMATURE`). Without these a grasped object
-  spins and slides out of the jaws and sinks millimetres into them; `grasp_check` catches a regression.
+  spins and slides out of the jaws and sinks millimetres into them.
 - Arm self-collisions are off, as in Isaac.
 - Robot cameras (`make_model(name, cameras={...})`) use the same mounts and lenses as Isaac (`pioneer_humanoid/arm_params.py`).
