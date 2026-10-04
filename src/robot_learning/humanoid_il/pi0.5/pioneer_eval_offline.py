@@ -48,13 +48,14 @@ REPLAN_STEPS = 10             # actions executed per predicted chunk before repl
 
 # ---- 1. Arguments ----
 parser = argparse.ArgumentParser()
-parser.add_argument("--checkpoint", default=str(HERE / "checkpoint"))
+parser.add_argument("--checkpoint", default=None,
+                    help="checkpoint folder or Hub repo id (default: newest checkpoints/step_*)")
 parser.add_argument("--train_episodes", type=int, default=5, help="training episodes to score for comparison")
 parser.add_argument("--out", default=str(HERE / "eval"))
 parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--replot", action="store_true", help="redraw from <out>/predictions.npz, skip the model")
 parser.add_argument("--train_log", default=str(HERE / "checkpoints" / "train_log.csv"),
-                    help="per-update losses written by pioneer_train_cloud.py / pioneer_train_limited.py")
+                    help="per-update losses written by pioneer_train_cloud.py")
 args = parser.parse_args()
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
@@ -71,6 +72,7 @@ def to_display_units(a):
 # ---- 2. Predict a chunk at every frame of the held-out + a few training episodes ----
 def run_policy():
     import torch
+    from lerobot.configs.policies import PreTrainedConfig
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
     from lerobot.policies.factory import make_pre_post_processors
     from lerobot.policies.pi05.modeling_pi05 import PI05Policy
@@ -85,10 +87,19 @@ def run_policy():
     train_eps = random.Random(args.seed).sample(train_eps, min(args.train_episodes, len(train_eps)))
     starts, ends = ds.meta.episodes["dataset_from_index"], ds.meta.episodes["dataset_to_index"]
 
+    if args.checkpoint is None:
+        steps = sorted((HERE / "checkpoints").glob("step_*"))
+        if not steps:
+            raise SystemExit(f"no checkpoints in {HERE / 'checkpoints'}; train first or pass --checkpoint")
+        args.checkpoint = str(steps[-1])
     if not Path(args.checkpoint).exists():   # a Hub repo id: fetch it so action_space.json is on disk too
         from huggingface_hub import snapshot_download
         args.checkpoint = snapshot_download(args.checkpoint)
-    policy = PI05Policy.from_pretrained(args.checkpoint).eval()
+    # pioneer_train_cloud.py saves fp32 weights (14.5 GB), more than a 12 GB GPU holds; evaluation
+    # needs no fp32, so build the model in bf16 (the weights are cast as they load)
+    config = PreTrainedConfig.from_pretrained(args.checkpoint)
+    config.dtype = "bfloat16"
+    policy = PI05Policy.from_pretrained(args.checkpoint, config=config).eval()
     preprocess, postprocess = make_pre_post_processors(policy.config, pretrained_path=args.checkpoint)
     action_space_delta = load_action_space_delta(args.checkpoint)
     print(f"[EVAL] checkpoint predicts {'delta' if action_space_delta else 'absolute'} actions", flush=True)

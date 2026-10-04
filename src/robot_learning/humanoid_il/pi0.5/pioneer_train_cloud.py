@@ -1,3 +1,14 @@
+"""Fine-tune pi0.5 (lerobot/pi05_base) on notmaxxx/pioneer_vla_pick_place, the Pioneer left arm.
+
+Sized for one 48 GB GPU (A40 / A6000); the VLM is frozen and only the action expert trains.
+Before running: `hf auth login` (write token: the final checkpoint is pushed to HUB_REPO_ID),
+`wandb login` (or USE_WANDB = False), and ~40 GB of disk (pi05_base + one fp32 checkpoint).
+
+    python pioneer_train_cloud.py         # from this folder: action_space.py sits next to it
+
+Writes checkpoints/step_XXXXXX/ (keeps the newest KEEP_LAST) and checkpoints/train_log.csv,
+which pioneer_eval_offline.py evaluates and plots.
+"""
 import csv
 import math
 import random
@@ -53,7 +64,7 @@ DECAY_STEPS = 1000   # LR holds constant, then decays over the final DECAY_STEPS
 MIN_LR_FRAC = 0.1    # LR at the last update, as a fraction of the peak
 VAL_EVERY = 250       # often enough to see where train and val loss diverge
 SAVE_EVERY = 3000    # weight updates between checkpoints
-KEEP_LAST = 1        # each checkpoint is ~7.5 GB, so only keep the newest
+KEEP_LAST = 1        # each checkpoint is ~14.5 GB (fp32 weights), so only keep the newest
 CKPT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "checkpoints")
 LOG_PATH = os.path.join(CKPT_DIR, "train_log.csv")  # pioneer_eval_offline.py plots this as training_curves.png
 # True: arm actions relative to the state the chunk was planned from; False: the dataset's raw
