@@ -108,6 +108,14 @@ RUN $PYTHON -m pip install -c /tmp/constraints.txt \
     "deepdiff>=7.0.1,<9.0.0" \
     "feetech-servo-sdk>=1.0.0,<2.0.0"
 
+# pi0 / pi0.5 policies (src/robot_learning/humanoid_il/pi0.5). lerobot[pi] needs HF's openpi
+# transformers fork, not a PyPI release -- pinned to the commit the pinned lerobot above was
+# developed against (fix/lerobot_openpi, reports 4.53.3). The base PaliGemma tokenizer is gated:
+# `huggingface-cli login` on the host (HF_HOME is mounted).
+RUN $PYTHON -m pip install -c /tmp/constraints.txt \
+    "transformers @ git+https://github.com/huggingface/transformers.git@dcddb970176382c0fcf4521b0c0e6fc15894dfe0" \
+    "scipy>=1.11,<1.16"
+
 RUN curl --proto "=https" --tlsv1.2 -sSf -L -o /tmp/ffmpeg.tar.xz \
     https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-linux64-lgpl-shared-7.1.tar.xz && \
     tar -xf /tmp/ffmpeg.tar.xz -C /usr/local --strip-components=1 && \
